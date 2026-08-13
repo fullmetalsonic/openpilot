@@ -859,9 +859,11 @@ def create_ccnc_messages(CP, packer, CAN, frame, CC, CS, hud_control,
       if CS.adrv_0x1ea is not None:
         values = copy.copy(CS.adrv_0x1ea)
         rx_counter = values.pop("COUNTER", None)
-        # blinker hold
-        values['LEFT_BLINK_HOLD'] = 1 if lane_changing == 3 else 0
-        values['RIGHT_BLINK_HOLD'] = 1 if lane_changing == 4 else 0
+        # Never hold the physical turn signal for an automated lane change.
+        # The lane-change state remains active, but the vehicle can cancel the
+        # indicator as soon as the driver releases the stalk.
+        values['LEFT_BLINK_HOLD'] = 0
+        values['RIGHT_BLINK_HOLD'] = 0
 
         _make_ccnc_values(
           values, CS, lat_active, frame, hud_control,
