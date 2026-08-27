@@ -1156,6 +1156,7 @@ class RadarMotionShadowSelector:
           time_s=frame.time_s,
           stationary_points=stationary_points,
           enable_radar_tracks=self.enable_radar_tracks,
+          yaw_rate_rad_s=frame.yaw_rate_rad_s,
         )
         if match is not None:
           lead_one_results.append(lead_from_vision_match(match))
@@ -1338,6 +1339,11 @@ class RadarMotionShadowSelector:
               prediction,
               point.d_rel,
               point.v_rel,
+              v_ego=frame.v_ego,
+              cross_sensor_confirmed=(
+                (prediction.source, prediction.track_id)
+                in front_kinematic_matches
+              ),
             ),
           )
           for prediction in predictions.values()

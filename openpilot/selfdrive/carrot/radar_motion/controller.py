@@ -592,6 +592,7 @@ class DPathRadarController:
       path,
       time_s=time_s,
       enable_radar_tracks=self.enable_radar_tracks,
+      yaw_rate_rad_s=yaw_rate_rad_s,
     )
     lead_one = None
     if primary_match is not None:
@@ -745,6 +746,11 @@ class DPathRadarController:
             prediction,
             point.d_rel,
             point.v_rel,
+            v_ego=v_ego,
+            cross_sensor_confirmed=(
+              (prediction.source, prediction.track_id)
+              in front_kinematic_matches
+            ),
           ),
         )
         for prediction in predictions.values()
