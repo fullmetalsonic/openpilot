@@ -31,6 +31,7 @@
               "zh": "自动巡航",
               "params": [
                 "AutoCruiseControl",
+                "SoftHoldOnCancel",
                 "AutoGasTokSpeed",
                 "AutoGasCancelSpeed",
                 "AutoGasSyncSpeed",
@@ -249,6 +250,7 @@
                 "VehicleNaviCurveControl",
                 "VehicleNaviCurveMppControl",
                 "VehicleNaviCurveSpeedFactor",
+                "VehicleNaviCurveCtrlEnd",
                 "TurnSpeedControlMode",
                 "MapTurnSpeedFactor",
                 "ModelTurnSpeedFactor",
@@ -1720,6 +1722,22 @@
     },
     {
       "group": "오토크루즈",
+      "name": "SoftHoldOnCancel",
+      "title": "캔슬 상태 소프트홀드 허용(0)",
+      "descr": "0:캔슬 상태에서는 소프트홀드를 사용하지 않음\n1:캔슬 상태에서도 정차 후 소프트홀드를 허용",
+      "egroup": "AUTOCRUISE",
+      "etitle": "Allow Soft Hold After Cancel(0)",
+      "edescr": "0:Disable soft hold while cruise is canceled\n1:Allow soft hold to engage after stopping in the canceled state",
+      "cgroup": "自动巡航",
+      "ctitle": "取消后允许软驻车(0)",
+      "cdescr": "0:巡航取消状态下禁用软驻车\n1:巡航取消状态下停车后允许软驻车",
+      "min": 0,
+      "max": 1,
+      "default": 0,
+      "unit": 1
+    },
+    {
+      "group": "오토크루즈",
       "name": "AutoGasTokSpeed",
       "title": "오토크루즈: 엑셀톡 시작속도",
       "descr": "엑셀톡기능:가속페달을 톡 밟았다가 뗌\n설정속도 이상에서 작동",
@@ -2894,6 +2912,23 @@
       "default": 100,
       "unit": 10,
       "display_unit": "percent"
+    },
+    {
+      "group": "감속제어",
+      "name": "VehicleNaviCurveCtrlEnd",
+      "title": "차량 내비 커브 감속완료 시간(3초)",
+      "descr": "0x4BA 곡률 지점 몇 초 전까지 목표속도에 도달할지 설정합니다. 작을수록 커브에 더 가까이 가서 감속하며 주행 중 변경하면 약 1초 이내에 적용됩니다.",
+      "egroup": "SPEED",
+      "etitle": "Stock Navigation Curve Decel End (3s)",
+      "edescr": "Sets how many seconds before the 0x4BA curvature spot the target speed is reached. Lower values delay deceleration. Changes take effect while driving.",
+      "cgroup": "速度控制",
+      "ctitle": "原车导航弯道减速完成时间 (3秒)",
+      "cdescr": "设置在 0x4BA 曲率点前多少秒达到目标速度。数值越小，减速越晚。",
+      "min": 0,
+      "max": 10,
+      "default": 3,
+      "unit": 1,
+      "display_unit": "timeSec"
     },
     {
       "group": "감속제어",
