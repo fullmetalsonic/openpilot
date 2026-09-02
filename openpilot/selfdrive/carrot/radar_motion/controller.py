@@ -30,6 +30,7 @@ from openpilot.selfdrive.carrot.radar_motion.primary import (
   lead_from_radar_point,
   match_dpath_primary_lead,
   prefer_front_radar_kinematics,
+  snapshot_live_radar_points,
   snapshot_radar_points,
   stationary_vision_support_probability,
   vision_only_lead_allowed,
@@ -317,19 +318,17 @@ class RadarLeadDynamics:
   def update(
     self,
     points: tuple[RadarPointSnapshot, ...],
-    radar_reaction_factor: float,
   ) -> None:
-    factor = max(0.0, float(radar_reaction_factor))
     active: set[tuple[str, int]] = set()
     for point in points:
       identity = point.source, point.track_id
       active.add(identity)
       a_lead_tau = self._a_lead_tau.get(identity, LEAD_ACCEL_TAU_S)
       if (
-        abs(point.a_lead) < 0.5 * factor
+        abs(point.a_lead) < 0.5
         and abs(point.j_lead) < 0.5
       ):
-        a_lead_tau = LEAD_ACCEL_TAU_S * factor
+        a_lead_tau = LEAD_ACCEL_TAU_S
       else:
         a_lead_tau *= 1.0 - LEAD_ACCEL_FILTER_ALPHA
       self._a_lead_tau[identity] = a_lead_tau
@@ -355,8 +354,10 @@ class DPathRadarController:
     cut_in_sensitivity: int = 3,
     front_radar_measurement_delay_s: float = 0.0,
     corner_radar_measurement_delay_s: float = CORNER_RADAR_MEASUREMENT_DELAY_S,
+    production_live_tracks: bool = False,
   ) -> None:
     self.primary_matcher = VisionRadarMatcher()
+    self.scc_primary_fallback_matcher = VisionRadarMatcher()
     self.enable_radar_tracks = int(enable_radar_tracks)
     self.front_radar_measurement_delay_s = max(
       0.0, float(front_radar_measurement_delay_s),
@@ -364,6 +365,7 @@ class DPathRadarController:
     self.corner_radar_measurement_delay_s = max(
       0.0, float(corner_radar_measurement_delay_s),
     )
+    self.production_live_tracks = bool(production_live_tracks)
     self.motion_sensor = "corner" if prefer_corner_radar else "front"
     self.cut_in_sensitivity = max(0, min(5, int(cut_in_sensitivity)))
     self._reset_motion_pipeline()
@@ -390,8 +392,17 @@ class DPathRadarController:
     aligned: list[RadarPointSnapshot] = []
     batch: list[Any] = []
     batch_time_delta_s: float | None = None
+    snapshotter = (
+      snapshot_live_radar_points
+      if self.production_live_tracks
+      else snapshot_radar_points
+    )
     for point in radar_points:
-      source = str(getattr(point, "radarSource", getattr(point, "source", "")))
+      source = (
+        str(point.radarSource)
+        if self.production_live_tracks
+        else str(getattr(point, "radarSource", getattr(point, "source", "")))
+      )
       measurement_delay_s = (
         self.corner_radar_measurement_delay_s
         if source.rsplit(".", 1)[-1].startswith("corner")
@@ -405,14 +416,14 @@ class DPathRadarController:
         and batch_time_delta_s is not None
         and time_delta_s != batch_time_delta_s
       ):
-        aligned.extend(snapshot_radar_points(
+        aligned.extend(snapshotter(
           batch, v_ego, batch_time_delta_s,
         ))
         batch.clear()
       batch.append(point)
       batch_time_delta_s = time_delta_s
     if batch and batch_time_delta_s is not None:
-      aligned.extend(snapshot_radar_points(
+      aligned.extend(snapshotter(
         batch, v_ego, batch_time_delta_s,
       ))
     return tuple(aligned)
@@ -533,11 +544,11 @@ class DPathRadarController:
     model: Any,
     yaw_rate_rad_s: float = 0.0,
     radar_to_model_time_s: float = 0.0,
-    radar_reaction_factor: float = 1.0,
   ) -> DPathRadarOutput:
     path = _model_path(model)
     if len(path) < 2:
       self.primary_matcher.reset()
+      self.scc_primary_fallback_matcher.reset()
       self.lead_two_tracker.reset()
       self.stationary_shadow_tracker.reset()
       self.stationary_primary_handoff_tracker.reset()
@@ -554,7 +565,7 @@ class DPathRadarController:
       v_ego,
       radar_to_model_time_s,
     )
-    self.lead_dynamics.update(points, radar_reaction_factor)
+    self.lead_dynamics.update(points)
     front_kinematic_matches = self.front_kinematic_associator.update(points)
 
     # This is intentionally first: model lead zero identifies leadOne with
@@ -568,6 +579,29 @@ class DPathRadarController:
       enable_radar_tracks=self.enable_radar_tracks,
       yaw_rate_rad_s=yaw_rate_rad_s,
     )
+    if primary_match is not None:
+      self.scc_primary_fallback_matcher.reset()
+    elif self.enable_radar_tracks == 2:
+      # Some Mando radars temporarily omit a close in-lane lead while the OEM
+      # SCC stream and vision still agree on it. Fill only a missing L1: using a
+      # separate matcher prevents SCC from replacing an existing front lead,
+      # and an empty stationary set forbids uncorroborated radar-only promotion.
+      primary_match = self.scc_primary_fallback_matcher.match(
+        model,
+        tuple(
+          point for point in points
+          if point.source == "scc" and point.d_rel > 0.2
+        ),
+        path,
+        time_s=time_s,
+        stationary_points=(),
+        prefer_corner_stationary=False,
+        prefer_primary_stationary=True,
+        yaw_rate_rad_s=yaw_rate_rad_s,
+        allowed_output_sources=frozenset(("scc",)),
+      )
+    else:
+      self.scc_primary_fallback_matcher.reset()
     lead_one = None
     if primary_match is not None:
       lead_one = self._lead_from_radar_point(
@@ -732,12 +766,16 @@ class DPathRadarController:
       ),
       default=None,
     )
-    front_motion_points = tuple(
-      point for point in points if point.source == "frontRadar"
-    )
-    front_scoped_motion_points = _scoped_motion_points(
-      front_motion_points, path,
-    )
+    if self.motion_sensor == "front":
+      front_motion_points = motion_points
+      front_scoped_motion_points = scoped_motion_points
+    else:
+      front_motion_points = tuple(
+        point for point in points if point.source == "frontRadar"
+      )
+      front_scoped_motion_points = _scoped_motion_points(
+        front_motion_points, path,
+      )
     primary_track_id = (
       int(lead_one.get("radarTrackId", -1))
       if lead_one is not None and lead_one.get("radar")

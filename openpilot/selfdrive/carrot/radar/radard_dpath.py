@@ -89,8 +89,8 @@ class DPathRadarD:
       enable_radar_tracks=params.get_int("EnableRadarTracks"),
       cut_in_sensitivity=PRODUCTION_CUT_IN_SENSITIVITY,
       front_radar_measurement_delay_s=float(CP.radarDelay),
+      production_live_tracks=True,
     )
-    self.params = params
     self.radar_state = log.RadarState.new_message()
     self.radar_state_valid = False
 
@@ -116,9 +116,6 @@ class DPathRadarD:
       model=sm["modelV2"],
       yaw_rate_rad_s=_yaw_rate(sm["livePose"]),
       radar_to_model_time_s=model_time_s - radar_time_s,
-      radar_reaction_factor=(
-        self.params.get_float("RadarReactionFactor") * 0.01
-      ),
     )
     self.radar_state.leadOne = output.lead_one or empty_lead()
     self.radar_state.leadTwo = output.lead_two or empty_lead()

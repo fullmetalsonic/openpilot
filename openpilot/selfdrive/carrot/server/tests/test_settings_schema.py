@@ -35,6 +35,49 @@ def test_the_catalogue_is_readable_and_populated(params):
   assert all(isinstance(p.get("name"), str) and p["name"] for p in params)
 
 
+def test_obsolete_lead_response_settings_are_removed(settings, params):
+  removed = {"JLeadFactor3", "RadarReactionFactor"}
+  by_name = {p["name"] for p in params}
+  assert removed.isdisjoint(by_name)
+  assert all(
+    removed.isdisjoint(group.get("params", []))
+    for category in settings["menu"]
+    for section in category.get("groups", [])
+    for group in section.get("groups", [])
+  )
+  params_keys = PARAMS_KEYS_PATH.read_text(encoding="utf-8")
+  assert all(name not in params_keys for name in removed)
+
+
+def test_automatic_driving_mode_exposes_manual_normal_and_eco_choices(params):
+  by_name = {p["name"]: p for p in params}
+  automatic = by_name["MyDrivingModeAuto"]
+  assert (automatic["min"], automatic["max"], automatic["default"]) == (0, 2, 0)
+  assert "1:일반↔안전" in automatic["descr"]
+  assert "2:에코↔안전" in automatic["descr"]
+
+
+def test_longitudinal_comfort_settings_use_driver_facing_language(params):
+  by_name = {p["name"]: p for p in params}
+
+  lead_response = by_name["DynamicTFollow"]
+  assert lead_response["default"] == 0
+  assert lead_response["display_unit"] == "percent"
+  assert "0%는 사용 안 함" in lead_response["descr"]
+
+  lane_change = by_name["DynamicTFollowLC"]
+  assert lane_change["default"] == 100
+  assert "100%는 변화 없음" in lane_change["descr"]
+
+  decel_margin = by_name["TFollowDecelBoost"]
+  assert decel_margin["default"] == 50
+  assert "목표 간격" in decel_margin["descr"]
+
+  driving_mode = by_name["MyDrivingMode"]
+  assert "ComfortBrake" not in driving_mode["descr"]
+  assert "멀리서부터 천천히 감속" in driving_mode["descr"]
+
+
 def test_c3x_lite_hardware_setting_is_exposed(settings, params):
   by_name = {p["name"]: p for p in params}
   c3x_lite = by_name["HardwareC3xLite"]
