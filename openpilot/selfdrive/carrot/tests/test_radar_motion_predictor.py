@@ -3224,6 +3224,126 @@ def test_primary_matcher_rejects_low_score_fresh_distant_side_match() -> None:
   assert match is None
 
 
+def test_stationary_front_rejects_opposite_side_uncertain_vision_match() -> None:
+  matcher = VisionRadarMatcher()
+  for index in range(8):
+    time_s = index * 0.05
+    point = snapshot_radar_points(
+      (
+        Point(
+          45,
+          69.8 - 9.54 * time_s,
+          1.32,
+          v_rel=-9.54,
+          source="frontRadar",
+        ),
+      ),
+      v_ego=9.05,
+    )[0]
+    model = model_with_lead(
+      62.35 - 4.13 * time_s,
+      -2.42,
+      4.92,
+      probability=0.72,
+    )
+    model.leadsV3[0].xStd = (10.8,)
+    model.leadsV3[0].yStd = (1.7,)
+    model.leadsV3[0].vStd = (3.25,)
+
+    match = matcher.match(
+      model,
+      (point,),
+      STRAIGHT_PATH,
+      time_s=time_s,
+      stationary_points=(point,),
+      prefer_primary_stationary=True,
+    )
+
+    assert match is None
+
+  assert matcher.stationary_identity is None
+
+
+def test_stationary_front_rejects_offset_moving_vision_median_reflection() -> None:
+  matcher = VisionRadarMatcher()
+  for index in range(8):
+    time_s = index * 0.05
+    point = snapshot_radar_points(
+      (
+        Point(
+          37,
+          30.8 - 10.0 * time_s,
+          0.8,
+          v_rel=-10.0,
+          source="frontRadar",
+        ),
+      ),
+      v_ego=10.0,
+    )[0]
+    match = matcher.match(
+      model_with_lead(
+        33.4 - 8.0 * time_s,
+        -0.5,
+        8.0,
+        probability=0.88,
+      ),
+      (point,),
+      STRAIGHT_PATH,
+      time_s=time_s,
+      stationary_points=(point,),
+      prefer_primary_stationary=True,
+      yaw_rate_rad_s=0.04,
+    )
+
+    assert match is None
+
+  assert matcher.stationary_identity is None
+
+
+def test_stationary_front_preserves_cross_sensor_support_during_turn() -> None:
+  matcher = VisionRadarMatcher()
+  match = None
+  for index in range(7):
+    time_s = index * 0.05
+    d_rel = 30.8 - 10.0 * time_s
+    front, corner = snapshot_radar_points(
+      (
+        Point(
+          37,
+          d_rel,
+          0.8,
+          v_rel=-10.0,
+          source="frontRadar",
+        ),
+        Point(
+          1037,
+          d_rel + 0.2,
+          0.8,
+          v_rel=-10.0,
+          source="corner235",
+        ),
+      ),
+      v_ego=10.0,
+    )
+    match = matcher.match(
+      model_with_lead(
+        d_rel + 2.6,
+        -0.5,
+        8.0,
+        probability=0.88,
+      ),
+      (front,),
+      STRAIGHT_PATH,
+      time_s=time_s,
+      stationary_points=(front, corner),
+      prefer_primary_stationary=True,
+      yaw_rate_rad_s=0.04,
+    )
+
+  assert match is not None
+  assert match.point.track_id == 37
+
+
 def test_stationary_radar_is_confirmed_once_then_retained_without_vision() -> None:
   matcher = VisionRadarMatcher()
   match = None
@@ -3552,6 +3672,142 @@ def test_stationary_front_corner_pair_survives_visual_range_outlier() -> None:
   assert match.point.source == "frontRadar"
   assert match.point.track_id == 45
   assert matcher.stationary_identity == ("frontRadar", 45)
+
+
+def test_corner_supported_stationary_front_releases_after_path_departure() -> None:
+  matcher = VisionRadarMatcher()
+  match = None
+  for index in range(7):
+    time_s = index * 0.05
+    d_rel = 40.0 - 10.0 * time_s
+    front, corner = snapshot_radar_points(
+      (
+        Point(
+          48, d_rel, 0.1, v_rel=-10.0, yv_rel=0.0,
+          source="frontRadar", trackState=2,
+        ),
+        Point(
+          1280, d_rel - 0.8, 0.3, v_rel=-10.0,
+          source="corner235",
+        ),
+      ),
+      v_ego=10.0,
+    )
+    match = matcher.match(
+      model_with_lead(d_rel, 0.1, 0.0, probability=0.90),
+      (front,),
+      STRAIGHT_PATH,
+      time_s=time_s,
+      stationary_points=(front, corner),
+      prefer_primary_stationary=True,
+    )
+
+  assert match is not None
+  assert match.point.track_id == 48
+
+  matches = []
+  for index, y_rel in enumerate(
+    (
+      0.4, 0.7, 1.0, 1.3, 1.6, 1.9, 2.1, 2.3,
+      2.5, 2.7, 2.8, 2.8, 2.8, 2.8,
+    ),
+    start=7,
+  ):
+    time_s = index * 0.05
+    d_rel = 40.0 - 10.0 * time_s
+    front, corner = snapshot_radar_points(
+      (
+        Point(
+          48, d_rel, y_rel, v_rel=-10.0, yv_rel=4.0,
+          source="frontRadar", trackState=2,
+        ),
+        Point(
+          1280, d_rel - 0.8, y_rel + 0.2, v_rel=-10.0,
+          source="corner235",
+        ),
+      ),
+      v_ego=10.0,
+    )
+    matches.append(matcher.match(
+      model_with_lead(
+        d_rel + 15.0, -3.0, 8.0, probability=0.08,
+      ),
+      (front,),
+      STRAIGHT_PATH,
+      time_s=time_s,
+      stationary_points=(front, corner),
+      prefer_primary_stationary=True,
+    ))
+
+  assert matches[0] is not None
+  assert all(match is not None for match in matches[:11])
+  assert any(match is None for match in matches[11:])
+  assert matches[-1] is None
+  assert matcher.stationary_identity is None
+
+
+def test_corner_supported_stationary_front_tolerates_brief_path_departure() -> None:
+  matcher = VisionRadarMatcher()
+  match = None
+  for index in range(7):
+    time_s = index * 0.05
+    d_rel = 40.0 - 10.0 * time_s
+    front, corner = snapshot_radar_points(
+      (
+        Point(
+          48, d_rel, 0.1, v_rel=-10.0,
+          source="frontRadar", trackState=2,
+        ),
+        Point(
+          1280, d_rel - 0.8, 0.3, v_rel=-10.0,
+          source="corner235",
+        ),
+      ),
+      v_ego=10.0,
+    )
+    match = matcher.match(
+      model_with_lead(d_rel, 0.1, 0.0, probability=0.90),
+      (front,),
+      STRAIGHT_PATH,
+      time_s=time_s,
+      stationary_points=(front, corner),
+      prefer_primary_stationary=True,
+    )
+
+  assert match is not None
+  for index, y_rel in enumerate(
+    (0.5, 0.9, 1.3, 1.7, 2.1, 2.4, 2.3, 1.8),
+    start=7,
+  ):
+    time_s = index * 0.05
+    d_rel = 40.0 - 10.0 * time_s
+    front, corner = snapshot_radar_points(
+      (
+        Point(
+          48, d_rel, y_rel, v_rel=-10.0, yv_rel=4.0,
+          source="frontRadar", trackState=2,
+        ),
+        Point(
+          1280, d_rel - 0.8, y_rel + 0.2, v_rel=-10.0,
+          source="corner235",
+        ),
+      ),
+      v_ego=10.0,
+    )
+    match = matcher.match(
+      model_with_lead(
+        d_rel + 15.0, -3.0, 8.0, probability=0.08,
+      ),
+      (front,),
+      STRAIGHT_PATH,
+      time_s=time_s,
+      stationary_points=(front, corner),
+      prefer_primary_stationary=True,
+    )
+    assert match is not None
+
+  assert matcher.stationary_identity == ("frontRadar", 48)
+  assert matcher._stationary_front_departure_since_s is None
 
 
 def test_stationary_visual_range_outlier_needs_matching_corner() -> None:
@@ -6571,6 +6827,32 @@ def test_live_radar_snapshot_matches_generic_capnp_adapter() -> None:
   ) == generic_controller._points_at_model_time(
     capnp_points, 12.5, 0.015,
   )
+
+
+def test_front_radar_measurement_delay_projects_fresh_points() -> None:
+  controller = DPathRadarController(
+    front_radar_measurement_delay_s=0.8,
+  )
+  points = controller._points_at_model_time(
+    (Point(10, 30.0, 0.0, v_rel=-2.0),),
+    v_ego=20.0,
+    radar_to_model_time_s=-0.05,
+  )
+
+  assert len(points) == 1
+  assert points[0].d_rel == pytest.approx(28.5)
+
+
+def test_stale_radar_publication_is_rejected_before_delay_projection() -> None:
+  controller = DPathRadarController(
+    front_radar_measurement_delay_s=0.8,
+  )
+
+  assert controller._points_at_model_time(
+    (Point(10, 30.0, 0.0, v_rel=-2.0),),
+    v_ego=20.0,
+    radar_to_model_time_s=-0.8,
+  ) == ()
 
 
 def test_mode_three_uses_scc_at_any_speed_when_front_omits_lead() -> None:

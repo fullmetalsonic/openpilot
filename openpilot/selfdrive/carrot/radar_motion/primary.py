@@ -63,6 +63,9 @@ STATIONARY_HELD_CORNER_MAX_ABS_VLEAD_MPS = 8.0
 STATIONARY_MEASUREMENT_DROPOUT_HOLD_S = 0.10
 STATIONARY_MAX_VISION_SPEED_DELTA_MPS = 12.0
 STATIONARY_TRUSTED_MAX_VISION_SPEED_DELTA_MPS = 20.0
+STATIONARY_TURN_FRONT_MIN_ABS_YAW_RATE_RAD_S = 0.02
+STATIONARY_TURN_FRONT_FAST_VISION_SPEED_DELTA_MPS = 6.0
+STATIONARY_TURN_FRONT_FAST_VISION_MAX_YREL_ERROR_M = 1.25
 STATIONARY_VISION_DISTANCE_FRACTION = 0.30
 STATIONARY_VISION_DISTANCE_MAX_M = (
   VISION_RADAR_MAX_DISTANCE_ERROR_M
@@ -70,6 +73,8 @@ STATIONARY_VISION_DISTANCE_MAX_M = (
 STATIONARY_FRESH_MAX_DPATH_M = 2.0
 STATIONARY_HELD_MAX_DPATH_M = 4.0
 STATIONARY_HELD_FRONT_NO_VISION_MAX_DPATH_M = 1.1
+STATIONARY_HELD_FRONT_DEPARTURE_DPATH_M = STATIONARY_FRESH_MAX_DPATH_M
+STATIONARY_HELD_FRONT_DEPARTURE_CONFIRMATION_S = 0.25
 STATIONARY_RADAR_ONLY_HELD_MAX_DPATH_M = 1.2
 STATIONARY_RADAR_ONLY_CORNER_MAX_DPATH_M = 0.50
 # A stopped vehicle first seen only by corner radar at close range is
@@ -725,6 +730,7 @@ class VisionRadarMatcher:
     self._stationary_seed_probability = 0.0
     self._stationary_seed_score = 0.0
     self._stationary_path_outlier_since_s: float | None = None
+    self._stationary_front_departure_since_s: float | None = None
     self._observed_since_s: dict[tuple[str, int], float] = {}
     self._observed_last_s: dict[tuple[str, int], float] = {}
     self._stationary_corner_supported = False
@@ -793,6 +799,7 @@ class VisionRadarMatcher:
     self._stationary_seed_probability = 0.0
     self._stationary_seed_score = 0.0
     self._stationary_path_outlier_since_s = None
+    self._stationary_front_departure_since_s = None
     self._stationary_corner_supported = False
     self._stationary_weak_pair_identity = None
     self._stationary_weak_pair_last_vision_time_s = None
@@ -1495,6 +1502,7 @@ class VisionRadarMatcher:
         and abs(point.v_lead) <= STATIONARY_MAX_ABS_VLEAD_MPS
       )
     )
+
     corners = tuple(
       (point, project_to_model_path(path, point.d_rel, point.y_rel).d_path)
       for point in points
@@ -1625,6 +1633,21 @@ class VisionRadarMatcher:
       ),
     ]
 
+  @staticmethod
+  def _stationary_vision_path_compatible(
+    vision_d_path: float,
+    radar_d_path: float,
+    held: bool,
+  ) -> bool:
+    limit = (
+      STATIONARY_HELD_MAX_DPATH_M
+      if held else STATIONARY_FRESH_MAX_DPATH_M
+    )
+    return (
+      abs(vision_d_path) <= limit
+      and abs(vision_d_path - radar_d_path) <= limit
+    )
+
   def _match_stationary(
     self,
     vision: VisionLead | None,
@@ -1633,6 +1656,7 @@ class VisionRadarMatcher:
     time_s: float | None,
     prefer_corner: bool,
     prefer_primary: bool,
+    yaw_rate_rad_s: float,
     allowed_output_sources: frozenset[str] | None = None,
   ) -> VisionRadarMatch | None:
     if time_s is None or not math.isfinite(time_s):
@@ -1641,6 +1665,10 @@ class VisionRadarMatcher:
     strong_vision = (
       vision is not None
       and vision.probability >= STATIONARY_VISION_MIN_PROB
+    )
+    vision_d_path = (
+      project_to_model_path(path, vision.d_rel, vision.y_rel).d_path
+      if strong_vision and vision is not None else None
     )
     point_values = tuple(points)
     needs_cross_source_pair = (
@@ -1845,11 +1873,39 @@ class VisionRadarMatcher:
     ] = []
     if strong_vision:
       for point, d_path in candidate_values:
+        identity = self._identity(point)
+        if (
+          vision_d_path is None
+          or not self._stationary_vision_path_compatible(
+            vision_d_path,
+            d_path,
+            identity == self.stationary_identity,
+          )
+        ):
+          continue
+        # On a bend, ego rotation can sweep a stationary divider or roadside
+        # return through the model path. Do not let that lone front return
+        # borrow a clearly moving visual lead unless their raw lateral
+        # positions also agree tightly. Straight-road stationary acquisition
+        # and independently paired front/corner support keep the broad speed
+        # tolerance needed while a real lead slows.
+        turn_fast_vision_lateral_mismatch = (
+          vision is not None
+          and point.source == "frontRadar"
+          and identity not in cross_source_front_support_by_identity
+          and abs(yaw_rate_rad_s)
+          >= STATIONARY_TURN_FRONT_MIN_ABS_YAW_RATE_RAD_S
+          and abs(point.v_lead - vision.velocity)
+          > STATIONARY_TURN_FRONT_FAST_VISION_SPEED_DELTA_MPS
+          and abs(point.y_rel - vision.y_rel)
+          > STATIONARY_TURN_FRONT_FAST_VISION_MAX_YREL_ERROR_M
+        )
+        if turn_fast_vision_lateral_mismatch:
+          continue
         cost = self._stationary_vision_cost(
           vision, point, d_path, prefer_corner,
         )
         if cost is None:
-          identity = self._identity(point)
           held_position_cost = held_corner_vision_position_cost.get(
             identity,
           )
@@ -2149,6 +2205,35 @@ class VisionRadarMatcher:
       self.stationary_identity = selected_identity
 
     point, d_path, score = selected
+    selected_identity = self._identity(point)
+    selected_has_current_vision_support = (
+      strong_vision
+      and any(
+        self._identity(candidate) == selected_identity
+        for candidate, _, _ in supported
+      )
+    )
+    held_front_departing_path = (
+      selected_identity == self.stationary_identity
+      and point.source == "frontRadar"
+      and not selected_has_current_vision_support
+      and abs(d_path) > STATIONARY_HELD_FRONT_DEPARTURE_DPATH_M
+    )
+    if held_front_departing_path:
+      if self._stationary_front_departure_since_s is None:
+        self._stationary_front_departure_since_s = time_s
+      elif (
+        time_s - self._stationary_front_departure_since_s
+        >= STATIONARY_HELD_FRONT_DEPARTURE_CONFIRMATION_S
+      ):
+        # A corroborating corner return proves that the object is real, but
+        # not that it still occupies our path. Once vision no longer supports
+        # the held stopped lead, release a sustained path departure instead
+        # of following the physical object until ego is alongside it.
+        self._reset_stationary()
+        return None
+    else:
+      self._stationary_front_departure_since_s = None
     if (
       strong_vision
       and vision is not None
@@ -2910,6 +2995,7 @@ class VisionRadarMatcher:
       base_cost if base_cost is not None else max(0.0, 1.0 - match.score)
     )
     self._stationary_path_outlier_since_s = None
+    self._stationary_front_departure_since_s = None
     self._reset_stationary_closer_challenger()
 
   def match(
@@ -2997,6 +3083,7 @@ class VisionRadarMatcher:
       time_s,
       prefer_corner_stationary,
       prefer_primary_stationary,
+      yaw_rate_rad_s,
       allowed_output_sources,
     )
     moving = self._match_moving(vision, point_values, path)

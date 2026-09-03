@@ -5,7 +5,7 @@
 > [!NOTE]
 > This is the canonical English user guide maintained with the `carrot-wip` code. When user-visible behavior changes, update this document together with the related code and tests.
 
-This page explains all **18 speed and deceleration settings** in the current code: event targets, deceleration distance, road-limit adjustment, speed bumps, curve/route/model speed, and traffic-light stop adjustment.
+This page explains all **20 speed and deceleration settings** in the current code: event targets, deceleration distance, stock-navigation CAN, road-limit adjustment, speed bumps, curve/route/model speed, and traffic-light stop adjustment.
 
 Change them in **Carrot Web → Settings → Driving control → Speed and deceleration**.
 
@@ -63,6 +63,12 @@ Record the value currently shown on the device before changing anything.
 | `3` | Mode 2 plus mobile-camera events |
 
 The event type, limit, and distance must all be valid. An average-speed zone retains its target until the end distance; mobile-camera events are used only in mode `3`.
+
+### Stock-navigation CAN control
+
+`VehicleNaviCanControl` uses exact camera and speed-bump distances from the stock navigation on supported Hyundai/Kia CAN-FD vehicles. On the Kia PV5, it currently supports regular cameras and speed bumps only; average-speed zones and `VehicleNaviSchoolZoneControl` remain disabled until the required periodic zone-state signal is validated.
+
+This experimental control is off by default. First verify that the displayed event type, limit, and remaining distance match the road, and disable it immediately if they do not.
 
 ### `AutoNaviSpeedSafetyFactor`
 
@@ -270,7 +276,11 @@ The stored value is divided by 100 and added to the stop-obstacle position in me
 | `0` | 0 m | Model position |
 | `100` | +1.0 m | Stop later/closer to the line |
 
-Near a complete stop, the current code uses a fixed -2.0 m instead of the user value, so the final position may not exactly match the setting. Adjust by 100 (1 m) at a time under comparable conditions. If false signal detection is the problem, diagnose the mode/model decision instead of the distance offset.
+Near a complete stop, the current code uses a fixed -2.0 m instead of the user value, so the final position may not exactly match the setting.
+
+There is one vehicle-relative exception. During an E2E stop with no active `leadOne`, a high-probability, low-speed camera-model vehicle must remain 0–3 m ahead of the planned stop endpoint for five frames (about 0.25 s). For that stop only, the planner uses a +2.0 m virtual-obstacle offset instead of the signal adjustment, allowing the MPC to preserve `StopDistanceCarrot` from the inferred vehicle position. It does not create an SCC/radar object or promote `leadOne`; if confirmation fails, the existing signal-stop and fixed -2.0 m behavior remain unchanged.
+
+Adjust by 100 (1 m) at a time under comparable no-lead signal stops, because the automatic vehicle-relative correction can take priority when a stopped vehicle is present. If false signal detection is the problem, diagnose the mode/model decision instead of the distance offset.
 
 ## Quick troubleshooting
 
