@@ -54,6 +54,26 @@ def admin_headers() -> dict[str, str]:
   return {"Authorization": f"Bearer {ADMIN_KEY}"}
 
 
+def test_precompiled_models_support_download_and_resume_without_exposing_other_files(tmp_path):
+  async def run():
+    root = tmp_path / 'uploads' / 'models' / 'cinque-v2'
+    root.mkdir(parents=True)
+    for name in ['precompiled.json', 'big_driving_tinygrad.pkl', 'precompiled-runtime.tar.gz', 'private.txt']:
+      (root / name).write_bytes(b'0123456789')
+    async with TestClient(TestServer(create_app(viewer_config(tmp_path), start_cleanup=False))) as client:
+      for name in ['precompiled.json', 'big_driving_tinygrad.pkl', 'precompiled-runtime.tar.gz']:
+        response = await client.get(f'/models/cinque-v2/{name}')
+        assert response.status == 200
+        assert await response.read() == b'0123456789'
+      response = await client.get('/models/cinque-v2/big_driving_tinygrad.pkl', headers={'Range': 'bytes=4-'})
+      assert response.status == 206
+      assert await response.read() == b'456789'
+      assert response.headers['Content-Range'] == 'bytes 4-9/10'
+      assert (await client.get('/models/cinque-v2/private.txt')).status == 404
+      assert (await client.get('/models/cinque-v2/missing.pkl')).status == 404
+  asyncio.run(run())
+
+
 async def create_share(client: TestClient, route: str = ROUTE) -> dict:
   response = await client.post(
     "/api/admin/shares",
@@ -287,12 +307,11 @@ def test_public_page_generates_and_caches_scoped_qcamera_preview(tmp_path: Path,
     async with TestClient(TestServer(create_app(config, start_cleanup=False))) as client:
       page = await client.get(page_path)
       page_html = await page.text()
-      assert '<video id="video" controls autoplay muted playsinline preload="metadata">' in page_html
-      assert 'id="videoSeek"' in page_html
-      assert 'aria-label="영상 재생 위치"' in page_html
+      assert '<video id="video" autoplay muted playsinline preload="metadata">' in page_html
+      assert 'id="videoSeek"' not in page_html
+      assert "attachRadarReview(video)" in page_html
       assert "setVideo(featured.videoUrl,featured.previewUrl,featured.index)" in page_html
       assert "video.play().catch(()=>{})" in page_html
-      assert "video.currentTime=" in page_html
 
       manifest_response = await client.get(f"{page_path}/manifest")
       manifest = await manifest_response.json()
