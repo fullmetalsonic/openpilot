@@ -9,18 +9,18 @@ def _serv(mode):
   serv = CarrotServ.__new__(CarrotServ)
   serv.vehicleSpeedCameraControlMode = mode
   serv.vehicleNaviCanControl = True
-  serv.vehicleNaviCurveControl = False
-  serv.vehicleNaviCurveMppControl = False
-  serv.vehicleNaviCurveSpeedFactor = 1.0
-  serv.vehicleNaviCurveControlEnd = 3.0
   serv.vehicleNaviSchoolZoneControl = False
   serv.autoNaviSpeedSafetyFactor = 1.05
   serv.autoNaviSpeedBumpSpeed = 25
+  serv.autoNaviSpeedBumpTime = 1
+  serv.autoNaviSpeedBumpEndDistance = 2
+  serv.autoNaviSpeedCtrlMode = 2
   serv.autoCurveSpeedLowerLimit = 30
   serv.autoNaviSpeedCtrlEnd = 6
   serv.autoNaviSpeedDecelRate = 2.0
   serv.gas_override_speed = 0
   serv.gas_pressed_state = False
+  serv.speed_event_gas_pressed = False
   serv.source_last = "none"
   serv.school_zone_gas_override_started_at = None
   serv.school_zone_suppressed = False
@@ -38,68 +38,8 @@ def _car_state(*, gas=False, brake=False, speed_limit=50, distance=300, v_ego=20
     vehicleNaviActive=False,
     vehicleNaviSectionActive=False,
     vehicleNaviSpeed=0,
-    vehicleNaviCurveDistance=0,
-    vehicleNaviCurveSpeed=0,
-    vehicleNaviCurveCurvature=0,
-    vehicleNaviCurveRouteActive=False,
-    vehicleNaviCurveRouteState=3,
     vEgo=v_ego,
   )
-
-
-def test_vehicle_navi_curve_control_is_opt_in():
-  serv = _serv(1)
-  CS = _car_state()
-  CS.vehicleNaviCurveDistance = 120
-  CS.vehicleNaviCurveSpeed = 50
-  CS.vehicleNaviCurveCurvature = 0.01
-  CS.vehicleNaviCurveRouteActive = True
-
-  assert serv._vehicle_navi_curve_speed(CS) == 250
-
-  serv.vehicleNaviCurveControl = True
-  assert serv._vehicle_navi_curve_speed(CS) < 250
-
-
-def test_vehicle_navi_curve_speed_factor_scales_calculated_target():
-  serv = _serv(1)
-  serv.vehicleNaviCurveControl = True
-  CS = _car_state()
-  CS.vehicleNaviCurveDistance = 0
-  CS.vehicleNaviCurveSpeed = 50
-  CS.vehicleNaviCurveCurvature = 0.01
-  CS.vehicleNaviCurveRouteActive = True
-
-  assert serv._vehicle_navi_curve_speed(CS) == pytest.approx(50)
-  serv.vehicleNaviCurveSpeedFactor = 1.5
-  assert serv._vehicle_navi_curve_speed(CS) == pytest.approx(75)
-
-
-def test_vehicle_navi_curve_uses_curve_specific_decel_end_time():
-  serv = _serv(1)
-  serv.vehicleNaviCurveControl = True
-  CS = _car_state()
-  CS.vehicleNaviCurveDistance = 150
-  CS.vehicleNaviCurveSpeed = 50
-  CS.vehicleNaviCurveCurvature = 0.01
-  CS.vehicleNaviCurveRouteActive = True
-
-  expected = serv.calculate_current_speed(150, 50, 3, serv.autoNaviSpeedDecelRate)
-  assert serv._vehicle_navi_curve_speed(CS) == pytest.approx(expected)
-
-
-def test_vehicle_navi_curve_mpp_control_is_separate_opt_in():
-  serv = _serv(1)
-  serv.vehicleNaviCurveControl = True
-  CS = _car_state()
-  CS.vehicleNaviCurveDistance = 120
-  CS.vehicleNaviCurveSpeed = 50
-  CS.vehicleNaviCurveCurvature = 0.01
-  CS.vehicleNaviCurveRouteState = 0
-
-  assert serv._vehicle_navi_curve_speed(CS) == 250
-  serv.vehicleNaviCurveMppControl = True
-  assert serv._vehicle_navi_curve_speed(CS) < 250
 
 
 @pytest.mark.parametrize(("mode", "gas_pressed", "expected"), (
@@ -117,7 +57,7 @@ def test_vehicle_speed_camera_mode_controls_candidate(mode, gas_pressed, expecte
   assert serv._vehicle_speed_camera_enabled(_car_state(gas=gas_pressed)) is expected
 
 
-def test_gas_floor_tracks_peak_speed_and_remains_after_release():
+def test_gas_floor_tracks_override_peak_during_decel_and_remains_after_release():
   serv = _serv(2)
   serv.source_last = "hda"
   CS = _car_state(gas=True)
@@ -131,6 +71,36 @@ def test_gas_floor_tracks_peak_speed_and_remains_after_release():
   CS.gasPressed = False
   desired_speed, source = serv._apply_speed_source_gas_floor(CS, 60, "hda", 82, False)
   assert (desired_speed, source, serv.gas_override_speed) == (85, "gas", 85)
+
+
+def test_gas_floor_does_not_arm_before_camera_deceleration_starts():
+  serv = _serv(2)
+  serv.source_last = "hda"
+  CS = _car_state(gas=True)
+
+  desired_speed, source = serv._apply_speed_source_gas_floor(CS, 90, "hda", 80, False)
+  assert (desired_speed, source, serv.gas_override_speed) == (90, "hda", 0)
+
+  desired_speed, source = serv._apply_speed_source_gas_floor(CS, 60, "hda", 80, False)
+  assert (desired_speed, source, serv.gas_override_speed) == (60, "hda", 0)
+
+  CS.gasPressed = False
+  desired_speed, source = serv._apply_speed_source_gas_floor(CS, 60, "hda", 80, False)
+  assert (desired_speed, source, serv.gas_override_speed) == (60, "hda", 0)
+
+  CS.gasPressed = True
+  desired_speed, source = serv._apply_speed_source_gas_floor(CS, 60, "hda", 80, False)
+  assert (desired_speed, source, serv.gas_override_speed) == (80, "gas", 80)
+
+
+def test_gas_floor_can_latch_when_camera_deceleration_first_becomes_source():
+  serv = _serv(2)
+
+  desired_speed, source = serv._apply_speed_source_gas_floor(
+    _car_state(gas=True), 60, "hda", 80, False,
+  )
+
+  assert (desired_speed, source, serv.gas_override_speed) == (80, "gas", 80)
 
 
 @pytest.mark.parametrize("mode", (0, 1, 3))
@@ -168,6 +138,29 @@ def test_vehicle_navi_bump_countdown_follows_countdown_mode():
   assert serv._speed_countdown_distance(CS) == 0
   serv.autoNaviCountDownMode = 2
   assert serv._speed_countdown_distance(CS) == 120
+
+
+@pytest.mark.parametrize(("distance", "expected"), (
+  (0, False),
+  (1.99, False),
+  (2.0, False),
+  (2.01, True),
+))
+def test_speed_bump_control_releases_at_configured_distance(distance, expected):
+  serv = _serv(1)
+  CS = _car_state()
+  CS.speedBumpDistance = distance
+
+  assert serv._vehicle_speed_bump_enabled(CS) is expected
+
+
+def test_vehicle_navigation_display_releases_bump_at_configured_distance():
+  serv = _serv(1)
+  CS = _car_state()
+  CS.vehicleNaviActive = True
+  CS.speedBumpDistance = 2
+
+  assert serv._vehicle_navigation_display(CS) == (False, 0, False)
 
 
 def test_countdown_idle_reset_rearms_same_second_for_next_camera():
@@ -280,12 +273,47 @@ def test_vehicle_bump_always_uses_accelerator_speed_floor(mode):
   assert (desired_speed, source, serv.gas_override_speed) == (35, "gas", 35)
 
 
-def test_vehicle_bump_override_activates_when_pedal_precedes_source():
+def test_vehicle_bump_override_requires_new_pedal_input_during_decel():
   serv = _serv(1)
   CS = _car_state(gas=True)
 
+  serv._apply_speed_source_gas_floor(CS, 90, "cam", 34, False)
   assert serv._apply_speed_source_gas_floor(CS, 22, "hda_bump", 34, False)[:2] == (22, "hda_bump")
+
+  CS.gasPressed = False
+  assert serv._apply_speed_source_gas_floor(CS, 22, "hda_bump", 34, False)[:2] == (22, "hda_bump")
+
+  CS.gasPressed = True
   assert serv._apply_speed_source_gas_floor(CS, 22, "hda_bump", 35, False)[:2] == (35, "gas")
+  assert serv._apply_speed_source_gas_floor(CS, 22, "hda_bump", 40, False)[:2] == (40, "gas")
+
+
+@pytest.mark.parametrize(("mode", "source"), ((2, "hda"), (1, "hda_bump"), (1, "bump")))
+def test_speed_event_gas_floor_resets_when_event_source_ends(mode, source):
+  serv = _serv(mode)
+  serv.source_last = source
+  CS = _car_state(gas=True)
+
+  assert serv._apply_speed_source_gas_floor(CS, 22, source, 35, False)[:2] == (35, "gas")
+
+  CS.gasPressed = False
+  desired_speed, returned_source = serv._apply_speed_source_gas_floor(CS, 200, "road", 35, False)
+  assert (desired_speed, returned_source, serv.gas_override_speed) == (200, "road", 0)
+
+
+def test_legacy_bump_override_requires_new_pedal_input_during_decel():
+  serv = _serv(1)
+  serv.source_last = "bump"
+  CS = _car_state(gas=True)
+
+  assert serv._apply_speed_source_gas_floor(CS, 40, "bump", 35, False)[:2] == (40, "bump")
+  assert serv._apply_speed_source_gas_floor(CS, 22, "bump", 35, False)[:2] == (22, "bump")
+
+  CS.gasPressed = False
+  serv._apply_speed_source_gas_floor(CS, 22, "bump", 35, False)
+  CS.gasPressed = True
+  assert serv._apply_speed_source_gas_floor(CS, 22, "bump", 35, False)[:2] == (35, "gas")
+  assert serv._apply_speed_source_gas_floor(CS, 22, "bump", 40, False)[:2] == (40, "gas")
 
 
 def test_school_gas_override_suppresses_zone_after_three_seconds(monkeypatch):

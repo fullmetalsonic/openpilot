@@ -194,6 +194,7 @@ class CarrotServ:
     self.atc_activate_count = 0
     self.gas_override_speed = 0
     self.gas_pressed_state = False
+    self.speed_event_gas_pressed = False
     self.source_last = "none"
     self.school_zone_gas_override_started_at = None
     self.school_zone_suppressed = False
@@ -222,13 +223,10 @@ class CarrotServ:
   def update_params(self):
     self.autoNaviSpeedBumpSpeed = float(self.params.get_int("AutoNaviSpeedBumpSpeed"))
     self.autoNaviSpeedBumpTime = float(self.params.get_int("AutoNaviSpeedBumpTime"))
+    self.autoNaviSpeedBumpEndDistance = float(min(5000, max(0, self.params.get_int("AutoNaviSpeedBumpEndDistance")))) * 0.01
     self.autoNaviSpeedCtrlEnd = float(self.params.get_int("AutoNaviSpeedCtrlEnd"))
     self.autoNaviSpeedCtrlMode = self.params.get_int("AutoNaviSpeedCtrlMode")
-    self.vehicleNaviCanControl = self.params.get_bool("VehicleNaviCanControl")
-    self.vehicleNaviCurveControl = self.params.get_bool("VehicleNaviCurveControl")
-    self.vehicleNaviCurveMppControl = self.params.get_bool("VehicleNaviCurveMppControl")
-    self.vehicleNaviCurveSpeedFactor = min(2.0, max(0.5, self.params.get_int("VehicleNaviCurveSpeedFactor") * 0.01))
-    self.vehicleNaviCurveControlEnd = max(0.0, float(self.params.get_int("VehicleNaviCurveCtrlEnd")))
+    self.vehicleNaviCanControl = min(3, max(0, self.params.get_int("VehicleNaviCanControl")))
     self.vehicleNaviSchoolZoneControl = self.params.get_bool("VehicleNaviSchoolZoneControl")
     self.vehicleSpeedCameraControlMode = min(3, max(0, self.params.get_int("VehicleSpeedCameraControlMode")))
     self.autoNaviSpeedSafetyFactor = float(self.params.get_int("AutoNaviSpeedSafetyFactor")) * 0.01
@@ -368,21 +366,12 @@ class CarrotServ:
             not (CS.schoolZoneActive and self.school_zone_suppressed) and
             not (self.vehicleSpeedCameraControlMode == 3 and CS.gasPressed))
 
+  def _speed_bump_control_active(self, distance):
+    return distance > self.autoNaviSpeedBumpEndDistance
+
   def _vehicle_speed_bump_enabled(self, CS):
-    return self.vehicleNaviCanControl and self.autoNaviSpeedCtrlMode >= 2 and CS.speedBumpDistance > 0
-
-  def _vehicle_navi_curve_speed(self, CS):
-    reference_speed = float(getattr(CS, "vehicleNaviCurveSpeed", 0.0))
-    curvature = float(getattr(CS, "vehicleNaviCurveCurvature", 0.0))
-    route_active = bool(getattr(CS, "vehicleNaviCurveRouteActive", False))
-    route_state = int(getattr(CS, "vehicleNaviCurveRouteState", 1 if route_active else 3))
-    route_allowed = route_active or (self.vehicleNaviCurveMppControl and route_state == 0)
-    if not self.vehicleNaviCurveControl or not route_allowed or reference_speed <= 0 or abs(curvature) < 1e-7:
-      return 250.0
-
-    target_speed = max(self.autoCurveSpeedLowerLimit, reference_speed * self.vehicleNaviCurveSpeedFactor)
-    return self.calculate_current_speed(float(getattr(CS, "vehicleNaviCurveDistance", 0.0)),
-                                        target_speed, self.vehicleNaviCurveControlEnd, self.autoNaviSpeedDecelRate)
+    return (self.vehicleNaviCanControl and self.autoNaviSpeedCtrlMode >= 2 and
+            self._speed_bump_control_active(CS.speedBumpDistance))
 
   def _vehicle_school_zone_enabled(self, CS):
     if not CS.schoolZoneActive:
@@ -407,7 +396,7 @@ class CarrotServ:
       speed = 30
     elif getattr(CS, "vehicleNaviSpeed", 0) > 0:
       speed = int(CS.vehicleNaviSpeed * self.autoNaviSpeedSafetyFactor)
-    elif CS.speedBumpDistance > 0:
+    elif self._speed_bump_control_active(CS.speedBumpDistance):
       speed = int(self.autoNaviSpeedBumpSpeed)
     else:
       speed = 0
@@ -475,9 +464,14 @@ class CarrotServ:
       self.school_zone_suppressed = True
 
   def _apply_speed_source_gas_floor(self, CS, desired_speed, source, v_ego_kph, road_speed_limit_changed):
+    speed_event_gas_rising = CS.gasPressed and not self.speed_event_gas_pressed
+    self.speed_event_gas_pressed = CS.gasPressed
+
     if source in ("hda", "hda_section", "hda_bump", "school"):
       # Vehicle speed bumps always allow an intentional accelerator override.
-      # Camera, section, and school sources continue to follow mode 2.
+      # Camera, section, and school sources follow mode 2 only after their
+      # target has fallen below the current speed and actual deceleration is
+      # requested.
       gas_floor_active = source == "hda_bump" or self.vehicleSpeedCameraControlMode == 2
       if not gas_floor_active:
         self.gas_override_speed = 0
@@ -486,7 +480,14 @@ class CarrotServ:
                        CS.brakePressed or road_speed_limit_changed)
         if reset_floor:
           self.gas_override_speed = 0
+        if self.gas_override_speed <= 0:
+          if (speed_event_gas_rising and not CS.brakePressed and CS.vEgo >= 0.1 and
+              desired_speed <= 150 and desired_speed < v_ego_kph):
+            # A new accelerator input during active event deceleration means
+            # the driver wants to ignore the remaining slowdown.
+            self.gas_override_speed = v_ego_kph
         elif CS.gasPressed:
+          # Keep the highest speed reached while overriding this event.
           self.gas_override_speed = max(v_ego_kph, self.gas_override_speed)
 
       self.source_last = source
@@ -509,6 +510,12 @@ class CarrotServ:
                    CS.brakePressed or road_speed_limit_changed)
     if reset_floor:
       self.gas_override_speed = 0
+    elif source == "bump":
+      if self.gas_override_speed <= 0:
+        if speed_event_gas_rising and desired_speed < v_ego_kph:
+          self.gas_override_speed = v_ego_kph
+      elif CS.gasPressed:
+        self.gas_override_speed = max(v_ego_kph, self.gas_override_speed)
     elif CS.gasPressed and not self.gas_pressed_state:
       self.gas_override_speed = max(v_ego_kph, self.gas_override_speed)
     else:
@@ -1335,12 +1342,12 @@ class CarrotServ:
     vehicle_speed_camera_active = CS is not None and self._vehicle_speed_camera_enabled(CS)
     vehicle_bump_active = CS is not None and self._vehicle_speed_bump_enabled(CS)
     vehicle_bump_speed = 250
-    vehicle_curve_speed = 250
     vehicle_school_zone_speed = 250
     vehicle_section_zone_speed = 250
     ### 과속카메라, 사고방지턱
     legacy_sdi_active = (self.xSpdLimit > 0 and (self.xSpdDist > 0 or self.xSpdType in [100, 101]) and
                          self.active_carrot > 0 and
+                         (self.xSpdType != 22 or self._speed_bump_control_active(self.xSpdDist)) and
                          not self._legacy_sdi_suppressed(self.xSpdType, vehicle_speed_camera_active, vehicle_bump_active))
     if legacy_sdi_active:
       safe_sec = self.autoNaviSpeedBumpTime if self.xSpdType == 22 else self.autoNaviSpeedCtrlEnd
@@ -1363,11 +1370,6 @@ class CarrotServ:
                                                         self.autoNaviSpeedBumpTime,
                                                         self.autoNaviSpeedDecelRate)
       self.active_carrot = 5
-
-    if CS is not None:
-      vehicle_curve_speed = self._vehicle_navi_curve_speed(CS)
-      if vehicle_curve_speed < 250:
-        self.active_carrot = 6
 
     if CS is not None:
       vehicle_school_zone_speed = self._vehicle_school_zone_speed(CS)
@@ -1414,7 +1416,6 @@ class CarrotServ:
       (sdi_speed, sdi_source),
       (vehicle_camera_speed, "hda"),
       (vehicle_bump_speed, "hda_bump"),
-      (vehicle_curve_speed, "hda_curve"),
       (vehicle_school_zone_speed, "school"),
       (vehicle_section_zone_speed, "hda_section"),
       (limit_speed, "road"),
@@ -1429,10 +1430,6 @@ class CarrotServ:
     elif self.turnSpeedControlMode in [3, 4]:
       speed_n_sources.append((route_speed, "route"))
       #speed_n_sources.append((self.calculate_current_speed(dist, speed * self.mapTurnSpeedFactor, 0, 1.2), "route"))
-
-    model_turn_speed = max(sm['modelV2'].meta.modelTurnSpeed, self.autoCurveSpeedLowerLimit)
-    if model_turn_speed < 200 and abs(vturn_speed) < 120:
-      speed_n_sources.append((model_turn_speed, "model"))
 
     desired_speed, source = min(speed_n_sources, key=lambda x: x[0])
 

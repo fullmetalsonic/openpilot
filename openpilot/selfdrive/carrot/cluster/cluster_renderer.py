@@ -232,7 +232,8 @@ TOP_CRUISE_FONT_SIZE = 27.0 * DRIVE_STATUS_SCALE
 TOP_CRUISE_UNIT_FONT_SIZE = TOP_CRUISE_FONT_SIZE
 WIFI_STATUS_CENTER_X = 160
 WIFI_STATUS_ICON_SIZE = 48.0
-EGPU_STATUS_CENTER_X = 245.0
+# Keep the badge to the right of the clock, clear of its text and stroke.
+EGPU_STATUS_CENTER_X = 455.0
 EGPU_STATUS_W = 76.0
 EGPU_STATUS_H = 34.0
 EGPU_STATUS_FONT_SIZE = 19.0
@@ -6799,7 +6800,7 @@ class ClusterUiRenderer:
         rl.draw_rectangle_rounded(rect, 0.35, 8, rl_color((0, 0, 0), 150))
         rl.draw_rectangle_rounded_lines_ex(rect, 0.35, 8, 2.0, rl_color(GREEN))
         self._draw_text("eGPU", EGPU_STATUS_CENTER_X, TOP_STATUS_CENTER_Y + 1.0,
-                        EGPU_STATUS_FONT_SIZE, GREEN, anchor="center", cache=True)
+                        EGPU_STATUS_FONT_SIZE, GREEN, anchor="center")
 
     def _draw_drive_status_box(
         self,
