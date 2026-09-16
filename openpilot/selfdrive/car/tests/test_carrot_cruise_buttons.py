@@ -170,11 +170,8 @@ def test_soft_hold_arms_when_cruise_is_unavailable():
   assert helper._soft_hold_active == 1
 
 
-@pytest.mark.parametrize(("cancel_timer", "expected_count", "expected_active"), [
-  (1, 0, 0),
-  (0, 61, 1),
-])
-def test_post_shift_cancel_timer_gates_soft_hold(cancel_timer, expected_count, expected_active):
+@pytest.mark.parametrize("cancel_timer", [0, 1])
+def test_post_shift_cancel_timer_does_not_gate_independent_soft_hold(cancel_timer):
   helper = VCruiseCarrot.__new__(VCruiseCarrot)
   helper.CP = SimpleNamespace(pcmCruise=False)
   helper.autoCruiseControl = 1
@@ -202,8 +199,8 @@ def test_post_shift_cancel_timer_gates_soft_hold(cancel_timer, expected_count, e
   )
   helper._prepare_brake_gas(CS, car.CarControl(enabled=False))
 
-  assert helper._soft_hold_count == expected_count
-  assert helper._soft_hold_active == expected_active
+  assert helper._soft_hold_count == 61
+  assert helper._soft_hold_active == 1
 
 
 @pytest.mark.parametrize(("soft_hold_on_cancel", "expected_count", "expected_active"), [
@@ -282,6 +279,44 @@ def test_soft_hold_can_engage_when_cruise_is_unavailable():
   assert helper._soft_hold_active == 2
   assert helper._cruise_cancel_state
   assert helper._activate_cruise == 1
+
+
+def test_soft_hold_can_engage_while_post_shift_cancel_timer_is_active():
+  helper = VCruiseCarrot.__new__(VCruiseCarrot)
+  helper._cruise_available = False
+  helper._hold_interlock_active = False
+  helper._steering_interlock_active = False
+  helper._cruise_cancel_state = False
+  helper._cancel_timer = 0
+  helper._activate_cruise = 0
+  helper._soft_hold_active = 1
+  helper.soft_hold_on_cancel = True
+  helper.autoCruiseControl = 1
+  helper.autoCruiseControl_cancel_timer = 1
+  helper._add_log = lambda log: None
+
+  helper._engage_soft_hold()
+
+  assert helper._soft_hold_active == 2
+  assert helper._activate_cruise == 1
+
+
+def test_post_shift_cancel_timer_still_blocks_normal_automatic_cruise_activation():
+  helper = VCruiseCarrot.__new__(VCruiseCarrot)
+  helper._cruise_available = True
+  helper._hold_interlock_active = False
+  helper._steering_interlock_active = False
+  helper._cruise_cancel_state = False
+  helper._cancel_timer = 0
+  helper._activate_cruise = 0
+  helper._soft_hold_active = 0
+  helper.autoCruiseControl = 1
+  helper.autoCruiseControl_cancel_timer = 1
+  helper._add_log = lambda log: None
+
+  helper._cruise_control(1, -1, "Cruise on (test)")
+
+  assert helper._activate_cruise == 0
 
 
 @pytest.mark.parametrize(("cancel_state", "expected_activate"), [
