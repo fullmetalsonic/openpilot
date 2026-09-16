@@ -29,6 +29,7 @@ from openpilot.system.hardware import HARDWARE
 
 from ...config import PARAMS_BACKUP_PATH
 from ...services.auto_update import clear_recovered_git_ref_error
+from ...services.fork_remote import ensure_fork_remote, local_branch_name
 from ...services.git_config import prepare_git_pull, repair_git_config
 from ...services.git_state import did_git_pull_update, write_git_pull_time
 from ...services.git_status import clear_git_status_cache
@@ -398,7 +399,7 @@ async def _run_tool_job(job: Dict[str, Any]) -> None:
           jobs.finish(job, ok=False, result={"ok": False, "error": f"unknown remote: {item_remote}"}, error=f"unknown remote: {item_remote}")
           return
         branch = f"{item_remote}/{item_name}"
-        local_branch = item_name
+        local_branch = local_branch_name(item_remote, item_name)
         summary_branch = local_branch
         script = (
           f"if git show-ref --verify --quiet {shlex.quote(f'refs/heads/{local_branch}')}; "
@@ -414,7 +415,7 @@ async def _run_tool_job(job: Dict[str, Any]) -> None:
             break
 
         if remote_prefix is not None:
-          local_branch = branch[len(remote_prefix) + 1:]
+          local_branch = local_branch_name(remote_prefix, branch[len(remote_prefix) + 1:])
           summary_branch = local_branch
           script = (
             f"if git show-ref --verify --quiet {shlex.quote(f'refs/heads/{local_branch}')}; "
@@ -449,6 +450,12 @@ async def _run_tool_job(job: Dict[str, Any]) -> None:
       return
 
     if action == "git_branch_list":
+      rc_config, out_config = await run_locked_thread(ensure_fork_remote, repo_dir)
+      if out_config:
+        jobs.append(job, out_config + "\n")
+      if rc_config != 0:
+        jobs.finish(job, ok=False, result=jobs.result_from_log(job, rc_config))
+        return
       jobs.progress(job, message="fetch --all --prune", current=1, total=2)
       rc_fetch = await jobs.stream_exec(job, ["git", "fetch", "--all", "--prune"], cwd=repo_dir, timeout=180)
       if rc_fetch != 0:
@@ -967,7 +974,7 @@ async def _dispatch_sync(request: web.Request, body: Dict[str, Any]) -> web.Resp
           if item_remote not in known_remotes:
             return web.json_response({"ok": False, "error": f"unknown remote: {item_remote}"}, status=400)
           branch = f"{item_remote}/{item_name}"
-          local_branch = item_name
+          local_branch = local_branch_name(item_remote, item_name)
           summary_branch = local_branch
           rc_check, _ = run(["git", "show-ref", "--verify", "--quiet", f"refs/heads/{local_branch}"], cwd=REPO_DIR)
           if rc_check == 0:
@@ -978,7 +985,7 @@ async def _dispatch_sync(request: web.Request, body: Dict[str, Any]) -> web.Resp
               cwd=REPO_DIR
             )
         elif remote_prefix is not None:
-          local_branch = branch[len(remote_prefix) + 1:]
+          local_branch = local_branch_name(remote_prefix, branch[len(remote_prefix) + 1:])
           summary_branch = local_branch
           rc_check, _ = run(["git", "show-ref", "--verify", "--quiet", f"refs/heads/{local_branch}"], cwd=REPO_DIR)
           if rc_check == 0:
@@ -1002,9 +1009,12 @@ async def _dispatch_sync(request: web.Request, body: Dict[str, Any]) -> web.Resp
         return web.json_response({"ok": False, "error": str(e)}, status=500)
 
     if action == "git_branch_list":
+      rc_config, out_config = await run_locked_thread(ensure_fork_remote, REPO_DIR)
+      if rc_config != 0:
+        return web.json_response({"ok": False, "rc": rc_config, "out": out_config})
       rc0, out0 = run(["git", "fetch", "--all", "--prune"], cwd=REPO_DIR)
       if rc0 != 0:
-        return web.json_response({"ok": False, "rc": rc0, "out": out0})
+        return web.json_response({"ok": False, "rc": rc0, "out": (out_config + "\n" + out0).strip()})
 
       rc_local, out_local = run(
         ["git", "for-each-ref", "--format=%(refname:short)", "refs/heads"],
