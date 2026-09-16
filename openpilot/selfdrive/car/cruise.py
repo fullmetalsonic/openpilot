@@ -742,7 +742,8 @@ class VCruiseCarrot:
     self.nRoadLimitSpeed_last = self.nRoadLimitSpeed
     return v_cruise_kph
 
-  def _cruise_control(self, enable, cancel_timer, reason, allow_cancel_state=False, allow_unavailable=False):
+  def _cruise_control(self, enable, cancel_timer, reason, allow_cancel_state=False, allow_unavailable=False,
+                      allow_auto_cruise_cancel_timer=False):
     if enable > 0 and not self._cruise_available and not allow_unavailable:
       self._activate_cruise = 0
       self._add_log(reason + " > Cruise unavailable")
@@ -765,7 +766,7 @@ class VCruiseCarrot:
         enable = 0
         self._soft_hold_active = 0
         return
-      if self.autoCruiseControl_cancel_timer > 0 and enable != 0:
+      if self.autoCruiseControl_cancel_timer > 0 and enable != 0 and not allow_auto_cruise_cancel_timer:
         self._add_log(reason + " > timer Canceled")
         enable = 0
         self._soft_hold_active = 0
@@ -789,7 +790,8 @@ class VCruiseCarrot:
 
   def _engage_soft_hold(self):
     self._soft_hold_active = 2
-    self._cruise_control(1, -1, "Cruise on (soft hold)", allow_cancel_state=self.soft_hold_on_cancel, allow_unavailable=True)
+    self._cruise_control(1, -1, "Cruise on (soft hold)", allow_cancel_state=self.soft_hold_on_cancel,
+                         allow_unavailable=True, allow_auto_cruise_cancel_timer=True)
 
   def _update_cruise_state(self, CS, CC, v_cruise_kph):
     if not CC.enabled:
@@ -928,7 +930,6 @@ class VCruiseCarrot:
         self._v_cruise_kph_at_brake = self.v_cruise_kph
         self._add_log(f"{self.v_cruise_kph} Cruise speed at brake")
       soft_hold_available = self.autoCruiseControl != 0 and not self.CP.pcmCruise and \
-                            self.autoCruiseControl_cancel_timer == 0 and \
                             (not self._cruise_cancel_state or self.soft_hold_on_cancel)
       self._soft_hold_count = self._soft_hold_count + 1 if soft_hold_available and CS.vEgo < 0.1 and CS.gearShifter == GearShifter.drive else 0
       if not soft_hold_available:
