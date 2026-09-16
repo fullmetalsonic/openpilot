@@ -138,7 +138,7 @@ def test_cruise_availability_gates_automatic_activation(cruise_available, expect
   assert helper._activate_cruise == expected_activate
 
 
-def test_soft_hold_does_not_arm_when_cruise_is_unavailable():
+def test_soft_hold_arms_when_cruise_is_unavailable():
   helper = VCruiseCarrot.__new__(VCruiseCarrot)
   helper.CP = SimpleNamespace(pcmCruise=False)
   helper.autoCruiseControl = 1
@@ -166,8 +166,8 @@ def test_soft_hold_does_not_arm_when_cruise_is_unavailable():
   )
   helper._prepare_brake_gas(CS, car.CarControl(enabled=False))
 
-  assert helper._soft_hold_count == 0
-  assert helper._soft_hold_active == 0
+  assert helper._soft_hold_count == 61
+  assert helper._soft_hold_active == 1
 
 
 @pytest.mark.parametrize(("cancel_timer", "expected_count", "expected_active"), [
@@ -245,6 +245,27 @@ def test_cancel_state_soft_hold_policy(soft_hold_on_cancel, expected_count, expe
 def test_soft_hold_on_cancel_keeps_cancel_state_while_engaging():
   helper = VCruiseCarrot.__new__(VCruiseCarrot)
   helper._cruise_available = True
+  helper._hold_interlock_active = False
+  helper._steering_interlock_active = False
+  helper._cruise_cancel_state = True
+  helper._cancel_timer = 0
+  helper._activate_cruise = 0
+  helper._soft_hold_active = 1
+  helper.soft_hold_on_cancel = True
+  helper.autoCruiseControl = 1
+  helper.autoCruiseControl_cancel_timer = 0
+  helper._add_log = lambda log: None
+
+  helper._engage_soft_hold()
+
+  assert helper._soft_hold_active == 2
+  assert helper._cruise_cancel_state
+  assert helper._activate_cruise == 1
+
+
+def test_soft_hold_can_engage_when_cruise_is_unavailable():
+  helper = VCruiseCarrot.__new__(VCruiseCarrot)
+  helper._cruise_available = False
   helper._hold_interlock_active = False
   helper._steering_interlock_active = False
   helper._cruise_cancel_state = True

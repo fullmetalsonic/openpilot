@@ -362,8 +362,6 @@ class VCruiseCarrot:
     if not self._cruise_available:
       self._cruise_ready = False
       self._paddle_decel_active = False
-      self._soft_hold_count = 0
-      self._soft_hold_active = 0
     self._hold_interlock_active = is_hold_interlock_active(CS)
     self._steering_interlock_active = abs(CS.steeringAngleDeg) >= AUTO_CRUISE_MAX_STEERING_ANGLE
     if self._hold_interlock_active:
@@ -744,8 +742,8 @@ class VCruiseCarrot:
     self.nRoadLimitSpeed_last = self.nRoadLimitSpeed
     return v_cruise_kph
 
-  def _cruise_control(self, enable, cancel_timer, reason, allow_cancel_state=False):
-    if enable > 0 and not self._cruise_available:
+  def _cruise_control(self, enable, cancel_timer, reason, allow_cancel_state=False, allow_unavailable=False):
+    if enable > 0 and not self._cruise_available and not allow_unavailable:
       self._activate_cruise = 0
       self._add_log(reason + " > Cruise unavailable")
       return
@@ -791,7 +789,7 @@ class VCruiseCarrot:
 
   def _engage_soft_hold(self):
     self._soft_hold_active = 2
-    self._cruise_control(1, -1, "Cruise on (soft hold)", allow_cancel_state=self.soft_hold_on_cancel)
+    self._cruise_control(1, -1, "Cruise on (soft hold)", allow_cancel_state=self.soft_hold_on_cancel, allow_unavailable=True)
 
   def _update_cruise_state(self, CS, CC, v_cruise_kph):
     if not CC.enabled:
@@ -929,7 +927,7 @@ class VCruiseCarrot:
       if self._brake_pressed_count == 1 and self.enabled_last:
         self._v_cruise_kph_at_brake = self.v_cruise_kph
         self._add_log(f"{self.v_cruise_kph} Cruise speed at brake")
-      soft_hold_available = CS.cruiseState.available and self.autoCruiseControl != 0 and not self.CP.pcmCruise and \
+      soft_hold_available = self.autoCruiseControl != 0 and not self.CP.pcmCruise and \
                             self.autoCruiseControl_cancel_timer == 0 and \
                             (not self._cruise_cancel_state or self.soft_hold_on_cancel)
       self._soft_hold_count = self._soft_hold_count + 1 if soft_hold_available and CS.vEgo < 0.1 and CS.gearShifter == GearShifter.drive else 0
