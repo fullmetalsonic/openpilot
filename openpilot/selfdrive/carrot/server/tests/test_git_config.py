@@ -9,6 +9,7 @@ import types
 
 import pytest
 
+from openpilot.selfdrive.carrot.server.services.fork_remote import FORK_FETCH_REFSPEC, FORK_REMOTE, FORK_URL, ensure_fork_remote, local_branch_name
 from openpilot.selfdrive.carrot.server.services.git_config import prepare_git_pull, repair_git_config
 
 
@@ -102,6 +103,25 @@ def test_valid_differently_named_upstream_and_non_origin_remote_are_preserved(tm
   rc, output = repair_git_config(str(device))
   assert rc == 0, output
   assert (device / ".git/config").read_bytes() == before
+
+
+def test_fork_remote_setup_preserves_origin_and_uses_collision_free_branch_names(tmp_path):
+  _, remote, device = checkout(tmp_path)
+  origin_before = git(device, "remote", "get-url", "origin")
+
+  rc, output = ensure_fork_remote(str(device))
+
+  assert rc == 0, output
+  assert git(device, "remote", "get-url", "origin") == origin_before == remote.as_uri()
+  assert git(device, "remote", "get-url", FORK_REMOTE) == FORK_URL
+  assert git(device, "config", "--get-all", f"remote.{FORK_REMOTE}.fetch") == FORK_FETCH_REFSPEC
+  assert local_branch_name(FORK_REMOTE, "carrot-wip") == "fms-carrot-wip"
+  assert local_branch_name(FORK_REMOTE, "carrot") == "fms-carrot"
+  assert local_branch_name("origin", "carrot-wip") == "carrot-wip"
+
+  config_before = (device / ".git/config").read_bytes()
+  assert ensure_fork_remote(str(device))[0] == 0
+  assert (device / ".git/config").read_bytes() == config_before
 
 
 def test_missing_upstream_reconnected_by_exact_current_branch_name(tmp_path):
