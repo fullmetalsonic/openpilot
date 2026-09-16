@@ -13,6 +13,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 CRUISE = ROOT / "openpilot/selfdrive/car/cruise.py"
 HYUNDAI_CANFD = ROOT / "opendbc_repo/opendbc/car/hyundai/hyundaicanfd.py"
+FORK_REMOTE = ROOT / "openpilot/selfdrive/carrot/server/services/fork_remote.py"
+TOOLS_DISPATCHER = ROOT / "openpilot/selfdrive/carrot/server/features/tools/dispatcher.py"
 
 
 def replace_once(text: str, original: str, patched: str, name: str) -> str:
@@ -80,9 +82,19 @@ def patch_blinkers() -> None:
   HYUNDAI_CANFD.write_text(text, encoding="utf-8")
 
 
+def verify_fork_branch_support() -> None:
+  if not FORK_REMOTE.is_file():
+    raise RuntimeError("Fork branch support file is missing after upstream merge")
+  text = TOOLS_DISPATCHER.read_text(encoding="utf-8")
+  for marker in ("ensure_fork_remote", "local_branch_name(item_remote, item_name)"):
+    if marker not in text:
+      raise RuntimeError(f"Fork branch support changed upstream; refusing to guess: {marker}")
+
+
 def main() -> None:
   patch_cruise()
   patch_blinkers()
+  verify_fork_branch_support()
 
 
 if __name__ == "__main__":

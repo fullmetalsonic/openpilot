@@ -1,4 +1,4 @@
-name: Carrot WIP upstream sync with user patches
+name: FMS Carrot WIP upstream sync with user patches
 
 on:
   schedule:
@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
 
 concurrency:
-  group: carrot-wip-upstream-sync
+  group: fms-carrot-wip-upstream-sync
   cancel-in-progress: false
 
 permissions:
@@ -19,7 +19,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: carrot-wip
+          ref: fms-carrot-wip
           fetch-depth: 0
 
       - name: Keep the unpatched upstream sync workflow disabled
@@ -52,13 +52,17 @@ jobs:
           python3 -m py_compile \
             openpilot/selfdrive/car/cruise.py \
             openpilot/selfdrive/car/tests/test_carrot_cruise_buttons.py \
+            openpilot/selfdrive/carrot/server/services/fork_remote.py \
+            openpilot/selfdrive/carrot/server/features/tools/dispatcher.py \
             opendbc_repo/opendbc/car/hyundai/hyundaicanfd.py
           git diff --check
 
       - name: Commit and push when upstream or patches changed
         run: |
           if ! git diff --quiet; then
-            git add openpilot/selfdrive/car/cruise.py opendbc_repo/opendbc/car/hyundai/hyundaicanfd.py
-            git commit -m "Sync carrot-wip and preserve user patches"
+            git add openpilot/selfdrive/car/cruise.py opendbc_repo/opendbc/car/hyundai/hyundaicanfd.py \
+              openpilot/selfdrive/carrot/server/services/fork_remote.py \
+              openpilot/selfdrive/carrot/server/features/tools/dispatcher.py
+            git commit -m "Sync fms-carrot-wip and preserve user patches"
           fi
-          git push origin HEAD:carrot-wip
+          git push origin HEAD:fms-carrot-wip
