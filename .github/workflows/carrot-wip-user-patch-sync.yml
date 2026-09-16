@@ -1,0 +1,57 @@
+name: Carrot WIP upstream sync with user patches
+
+on:
+  schedule:
+    - cron: "*/10 * * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: carrot-wip-upstream-sync
+  cancel-in-progress: false
+
+permissions:
+  actions: write
+  contents: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: carrot-wip
+          fetch-depth: 0
+
+      - name: Keep the unpatched upstream sync workflow disabled
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh api --method PUT "repos/${GITHUB_REPOSITORY}/actions/workflows/342171247/disable"
+
+      - name: Fetch and merge the latest upstream WIP
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git remote add upstream https://github.com/ajouatom/openpilot.git
+          git fetch upstream carrot-wip --prune
+          if git merge-base --is-ancestor upstream/carrot-wip HEAD; then
+            echo "Upstream carrot-wip is already included."
+          else
+            git merge --no-edit upstream/carrot-wip
+          fi
+
+      - name: Reapply user patches and verify syntax
+        run: |
+          python3 .github/scripts/apply_carrot_user_patches.py
+          python3 -m py_compile \
+            openpilot/selfdrive/car/cruise.py \
+            openpilot/selfdrive/car/tests/test_carrot_cruise_buttons.py \
+            opendbc_repo/opendbc/car/hyundai/hyundaicanfd.py
+          git diff --check
+
+      - name: Commit and push when upstream or patches changed
+        run: |
+          if ! git diff --quiet; then
+            git add openpilot/selfdrive/car/cruise.py opendbc_repo/opendbc/car/hyundai/hyundaicanfd.py
+            git commit -m "Sync carrot-wip and preserve user patches"
+          fi
+          git push origin HEAD:carrot-wip
