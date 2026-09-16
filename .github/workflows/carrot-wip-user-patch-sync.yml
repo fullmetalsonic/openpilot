@@ -25,7 +25,14 @@ jobs:
       - name: Keep the unpatched upstream sync workflow disabled
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh api --method PUT "repos/${GITHUB_REPOSITORY}/actions/workflows/342171247/disable"
+        run: |
+          state="$(gh api "repos/${GITHUB_REPOSITORY}/actions/workflows/342171247" --jq '.state')"
+          if [[ "$state" == "active" ]]; then
+            gh api --method PUT "repos/${GITHUB_REPOSITORY}/actions/workflows/342171247/disable"
+          elif [[ "$state" != "disabled_manually" ]]; then
+            echo "::error::Unexpected Sync Upstream state: $state"
+            exit 1
+          fi
 
       - name: Fetch and merge the latest upstream WIP
         run: |
