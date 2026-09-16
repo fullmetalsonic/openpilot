@@ -2,7 +2,8 @@ name: FMS Carrot WIP upstream sync with user patches
 
 on:
   schedule:
-    - cron: "*/10 * * * *"
+    # Avoid the top-of-hour queue; GitHub scheduling is best-effort.
+    - cron: "3-58/5 * * * *"
   workflow_dispatch:
 
 concurrency:
