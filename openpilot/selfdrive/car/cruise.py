@@ -790,6 +790,9 @@ class VCruiseCarrot:
 
   def _engage_soft_hold(self):
     self._soft_hold_active = 2
+    if self._cruise_cancel_state:
+      self._add_log("Soft hold active (cancel state)")
+      return
     self._cruise_control(1, -1, "Cruise on (soft hold)", allow_cancel_state=self.soft_hold_on_cancel,
                          allow_unavailable=True, allow_auto_cruise_cancel_timer=True)
 
