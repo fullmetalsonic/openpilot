@@ -239,7 +239,7 @@ def test_cancel_state_soft_hold_policy(soft_hold_on_cancel, expected_count, expe
   assert helper._soft_hold_active == expected_active
 
 
-def test_soft_hold_on_cancel_keeps_cancel_state_while_engaging():
+def test_soft_hold_on_cancel_keeps_cruise_cancelled_while_engaging():
   helper = VCruiseCarrot.__new__(VCruiseCarrot)
   helper._cruise_available = True
   helper._hold_interlock_active = False
@@ -257,7 +257,7 @@ def test_soft_hold_on_cancel_keeps_cancel_state_while_engaging():
 
   assert helper._soft_hold_active == 2
   assert helper._cruise_cancel_state
-  assert helper._activate_cruise == 1
+  assert helper._activate_cruise == 0
 
 
 def test_soft_hold_can_engage_when_cruise_is_unavailable():
@@ -265,7 +265,7 @@ def test_soft_hold_can_engage_when_cruise_is_unavailable():
   helper._cruise_available = False
   helper._hold_interlock_active = False
   helper._steering_interlock_active = False
-  helper._cruise_cancel_state = True
+  helper._cruise_cancel_state = False
   helper._cancel_timer = 0
   helper._activate_cruise = 0
   helper._soft_hold_active = 1
@@ -277,7 +277,7 @@ def test_soft_hold_can_engage_when_cruise_is_unavailable():
   helper._engage_soft_hold()
 
   assert helper._soft_hold_active == 2
-  assert helper._cruise_cancel_state
+  assert not helper._cruise_cancel_state
   assert helper._activate_cruise == 1
 
 
