@@ -47,18 +47,28 @@ def patch_cruise() -> None:
     """  def _cruise_control(self, enable, cancel_timer, reason, allow_cancel_state=False):
     if enable > 0 and not self._cruise_available:
 """,
-    """  def _cruise_control(self, enable, cancel_timer, reason, allow_cancel_state=False, allow_unavailable=False):
+    """  def _cruise_control(self, enable, cancel_timer, reason, allow_cancel_state=False, allow_unavailable=False,
+                      allow_auto_cruise_cancel_timer=False):
     if enable > 0 and not self._cruise_available and not allow_unavailable:
 """,
-    "limit cruise-unavailable exception to soft hold",
+    "limit cruise-unavailable and cancel-timer exceptions to soft hold",
+  )
+  text = replace_once(
+    text,
+    """      if self.autoCruiseControl_cancel_timer > 0 and enable != 0:
+""",
+    """      if self.autoCruiseControl_cancel_timer > 0 and enable != 0 and not allow_auto_cruise_cancel_timer:
+""",
+    "keep the post-shift cancel timer for normal automatic cruise",
   )
   text = replace_once(
     text,
     """    self._cruise_control(1, -1, \"Cruise on (soft hold)\", allow_cancel_state=self.soft_hold_on_cancel)
 """,
-    """    self._cruise_control(1, -1, \"Cruise on (soft hold)\", allow_cancel_state=self.soft_hold_on_cancel, allow_unavailable=True)
+    """    self._cruise_control(1, -1, \"Cruise on (soft hold)\", allow_cancel_state=self.soft_hold_on_cancel,
+                         allow_unavailable=True, allow_auto_cruise_cancel_timer=True)
 """,
-    "allow soft hold to engage while cruise is unavailable",
+    "allow independent soft hold to engage",
   )
   text = replace_once(
     text,
@@ -68,6 +78,13 @@ def patch_cruise() -> None:
 """,
     "remove cruise-availability gate from soft hold arming",
   )
+
+  timer_gate = """                            self.autoCruiseControl_cancel_timer == 0 and \\
+"""
+  if timer_gate in text:
+    text = text.replace(timer_gate, "", 1)
+  elif "allow_auto_cruise_cancel_timer=True" not in text:
+    raise RuntimeError("Upstream code shape changed; cannot preserve independent soft hold through cancel timer")
 
   CRUISE.write_text(text, encoding="utf-8")
 
@@ -79,6 +96,27 @@ def patch_blinkers() -> None:
     text, replacements = re.subn(pattern, rf"\g<1>0", text, count=1)
     if replacements != 1:
       raise RuntimeError(f"Upstream code shape changed; cannot patch {name}")
+
+  text = replace_once(
+    text,
+    """  soft_hold_active = CS.softHoldActive > 0 and CS.out.cruiseState.available
+  acc_control_enabled = (enabled or soft_hold_active) and CS.out.cruiseState.available and CS.paddle_button_prev == 0 and not interlock_active
+""",
+    """  soft_hold_active = CS.softHoldActive > 0
+  acc_control_enabled = (enabled or soft_hold_active) and CS.paddle_button_prev == 0 and not interlock_active
+""",
+    "preserve CANFD SCC2 stop request for independent soft hold",
+  )
+  text = replace_once(
+    text,
+    """  soft_hold_active = CS.softHoldActive > 0 and CS.out.cruiseState.available
+  acc_control_enabled = (enabled or soft_hold_active) and CS.out.cruiseState.available and not interlock_active
+""",
+    """  soft_hold_active = CS.softHoldActive > 0
+  acc_control_enabled = (enabled or soft_hold_active) and not interlock_active
+""",
+    "preserve CANFD SCC stop request for independent soft hold",
+  )
   HYUNDAI_CANFD.write_text(text, encoding="utf-8")
 
 
