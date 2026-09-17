@@ -39,13 +39,19 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          base_ref="$(git rev-parse HEAD)"
           git remote add upstream https://github.com/ajouatom/openpilot.git
           git fetch upstream carrot-wip --prune
           if git merge-base --is-ancestor upstream/carrot-wip HEAD; then
             echo "Upstream carrot-wip is already included."
           else
-            git merge --no-edit upstream/carrot-wip
+            git merge --no-commit --no-ff upstream/carrot-wip
           fi
+
+          # The Actions token may update source code but is intentionally not
+          # allowed to push workflow definitions. Keep this fork's workflow
+          # files while accepting every non-workflow upstream change.
+          git restore --source="$base_ref" --staged --worktree -- .github/workflows
 
       - name: Reapply user patches and verify syntax
         run: |
@@ -60,10 +66,8 @@ jobs:
 
       - name: Commit and push when upstream or patches changed
         run: |
-          if ! git diff --quiet; then
-            git add openpilot/selfdrive/car/cruise.py opendbc_repo/opendbc/car/hyundai/hyundaicanfd.py \
-              openpilot/selfdrive/carrot/server/services/fork_remote.py \
-              openpilot/selfdrive/carrot/server/features/tools/dispatcher.py
+          if ! git diff --cached --quiet || ! git diff --quiet; then
+            git add -A
             git commit -m "Sync fms-carrot-wip and preserve user patches"
           fi
           git push origin HEAD:fms-carrot-wip
