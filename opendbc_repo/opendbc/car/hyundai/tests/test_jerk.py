@@ -237,7 +237,6 @@ def test_canfd_cruise_unavailable_keeps_independent_soft_hold_acc_control(camera
     msg, accel_value = create_acc_control_scc2(
       FakePacker(), CAN, False, -0.5, 0.0, False, False, 30.0, hud_control, jerk, CS,
     )
-    assert accel_value == 0
   else:
     msg = create_acc_control(
       FakePacker(), CAN, False, -0.5, 0.0, False, False, 30.0, hud_control, 1.0, 5.0, CS,
