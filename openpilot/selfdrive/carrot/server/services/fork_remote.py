@@ -39,12 +39,14 @@ def ensure_fork_remote(repo_dir: str) -> tuple[int, str]:
     return output
 
   try:
-    current_url = git("remote", "get-url", FORK_REMOTE, allowed=(0, 2))
-    if not current_url:
+    remotes = git("remote").split()
+    if FORK_REMOTE not in remotes:
       git("remote", "add", FORK_REMOTE, FORK_URL)
       messages.append(f"Added {FORK_REMOTE} remote.")
-    elif current_url.rstrip("/") != FORK_URL.rstrip("/"):
-      raise RuntimeError(f"Reserved remote {FORK_REMOTE} has an unexpected URL: {current_url}")
+    else:
+      current_url = git("remote", "get-url", FORK_REMOTE)
+      if current_url.rstrip("/") != FORK_URL.rstrip("/"):
+        raise RuntimeError(f"Reserved remote {FORK_REMOTE} has an unexpected URL: {current_url}")
 
     git("config", "--local", "--replace-all", f"remote.{FORK_REMOTE}.fetch", FORK_FETCH_REFSPEC)
     messages.append(f"Verified {FORK_REMOTE} remote branch tracking.")
