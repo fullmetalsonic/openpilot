@@ -216,7 +216,7 @@ def test_canfd_hold_interlock_blocks_acc_control(camera_scc, brake_hold_active, 
 
 
 @pytest.mark.parametrize("camera_scc", [False, True])
-def test_canfd_cruise_unavailable_blocks_soft_hold_acc_control(camera_scc):
+def test_canfd_cruise_unavailable_keeps_independent_soft_hold_acc_control(camera_scc):
   class FakePacker:
     @staticmethod
     def make_can_msg(name, bus, values):
@@ -237,16 +237,13 @@ def test_canfd_cruise_unavailable_blocks_soft_hold_acc_control(camera_scc):
     msg, accel_value = create_acc_control_scc2(
       FakePacker(), CAN, False, -0.5, 0.0, False, False, 30.0, hud_control, jerk, CS,
     )
-    assert accel_value == 0
   else:
     msg = create_acc_control(
       FakePacker(), CAN, False, -0.5, 0.0, False, False, 30.0, hud_control, 1.0, 5.0, CS,
     )
 
-  assert msg[2]["ACCMode"] == 0
-  assert msg[2]["StopReq"] == 0
-  assert msg[2]["aReqValue"] == 0
-  assert msg[2]["aReqRaw"] == 0
+  assert msg[2]["ACCMode"] == 1
+  assert msg[2]["StopReq"] == 1
 
 
 @pytest.mark.parametrize("brake_hold_active", [False, True])
