@@ -74,6 +74,22 @@ def build_jerk_controller():
   return controller
 
 
+@pytest.mark.parametrize('activation', [-3, -2, -1, 0, 1])
+def test_cancel_request_never_becomes_stock_cruise_resume(activation):
+  controller = CarController.__new__(CarController)
+  controller.activateCruise = 0
+  controller.prev_clu_speed = 72
+  controller.button_spam1 = controller.button_spam2 = 8
+  controller.frame = 100
+  controller.last_button_frame = controller.button_wait = controller.button_spamming_count = 0
+  CC = SimpleNamespace(enabled=False, hudControl=SimpleNamespace(setSpeed=20, leadVisible=True))
+  CS = SimpleNamespace(is_metric=True, cruise_buttons=[0], out=SimpleNamespace(
+    brakePressed=False, gasPressed=False, brakeHoldActive=False, parkingBrake=False,
+    vEgo=20, activateCruise=activation, cruiseState=SimpleNamespace(speed=20)))
+  assert controller.make_spam_button(CC, CS) == (1 if activation > 0 else 0)
+  assert controller.activateCruise == int(activation > 0)
+
+
 @pytest.mark.parametrize(
   "accel",
   [
@@ -244,6 +260,37 @@ def test_canfd_cruise_unavailable_keeps_independent_soft_hold_acc_control(camera
 
   assert msg[2]["ACCMode"] == 1
   assert msg[2]["StopReq"] == 1
+
+
+@pytest.mark.parametrize("camera_scc", [False, True])
+def test_canfd_cruise_unavailable_blocks_regular_acc_control(camera_scc):
+  class FakePacker:
+    @staticmethod
+    def make_can_msg(name, bus, values):
+      return name, bus, values.copy()
+
+  CAN = SimpleNamespace(ECAN=0)
+  CS = SimpleNamespace(
+    scc_control={"ACC_ObjRelSpd": 0.0, "InfoDisplay": 0},
+    softHoldActive=0,
+    paddle_button_prev=0,
+    out=SimpleNamespace(aEgo=0.0, vEgo=0.0, brakeHoldActive=False, parkingBrake=False,
+                        cruiseState=SimpleNamespace(available=False)),
+  )
+  hud_control = SimpleNamespace(leadDistanceBars=2, leadVisible=False)
+
+  if camera_scc:
+    jerk = SimpleNamespace(carrot_cruise=0, jerk_u=1.0, jerk_l=5.0)
+    msg, _ = create_acc_control_scc2(
+      FakePacker(), CAN, True, -0.5, 0.0, False, False, 30.0, hud_control, jerk, CS,
+    )
+  else:
+    msg = create_acc_control(
+      FakePacker(), CAN, True, -0.5, 0.0, False, False, 30.0, hud_control, 1.0, 5.0, CS,
+    )
+
+  assert msg[2]["ACCMode"] == 0
+  assert msg[2]["StopReq"] == 0
 
 
 @pytest.mark.parametrize("brake_hold_active", [False, True])

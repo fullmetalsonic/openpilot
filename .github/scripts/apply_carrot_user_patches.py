@@ -42,25 +42,44 @@ def patch_cruise() -> None:
 """,
     "preserve soft hold while cruise is unavailable",
   )
-  text = replace_once(
-    text,
-    """  def _cruise_control(self, enable, cancel_timer, reason, allow_cancel_state=False):
+  # 3bbc3c12 adds `manual` for Bluetooth/HID actions. Preserve that upstream
+  # behavior while keeping the independent-SoftHold exceptions narrowly scoped.
+  legacy_signature = """  def _cruise_control(self, enable, cancel_timer, reason, allow_cancel_state=False):
     if enable > 0 and not self._cruise_available:
-""",
-    """  def _cruise_control(self, enable, cancel_timer, reason, allow_cancel_state=False, allow_unavailable=False,
+"""
+  manual_signature = """  def _cruise_control(self, enable, cancel_timer, reason, allow_cancel_state=False, manual=False):
+    # Explicit HID button requests bypass automatic-engage preferences only;
+    # availability/interlocks below and selfdrived's normal no-entry checks remain.
+    if enable > 0 and not self._cruise_available:
+"""
+  patched_signature = """  def _cruise_control(self, enable, cancel_timer, reason, allow_cancel_state=False, manual=False, allow_unavailable=False,
                       allow_auto_cruise_cancel_timer=False):
+    # Manual Bluetooth/HID input keeps upstream's automatic-engage preference
+    # bypass. The two allow_* exceptions below are reserved for independent
+    # SoftHold and do not bypass steering or hold interlocks.
     if enable > 0 and not self._cruise_available and not allow_unavailable:
-""",
-    "limit cruise-unavailable and cancel-timer exceptions to soft hold",
-  )
-  text = replace_once(
-    text,
-    """      if self.autoCruiseControl_cancel_timer > 0 and enable != 0:
-""",
-    """      if self.autoCruiseControl_cancel_timer > 0 and enable != 0 and not allow_auto_cruise_cancel_timer:
-""",
-    "keep the post-shift cancel timer for normal automatic cruise",
-  )
+"""
+  if patched_signature not in text:
+    if manual_signature in text:
+      text = text.replace(manual_signature, patched_signature, 1)
+    elif legacy_signature in text:
+      text = text.replace(legacy_signature, patched_signature, 1)
+    else:
+      raise RuntimeError("Upstream code shape changed; refusing to guess: limit cruise-unavailable exception to soft hold")
+
+  patched_timer = """      if not manual and self.autoCruiseControl_cancel_timer > 0 and enable != 0 and not allow_auto_cruise_cancel_timer:
+"""
+  manual_timer = """      if not manual and self.autoCruiseControl_cancel_timer > 0 and enable != 0:
+"""
+  legacy_timer = """      if self.autoCruiseControl_cancel_timer > 0 and enable != 0:
+"""
+  if patched_timer not in text:
+    if manual_timer in text:
+      text = text.replace(manual_timer, patched_timer, 1)
+    elif legacy_timer in text:
+      text = text.replace(legacy_timer, patched_timer, 1)
+    else:
+      raise RuntimeError("Upstream code shape changed; cannot preserve independent soft hold through cancel timer")
   text = replace_once(
     text,
     """    self._cruise_control(1, -1, \"Cruise on (soft hold)\", allow_cancel_state=self.soft_hold_on_cancel)
@@ -118,7 +137,9 @@ def patch_blinkers() -> None:
   acc_control_enabled = (enabled or soft_hold_active) and CS.out.cruiseState.available and CS.paddle_button_prev == 0 and not interlock_active
 """,
     """  soft_hold_active = CS.softHoldActive > 0
-  acc_control_enabled = (enabled or soft_hold_active) and CS.paddle_button_prev == 0 and not interlock_active
+  # Preserve the upstream availability gate for ordinary ACC. Only independent
+  # SoftHold may hold the vehicle while OEM cruise is unavailable.
+  acc_control_enabled = ((enabled and CS.out.cruiseState.available) or soft_hold_active) and CS.paddle_button_prev == 0 and not interlock_active
 """,
     "preserve CANFD SCC2 stop request for independent soft hold",
   )
@@ -128,7 +149,9 @@ def patch_blinkers() -> None:
   acc_control_enabled = (enabled or soft_hold_active) and CS.out.cruiseState.available and not interlock_active
 """,
     """  soft_hold_active = CS.softHoldActive > 0
-  acc_control_enabled = (enabled or soft_hold_active) and not interlock_active
+  # Match the SCC2 path: ordinary ACC remains gated by OEM availability while
+  # independent SoftHold retains its stop request.
+  acc_control_enabled = ((enabled and CS.out.cruiseState.available) or soft_hold_active) and not interlock_active
 """,
     "preserve CANFD SCC stop request for independent soft hold",
   )
