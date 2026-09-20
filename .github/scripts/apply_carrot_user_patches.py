@@ -42,8 +42,8 @@ def patch_cruise() -> None:
 """,
     "preserve soft hold while cruise is unavailable",
   )
-  # 3bbc3c12 adds `manual` for Bluetooth/HID actions. Preserve that upstream
-  # behavior while keeping the independent-SoftHold exceptions narrowly scoped.
+  # 3bbc3c12 adds `manual` for Bluetooth/HID actions. Keep the upstream
+  # signature: SoftHold now holds through CAN without requesting cruise ON.
   legacy_signature = """  def _cruise_control(self, enable, cancel_timer, reason, allow_cancel_state=False):
     if enable > 0 and not self._cruise_available:
 """
@@ -59,13 +59,10 @@ def patch_cruise() -> None:
     # SoftHold and do not bypass steering or hold interlocks.
     if enable > 0 and not self._cruise_available and not allow_unavailable:
 """
-  if patched_signature not in text:
-    if manual_signature in text:
-      text = text.replace(manual_signature, patched_signature, 1)
-    elif legacy_signature in text:
-      text = text.replace(legacy_signature, patched_signature, 1)
-    else:
-      raise RuntimeError("Upstream code shape changed; refusing to guess: limit cruise-unavailable exception to soft hold")
+  if patched_signature in text:
+    text = text.replace(patched_signature, manual_signature, 1)
+  elif manual_signature not in text and legacy_signature not in text:
+    raise RuntimeError("Upstream code shape changed; refusing to guess: preserve cruise-control signature")
 
   patched_timer = """      if not manual and self.autoCruiseControl_cancel_timer > 0 and enable != 0 and not allow_auto_cruise_cancel_timer:
 """
@@ -73,36 +70,68 @@ def patch_cruise() -> None:
 """
   legacy_timer = """      if self.autoCruiseControl_cancel_timer > 0 and enable != 0:
 """
-  if patched_timer not in text:
-    if manual_timer in text:
-      text = text.replace(manual_timer, patched_timer, 1)
-    elif legacy_timer in text:
-      text = text.replace(legacy_timer, patched_timer, 1)
-    else:
-      raise RuntimeError("Upstream code shape changed; cannot preserve independent soft hold through cancel timer")
-  text = replace_once(
-    text,
-    """    self._cruise_control(1, -1, \"Cruise on (soft hold)\", allow_cancel_state=self.soft_hold_on_cancel)
-""",
-    """    self._cruise_control(1, -1, \"Cruise on (soft hold)\", allow_cancel_state=self.soft_hold_on_cancel,
-                         allow_unavailable=True, allow_auto_cruise_cancel_timer=True)
-""",
-    "allow independent soft hold to engage",
-  )
-  text = replace_once(
-    text,
-    """    self._soft_hold_active = 2
-    self._cruise_control(1, -1, \"Cruise on (soft hold)\", allow_cancel_state=self.soft_hold_on_cancel,
-                         allow_unavailable=True, allow_auto_cruise_cancel_timer=True)
-""",
-    """    self._soft_hold_active = 2
+  if patched_timer in text:
+    text = text.replace(patched_timer, manual_timer, 1)
+  elif manual_timer not in text and legacy_timer not in text:
+    raise RuntimeError("Upstream code shape changed; cannot preserve cruise cancel timer")
+
+  hold_only = """  def _engage_soft_hold(self):
+    self._soft_hold_active = 2
+    self._add_log("Soft hold active (hold only)")
+"""
+  upstream_engage = """  def _engage_soft_hold(self):
+    self._soft_hold_active = 2
+    self._cruise_control(1, -1, "Cruise on (soft hold)", allow_cancel_state=self.soft_hold_on_cancel)
+"""
+  previous_patch_engage = """  def _engage_soft_hold(self):
+    self._soft_hold_active = 2
     if self._cruise_cancel_state:
-      self._add_log(\"Soft hold active (cancel state)\")
+      self._add_log("Soft hold active (cancel state)")
       return
-    self._cruise_control(1, -1, \"Cruise on (soft hold)\", allow_cancel_state=self.soft_hold_on_cancel,
+    self._cruise_control(1, -1, "Cruise on (soft hold)", allow_cancel_state=self.soft_hold_on_cancel,
                          allow_unavailable=True, allow_auto_cruise_cancel_timer=True)
+"""
+  if hold_only not in text:
+    if previous_patch_engage in text:
+      text = text.replace(previous_patch_engage, hold_only, 1)
+    elif upstream_engage in text:
+      text = text.replace(upstream_engage, hold_only, 1)
+    else:
+      raise RuntimeError("Upstream code shape changed; cannot safely patch SoftHold engagement")
+
+  text = replace_once(
+    text,
+    """  def _update_cruise_buttons(self, CS, CC, v_cruise_kph):
+    remote = self.bluetooth_commands.read(allowed=(CS.canValid and CS.cruiseState.available and
 """,
-    "keep cruise cancelled while independent soft hold is active",
+    """  def _update_cruise_buttons(self, CS, CC, v_cruise_kph):
+    if any(b.type == ButtonType.cancel and b.pressed for b in CS.buttonEvents):
+      # selfdrived cancels on the press edge; latch here too instead of waiting
+      # for the release/long-press decoder.
+      self._cruise_cancel_state = True
+    remote = self.bluetooth_commands.read(allowed=(CS.canValid and CS.cruiseState.available and
+""",
+    "latch physical cancel on the press edge",
+  )
+
+  text = replace_once(
+    text,
+    """    if self._soft_hold_active > 0:
+      #self.events.append(EventName.softHold)
+      #self._cruise_cancel_state = False
+      pass
+
+    if not self.disengage_on_accelerator and self._gas_tok and self.v_ego_kph_set >= self.autoGasTokSpeed:
+""",
+    """    if self._soft_hold_active > 0:
+      # Keep the real CAN hold active without turning SoftHold itself into a
+      # selfdrived enable request. Explicit SET/RES clears SoftHold earlier in
+      # the button path; after gas release the normal CruiseOnDist logic remains.
+      return self._auto_speed_up(v_cruise_kph)
+
+    if not self.disengage_on_accelerator and self._gas_tok and self.v_ego_kph_set >= self.autoGasTokSpeed:
+""",
+    "block automatic cruise activation while SoftHold owns the stop",
   )
   text = replace_once(
     text,
@@ -117,8 +146,8 @@ def patch_cruise() -> None:
 """
   if timer_gate in text:
     text = text.replace(timer_gate, "", 1)
-  elif "allow_auto_cruise_cancel_timer=True" not in text:
-    raise RuntimeError("Upstream code shape changed; cannot preserve independent soft hold through cancel timer")
+  elif "soft_hold_available = self.autoCruiseControl != 0" not in text:
+    raise RuntimeError("Upstream code shape changed; cannot preserve independent SoftHold arming")
 
   CRUISE.write_text(text, encoding="utf-8")
 

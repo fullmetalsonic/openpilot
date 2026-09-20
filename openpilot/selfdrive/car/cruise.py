@@ -556,6 +556,10 @@ class VCruiseCarrot:
     return v_cruise_kph, button_type, long_pressed
 
   def _update_cruise_buttons(self, CS, CC, v_cruise_kph):
+    if any(b.type == ButtonType.cancel and b.pressed for b in CS.buttonEvents):
+      # selfdrived cancels on the press edge; latch here too instead of waiting
+      # for the release/long-press decoder.
+      self._cruise_cancel_state = True
     remote = self.bluetooth_commands.read(allowed=(CS.canValid and CS.cruiseState.available and
       CS.gearShifter == GearShifter.drive and not CS.buttonEvents and self.button_cnt == 0))
     if getattr(self.bluetooth_commands, 'is_repeat', False) and not CC.enabled:
@@ -771,12 +775,10 @@ class VCruiseCarrot:
     self.nRoadLimitSpeed_last = self.nRoadLimitSpeed
     return v_cruise_kph
 
-  def _cruise_control(self, enable, cancel_timer, reason, allow_cancel_state=False, manual=False, allow_unavailable=False,
-                      allow_auto_cruise_cancel_timer=False):
-    # Manual Bluetooth/HID input keeps upstream's automatic-engage preference
-    # bypass. The two allow_* exceptions below are reserved for independent
-    # SoftHold and do not bypass steering or hold interlocks.
-    if enable > 0 and not self._cruise_available and not allow_unavailable:
+  def _cruise_control(self, enable, cancel_timer, reason, allow_cancel_state=False, manual=False):
+    # Explicit HID button requests bypass automatic-engage preferences only;
+    # availability/interlocks below and selfdrived's normal no-entry checks remain.
+    if enable > 0 and not self._cruise_available:
       self._activate_cruise = 0
       self._add_log(reason + " > Cruise unavailable")
       return
@@ -798,7 +800,7 @@ class VCruiseCarrot:
         enable = 0
         self._soft_hold_active = 0
         return
-      if not manual and self.autoCruiseControl_cancel_timer > 0 and enable != 0 and not allow_auto_cruise_cancel_timer:
+      if not manual and self.autoCruiseControl_cancel_timer > 0 and enable != 0:
         self._add_log(reason + " > timer Canceled")
         enable = 0
         self._soft_hold_active = 0
@@ -822,11 +824,7 @@ class VCruiseCarrot:
 
   def _engage_soft_hold(self):
     self._soft_hold_active = 2
-    if self._cruise_cancel_state:
-      self._add_log("Soft hold active (cancel state)")
-      return
-    self._cruise_control(1, -1, "Cruise on (soft hold)", allow_cancel_state=self.soft_hold_on_cancel,
-                         allow_unavailable=True, allow_auto_cruise_cancel_timer=True)
+    self._add_log("Soft hold active (hold only)")
 
   def _update_cruise_state(self, CS, CC, v_cruise_kph):
     if not CC.enabled:
@@ -842,9 +840,10 @@ class VCruiseCarrot:
         self.v_cruise_kph = self.v_ego_kph_set
 
     if self._soft_hold_active > 0:
-      #self.events.append(EventName.softHold)
-      #self._cruise_cancel_state = False
-      pass
+      # Keep the real CAN hold active without turning SoftHold itself into a
+      # selfdrived enable request. Explicit SET/RES clears SoftHold earlier in
+      # the button path; after gas release the normal CruiseOnDist logic remains.
+      return self._auto_speed_up(v_cruise_kph)
 
     if not self.disengage_on_accelerator and self._gas_tok and self.v_ego_kph_set >= self.autoGasTokSpeed:
       if not CC.enabled:

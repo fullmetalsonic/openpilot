@@ -468,7 +468,7 @@ def test_cancel_state_soft_hold_policy(soft_hold_on_cancel, expected_count, expe
   assert helper._soft_hold_active == expected_active
 
 
-def test_soft_hold_on_cancel_keeps_cruise_cancelled_while_engaging():
+def test_soft_hold_engages_hold_only_without_requesting_cruise():
   helper = VCruiseCarrot.__new__(VCruiseCarrot)
   helper._cruise_available = True
   helper._hold_interlock_active = False
@@ -489,7 +489,7 @@ def test_soft_hold_on_cancel_keeps_cruise_cancelled_while_engaging():
   assert helper._activate_cruise == 0
 
 
-def test_soft_hold_can_engage_when_cruise_is_unavailable():
+def test_soft_hold_can_hold_when_cruise_is_unavailable_without_enabling():
   helper = VCruiseCarrot.__new__(VCruiseCarrot)
   helper._cruise_available = False
   helper._hold_interlock_active = False
@@ -507,10 +507,10 @@ def test_soft_hold_can_engage_when_cruise_is_unavailable():
 
   assert helper._soft_hold_active == 2
   assert not helper._cruise_cancel_state
-  assert helper._activate_cruise == 1
+  assert helper._activate_cruise == 0
 
 
-def test_soft_hold_can_engage_while_post_shift_cancel_timer_is_active():
+def test_soft_hold_can_hold_while_post_shift_cancel_timer_is_active_without_enabling():
   helper = VCruiseCarrot.__new__(VCruiseCarrot)
   helper._cruise_available = False
   helper._hold_interlock_active = False
@@ -527,7 +527,57 @@ def test_soft_hold_can_engage_while_post_shift_cancel_timer_is_active():
   helper._engage_soft_hold()
 
   assert helper._soft_hold_active == 2
-  assert helper._activate_cruise == 1
+  assert helper._activate_cruise == 0
+
+
+def test_active_soft_hold_blocks_automatic_cruise_requests_only_while_holding():
+  helper = VCruiseCarrot.__new__(VCruiseCarrot)
+  helper._soft_hold_active = 2
+  helper._auto_speed_up = lambda speed: speed
+  helper._cruise_control = lambda *args, **kwargs: pytest.fail("SoftHold must not request cruise ON")
+
+  CS = SimpleNamespace()
+  CC = SimpleNamespace(enabled=True)
+
+  assert helper._update_cruise_state(CS, CC, 80) == 80
+
+
+@pytest.mark.parametrize(("cruise_on_dist", "expected"), [(0.0, False), (10.0, True)])
+def test_cruise_on_dist_path_remains_after_soft_hold_is_released(cruise_on_dist, expected):
+  helper = VCruiseCarrot.__new__(VCruiseCarrot)
+  helper.params = SimpleNamespace(get_bool=lambda key: False)
+  helper._soft_hold_active = 0
+  helper._brake_pressed_count = -2
+  helper._gas_pressed_count = -2
+  helper._gas_pressed_count_last = 0
+  helper._gas_tok = False
+  helper._gas_tok_timer = 40
+  helper.disengage_on_accelerator = False
+  helper.v_cruise_kph = 80
+  helper.v_ego_kph_set = 70
+  helper.autoGasTokSpeed = 10
+  helper.autoGasCancelSpeed = 30
+  helper.autoGasSyncSpeed = 1
+  helper.aTarget = 0.0
+  helper.xState = 0
+  helper.d_rel = 5.0
+  helper.v_rel = 0.0
+  helper.cruiseOnDist = cruise_on_dist
+  helper.desiredSpeed = 80
+  helper._cruise_ready = False
+  helper._paddle_decel_active = False
+  helper._pause_auto_speed_up = False
+  helper._check_safe_stop = lambda CS, seconds: (True, 0.0)
+  helper._auto_speed_up = lambda speed: speed
+  helper._add_log = lambda log: None
+  requests = []
+  helper._cruise_control = lambda enable, timer, reason, **kwargs: requests.append((enable, reason))
+
+  CS = SimpleNamespace(vEgo=1.0, steeringAngleDeg=0.0, leftBlinker=False, rightBlinker=False, aEgo=0.0)
+  CC = SimpleNamespace(enabled=False)
+
+  assert helper._update_cruise_state(CS, CC, 80) == 80
+  assert ((1, "Cruise on (fcw dist)") in requests) is expected
 
 
 def test_post_shift_cancel_timer_still_blocks_normal_automatic_cruise_activation():
