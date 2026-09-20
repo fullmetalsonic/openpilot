@@ -229,6 +229,8 @@ def test_remote_engagement_preserves_interlocks_and_physical_priority(block, act
     helper._activate_cruise = -1
   helper._update_cruise_buttons(CS, CC, 80)
   assert helper._activate_cruise <= 0
+  if block == 'physical_cancel':
+    assert helper._cruise_cancel_state
 
 
 @pytest.mark.parametrize('block', [None, 'doorOpen', 'seatbeltUnlatched', 'accFaulted'])
