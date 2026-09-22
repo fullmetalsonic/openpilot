@@ -197,6 +197,132 @@ def make_remote_helper(action, enabled=False):
   return helper, CS, CC
 
 
+@pytest.mark.parametrize('physical', ['setCruise', 'resumeCruise', 'accelCruise', 'decelCruise'])
+@pytest.mark.parametrize('enabled', [False, True])
+@pytest.mark.parametrize('mode', [0, 2])
+@pytest.mark.parametrize('long_press', [False, True])
+def test_vw_set_resume_are_distinct_from_speed_adjustment(physical, enabled, mode, long_press):
+  from opendbc.car.volkswagen.carstate import CarState
+  from opendbc.car.volkswagen.values import CAR
+
+  candidate = CAR.VOLKSWAGEN_ID4_MK1
+  vw = CarState(car.CarParams(carFingerprint=candidate, flags=int(candidate.config.flags), transmissionType='direct'))
+  buttons = vw.CCP.BUTTONS
+  cp = SimpleNamespace(vl={})
+  for button in buttons:
+    cp.vl.setdefault(button.can_addr, {})[button.can_msg] = 0
+  source = next(button for button in buttons if button.event_type == getattr(ButtonType, physical))
+  helper, CS, CC = make_remote_helper(None, enabled=enabled)
+  helper._cruise_button_mode = mode
+  helper._v_cruise_kph_at_brake = 95
+  helper._cruise_speed_initialized = False
+  helper._cruise_cancel_state = True
+  helper.autoCruiseControl_cancel_timer = 100
+  speed = 80
+
+  for pressed in [True] * (52 if long_press else 3) + [False]:
+    cp.vl[source.can_addr][source.can_msg] = source.values[0] if pressed else 0
+    CS.buttonEvents = vw.create_button_events(cp, buttons)
+    speed = helper._update_cruise_buttons(CS, CC, speed)
+
+  increase = physical in ('resumeCruise', 'accelCruise')
+  if physical == 'setCruise':
+    expected = 70
+  elif physical == 'resumeCruise':
+    expected = 95
+  elif long_press:
+    expected = 90 if increase else 70
+  elif not enabled:
+    expected = 95 if increase else 70
+  elif mode == 0:
+    expected = 81 if increase else 79
+  else:
+    expected = 90 if increase else 70
+  assert speed == expected
+  assert helper._v_cruise_kph_at_brake == 0
+  assert not helper._cruise_cancel_state
+  assert helper.autoCruiseControl_cancel_timer == 0
+  assert helper.button_cnt == 0
+  if not long_press or physical in ('setCruise', 'resumeCruise'):
+    assert helper._lat_enabled
+    assert helper._cruise_speed_initialized
+  assert vw.update_button_enable(CS.buttonEvents) is (physical in ('setCruise', 'resumeCruise'))
+
+  # The real release must not add another short-press speed step after a hold.
+  CS.buttonEvents = vw.create_button_events(cp, buttons)
+  assert helper._update_cruise_buttons(CS, CC, speed) == speed
+  assert not vw.update_button_enable(CS.buttonEvents)
+
+
+@pytest.mark.parametrize('enabled', [False, True])
+@pytest.mark.parametrize('initialized,saved,expected', [(True, 0, 80), (True, 60, 60), (True, 95, 95), (False, 0, 70)])
+def test_dedicated_resume_restores_saved_speed_without_increment(enabled, initialized, saved, expected):
+  helper, CS, CC = make_remote_helper(None, enabled=enabled)
+  helper._cruise_speed_initialized = initialized
+  helper._v_cruise_kph_at_brake = saved
+  CS.buttonEvents = [{'type': 'resumeCruise', 'pressed': False}]
+  assert helper._update_cruise_buttons(CS, CC, 80) == expected
+  assert helper._cruise_speed_initialized
+  assert helper._v_cruise_kph_at_brake == 0
+
+
+@pytest.mark.parametrize('physical', ['setCruise', 'resumeCruise'])
+def test_dedicated_set_resume_hold_is_one_action_on_release(physical):
+  helper, CS, CC = make_remote_helper(None, enabled=True)
+  helper._v_cruise_kph_at_brake = 95
+  CS.cruiseSpeedBigStep = True
+  CS.buttonEvents = [{'type': physical, 'pressed': True}]
+  speed = helper._update_cruise_buttons(CS, CC, 80)
+  assert speed == 80
+  CS.buttonEvents = []
+  for _ in range(200):
+    assert helper._update_cruise_buttons(CS, CC, speed) == 80
+  CS.buttonEvents = [{'type': physical, 'pressed': False}]
+  assert helper._update_cruise_buttons(CS, CC, speed) == (70 if physical == 'setCruise' else 95)
+  assert helper.button_cnt == 0
+
+
+@pytest.mark.parametrize('physical', ['setCruise', 'resumeCruise'])
+def test_dedicated_buttons_leave_hold_ready_and_carrot_modes(physical):
+  helper, CS, CC = make_remote_helper(None, enabled=True)
+  helper._soft_hold_active = 2
+  helper._cruise_cancel_state = True
+  helper._cruise_ready = helper._paddle_decel_active = helper.carrot_cruise_active = True
+  CS.buttonEvents = [{'type': physical, 'pressed': False}]
+  assert helper._update_cruise_buttons(CS, CC, 80) == (70 if physical == 'setCruise' else 80)
+  assert helper._soft_hold_active == 0
+  assert not helper._cruise_ready
+  assert not helper._paddle_decel_active
+  assert not helper.carrot_cruise_active
+  assert helper._lat_enabled
+  assert not helper._cruise_cancel_state
+
+
+def test_physical_cancel_latches_before_release_decoder():
+  helper, CS, CC = make_remote_helper(None, enabled=True)
+  helper._soft_hold_active = 2
+  helper._cruise_cancel_state = False
+  CS.buttonEvents = [{'type': 'cancel', 'pressed': True}]
+  helper._update_cruise_buttons(CS, CC, 80)
+  assert helper._cruise_cancel_state
+  assert helper._activate_cruise <= 0
+
+
+@pytest.mark.parametrize('physical,expected', [('setCruise', 70), ('resumeCruise', 95)])
+def test_explicit_set_resume_speed_wins_over_same_frame_automatic_speed(physical, expected):
+  helper, CS, CC = make_remote_helper(None, enabled=False)
+  helper._v_cruise_kph_at_brake = 95
+  CS.buttonEvents = [{'type': physical, 'pressed': False}]
+
+  def automatic_update(CS, CC, speed):
+    helper._activate_cruise = -1
+    return 40
+
+  helper._update_cruise_state = automatic_update
+  assert helper._update_cruise_buttons(CS, CC, 80) == expected
+  assert helper._activate_cruise == -1
+
+
 @pytest.mark.parametrize('action', ['accelCruise', 'decelCruise', 'accelCruiseLong', 'decelCruiseLong'])
 @pytest.mark.parametrize('auto_cruise', [0, 1])
 def test_remote_cruise_buttons_request_engagement_independently_of_auto_cruise(action, auto_cruise):
@@ -545,8 +671,18 @@ def test_active_soft_hold_blocks_automatic_cruise_requests_only_while_holding():
 
 
 @pytest.mark.parametrize(("cruise_on_dist", "expected"), [(0.0, False), (10.0, True)])
-def test_cruise_on_dist_path_remains_after_soft_hold_is_released(cruise_on_dist, expected):
+@pytest.mark.parametrize("available", [False, True])
+@pytest.mark.parametrize("cancelled", [False, True])
+def test_cruise_on_dist_path_remains_after_soft_hold_is_released(cruise_on_dist, expected, available, cancelled):
   helper = VCruiseCarrot.__new__(VCruiseCarrot)
+  helper._cruise_available = available
+  helper._cruise_cancel_state = cancelled
+  helper._steering_interlock_active = False
+  helper._hold_interlock_active = False
+  helper._cancel_timer = 0
+  helper._activate_cruise = 0
+  helper.autoCruiseControl = 1
+  helper.autoCruiseControl_cancel_timer = 0
   helper.params = SimpleNamespace(get_bool=lambda key: False)
   helper._soft_hold_active = 0
   helper._brake_pressed_count = -2
@@ -573,13 +709,18 @@ def test_cruise_on_dist_path_remains_after_soft_hold_is_released(cruise_on_dist,
   helper._auto_speed_up = lambda speed: speed
   helper._add_log = lambda log: None
   requests = []
-  helper._cruise_control = lambda enable, timer, reason, **kwargs: requests.append((enable, reason))
+  actual_cruise_control = helper._cruise_control
+  def record_and_execute(enable, timer, reason, **kwargs):
+    requests.append((enable, reason))
+    actual_cruise_control(enable, timer, reason, **kwargs)
+  helper._cruise_control = record_and_execute
 
   CS = SimpleNamespace(vEgo=1.0, steeringAngleDeg=0.0, leftBlinker=False, rightBlinker=False, aEgo=0.0)
   CC = SimpleNamespace(enabled=False)
 
   assert helper._update_cruise_state(CS, CC, 80) == 80
   assert ((1, "Cruise on (fcw dist)") in requests) is expected
+  assert (helper._activate_cruise > 0) is (expected and available and not cancelled)
 
 
 def test_post_shift_cancel_timer_still_blocks_normal_automatic_cruise_activation():
@@ -598,6 +739,30 @@ def test_post_shift_cancel_timer_still_blocks_normal_automatic_cruise_activation
   helper._cruise_control(1, -1, "Cruise on (test)")
 
   assert helper._activate_cruise == 0
+
+
+@pytest.mark.parametrize("hold", [0, 1, 2])
+@pytest.mark.parametrize("cancelled", [False, True])
+def test_gm_brake_resume_flag_cannot_enable_during_independent_hold(hold, cancelled):
+  helper, CS, CC = make_cruise_helper(80, 0, False, False)
+  del helper._update_cruise_state
+  values = {"ActivateCruiseAfterBrake": True}
+  helper.params = SimpleNamespace(get_bool=values.__getitem__, put_bool_nonblocking=values.__setitem__)
+  helper._soft_hold_active = hold
+  helper.d_rel = 0.
+  helper._cruise_cancel_state = cancelled
+  helper._brake_pressed_count = -2
+  helper.v_cruise_kph = 80
+  helper._auto_speed_up = lambda speed: speed
+  helper.disengage_on_accelerator = False
+  helper._gas_tok = False
+  helper._gas_pressed_count = -2
+  helper._gas_tok_timer = 0
+  helper.cruiseOnDist = 0
+  helper.desiredSpeed = 80
+  helper._update_cruise_state(CS, CC, 80)
+  assert (helper._activate_cruise > 0) is (hold == 0 and not cancelled)
+  assert values['ActivateCruiseAfterBrake'] is (hold > 0)
 
 
 @pytest.mark.parametrize(("cancel_state", "expected_activate"), [
@@ -702,3 +867,60 @@ def test_gap_long_press_still_changes_driving_mode():
   helper.params = SimpleNamespace(get_int=values.__getitem__, put_int_nonblocking=values.__setitem__)
   helper._update_cruise_buttons(CS, CC, 80)
   assert values == {"MyDrivingMode": 1, "LongitudinalPersonality": 1}
+
+
+@pytest.mark.parametrize("camera", [False, True])
+@pytest.mark.parametrize("available", [False, True])
+@pytest.mark.parametrize("cancelled", [False, True])
+@pytest.mark.parametrize("retry", [False, True])
+def test_independent_hold_brake_release_to_packed_can_without_cruise_enable(camera, available, cancelled, retry):
+  # Exercise real pedal/state logic and the real CAN encoder together. This is
+  # still a source-level test, not Linux IPC or confirmation from the vehicle ECU.
+  from opendbc.car.hyundai.tests.test_stopping import make_cs, send
+  from opendbc.car.hyundai.stopping import CanfdStopping
+
+  helper, _, CC = make_cruise_helper(80, 0, False, False)
+  del helper._update_cruise_state
+  helper.CP = SimpleNamespace(pcmCruise=False)
+  helper.params = SimpleNamespace(get_bool=lambda key: False)
+  helper.enabled_last = False
+  helper._cruise_available = available
+  helper._cruise_cancel_state = cancelled
+  helper.soft_hold_on_cancel = True
+  helper._soft_hold_count = 0
+  helper._gas_pressed_count = -1
+  helper._gas_pressed_count_last = 0
+  helper._gas_pressed_value = 0.
+  helper._gas_tok_timer = 40
+  helper._gas_tok = False
+  helper._brake_pressed_count = -1
+  helper.v_cruise_kph = 80
+  helper._auto_speed_up = lambda speed: speed
+  wrapper = make_cs()
+  cs = wrapper.out
+  cs.cruiseState.available = available
+  cs.vEgo = cs.vEgoRaw = 0.
+  cs.wheelSpeeds = SimpleNamespace(fl=0., fr=0., rl=0., rr=0.)
+  cs.gearShifter = car.CarState(gearShifter="drive").gearShifter
+  cs.brakePressed = True
+  for _ in range(61):
+    helper._prepare_brake_gas(cs, CC)
+  assert helper._soft_hold_active == 1
+
+  cs.brakePressed = False
+  helper._prepare_brake_gas(cs, CC)
+  helper._update_cruise_state(cs, CC, 80)
+  assert helper._soft_hold_active == 2
+  assert helper._activate_cruise == 0
+  assert helper._cruise_cancel_state is cancelled
+  wrapper.softHoldActive = helper._soft_hold_active
+  controller = CanfdStopping() if retry else None
+  # Retry ON has the upstream negative-acceleration preparation phase.
+  for _ in range(50):
+    values = send(camera, controller, wrapper, enabled=CC.enabled, stopping=False, accel=0.)
+    assert values['ACCMode'] == 1
+    assert values['aReqRaw'] <= 0 and values['aReqValue'] <= 0
+    if values['StopReq'] == 1:
+      break
+  else:
+    pytest.fail('independent SoftHold did not produce a packed stop request')

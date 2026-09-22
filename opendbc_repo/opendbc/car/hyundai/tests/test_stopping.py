@@ -300,3 +300,91 @@ def test_missing_stock_message_resets_camera_experiment():
   cs.scc_control = None
   assert send(True, controller, cs) is None
   assert controller.phase == StopPhase.idle
+
+
+@pytest.mark.parametrize("camera", [True, False])
+@pytest.mark.parametrize("release_after", [None, 1, 10, 26])
+@pytest.mark.parametrize("available", [True, False])
+def test_soft_hold_prepares_two_negative_scc_frames_before_stop_req(camera, release_after, available):
+  cs = make_cs()
+  cs.out.cruiseState.available = available
+  cs.softHoldActive = 1
+  cs.out.brakePressed = True
+  cs.out.vEgo = cs.out.vEgoRaw = 0.0
+  cs.out.wheelSpeeds = SimpleNamespace(fl=0., fr=0., rl=0., rr=0.)
+  controller = CanfdStopping()
+  negative_frames = 0
+  for frame in range(50):
+    if release_after is not None and frame >= release_after:
+      cs.out.brakePressed = False
+      cs.softHoldActive = 2
+    # While braking, controlsd's requested acceleration can still be zero.
+    values = send(camera, controller, cs, enabled=False, stopping=False, accel=0.)
+    assert values['ACCMode'] == 1
+    if values['StopReq']:
+      assert negative_frames >= 2
+      assert values['aReqRaw'] == values['aReqValue'] == 0.
+      break
+    assert values['aReqRaw'] == pytest.approx(-.5)
+    assert values['aReqValue'] < 0.
+    negative_frames = negative_frames + 1 if values['aReqValue'] <= -.5 + 1e-6 else 0
+  else:
+    pytest.fail('soft hold never completed preparation')
+  assert controller.phase == StopPhase.request
+  for _ in range(12):
+    assert send(camera, controller, cs, enabled=False, stopping=False, accel=0.)['StopReq'] == 1
+  assert controller.phase == StopPhase.held
+
+
+@pytest.mark.parametrize('camera', [True, False])
+@pytest.mark.parametrize('block', ['gasPressed', 'brakeHoldActive', 'parkingBrake', 'canValid', 'gearShifter', 'moving'])
+@pytest.mark.parametrize('available', [True, False])
+def test_soft_hold_brake_exception_preserves_other_interlocks(camera, block, available):
+  cs = make_cs()
+  cs.out.cruiseState.available = available
+  cs.softHoldActive = 1
+  cs.out.brakePressed = True
+  cs.out.vEgo = cs.out.vEgoRaw = 0.0
+  cs.out.wheelSpeeds = SimpleNamespace(fl=0., fr=0., rl=0., rr=0.)
+  controller = CanfdStopping()
+  send(camera, controller, cs, enabled=False, stopping=False, accel=0.)
+  assert controller.phase == StopPhase.prepare
+  if block == 'canValid':
+    cs.out.canValid = False
+  elif block == 'gearShifter':
+    cs.out.gearShifter = 'reverse'
+  elif block == 'moving':
+    cs.out.wheelSpeeds.fl = .11
+  else:
+    setattr(cs.out, block, True)
+  values = send(camera, controller, cs, enabled=False, stopping=False, accel=0.)
+  assert values['StopReq'] == 0
+  assert values['aReqRaw'] == values['aReqValue'] == 0.
+  assert controller.phase == StopPhase.idle
+  assert controller.prepare_cycles == 0
+
+
+def test_soft_hold_does_not_release_confirmed_existing_hold_to_prepare():
+  controller = CanfdStopping()
+  command = step(controller, speed=0., held=True, soft_hold=True)
+  assert command.stop_req == 1
+  assert controller.phase == StopPhase.held
+
+
+@pytest.mark.parametrize('camera', [True, False])
+@pytest.mark.parametrize('available', [True, False])
+@pytest.mark.parametrize('retry', [True, False])
+def test_independent_confirmed_hold_packed_commands(camera, available, retry):
+  cs = make_cs()
+  cs.softHoldActive = 2
+  cs.out.cruiseState.available = available
+  cs.out.vEgo = cs.out.vEgoRaw = 0.
+  cs.out.wheelSpeeds = SimpleNamespace(fl=0., fr=0., rl=0., rr=0.)
+  cs.canfdSccHoldActive = True
+  controller = CanfdStopping() if retry else None
+  for _ in range(100):
+    values = send(camera, controller, cs, enabled=False, stopping=False, accel=0.)
+    assert values['ACCMode'] == 1
+    assert values['StopReq'] == 1
+    assert values['aReqRaw'] <= 0
+    assert values['aReqValue'] <= 0

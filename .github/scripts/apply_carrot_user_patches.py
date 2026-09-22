@@ -18,11 +18,15 @@ TOOLS_DISPATCHER = ROOT / "openpilot/selfdrive/carrot/server/features/tools/disp
 
 
 def replace_once(text: str, original: str, patched: str, name: str) -> str:
+  # A removal patch can be a prefix of the original block. Check the complete
+  # original first; otherwise a fresh upstream file is incorrectly left intact.
+  if original in text:
+    if text.count(original) != 1:
+      raise RuntimeError(f"Ambiguous upstream code shape; refusing to guess: {name}")
+    return text.replace(original, patched, 1)
   if patched in text:
     return text
-  if original not in text:
-    raise RuntimeError(f"Upstream code shape changed; refusing to guess: {name}")
-  return text.replace(original, patched, 1)
+  raise RuntimeError(f"Upstream code shape changed; refusing to guess: {name}")
 
 
 def patch_cruise() -> None:
@@ -149,6 +153,12 @@ def patch_cruise() -> None:
   elif "soft_hold_available = self.autoCruiseControl != 0" not in text:
     raise RuntimeError("Upstream code shape changed; cannot preserve independent SoftHold arming")
 
+  text = replace_once(
+    text,
+    '      elif self.params.get_bool("ActivateCruiseAfterBrake"):\n',
+    '      elif self._soft_hold_active == 0 and self.params.get_bool("ActivateCruiseAfterBrake"):\n',
+    "defer GM brake-resume request while independent SoftHold owns the stop",
+  )
   CRUISE.write_text(text, encoding="utf-8")
 
 
@@ -183,6 +193,12 @@ def patch_blinkers() -> None:
   acc_control_enabled = ((enabled and CS.out.cruiseState.available) or soft_hold_active) and not interlock_active
 """,
     "preserve CANFD SCC stop request for independent soft hold",
+  )
+  text = replace_once(
+    text,
+    "  soft_hold = CS.softHoldActive > 0 and CS.out.cruiseState.available\n",
+    "  soft_hold = CS.softHoldActive > 0\n",
+    "recognize independent SoftHold in CANFD stopping experiment",
   )
   HYUNDAI_CANFD.write_text(text, encoding="utf-8")
 
