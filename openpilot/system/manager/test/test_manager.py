@@ -107,6 +107,9 @@ class TestManager:
   def test_set_params_with_default_value(self):
     params = Params()
     params.clear_all()
+    # Exercise the ordinary default path as an existing install, not the
+    # owner's first-install profile for a genuinely empty settings store.
+    params.put("CarSelected3", "MOCK")
 
     os.environ['PREPAREONLY'] = '1'
     manager.main()

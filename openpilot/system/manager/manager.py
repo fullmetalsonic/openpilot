@@ -16,6 +16,7 @@ from openpilot.common.repo_update import release_boot_lock
 from openpilot.common.text_window import TextWindow
 from openpilot.system.hardware import HARDWARE
 from openpilot.system.manager.camera_config import configure_wide_camera
+from openpilot.system.manager.first_install_defaults import prepare_first_install_defaults, apply_first_install_defaults
 from openpilot.system.manager.helpers import unblock_stdout, write_onroad_params, save_bootlog
 from openpilot.system.manager.process import ensure_running
 from openpilot.system.manager.process_config import managed_processes
@@ -66,12 +67,15 @@ def manager_init() -> None:
   build_metadata = get_build_metadata()
 
   params = Params()
+  prepare_first_install_defaults(params)
   params.clear_all(ParamKeyFlag.CLEAR_ON_MANAGER_START)
   params.clear_all(ParamKeyFlag.CLEAR_ON_ONROAD_TRANSITION)
   params.clear_all(ParamKeyFlag.CLEAR_ON_OFFROAD_TRANSITION)
   params.clear_all(ParamKeyFlag.CLEAR_ON_IGNITION_ON)
   if build_metadata.release_channel:
     params.clear_all(ParamKeyFlag.DEVELOPMENT_ONLY)
+
+  apply_first_install_defaults(params)
 
   if params.get_bool("RecordFrontLock"):
     params.put_bool("RecordFront", True)
