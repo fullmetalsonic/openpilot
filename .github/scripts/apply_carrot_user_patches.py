@@ -198,7 +198,7 @@ def patch_blinkers() -> None:
     text,
     "  soft_hold = CS.softHoldActive > 0 and CS.out.cruiseState.available\n",
     "  soft_hold = CS.softHoldActive > 0\n",
-    "recognize independent SoftHold in CANFD stopping experiment",
+    "recognize independent SoftHold in CANFD stopping (including mandatory default)",
   )
   HYUNDAI_CANFD.write_text(text, encoding="utf-8")
 

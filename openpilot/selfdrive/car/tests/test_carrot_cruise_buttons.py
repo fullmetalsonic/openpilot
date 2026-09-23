@@ -872,12 +872,10 @@ def test_gap_long_press_still_changes_driving_mode():
 @pytest.mark.parametrize("camera", [False, True])
 @pytest.mark.parametrize("available", [False, True])
 @pytest.mark.parametrize("cancelled", [False, True])
-@pytest.mark.parametrize("retry", [False, True])
-def test_independent_hold_brake_release_to_packed_can_without_cruise_enable(camera, available, cancelled, retry):
+def test_independent_hold_brake_release_to_packed_can_without_cruise_enable(camera, available, cancelled, monkeypatch):
   # Exercise real pedal/state logic and the real CAN encoder together. This is
   # still a source-level test, not Linux IPC or confirmation from the vehicle ECU.
-  from opendbc.car.hyundai.tests.test_stopping import make_cs, send
-  from opendbc.car.hyundai.stopping import CanfdStopping
+  from opendbc.car.hyundai.tests.test_stopping import make_cs, send, make_car_controller
 
   helper, _, CC = make_cruise_helper(80, 0, False, False)
   del helper._update_cruise_state
@@ -914,13 +912,25 @@ def test_independent_hold_brake_release_to_packed_can_without_cruise_enable(came
   assert helper._activate_cruise == 0
   assert helper._cruise_cancel_state is cancelled
   wrapper.softHoldActive = helper._soft_hold_active
-  controller = CanfdStopping() if retry else None
-  # Retry ON has the upstream negative-acceleration preparation phase.
+  controller = make_car_controller(monkeypatch).canfd_stopping
+  assert controller is not None
+  previous_value = 0.
+  # The upstream preparation phase is now always used for CANFD OP-long.
   for _ in range(50):
-    values = send(camera, controller, wrapper, enabled=CC.enabled, stopping=False, accel=0.)
+    values = send(camera, controller, wrapper, enabled=CC.enabled, stopping=False, accel=0., previous_value=previous_value)
+    previous_value = values['aReqValue']
     assert values['ACCMode'] == 1
     assert values['aReqRaw'] <= 0 and values['aReqValue'] <= 0
     if values['StopReq'] == 1:
       break
   else:
     pytest.fail('independent SoftHold did not produce a packed stop request')
+  cs.gasPressed, cs.gas = True, 0.2
+  helper.disengage_on_accelerator = False
+  helper._prepare_brake_gas(cs, CC)
+  assert helper._soft_hold_active == 0
+  assert helper._activate_cruise <= 0
+  assert helper._cruise_cancel_state is cancelled
+  wrapper.softHoldActive = helper._soft_hold_active
+  values = send(camera, controller, wrapper, enabled=False, stopping=False, accel=0., previous_value=previous_value)
+  assert values['ACCMode'] == values['StopReq'] == 0

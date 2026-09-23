@@ -220,7 +220,7 @@ def test_canfd_hold_interlock_blocks_acc_control(camera_scc, brake_hold_active, 
     )
     assert accel_value == 0
   else:
-    msg = create_acc_control(
+    msg, _ = create_acc_control(
       FakePacker(), CAN, True, -0.5, 1.0, True, False, 30.0, hud_control, 1.0, 5.0, CS,
     )
 
@@ -254,7 +254,7 @@ def test_canfd_cruise_unavailable_keeps_independent_soft_hold_acc_control(camera
       FakePacker(), CAN, False, -0.5, 0.0, False, False, 30.0, hud_control, jerk, CS,
     )
   else:
-    msg = create_acc_control(
+    msg, _ = create_acc_control(
       FakePacker(), CAN, False, -0.5, 0.0, False, False, 30.0, hud_control, 1.0, 5.0, CS,
     )
 
@@ -285,7 +285,7 @@ def test_canfd_cruise_unavailable_blocks_regular_acc_control(camera_scc):
       FakePacker(), CAN, True, -0.5, 0.0, False, False, 30.0, hud_control, jerk, CS,
     )
   else:
-    msg = create_acc_control(
+    msg, _ = create_acc_control(
       FakePacker(), CAN, True, -0.5, 0.0, False, False, 30.0, hud_control, 1.0, 5.0, CS,
     )
 
