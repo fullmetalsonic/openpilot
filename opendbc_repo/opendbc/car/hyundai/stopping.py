@@ -1,4 +1,4 @@
-"""Hyundai CAN FD: continuous stop acceleration and bounded re-entry.
+"""Hyundai CAN FD: retain normal stop acceleration with bounded re-entry.
 
 Thresholds below are experimental, not OEM acceptance conditions. This controller
 cannot guarantee stopping; ECU response must be measured on the vehicle.
@@ -21,12 +21,12 @@ DISTANCE_NO_PROGRESS_TIME = 0.3
 RELEASE_TIME_LIMIT = 1.0
 RECOVERY_ACCEL = -0.5
 STOP_LOWER_BAND = 0.20  # fixed experimental value; never copied from the stock SCC
-SOFT_HOLD_PREPARE_CYCLES = 2  # completed SCC frames at or below RECOVERY_ACCEL
-DEFAULT_STOPPING_RATE = 0.8  # m/s^3; CarParams.stoppingDecelRate supplies the vehicle rate
+INDEPENDENT_HOLD_PREPARE_CYCLES = 2
+DEFAULT_STOPPING_RATE = 0.8
 
 
 def converge_stopping_accel(accel: float, target: float, rate: float, dt: float) -> float:
-  """Approach a negative stop target from either side without overshooting."""
+  """Converge an independent hold's actual SCC output without overshooting."""
   accel = min(accel, 0.0)
   step = max(rate, 0.0) * dt
   return min(accel + step, target) if accel < target else max(accel - step, target)
@@ -69,6 +69,7 @@ class CanfdStopping:
     self.last_value = 0.0
     self.prepare_cycles = 0
     self.stop_req_last = False
+    self.independent_hold_last = False
 
   def enter(self, phase: StopPhase, speed: float, reason: str):
     self.phase = phase
@@ -77,32 +78,39 @@ class CanfdStopping:
     self.reference_speed = speed
 
   def update(self, *, active: bool, requested: bool, speed: float, held: bool,
-             accel: float, previous_value: float, jerk_u: float, jerk_l: float,
-             soft_hold: bool = False) -> StopCommand | None:
+             accel: float, value: float, previous_value: float, jerk_u: float, jerk_l: float,
+             independent_hold: bool = False) -> StopCommand | None:
     # Caller validates sensor values and applies pedal/CAN/hold interlocks.
     if not active or not requested:
       self.reset()
       return None
 
+    if independent_hold != self.independent_hold_last:
+      # A normal ACC episode must not inherit preparation or a fixed hold
+      # target, and a new independent hold must not reuse normal stop state.
+      self.reset()
+      self.independent_hold_last = independent_hold
+
     if self.phase == StopPhase.idle:
       self.last_value = previous_value
-      if soft_hold and not (held and speed <= MOVING_SPEED):
-        # A new soft hold can begin while the driver is still braking. Start
-        # from zero rather than assuming a previous caller target was sent.
-        self.last_value = 0.0
-        self.enter(StopPhase.prepare, speed, "soft_hold_prepare")
+      if independent_hold and not (held and speed <= MOVING_SPEED):
+        # previous_value is the last actual SCC output, not a target. Keep it
+        # across a normal-to-independent transition to respect jerk bounds.
+        self.last_value = min(previous_value, 0.0)
+        self.enter(StopPhase.prepare, speed, "independent_hold_prepare")
       else:
         self.enter(StopPhase.approach if speed > ENTRY_SPEED else StopPhase.request, speed, "stop_requested")
 
     if self.phase == StopPhase.prepare:
-      if not soft_hold or self.prepare_cycles >= SOFT_HOLD_PREPARE_CYCLES:
+      if self.prepare_cycles >= INDEPENDENT_HOLD_PREPARE_CYCLES:
         self.enter(StopPhase.approach if speed > ENTRY_SPEED else StopPhase.request, speed, "prepare_complete")
       else:
-        # Complete two actual negative output cycles before asserting StopReq;
-        # stopped wheel speeds alone must not skip this preparation phase.
-        command = self._decelerate(accel, jerk_u, jerk_l)
+        command = self._decelerate(RECOVERY_ACCEL, jerk_u, jerk_l)
         self.prepare_cycles = self.prepare_cycles + 1 if command.value <= RECOVERY_ACCEL + 1e-6 else 0
         return command
+
+    if not independent_hold:
+      self.last_value = previous_value
 
     self.elapsed += DT
     self.distance += speed * DT
@@ -138,15 +146,21 @@ class CanfdStopping:
       self.enter(StopPhase.retry, speed, "reassert_once")
 
     if self.phase in (StopPhase.request, StopPhase.retry, StopPhase.held):
-      # Preserve the preceding SCC output on each StopReq rising edge. Both
-      # requests then converge to -0.5, including when braking started stronger.
-      if self.stop_req_last:
-        jerk_limit = jerk_u if self.last_value < RECOVERY_ACCEL else jerk_l
-        self.last_value = converge_stopping_accel(self.last_value, RECOVERY_ACCEL,
-                                                  min(self.stopping_rate, jerk_limit), DT)
-      self.last_value = min(self.last_value, 0.0)
-      self.stop_req_last = True
-      return StopCommand(1, self.last_value, self.last_value, STOP_LOWER_BAND)
+      if independent_hold:
+        # CC.longActive is false here: LongControl does not provide braking.
+        # Preserve the proven negative SCC preparation and held target only
+        # for this independent path, including a confirmed existing hold.
+        if self.stop_req_last:
+          jerk_limit = jerk_u if self.last_value < RECOVERY_ACCEL else jerk_l
+          self.last_value = converge_stopping_accel(self.last_value, RECOVERY_ACCEL,
+                                                    min(self.stopping_rate, jerk_limit), DT)
+        self.last_value = min(self.last_value, 0.0)
+        self.stop_req_last = True
+        return StopCommand(1, self.last_value, self.last_value, STOP_LOWER_BAND)
+      # LongControl owns the stopping target and the normal packet builder owns
+      # aReqValue limiting. Retry must not replace either with a fixed target.
+      self.last_value = min(value, 0.0)
+      return StopCommand(1, min(accel, 0.0), self.last_value, STOP_LOWER_BAND)
 
     # StopReq is released while requesting ordinary deceleration. Retain a
     # stronger existing braking request; never send a positive recovery request.

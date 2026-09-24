@@ -1,5 +1,8 @@
 * text=auto
 
+# Unified patches contain blank context lines represented by a single space.
+.github/scripts/independent_hold_stopping.patch whitespace=-blank-at-eol
+
 # Large binaries stay in Git LFS to keep clones small.
 *.onnx filter=lfs diff=lfs merge=lfs -text
 selfdrive/car/tests/test_models_segs.txt filter=lfs diff=lfs merge=lfs -text
