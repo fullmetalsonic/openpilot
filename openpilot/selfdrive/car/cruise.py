@@ -5,6 +5,7 @@ from openpilot.cereal import car
 from openpilot.common.constants import CV
 from openpilot.selfdrive.carrot.carrot_man_input import get_carrot_man
 from openpilot.selfdrive.carrot.cruise_gap import cruise_gap_levels, next_gap_personality, supported_gap_levels
+from openpilot.selfdrive.carrot.paddle_gap import PaddleGapWriter, effective_paddle_mode
 from openpilot.selfdrive.carrot.bluetooth.model import BLUETOOTH_CANCEL, CommandReader, REMOTE_BUTTONS
 
 from opendbc.car import structs
@@ -163,6 +164,8 @@ class VCruiseCarrot:
     self.frame = 0
     self.params_memory = Params("/dev/shm/params")
     self.params = Params()
+    self._paddle_mode = self.params.get_int("PaddleMode")
+    self._paddle_gap_writer = PaddleGapWriter(Params) if self._paddle_mode == 4 else None
     self.v_cruise_kph = 20 #V_CRUISE_UNSET
     self.v_cruise_cluster_kph = 20 #V_CRUISE_UNSET
     self.v_cruise_kph_last = 20
@@ -283,7 +286,7 @@ class VCruiseCarrot:
       self._cruise_speed_unit = self.params.get_int("CruiseSpeedUnit")
       self._cruise_button_long_delay = self.params.get_int("CruiseButtonLongDelay")
       self._cruise_speed_unit_basic = self.params.get_int("CruiseSpeedUnitBasic")
-      self._paddle_mode = self.params.get_int("PaddleMode")
+      self._paddle_mode = effective_paddle_mode(self._paddle_mode, self.params.get_int("PaddleMode"))
       self._cruise_button_mode = self.params.get_int("CruiseButtonMode")
       self._cancel_button_mode = self.params.get_int("CancelButtonMode")
       self._lfa_button_mode = self.params.get_int("LfaButtonMode")
@@ -655,11 +658,17 @@ class VCruiseCarrot:
         gap_levels = cruise_gap_levels(self.params.get_int("CruiseGapLevels"), longitudinalPersonalityMax)
         if not self.CP.openpilotLongitudinalControl:
           gap_levels = longitudinalPersonalityMax
-        if remote == 'gapAdjustCruise' or CS.pcmCruiseGap == 0 or gap_levels < longitudinalPersonalityMax:
+        cycle_gap = remote == 'gapAdjustCruise' or CS.pcmCruiseGap == 0 or gap_levels < longitudinalPersonalityMax
+        if self._paddle_mode == 4:
+          operation, value = ("cycle", gap_levels) if cycle_gap else ("set", int(np.clip(CS.pcmCruiseGap - 1, 0, longitudinalPersonalityMax - 1)))
+          if not self._paddle_gap_writer.request(operation, value):
+            self._add_log("Gap setting unavailable; restart required")
+        elif cycle_gap:
           personality = next_gap_personality(self.params.get_int('LongitudinalPersonality'), gap_levels)
+          self.params.put_int_nonblocking('LongitudinalPersonality', personality)
         else:
           personality = int(np.clip(CS.pcmCruiseGap - 1, 0, longitudinalPersonalityMax - 1))
-        self.params.put_int_nonblocking('LongitudinalPersonality', personality)
+          self.params.put_int_nonblocking('LongitudinalPersonality', personality)
         #self.events.append(EventName.personalityChanged)
       elif button_type == ButtonType.lfaButton:
         if self._lfa_button_mode == 0:
@@ -708,6 +717,15 @@ class VCruiseCarrot:
     elif remote == 'paddleDecel':
       self._cruise_control(-2, -1, "Cruise off & Ready (Bluetooth paddle)")
       self._paddle_decel_active = True
+    elif self._paddle_mode == 4 and button_type in [ButtonType.paddleLeft, ButtonType.paddleRight]:
+      # Gap-only input: never enter the legacy cruise-ready/deceleration paths.
+      # Keep raw paddle state intact for the existing SCC2 output interlock.
+      cancel_event = any(b.type == ButtonType.cancel for b in CS.buttonEvents)
+      supported = self.CP.openpilotLongitudinalControl and self.params.get_int("LongitudinalPersonalityMax") == 4
+      if not cancel_event and CS.canValid and CS.gearShifter == GearShifter.drive and supported:
+        delta = -1 if button_type == ButtonType.paddleRight else 1
+        if not self._paddle_gap_writer.request("step", delta):
+          self._add_log("Gap setting unavailable; restart required")
     elif self._paddle_mode > 0 and button_type in [ButtonType.paddleLeft, ButtonType.paddleRight]:  # paddle button
       if self._paddle_mode == 3:
         self.carrot_cruise_active = True

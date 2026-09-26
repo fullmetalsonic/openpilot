@@ -135,7 +135,7 @@ Carrot Web 설정 화면에서는 다음 기능을 사용할 수 있습니다.
 
 | 세부 구역 | 파라미터 | 용도 |
 |---|---|---|
-| [버튼 모드](buttons-presets.md#button-modes) | `CruiseButtonMode`, `CancelButtonMode`, `LfaButtonMode`, `PaddleMode` | 크루즈, 캔슬, LFA와 패들 버튼의 동작 지정 |
+| [버튼 모드](buttons-presets.md#button-modes) | `CruiseButtonMode`, `CancelButtonMode`, `LfaButtonMode`, `PaddleMode` | 크루즈, 캔슬, LFA와 패들 버튼의 동작 지정. 패들 모드 4는 오른쪽 간격 감소·왼쪽 증가(1~4단계, 모드 전환 후 재시작) |
 | [속도 단위](buttons-presets.md#speed-units) | `CruiseSpeedUnit`, `CruiseSpeedUnitBasic`, `CruiseButtonLongDelay` | 짧게·길게 누를 때의 속도 변경 단위와 판정 시간 |
 | [버튼 테스트](buttons-presets.md#button-spam) | `CruiseButtonTest1`, `CruiseButtonTest2`, `CruiseButtonTest3` | 순정 SCC 목표속도 동기화용 버튼 메시지 값 |
 | [속도 프리셋](buttons-presets.md#speed-presets) | `CruiseSpeed1`, `CruiseSpeed2`, `CruiseSpeed3`, `CruiseSpeed4`, `CruiseSpeed5` | 사용자3 모드에서 사용하는 속도 테이블 |

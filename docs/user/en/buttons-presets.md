@@ -99,11 +99,14 @@ A **long LFA press** temporarily toggles the speed condition used by lane mode, 
 | `1` | Cruise off, then Ready |
 | `2` | Cruise off, then Ready plus automatic-deceleration state |
 | `3` | Activate Carrot cruise |
+| `4` | Following gap: right decreases one step, left increases one step; clamps at levels 1 and 4 without wrapping |
 
 > [!IMPORTANT]
 > The catalog description says `0: cruise ON`, but the running code enters the paddle branch only when `PaddleMode > 0`. On this branch, interpret `0` as **paddle function disabled**.
 
-Vehicles that do not report paddle events will not respond. Left and right paddles currently use the same mode behavior.
+Vehicles that do not report paddle events will not respond. Modes 1–3 use the same behavior for both paddles.
+
+Mode 4 requires openpilot longitudinal control and support for four gap levels. With valid CAN input and Drive selected, each press changes one step; release and holding do not add steps. Entering or leaving mode 4 takes effect after restarting the control process. Once active, paddles change the gap while driving. Existing CANCEL and longitudinal interlocks remain in effect, and a paddle press does not engage cruise. Vehicle validation is still required.
 
 ### Common long-press behavior
 

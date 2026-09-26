@@ -43,6 +43,14 @@ def test_the_catalogue_is_readable_and_populated(params):
   assert all(isinstance(p.get("name"), str) and p["name"] for p in params)
 
 
+def test_paddle_mode_four_uses_common_dropdown_and_restart_description(params):
+  paddle = next(p for p in params if p["name"] == "PaddleMode")
+  assert (paddle["min"], paddle["max"], paddle["default"], paddle["unit"]) == (0, 4, 1, 1)
+  assert "control" not in paddle  # Five options use the common select rule.
+  assert "재시작" in paddle["descr"] and "주행 중" in paddle["descr"]
+  assert "restart" in paddle["edescr"] and "重启" in paddle["cdescr"]
+
+
 @pytest.mark.parametrize("maximum", (3, 4))
 def test_gap_cycle_catalog_uses_vehicle_maximum_without_mutating_cache(settings, maximum):
   groups, by_name, groups_list = group_index(settings)
