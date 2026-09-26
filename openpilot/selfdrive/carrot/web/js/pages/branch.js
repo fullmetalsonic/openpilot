@@ -248,7 +248,8 @@ async function loadBranchesAndShow() {
     syncBranchRemoteContext(j);
     BRANCHES = normalizeBranchItems(j);
     CURRENT_BRANCH_NAME = (j.current_branch || "").trim();
-    appBranchPickerMeta.textContent = `${BRANCHES.length} branches`;
+    const warnings = Object.entries(j.remote_errors || {}).map(([remote, error]) => `${remote}: ${error}`);
+    appBranchPickerMeta.textContent = [`${BRANCHES.length} branches`, ...warnings].join("\n");
 
     renderBranchList();
   } catch (e) {
