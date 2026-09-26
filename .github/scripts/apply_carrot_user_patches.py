@@ -206,8 +206,10 @@ def patch_blinkers() -> None:
 def verify_fork_branch_support() -> None:
   if not FORK_REMOTE.is_file():
     raise RuntimeError("Fork branch support file is missing after upstream merge")
+  if not (FORK_REMOTE.parent / "branch_catalog.py").is_file():
+    raise RuntimeError("Read-only branch catalog support is missing after upstream merge")
   text = TOOLS_DISPATCHER.read_text(encoding="utf-8")
-  for marker in ("ensure_fork_remote", "local_branch_name(item_remote, item_name)"):
+  for marker in ("list_branches", "checkout_branch", "sync_branches"):
     if marker not in text:
       raise RuntimeError(f"Fork branch support changed upstream; refusing to guess: {marker}")
 
