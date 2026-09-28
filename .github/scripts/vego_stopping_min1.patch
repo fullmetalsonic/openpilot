@@ -1,0 +1,336 @@
+diff --git a/docs/user/en/cruise-gap.md b/docs/user/en/cruise-gap.md
+index 647593ab..ff152d33 100644
+--- a/docs/user/en/cruise-gap.md
++++ b/docs/user/en/cruise-gap.md
+@@ -142,9 +142,9 @@ Retry runs by default on Hyundai/Kia CANFD with openpilot longitudinal control.
+ 
+ ### `VEgoStopping`
+ 
+-Range 10–100, step 5, default 50. A value of 10 is 0.10 m/s; 50 is 0.50 m/s (about 1.8 km/h). `shouldStop` becomes true when both the planner's target speeds at the control-delay horizon and one second later are below this threshold.
++Range 1–100, step 5, default 50. A value of 1 is 0.01 m/s; 50 is 0.50 m/s (about 1.8 km/h). `shouldStop` becomes true when both the planner's target speeds at the control-delay horizon and one second later are below this threshold.
+ 
+-Previously stored values below 10 are automatically raised to 10 at startup. If a lower value is written during driving, control applies the minimum immediately and repairs the stored value. Existing values within the supported range are retained.
++Previously stored values are not automatically raised at startup. Control reads the saved value during driving without repairing it. Lower values can delay stop recognition.
+ 
+ Lowering it delays stop recognition and may release stop state sooner on departure. Raising it enters stop state earlier but can make departure feel sluggish.
+ 
+diff --git a/docs/user/en/settings.md b/docs/user/en/settings.md
+index 84ccadbc..4696f7c9 100644
+--- a/docs/user/en/settings.md
++++ b/docs/user/en/settings.md
+@@ -135,7 +135,7 @@ Select a section title for the code-based state machine, units, and application
+ 
+ | Section | Parameters | Purpose |
+ |---|---|---|
+-| [Button modes](buttons-presets.md#button-modes) | `CruiseButtonMode`, `CancelButtonMode`, `LfaButtonMode`, `PaddleMode` | Cruise, cancel, LFA, and paddle-button behavior |
++| [Button modes](buttons-presets.md#button-modes) | `CruiseButtonMode`, `CancelButtonMode`, `LfaButtonMode`, `PaddleMode` | Cruise, cancel, LFA, and paddle behavior. Paddle mode 4 decreases the gap on the right and increases it on the left (levels 1–4; restart after entering or leaving the mode) |
+ | [Speed units](buttons-presets.md#speed-units) | `CruiseSpeedUnit`, `CruiseSpeedUnitBasic`, `CruiseButtonLongDelay` | Short/long-press increments and long-press timing |
+ | [Button-message tests](buttons-presets.md#button-spam) | `CruiseButtonTest1`, `CruiseButtonTest2`, `CruiseButtonTest3` | Values used to synchronize the stock SCC set speed |
+ | [Speed presets](buttons-presets.md#speed-presets) | `CruiseSpeed1` through `CruiseSpeed5` | Speed table used by custom mode 3 |
+@@ -216,7 +216,7 @@ Deceleration preview operates independently of the response level. During active
+ 
+ `StoppingAccel` is adjustable again: default `-50`, range `-100 to -50`, step `10`. The stored value is multiplied by 0.01, with the same bounds enforced by control. Original stop-entry and braking behavior and vehicle-specific soft hold are restored; changes apply within about one second. See [Stopping and restarting](cruise-gap.md#stop-resume).
+ 
+-`VEgoStopping` has a range of `10–100` and a default of `50`; `10` means `0.10 m/s`. Previously stored values below `10` are automatically raised to `10`, and control enforces the same minimum during driving.
++`VEgoStopping` has a range of `1–100`, a step of `5`, and a default of `50`; `1` means `0.01 m/s`. Saved values are not automatically raised to `10`.
+ 
+ Hyundai/Kia CANFD with openpilot longitudinal control retains one stop retry by default after a confirmed speed rebound or sustained loss of deceleration. At low speed, elapsed time or distance alone does not trigger retry while deceleration continues. See [CANFD stopping control](cruise-gap.md#canfd-stopping).
+ 
+diff --git a/docs/user/ko/cruise-gap.md b/docs/user/ko/cruise-gap.md
+index 8dbdc6c8..04df0db6 100644
+--- a/docs/user/ko/cruise-gap.md
++++ b/docs/user/ko/cruise-gap.md
+@@ -175,9 +175,9 @@ Carrot Web의 **기본값** 버튼과 전체 설정 초기화는 `carrot_setting
+ 
+ ### `VEgoStopping`
+ 
+-범위는 `10~100`, 변경 단위는 `5`, 기본값은 `50`입니다. 저장값 `10`은 `0.10m/s`, `50`은 `0.50m/s`(약 `1.8km/h`)입니다. 현재 차량 속도 자체가 아니라 플래너가 제어 지연을 반영해 예측한 시점과 그 1초 뒤의 목표 속도가 이 값보다 모두 낮을 때 `shouldStop`을 켭니다.
++범위는 `1~100`, 변경 단위는 `5`, 기본값은 `50`입니다. 저장값 `1`은 `0.01m/s`, `50`은 `0.50m/s`(약 `1.8km/h`)입니다. 현재 차량 속도 자체가 아니라 플래너가 제어 지연을 반영해 예측한 시점과 그 1초 뒤의 목표 속도가 이 값보다 모두 낮을 때 `shouldStop`을 켭니다.
+ 
+-기존에 `10` 미만으로 저장된 값은 프로그램 시작 시 자동으로 `10`으로 올립니다. 주행 중 낮은 값이 다시 기록되어도 제어에는 즉시 최저값을 적용하고 저장값을 보정합니다. 정상 범위의 기존 값은 유지합니다.
++기존 저장값은 프로그램 시작 시 자동으로 올리지 않습니다. 주행 중에도 저장된 값을 그대로 읽어 정지 판단에 적용합니다. 낮은 값은 정지 판단을 늦출 수 있습니다.
+ 
+ - 낮추면: 정지 판단이 더 늦어지고 출발 시 정지 상태가 더 빨리 풀릴 수 있음
+ - 높이면: 정지 상태에 더 일찍 들어가지만 출발 반응이 둔해질 수 있음
+diff --git a/docs/user/ko/settings.md b/docs/user/ko/settings.md
+index dc575b86..543efc9d 100644
+--- a/docs/user/ko/settings.md
++++ b/docs/user/ko/settings.md
+@@ -135,7 +135,7 @@ Carrot Web 설정 화면에서는 다음 기능을 사용할 수 있습니다.
+ 
+ | 세부 구역 | 파라미터 | 용도 |
+ |---|---|---|
+-| [버튼 모드](buttons-presets.md#button-modes) | `CruiseButtonMode`, `CancelButtonMode`, `LfaButtonMode`, `PaddleMode` | 크루즈, 캔슬, LFA와 패들 버튼의 동작 지정 |
++| [버튼 모드](buttons-presets.md#button-modes) | `CruiseButtonMode`, `CancelButtonMode`, `LfaButtonMode`, `PaddleMode` | 크루즈, 캔슬, LFA와 패들 버튼의 동작 지정. 패들 모드 4는 오른쪽 간격 감소·왼쪽 증가(1~4단계, 모드 전환 후 재시작) |
+ | [속도 단위](buttons-presets.md#speed-units) | `CruiseSpeedUnit`, `CruiseSpeedUnitBasic`, `CruiseButtonLongDelay` | 짧게·길게 누를 때의 속도 변경 단위와 판정 시간 |
+ | [버튼 테스트](buttons-presets.md#button-spam) | `CruiseButtonTest1`, `CruiseButtonTest2`, `CruiseButtonTest3` | 순정 SCC 목표속도 동기화용 버튼 메시지 값 |
+ | [속도 프리셋](buttons-presets.md#speed-presets) | `CruiseSpeed1`, `CruiseSpeed2`, `CruiseSpeed3`, `CruiseSpeed4`, `CruiseSpeed5` | 사용자3 모드에서 사용하는 속도 테이블 |
+@@ -220,7 +220,7 @@ Carrot Web 설정 화면에서는 다음 기능을 사용할 수 있습니다.
+ 
+ `StoppingAccel`(정지시작가속도)은 기본 `-50`, 범위 `-100~-50`, 변경 단위 `10`으로 다시 조정할 수 있습니다. 저장값에 0.01을 곱한 가속도를 사용하며, 제어에서도 범위를 제한합니다. 기존 정지 진입·감속 방식과 차종별 소프트홀드를 사용하고 변경은 약 1초 안에 반영됩니다. [정차·재출발](cruise-gap.md#stop-resume)을 참고하세요.
+ 
+-`VEgoStopping`(정지출발민감도)은 범위 `10~100`, 기본 `50`이며, `10`은 `0.10m/s`입니다. 기존의 `10` 미만 저장값은 자동으로 `10`으로 올리고, 주행 중에도 같은 최저값을 적용합니다.
++`VEgoStopping`(정지출발민감도)은 범위 `1~100`, 변경 단위 `5`, 기본 `50`이며, `1`은 `0.01m/s`입니다. 기존 저장값을 자동으로 `10`으로 올리지 않습니다.
+ 
+ 현대·기아 CANFD 오픈파일럿 종방향 제어는 실제 속도 재상승 또는 지속적인 감속 소실을 확인해 한 번의 정지 재시도를 기본 적용합니다. 저속에서 감속이 이어지면 거리·시간 조건만으로 재시도하지 않습니다. [CANFD 정지 제어](cruise-gap.md#canfd-stopping)를 참고하세요.
+ 
+diff --git a/openpilot/common/stopping_params.py b/openpilot/common/stopping_params.py
+deleted file mode 100644
+index 7fd2f894..00000000
+--- a/openpilot/common/stopping_params.py
++++ /dev/null
+@@ -1,20 +0,0 @@
+-"""Stored and runtime lower bound for the planner's stop-speed threshold."""
+-import math
+-
+-
+-STOPPING_SPEED_MIN = 10  # hundredths of m/s
+-STOPPING_SPEED_DEFAULT = 50
+-
+-
+-def get_stopping_speed(params, *, blocking=False):
+-  try:
+-    stored = params.get_float("VEgoStopping")
+-  except (TypeError, ValueError, OverflowError):
+-    stored = float("nan")
+-  value = max(STOPPING_SPEED_MIN, stored) if math.isfinite(stored) else STOPPING_SPEED_DEFAULT
+-  if value != stored:
+-    # Startup repairs persistent values before settings are shown. During driving,
+-    # enforce the bound immediately and repair external writes without blocking.
+-    write = params.put_int if blocking else params.put_int_nonblocking
+-    write("VEgoStopping", int(value))
+-  return value * 0.01
+diff --git a/openpilot/selfdrive/carrot_settings.json b/openpilot/selfdrive/carrot_settings.json
+index 151f5925..0af624be 100644
+--- a/openpilot/selfdrive/carrot_settings.json
++++ b/openpilot/selfdrive/carrot_settings.json
+@@ -1359,14 +1359,14 @@
+       "group": "주행튜닝",
+       "name": "VEgoStopping",
+       "title": "정지출발민감도(50)x0.01",
+-      "descr": "계획 속도를 기준으로 정지 진입과 재출발을 판단합니다. 낮추면 정지 판단이 늦어지고 출발 시 정지 상태가 더 빨리 풀릴 수 있습니다. 최저값은 10(0.10m/s)이며, 기존에 10 미만으로 저장된 값도 자동으로 10으로 올립니다.",
++      "descr": "계획 속도를 기준으로 정지 진입과 재출발을 판단합니다. 낮추면 정지 판단이 늦어지고 출발 시 정지 상태가 더 빨리 풀릴 수 있습니다. 최저값은 1(0.01m/s)이며 기존 저장값을 자동으로 올리지 않습니다.",
+       "egroup": "LONG",
+       "etitle": "VEgoStopping(50)x0.01",
+-      "edescr": "Uses planned speeds to determine stop entry and departure. Lower values delay stop recognition and may release stop state sooner on departure. The minimum is 10 (0.10 m/s); previously stored values below 10 are automatically raised to 10.",
++      "edescr": "Uses planned speeds to determine stop entry and departure. Lower values delay stop recognition and may release stop state sooner on departure. The minimum is 1 (0.01 m/s); saved values are not automatically raised.",
+       "cgroup": "纵向控制",
+       "ctitle": "停止/启动灵敏度(50)x0.01",
+-      "cdescr": "根据规划速度判断停车与起步。降低数值会推迟停车判断，并可能更早解除停车状态。最低值为10（0.10m/s），此前保存的小于10的值也会自动提高到10。",
+-      "min": 10,
++      "cdescr": "根据规划速度判断停车与起步。降低数值会推迟停车判断，并可能更早解除停车状态。最低值为1（0.01m/s），不会自动提高已保存的数值。",
++      "min": 1,
+       "max": 100,
+       "default": 50,
+       "unit": 5
+@@ -1687,16 +1687,16 @@
+     {
+       "group": "버튼설정",
+       "name": "PaddleMode",
+-      "title": "패들시프트모드(0)",
+-      "descr": "0:크루즈ON, 1:크루즈대기, 2:자동감속, 3:CarrotCruise ",
++      "title": "패들시프트 모드",
++      "descr": "0:크루즈ON, 1:크루즈대기, 2:자동감속, 3:CarrotCruise, 4:차간거리 조절. 4번: 오른쪽은 한 단계 감소(최소 1), 왼쪽은 증가(최대 4). 길게 당겨도 한 번만 변경. 롱컨·4단계 지원 차량용. 4번으로/에서 모드 변경은 재시작 후 적용되며, 4번 작동 중 간격 조절은 주행 중 반영됩니다. 기존 패들 출력 인터록은 유지됩니다.",
+       "egroup": "BUTN",
+-      "etitle": "PaddleShift Mode(0)",
+-      "edescr": "After Regen paddle, 0:Cruise ON, 1:Cruise Ready, 2: decel & cruise ready, 3: CarrotCruise",
++      "etitle": "Paddle Shift Mode",
++      "edescr": "0:Cruise ON, 1:Cruise Ready, 2:Decel, 3:CarrotCruise, 4:Following gap. Mode 4: right decreases to 1, left increases to 4; one step per press, no hold repeat. Requires openpilot longitudinal control and four gap levels. Entering/leaving mode 4 requires a restart; gap changes while in mode 4 apply while driving. Existing paddle output interlocks remain.",
+       "cgroup": "按键设置",
+-      "ctitle": "换挡拨片模式(0)",
+-      "cdescr": "动能回收拨片后, 0: 巡航开启, 1: 巡航就绪, 2: 减速并巡航就绪, 3: 胡萝卜巡航",
++      "ctitle": "换挡拨片模式",
++      "cdescr": "0:巡航开启, 1:巡航就绪, 2:自动减速, 3:CarrotCruise, 4:跟车距离。模式4：右拨片减一档，最低1；左拨片加一档，最高4。长按不重复。需要openpilot纵向控制及四档车距。进入或退出模式4须重启；模式4下行驶中可调车距。保留原拨片输出联锁。",
+       "min": 0,
+-      "max": 3,
++      "max": 4,
+       "default": 1,
+       "unit": 1
+     },
+diff --git a/openpilot/selfdrive/controls/lib/longitudinal_planner.py b/openpilot/selfdrive/controls/lib/longitudinal_planner.py
+index 490afc36..0ecd9b68 100644
+--- a/openpilot/selfdrive/controls/lib/longitudinal_planner.py
++++ b/openpilot/selfdrive/controls/lib/longitudinal_planner.py
+@@ -25,7 +25,6 @@ from openpilot.selfdrive.controls.lib.turn_accel import get_future_curvature, li
+ from openpilot.selfdrive.car.cruise import V_CRUISE_MAX, V_CRUISE_UNSET
+ from openpilot.common.swaglog import cloudlog
+ from openpilot.common.params import Params
+-from openpilot.common.stopping_params import get_stopping_speed
+ from openpilot.selfdrive.carrot.carrot_man_input import get_carrot_man
+ from openpilot.selfdrive.controls.lib.cruise_coasting import CruiseCoastingPlan, coasting_percent, no_coasting_lead
+ 
+@@ -282,7 +281,7 @@ class LongitudinalPlanner:
+     self.v_desired_filter.x = self.v_desired_filter.x + self.dt * (self.a_desired + a_prev) / 2.0
+ 
+     longitudinalActuatorDelay = self.params.get_float("LongActuatorDelay")*0.01
+-    vEgoStopping = get_stopping_speed(self.params)
++    vEgoStopping = self.params.get_float("VEgoStopping") * 0.01
+     action_t =  longitudinalActuatorDelay + DT_MDL
+ 
+     output_a_target_base, output_should_stop_mpc, output_v_target_mpc, _ = get_accel_from_plan(
+diff --git a/openpilot/selfdrive/controls/tests/test_stopping_speed_param.py b/openpilot/selfdrive/controls/tests/test_stopping_speed_param.py
+index 344b5a25..9765d5bc 100644
+--- a/openpilot/selfdrive/controls/tests/test_stopping_speed_param.py
++++ b/openpilot/selfdrive/controls/tests/test_stopping_speed_param.py
+@@ -1,84 +1,70 @@
++"""Preserve the user's stored stop-speed threshold without a runtime floor."""
++
+ import json
+ from pathlib import Path
+ 
+ import numpy as np
+ import pytest
+ 
+-from openpilot.common.stopping_params import get_stopping_speed
+ from openpilot.selfdrive.controls.lib.drive_helpers import get_accel_from_plan
+ 
+ 
++ROOT = Path(__file__).resolve().parents[4]
++
++
+ class Params:
+   def __init__(self, value):
+     self.value = value
+-    self.pending = []
++    self.writes = []
+ 
+   def get_float(self, key):
+     assert key == "VEgoStopping"
+     return float(self.value)
+ 
+   def put_int(self, key, value):
+-    assert key == "VEgoStopping"
+-    self.value = value
++    self.writes.append((key, value))
+ 
+   def put_int_nonblocking(self, key, value):
+-    self.pending.append((key, value))
++    self.writes.append((key, value))
+ 
+ 
+-@pytest.mark.parametrize("old", [-1, 0, 1, 2, 5, 9])
+-def test_startup_repairs_old_value_and_keeps_it_on_next_read(old):
+-  params = Params(old)
+-  assert get_stopping_speed(params, blocking=True) == .1
+-  assert params.value == 10
+-  assert get_stopping_speed(params) == .1
+-  assert params.pending == []
+-
+-
+-@pytest.mark.parametrize("value", [10, 15, 20, 50, 100])
+-def test_supported_values_remain_adjustable_without_writes(value):
++@pytest.mark.parametrize("value", [1, 2, 5, 9, 10, 50, 100])
++def test_stored_value_scales_without_mutation(value):
+   params = Params(value)
+-  assert get_stopping_speed(params) == pytest.approx(value * .01)
++  threshold = params.get_float("VEgoStopping") * .01
++  assert threshold == pytest.approx(value * .01)
+   assert params.value == value
+-  assert params.pending == []
++  assert params.writes == []
+ 
+ 
+-def test_live_low_write_cannot_delay_stop_while_persistence_is_pending():
+-  params = Params(20)
+-  assert get_stopping_speed(params) == .2
+-  params.value = 2  # e.g. an old settings client or restored snapshot
+-  threshold = get_stopping_speed(params)
+-  assert params.value == 2  # queued writes have not reached storage yet
+-  assert params.pending == [("VEgoStopping", 10)]
+-  # Recorded stop-approach targets at the delay and delay+1 s horizons.
++def test_lower_threshold_can_delay_stop_recognition():
+   times = np.array([0., .3, 1.3])
+   speeds = np.array([.1, .066716544, .030907153])
+   accels = np.array([-.13, -.08, 0.])
+   assert not get_accel_from_plan(speeds, accels, times, action_t=.3, vEgoStopping=.02)[1]
+-  assert get_accel_from_plan(speeds, accels, times, action_t=.3, vEgoStopping=threshold)[1]
+-  # A plan to accelerate again must still prevent an ordinary stop decision.
++  assert get_accel_from_plan(speeds, accels, times, action_t=.3, vEgoStopping=.10)[1]
+   speeds[-1] = .2
+-  assert not get_accel_from_plan(speeds, accels, times, action_t=.3, vEgoStopping=threshold)[1]
++  assert not get_accel_from_plan(speeds, accels, times, action_t=.3, vEgoStopping=.10)[1]
+ 
+ 
+-@pytest.mark.parametrize("value", [None, "invalid", "nan", "inf", "-inf"])
+-def test_invalid_value_restores_default(value):
+-  params = Params(value)
+-  assert get_stopping_speed(params, blocking=True) == .5
+-  assert params.value == 50
++def test_catalog_and_live_reads_keep_user_value():
++  data = json.loads((ROOT / "openpilot/selfdrive/carrot_settings.json").read_text(encoding="utf-8"))
+ 
+-
+-def test_catalog_minimum_matches_control_and_keeps_default():
+-  path = Path(__file__).resolve().parents[2] / 'carrot_settings.json'
+-  data = json.loads(path.read_text(encoding='utf-8'))
+   def settings(value):
+     if isinstance(value, dict):
+-      if value.get('name') == 'VEgoStopping':
++      if value.get("name") == "VEgoStopping":
+         yield value
+       for child in value.values():
+         yield from settings(child)
+     elif isinstance(value, list):
+       for child in value:
+         yield from settings(child)
++
+   setting, = settings(data)
+-  assert (setting['min'], setting['max'], setting['default'], setting['unit']) == (10, 100, 50, 5)
+-  assert get_stopping_speed(Params(setting['min'])) == .1
++  assert (setting["min"], setting["max"], setting["default"], setting["unit"]) == (1, 100, 50, 5)
++  manager = (ROOT / "openpilot/system/manager/manager.py").read_text(encoding="utf-8")
++  planner = (ROOT / "openpilot/selfdrive/controls/lib/longitudinal_planner.py").read_text(encoding="utf-8")
++  modeld = (ROOT / "openpilot/selfdrive/modeld/modeld.py").read_text(encoding="utf-8")
++  assert "get_stopping_speed" not in manager + planner + modeld
++  assert 'self.params.get_float("VEgoStopping") * 0.01' in planner
++  assert modeld.count('params.get_float("VEgoStopping") * 0.01') == 2
+diff --git a/openpilot/selfdrive/modeld/modeld.py b/openpilot/selfdrive/modeld/modeld.py
+index 1a99860c..ce66ea28 100755
+--- a/openpilot/selfdrive/modeld/modeld.py
++++ b/openpilot/selfdrive/modeld/modeld.py
+@@ -13,7 +13,6 @@ from opendbc.car.car_helpers import get_demo_car_params
+ from openpilot.common.swaglog import cloudlog
+ from openpilot.common.runtime_diagnostics import RuntimeDiagnostics
+ from openpilot.common.params import Params
+-from openpilot.common.stopping_params import get_stopping_speed
+ from openpilot.common.filter_simple import FirstOrderFilter
+ from openpilot.common.realtime import config_realtime_process, DT_MDL
+ from openpilot.common.transformations.camera import DEVICE_CAMERAS
+@@ -372,7 +371,7 @@ def main(demo=False):
+   frame = 0
+   custom_lat_delay = 0.0
+   lat_smooth_seconds = LAT_SMOOTH_SECONDS
+-  vEgoStopping = get_stopping_speed(params)
++  vEgoStopping = params.get_float("VEgoStopping") * 0.01
+   camera_yaw_trim_deg = params.get_float("CameraYawTrimDeg") * 0.01
+   lat_delay_dynamic = lat_smooth_seconds
+   diagnostics = RuntimeDiagnostics('modeld', cloudlog.event)
+@@ -383,7 +382,7 @@ def main(demo=False):
+       custom_lat_delay = params.get_float("SteerActuatorDelay") * 0.01
+       lat_smooth_seconds = params.get_float("LatSmoothSec") * 0.01
+       long_delay = params.get_float("LongActuatorDelay")*0.01
+-      vEgoStopping = get_stopping_speed(params)
++      vEgoStopping = params.get_float("VEgoStopping") * 0.01
+       camera_yaw_trim_deg = params.get_float("CameraYawTrimDeg") * 0.01
+       # eGPU power follows ignition on the vehicle. Keep UI state current when
+       # the shared USB hub is connected or removed after modeld starts.
+diff --git a/openpilot/system/manager/manager.py b/openpilot/system/manager/manager.py
+index ca96a71a..b02f8644 100755
+--- a/openpilot/system/manager/manager.py
++++ b/openpilot/system/manager/manager.py
+@@ -13,7 +13,6 @@ import openpilot.system.sentry as sentry
+ from openpilot.common.utils import atomic_write
+ from openpilot.common.basedir import BASEDIR
+ from openpilot.common.params import Params, ParamKeyFlag
+-from openpilot.common.stopping_params import get_stopping_speed
+ from openpilot.common.repo_update import release_boot_lock
+ from openpilot.common.text_window import TextWindow
+ from openpilot.system.hardware import HARDWARE
+@@ -86,7 +85,6 @@ def manager_init() -> UpdateStatus:
+     if default_value is not None and params.get(k) is None:
+       params.put(k, default_value)
+ 
+-  get_stopping_speed(params, blocking=True)
+   configure_wide_camera(params)
+ 
+   # Create folders needed for msgq

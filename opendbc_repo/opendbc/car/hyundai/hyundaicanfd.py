@@ -37,7 +37,7 @@ def apply_canfd_stopping(values, CS, controller, accel, previous_value, jerk_u, 
 
   wheels = CS.out.wheelSpeeds
   speeds = [CS.out.vEgo, CS.out.vEgoRaw, wheels.fl, wheels.fr, wheels.rl, wheels.rr]
-  finite = all(math.isfinite(v) for v in (*speeds, accel, values["aReqValue"], previous_value, jerk_u, jerk_l))
+  finite = all(math.isfinite(v) for v in (*speeds, CS.out.aEgo, accel, values["aReqValue"], previous_value, jerk_u, jerk_l))
   speed = max(abs(v) for v in speeds) if finite else 0.0
   soft_hold = CS.softHoldActive > 0
   # Only a stationary soft hold may remain active while the driver brakes.
@@ -47,7 +47,7 @@ def apply_canfd_stopping(values, CS, controller, accel, previous_value, jerk_u, 
              or str(CS.out.gearShifter) != "drive" or longitudinal_interlock_active(CS))
   previous_phase = controller.phase
   command = controller.update(
-    active=values["ACCMode"] == 1 and not blocked, requested=bool(values["StopReq"]), speed=speed,
+    active=values["ACCMode"] == 1 and not blocked, requested=bool(values["StopReq"]), speed=speed, a_ego=CS.out.aEgo,
     held=CS.canfdSccHoldActive, accel=accel, value=values["aReqValue"], previous_value=previous_value,
     jerk_u=max(0.0, min(jerk_u, 5.0)), jerk_l=max(1.0, min(jerk_l, 5.0)),
     independent_hold=independent_hold,
@@ -153,7 +153,8 @@ def create_steering_messages_camera_scc(frame, packer, CP, CAN, CC, lat_active, 
   ret = []
   if CS.mdps is not None:
     values = copy.copy(CS.mdps)
-    #rx_counter = values.pop("COUNTER", None)
+    # Seed once from RX; subsequent counters follow actual transmissions, not RX timing.
+    rx_counter = values.pop("COUNTER", None)
     if angle_control:
       if CS.lfa_alt is not None:
         values["LFA2_ACTIVE"] = CS.lfa_alt["LKAS_ANGLE_ACTIVE"]
@@ -163,8 +164,7 @@ def create_steering_messages_camera_scc(frame, packer, CP, CAN, CC, lat_active, 
 
     if frame % 1000 < 40:
       values["STEERING_COL_TORQUE"] += 220
-    #ret.append(packer.make_can_msg("MDPS", CAN.CAM, values, rx_counter = rx_counter))
-    ret.append(packer.make_can_msg("MDPS", CAN.CAM, values))
+    ret.append(packer.make_can_msg("MDPS", CAN.CAM, values, rx_counter=rx_counter))
 
   if frame % 10 == 0:
     if CS.steer_touch_2af is not None:
@@ -442,7 +442,9 @@ def _apply_scc_lead(values, radar_state, model_v2=None, hud_lateral=None):
     lateral = _display_lead_lateral(lead, model_v2) if hud_lateral is None else hud_lateral
     values["ACC_ObjLatPos"] = float(np.clip(lateral, -45.6, 5.5))
     values["ACC_ObjRelSpd"] = float(np.clip(lead.vRel, -170.0, 239.3))
-    values["HUD_LEAD_INFO"] = 1 if lead.vRel > 0 else 2
+    # Keep the OEM HUD/cluster lead white around standstill; relative-speed
+    # noise near zero must not alternate white (2) and receding gray (1).
+    values["HUD_LEAD_INFO"] = 1 if lead.vRel > 0.3 else 2
 
 
 def create_acc_control_scc2(packer, CAN, enabled, accel_value_last, accel, stopping, gas_override, set_speed, hud_control, hyundai_jerk, CS,
@@ -624,7 +626,8 @@ def create_tcs_messages(packer, CAN, CS):
   ret = []
   if CS.tcs is not None:
     values = copy.copy(CS.tcs)
-    #rx_counter = values.pop("COUNTER", None)
+    # Keep an independent TX sequence even when the latest RX snapshot repeats or skips.
+    rx_counter = values.pop("COUNTER", None)
     values["DriverBraking"] = 0
     values["NEW_SIGNAL_20"] = 0
     values["NEW_SIGNAL_11"] = 0
@@ -632,8 +635,7 @@ def create_tcs_messages(packer, CAN, CS):
     #values["NEW_SIGNAL_1"] = 0 # accel과 관련..  옆두부 꺼지는것과 관련? 확인필요
     #values["ACC_REQ"] = 1 # 옆두부 꺼지는것과 관련? 확인필요.. 항상 켜지게함..
     values["NEW_SIGNAL_1"] = 0 if values["ACC_REQ"] == 1 else 1 # 옆두부..
-    #ret.append(packer.make_can_msg("TCS", CAN.CAM, values, rx_counter = rx_counter))
-    ret.append(packer.make_can_msg("TCS", CAN.CAM, values))
+    ret.append(packer.make_can_msg("TCS", CAN.CAM, values, rx_counter=rx_counter))
   return ret
 
 def forward_button_message(packer, CAN, frame, CS, cruise_button, MainMode_ACC_trigger, LFA_trigger):

@@ -69,8 +69,8 @@ A decreasing mode gap multiplier releases at 0.05 per second: about four seconds
 
 - **Stopping approach:** A lead at or below 5 km/h within the speed-dependent approach envelope for about 0.3 seconds selects Safe. The envelope is `ego speed² / (2 × 2.4) + 2 × ego speed` metres, clamped to 12–200 m; speeds in these formulas are in m/s.
 - **Sustained slow following:** Ego at or below 35 km/h and a lead at or below 30 km/h within following range for eight seconds selects Safe. Following range is `12 + 3 × ego speed` metres, clamped to 30–80 m.
-- **Lead acceleration:** Outside a stopping approach, lead acceleration above 1.5 m/s² for about 0.5 seconds restores Normal/Eco without waiting for six seconds of flow recovery.
-- **Flow recovery:** Both vehicles at or above 35 km/h, or a lead at or above 15 km/h pulling away by at least 1 m/s with distance at least `8 + 1.8 × ego speed` metres, must persist for six seconds. Lead acceleration below -0.2 m/s² restarts recovery confirmation.
+- **Lead acceleration:** Outside a stopping approach, lead acceleration above 1.0 m/s² for about 0.5 seconds restores Normal/Eco without waiting for three seconds of flow recovery.
+- **Flow recovery:** Both vehicles at or above 35 km/h, or a lead at or above 15 km/h pulling away by at least 1 m/s with distance at least `8 + 1.8 × ego speed` metres, must persist for three seconds. Lead acceleration below -0.2 m/s² restarts recovery confirmation.
 - **Clear road:** Valid observations of no lead while ego travels at least 15 km/h for four seconds restore the base mode. Losing a lead while stopped does not restore it.
 
 Acceleration spikes shorter than about 0.5 seconds do not release Safe. A changed lead track restarts acceleration and flow confirmation; invalid or stale inputs and lead loss reset acceleration confirmation.
@@ -133,7 +133,8 @@ Retry runs by default on Hyundai/Kia CANFD with openpilot longitudinal control. 
 
 - Stop intent and acceleration use the original control path. The additional one-second stop preview, forced convergence to -0.50 m/s² after StopReq, and two-frame soft-hold preparation are removed.
 - While StopReq is active, aReqRaw follows control with `StoppingAccel`, and aReqValue uses normal packet limiting. InfoDisplay and byte7 remain zero; the lower band uses a fixed experimental value of 0.20 without copying stock SCC values.
-- If motion persists, releases StopReq and requests the stronger deceleration of the existing request and -0.50 m/s², then reasserts once. If motion persists after retry, retains negative acceleration requests without repeated toggling.
+- At low speed, elapsed time or distance alone does not release StopReq while deceleration continues. Acceleration rising from negative toward zero alone does not trigger retry either. Retry requires a sustained speed rebound with positive acceleration, or sustained loss of deceleration with insufficient speed reduction.
+- Retry releases StopReq and requests the stronger deceleration of the existing request and -0.50 m/s², then reasserts once. Further failure retains negative acceleration requests without repeated toggling. This does not change the planner's departure decision or add reverse-direction detection.
 - Accelerator input, cruise disengagement, and interlocks such as Auto Hold cancel it. Requests while the brake is pressed are allowed only for an armed soft hold with every speed input at or below 0.10 m/s.
 
 > [!CAUTION]
@@ -141,7 +142,9 @@ Retry runs by default on Hyundai/Kia CANFD with openpilot longitudinal control. 
 
 ### `VEgoStopping`
 
-Range 1–100, step 5. A value of 50 is 0.50 m/s (about 1.8 km/h). `shouldStop` becomes true when both the planner's target speeds at the control-delay horizon and one second later are below this threshold.
+Range 1–100, step 5, default 50. A value of 1 is 0.01 m/s; 50 is 0.50 m/s (about 1.8 km/h). `shouldStop` becomes true when both the planner's target speeds at the control-delay horizon and one second later are below this threshold.
+
+Previously stored values are not automatically raised at startup. Control reads the saved value during driving without repairing it. Lower values can delay stop recognition.
 
 Lowering it delays stop recognition and may release stop state sooner on departure. Raising it enters stop state earlier but can make departure feel sluggish.
 
@@ -341,7 +344,8 @@ Relaxes cruise braking that would bring a small overspeed back to the set speed.
 - Does not raise the set speed or MPC target, disable SCC, or add positive acceleration commands.
 - For a 100km/h set speed and a 5% margin, braking relief applies between 100 and 105km/h. It does not accelerate the vehicle to 105km/h.
 - Relief eases in over the first 10% of the band; normal braking returns over the final 40%. In this example, relief increases from 100 to 100.5km/h and braking returns from 103 to 105km/h. The ceiling is a brake-restoration threshold, not a guaranteed maximum actual speed.
-- Applies only to ordinary cruise with openpilot longitudinal control, a reference above 10km/h, and targets and eligibility stable for at least one second. Leads, cut-in candidates, stopping, curve acceleration limiting, ATC, lane changes, and Experimental Mode prevent relief.
+- Applies only to ordinary cruise with openpilot longitudinal control, a reference above 10km/h, and the set speed, margin setting and eligibility unchanged for at least one second. The physical-speed reference is fixed using the conversion ratio at entry; later ratio changes neither restart the wait nor raise the reference.
+- Leads, cut-in candidates, stopping, curve acceleration limiting, ATC, lane changes, and Experimental Mode prevent relief. A changed set speed or margin, or loss of eligibility, requires a new reference and another one-second wait.
 - Navigation or other speed caps at or below the coasting ceiling prevent relief. External deceleration, pedal input, target changes, or invalid inputs give priority to normal control.
 - Does not apply while `CruiseEcoControl` raises the target or the existing CarrotCruise acceleration-limiting mode is active. This setting is separate from `CarrotCruiseDecel`.
 

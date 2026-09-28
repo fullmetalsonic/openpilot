@@ -17,6 +17,8 @@ HYUNDAI_CANFD = ROOT / "opendbc_repo/opendbc/car/hyundai/hyundaicanfd.py"
 FORK_REMOTE = ROOT / "openpilot/selfdrive/carrot/server/services/fork_remote.py"
 TOOLS_DISPATCHER = ROOT / "openpilot/selfdrive/carrot/server/features/tools/dispatcher.py"
 STOPPING_PATCH = Path(__file__).with_name("independent_hold_stopping.patch")
+PADDLE_MODE4_PATCH = Path(__file__).with_name("paddle_mode4.patch")
+VEGO_STOPPING_PATCH = Path(__file__).with_name("vego_stopping_min1.patch")
 
 
 def replace_once(text: str, original: str, patched: str, name: str) -> str:
@@ -51,6 +53,32 @@ def patch_independent_stopping() -> None:
   already = subprocess.run(["git", "-C", str(ROOT), "apply", "--reverse", "--check", patch_file], capture_output=True)
   if already.returncode != 0:
     raise RuntimeError("Upstream stopping/controller shape changed; refusing to guess")
+
+
+def patch_paddle_mode4() -> None:
+  # Exact-context cruise patch; other PaddleMode 4 files are preserved by the
+  # WIP merge and checked by the dedicated paddle tests.
+  patch_file = str(PADDLE_MODE4_PATCH)
+  check = subprocess.run(["git", "-C", str(ROOT), "apply", "--check", patch_file], capture_output=True)
+  if check.returncode == 0:
+    subprocess.run(["git", "-C", str(ROOT), "apply", patch_file], check=True)
+    return
+  already = subprocess.run(["git", "-C", str(ROOT), "apply", "--reverse", "--check", patch_file], capture_output=True)
+  if already.returncode != 0:
+    raise RuntimeError("Upstream cruise/PaddleMode 4 shape changed; refusing to guess")
+
+
+def patch_vego_stopping() -> None:
+  # Keep the user's stored value and the minimum of 1 across runtime, menu,
+  # documentation, and regression tests. Refuse changed upstream context.
+  patch_file = str(VEGO_STOPPING_PATCH)
+  check = subprocess.run(["git", "-C", str(ROOT), "apply", "--check", patch_file], capture_output=True)
+  if check.returncode == 0:
+    subprocess.run(["git", "-C", str(ROOT), "apply", patch_file], check=True)
+    return
+  already = subprocess.run(["git", "-C", str(ROOT), "apply", "--reverse", "--check", patch_file], capture_output=True)
+  if already.returncode != 0:
+    raise RuntimeError("Upstream VEgoStopping shape changed; refusing to guess")
 
 
 def patch_cruise() -> None:
@@ -260,9 +288,11 @@ def verify_fork_branch_support() -> None:
 
 
 def main() -> None:
+  patch_paddle_mode4()
   patch_cruise()
   patch_blinkers()
   patch_independent_stopping()
+  patch_vego_stopping()
   verify_fork_branch_support()
 
 
