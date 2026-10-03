@@ -260,7 +260,8 @@ def test_raw_can_to_gap_planner_and_scc_output(mode4, message, side):
   from pathlib import Path
   from opendbc.can import CANPacker, CANParser
   from opendbc.car import create_button_events, structs
-  from opendbc.car.hyundai.carstate import BUTTONS_DICT
+  from opendbc.car.hyundai.carstate import BUTTONS_DICT, CarState
+  from opendbc.car.hyundai.paddle_mode4 import read_paddle_input
   from opendbc.car.hyundai.hyundaicanfd import create_acc_control, create_acc_control_scc2
   from openpilot.cereal import log
 
@@ -282,6 +283,7 @@ def test_raw_can_to_gap_planner_and_scc_output(mode4, message, side):
   parser = CANParser("hyundai_canfd_generated", [(message, 50)], 0)
   state = NS(paddle_button_prev=0, cruise_btns_msg_canfd=message, gear_msg_canfd=message,
              cruise_buttons=[0], main_buttons=[0])
+  state._update_paddle_input = CarState._update_paddle_input.__get__(state)
   target = 2 if side == "LEFT_PADDLE" else 0
   for frame, pressed in enumerate([0, 1, 1, 0]):
     frame_msg = packer.make_can_msg(message, 0, {side: pressed})
@@ -289,7 +291,8 @@ def test_raw_can_to_gap_planner_and_scc_output(mode4, message, side):
     decoded = NS(buttonEvents=[])
     exec(decoder, {"self": state, "cp": parser, "ret": decoded, "prev_cruise_buttons": 0,
                    "prev_main_buttons": 0, "BUTTONS_DICT": BUTTONS_DICT,
-                   "ButtonType": structs.CarState.ButtonEvent.Type, "create_button_events": create_button_events})
+                   "ButtonType": structs.CarState.ButtonEvent.Type, "create_button_events": create_button_events,
+                   "read_paddle_input": read_paddle_input})
     CS.buttonEvents = [{"type": b.type, "pressed": b.pressed} for b in decoded.buttonEvents]
     helper._update_cruise_buttons(CS, mode4[2], 80)
     helper._paddle_gap_writer._queue.join()

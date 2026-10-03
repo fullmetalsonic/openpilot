@@ -22,6 +22,7 @@ from openpilot.selfdrive.pandad import can_capnp_to_list, can_list_to_can_capnp
 from openpilot.selfdrive.car.alternative_experience import get_alternative_experience
 from openpilot.selfdrive.car.card_diagnostics import should_log_card_diagnostics
 from openpilot.selfdrive.car.cruise import VCruiseCarrot
+from openpilot.selfdrive.car.paddle_context import publish_paddle_context
 from openpilot.selfdrive.car.car_specific import MockCarState
 from openpilot.selfdrive.car.openpilot_toggle import CruiseMainOpenpilotToggle
 from openpilot.selfdrive.carrot.xiaoge.xiaoge_vision import (
@@ -264,6 +265,10 @@ class Car:
     CS.carrotCruise = 1 if self.v_cruise_helper.carrot_cruise_active else 0
 
     self.CI.CS.softHoldActive = CS.softHoldActive
+    # Same-process authority from the applied VCruise mode, including vetoes
+    # while carControl is dead and controls_update skips CI.apply.
+    publish_paddle_context(self.CP, self.CI, self.v_cruise_helper, self.sm,
+                           self.can_log_mono_time if REPLAY else time.monotonic_ns())
     state_done_ns = time.monotonic_ns()
     self.card_diag_stage_current = {
       'decode': (decode_done_ns - recv_ns) // 1000,

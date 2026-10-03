@@ -8,6 +8,7 @@ from opendbc.can import CANDefine, CANParser
 from opendbc.car import Bus, create_button_events, structs, DT_CTRL
 from opendbc.car.common.conversions import Conversions as CV
 from opendbc.car.hyundai.hyundaicanfd import CanBus
+from opendbc.car.hyundai.paddle_mode4 import read_paddle_input
 from opendbc.car.hyundai.values import HyundaiFlags, CAR, DBC, Buttons, CarControllerParams, CAMERA_SCC_CAR, HyundaiExtFlags, \
                                        EV_MODE_ACTIVE_VALUES, EV_MODE_STATUS_ADDR, EV_MODE_STATUS_DLC, EV_MODE_STATUS_MSG, \
                                        EV_MODE_STATUS_SIGNAL
@@ -252,6 +253,8 @@ class CarState(CarStateBase):
     self.ACCMode = 0
     self.LFA_ICON = 0
     self.paddle_button_prev = 0
+    self.paddle_input_sequence = 0
+    self.paddle_input = None
     self.canfdOemBrakeHoldLatched = False
     self.canfdAvhReleaseGraceFrames = 0
 
@@ -1369,7 +1372,15 @@ class CarState(CarStateBase):
 
     self.paddle_button_prev = paddle_button
 
+    self._update_paddle_input(cp)
+
     return ret
+
+  def _update_paddle_input(self, cp):
+    self.paddle_input_sequence = getattr(self, "paddle_input_sequence", 0) + 1
+    paddle_source = "CRUISE_BUTTONS" if self.cruise_btns_msg_canfd == "CRUISE_BUTTONS" else "GEAR" if self.gear_msg_canfd == "GEAR" else None
+    cancel_source = "CRUISE_BUTTONS_ALT2" if getattr(self, "cruise_buttons_alt2", None) is not None else self.cruise_btns_msg_canfd
+    self.paddle_input = read_paddle_input(cp, paddle_source, cancel_source, self.paddle_input_sequence)
 
   def get_can_parsers_canfd(self, CP):
     # Register stock-navigation position/route/profile messages as optional

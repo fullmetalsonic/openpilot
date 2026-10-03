@@ -4,6 +4,7 @@
 .github/scripts/independent_hold_stopping.patch whitespace=-blank-at-eol
 .github/scripts/paddle_mode4.patch whitespace=-blank-at-eol
 .github/scripts/vego_stopping_min1.patch whitespace=-blank-at-eol
+.github/scripts/paddle_regen_isolation.patch whitespace=-blank-at-eol
 
 # Offline bootstrap payloads must match Linux image bytes on every workstation.
 tools/jetlink/*.py text eol=lf

@@ -8,6 +8,8 @@ from __future__ import annotations
 
 import re
 import subprocess
+import shutil
+import tempfile
 from pathlib import Path
 
 
@@ -19,6 +21,7 @@ TOOLS_DISPATCHER = ROOT / "openpilot/selfdrive/carrot/server/features/tools/disp
 STOPPING_PATCH = Path(__file__).with_name("independent_hold_stopping.patch")
 PADDLE_MODE4_PATCH = Path(__file__).with_name("paddle_mode4.patch")
 VEGO_STOPPING_PATCH = Path(__file__).with_name("vego_stopping_min1.patch")
+PADDLE_REGEN_PATCH = Path(__file__).with_name("paddle_regen_isolation.patch")
 
 
 def replace_once(text: str, original: str, patched: str, name: str) -> str:
@@ -287,13 +290,58 @@ def verify_fork_branch_support() -> None:
       raise RuntimeError(f"Fork branch support changed upstream; refusing to guess: {marker}")
 
 
-def main() -> None:
+def apply_base_patches() -> None:
   patch_paddle_mode4()
   patch_cruise()
   patch_blinkers()
   patch_independent_stopping()
   patch_vego_stopping()
   verify_fork_branch_support()
+
+
+def main() -> None:
+  global ROOT, CRUISE, HYUNDAI_CANFD, FORK_REMOTE, TOOLS_DISPATCHER
+  patch = str(PADDLE_REGEN_PATCH)
+  already = subprocess.run(["git", "-C", str(ROOT), "apply", "--reverse", "--check", patch], capture_output=True)
+  if already.returncode == 0:
+    # New and old layers share SCC2 context. Verify the old layers and complete
+    # replay in scratch, never temporarily remove a safety layer in the product.
+    paths = {"openpilot/selfdrive/car/cruise.py", "opendbc_repo/opendbc/car/hyundai/hyundaicanfd.py",
+             "openpilot/selfdrive/carrot/server/services/fork_remote.py",
+             "openpilot/selfdrive/carrot/server/services/branch_catalog.py",
+             "openpilot/selfdrive/carrot/server/features/tools/dispatcher.py"}
+    for artifact in (STOPPING_PATCH, PADDLE_MODE4_PATCH, VEGO_STOPPING_PATCH, PADDLE_REGEN_PATCH):
+      paths.update(re.findall(r"^diff --git a/(\S+) b/", artifact.read_text(encoding="utf-8"), re.MULTILINE))
+    original_root = ROOT
+    original_paths = (CRUISE, HYUNDAI_CANFD, FORK_REMOTE, TOOLS_DISPATCHER)
+    with tempfile.TemporaryDirectory(prefix="paddle-patch-check-") as scratch:
+      target = Path(scratch)
+      for relative in paths:
+        source = original_root / relative
+        if source.is_file():
+          destination = target / relative
+          destination.parent.mkdir(parents=True, exist_ok=True)
+          shutil.copyfile(source, destination)
+      subprocess.run(["git", "-C", str(target), "init", "--quiet"], check=True)
+      subprocess.run(["git", "-C", str(target), "apply", "--reverse", patch], check=True, capture_output=True)
+      try:
+        ROOT = target
+        CRUISE, HYUNDAI_CANFD, FORK_REMOTE, TOOLS_DISPATCHER = (target / p.relative_to(original_root) for p in original_paths)
+        apply_base_patches()
+        subprocess.run(["git", "-C", str(target), "apply", patch], check=True, capture_output=True)
+        for relative in paths:
+          source, reconstructed = original_root / relative, target / relative
+          if source.is_file() != reconstructed.is_file():
+            raise RuntimeError(f"Patch replay changed file presence: {relative}")
+          if source.is_file() and source.read_text(encoding="utf-8") != reconstructed.read_text(encoding="utf-8"):
+            raise RuntimeError(f"Patch replay diverged: {relative}")
+      finally:
+        ROOT = original_root
+        CRUISE, HYUNDAI_CANFD, FORK_REMOTE, TOOLS_DISPATCHER = original_paths
+    return
+  apply_base_patches()
+  subprocess.run(["git", "-C", str(ROOT), "apply", "--check", patch], check=True, capture_output=True)
+  subprocess.run(["git", "-C", str(ROOT), "apply", patch], check=True, capture_output=True)
 
 
 if __name__ == "__main__":

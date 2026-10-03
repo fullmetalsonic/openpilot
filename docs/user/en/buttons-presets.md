@@ -108,6 +108,8 @@ Vehicles that do not report paddle events will not respond. Modes 1–3 use the 
 
 Mode 4 requires openpilot longitudinal control and support for four gap levels. With valid CAN input and Drive selected, each press changes one step; release and holding do not add steps. Entering or leaving mode 4 takes effect after restarting the control process. Once active, paddles change the gap while driving. Existing CANCEL and longitudinal interlocks remain in effect, and a paddle press does not engage cruise. Vehicle validation is still required.
 
+On MQ4 HEV CANFD camera-SCC with openpilot longitudinal control, a new gesture during normal ACC in the applied mode 4 keeps the ACC request continuous. A valid release of both paddles must be observed after startup. CANCEL, pedal input or invalid input/control revokes the exception until a new full release. Normal ACC stop/restart is included; independent SoftHold and CarrotCruise are excluded. Other vehicles and modes 0–3 retain their existing policy. Stock regen signals are not masked; regen-state preservation after cruise cancellation and long holds require vehicle validation.
+
 ### Common long-press behavior
 
 | Button | Long press |

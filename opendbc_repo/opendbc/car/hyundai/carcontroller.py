@@ -7,6 +7,7 @@ from opendbc.car.common.conversions import Conversions as CV
 from opendbc.car.hyundai import hyundaicanfd, hyundaican
 from opendbc.car.hyundai.carstate import CarState
 from opendbc.car.hyundai.stopping import CanfdStopping
+from opendbc.car.hyundai.paddle_mode4 import PaddleGesture, normal_acc_eligible
 from opendbc.car.hyundai.hyundaicanfd import CanBus
 from opendbc.car.hyundai.values import HyundaiFlags, Buttons, CarControllerParams, CAR, CAN_GEARS, HyundaiExtFlags
 from opendbc.car.interfaces import CarControllerBase
@@ -232,9 +233,22 @@ class CarController(CarControllerBase):
     self.is_ldws_car = Params().get_bool("IsLdwsCar")
     self.enable_corner_radar = 0
     self.paddle_mode = Params().get_int("PaddleMode")
+    self.paddle_gesture = PaddleGesture()
 
     self.steerDeltaUpOrg = self.steerDeltaUp = self.steerDeltaUpLC = self.params.STEER_DELTA_UP
     self.steerDeltaDownOrg = self.steerDeltaDown = self.steerDeltaDownLC = self.params.STEER_DELTA_DOWN
+
+  def _paddle_gap_override(self, CC, CS, now_nanos):
+    context = getattr(CS, "paddle_context", None)
+    scoped = (self.CP.carFingerprint == CAR.KIA_SORENTO_HEV_4TH_GEN
+              and self.CP.flags & HyundaiFlags.CANFD and self.CP.flags & HyundaiFlags.CAMERA_SCC
+              and self.CP.openpilotLongitudinalControl and not self.CP.pcmCruise)
+    eligible = bool(scoped and context is not None and context.mode == 4 and context.supported
+                    and CS.scc_control is not None
+                    and normal_acc_eligible(CC, CS.out) and self.hyundai_jerk.carrot_cruise == 0
+                    and all(np.isfinite(v) for v in (self.hyundai_jerk.jerk_u, self.hyundai_jerk.jerk_l)))
+    return self.paddle_gesture.update(getattr(CS, "paddle_input", None), context, eligible,
+                                      now_nanos, CS.paddle_button_prev)
 
   def update(self, CC, CS, now_nanos):
 
@@ -526,6 +540,7 @@ class CarController(CarControllerBase):
         hud_lateral = self.display_lead_lateral.update(getattr(CS, "radarState", None), getattr(CS, "modelV2", None))
         self.hyundai_jerk.make_jerk(self.CP, CS, accel, actuators, hud_control)
         self.hyundai_jerk.check_carrot_cruise(CC, CS, hud_control, stopping, accel, actuators.aTarget)
+        paddle_gap_override = self._paddle_gap_override(CC, CS, now_nanos)
 
         if True: #not camera_scc:
           can_sends.extend(hyundaicanfd.create_ccnc_messages(
@@ -542,6 +557,7 @@ class CarController(CarControllerBase):
             msg, self.accel_value_last = hyundaicanfd.create_acc_control_scc2(
               self.packer, self.CAN, CC.enabled, self.accel_value_last, accel, stopping, CC.cruiseControl.override,
               set_speed_in_units, hud_control, self.hyundai_jerk, CS, self.canfd_stopping, hud_lateral=hud_lateral,
+              paddle_gap_override=paddle_gap_override,
             )
             if msg is not None:
               can_sends.append(msg)

@@ -448,7 +448,7 @@ def _apply_scc_lead(values, radar_state, model_v2=None, hud_lateral=None):
 
 
 def create_acc_control_scc2(packer, CAN, enabled, accel_value_last, accel, stopping, gas_override, set_speed, hud_control, hyundai_jerk, CS,
-                            stop_controller=None, hud_lateral=None):
+                            stop_controller=None, hud_lateral=None, *, paddle_gap_override=False):
 
   if CS.scc_control is None:
     if stop_controller is not None:
@@ -462,7 +462,10 @@ def create_acc_control_scc2(packer, CAN, enabled, accel_value_last, accel, stopp
   independent_hold = soft_hold_active and not enabled
   # Preserve the upstream availability gate for ordinary ACC. Only independent
   # SoftHold may hold the vehicle while OEM cruise is unavailable.
-  acc_control_enabled = ((enabled and CS.out.cruiseState.available) or soft_hold_active) and CS.paddle_button_prev == 0 and not interlock_active
+  paddle_gap_override = bool(paddle_gap_override and enabled and CS.out.cruiseState.available
+                             and not gas_override and not interlock_active and hyundai_jerk.carrot_cruise == 0)
+  paddle_allowed = CS.paddle_button_prev == 0 or paddle_gap_override
+  acc_control_enabled = ((enabled and CS.out.cruiseState.available) or soft_hold_active) and paddle_allowed and not interlock_active
   enabled = acc_control_enabled
 
   acc_mode = 0 if not enabled else (2 if gas_override else 1)
