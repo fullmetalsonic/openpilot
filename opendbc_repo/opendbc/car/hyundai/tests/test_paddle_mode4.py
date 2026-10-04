@@ -152,7 +152,8 @@ def production_chain(chain, mode4, controls_cancel_producer):
       if modify is not None:
         modify(ci, helper, cc)
       controls_cancel_producer(cc, decoded, ci.CP)
-      helper._update_cruise_buttons(decoded, cc, 80)
+      helper._update_cruise_buttons(decoded, cc, 80, controls_valid=valid,
+        paddle_cancel_seen=ci.CS.paddle_input.cancel_seen)
       helper._paddle_gap_writer._queue.join()
       cc.hudControl.leadDistanceBars = params.get_int('LongitudinalPersonality') + 1
       events = [NS(name=log.OnroadEvent.EventName.selfdriveInitializing)] if initializing else []
@@ -291,6 +292,41 @@ def test_production_raw_cancel_veto_even_with_internal_oem_cancel(production_cha
   assert decode(driver.tick(1))['ACCMode'] == 1
 
 
+@pytest.mark.parametrize('buttons', [(4,), (4, 0)])
+def test_production_cancel_in_same_press_batch_never_changes_gap(production_chain, buttons):
+  driver, ci, _, _, params, _ = production_chain
+  driver.tick(0)
+  driver.tick(1, buttons=buttons)
+  assert ci.CS.paddle_input.cancel_seen and params.writes == []
+
+
+@pytest.mark.parametrize('state', ['off', 'standby', 'cancel', 'independentHold'])
+def test_production_off_held_to_on_preserves_gap_until_new_press(production_chain, state):
+  driver, ci, helper, cc, params, _ = production_chain
+  driver.tick(0)
+  cc.enabled = cc.longActive = False
+  helper._cruise_ready = state == 'standby'
+  helper._cruise_cancel_state = state == 'cancel'
+  helper._soft_hold_active = 2 if state == 'independentHold' else 0
+  driver.tick(1)
+  cc.enabled = cc.longActive = True
+  helper._cruise_ready = helper._cruise_cancel_state = False
+  helper._soft_hold_active = 0
+  for _ in range(4): driver.tick(1)
+  driver.tick(0)
+  assert params.writes == [] and params.get_int('LongitudinalPersonality') == 3
+  driver.tick(1)
+  assert params.writes == [2]
+
+
+@pytest.mark.parametrize('valid', [False, True])
+def test_production_control_validity_applies_to_gap_reception(production_chain, valid):
+  driver, _, _, _, params, _ = production_chain
+  driver.tick(0)
+  driver.tick(1, valid=valid)
+  assert params.writes == ([2] if valid else [])
+
+
 @pytest.mark.parametrize('cause', ['invalidControl', 'initializing'])
 def test_production_oem_cancel_apply_skip_keeps_veto_epoch(production_chain, cause):
   driver, ci, _, _, _, _ = production_chain
@@ -391,7 +427,8 @@ def test_gap_writer_then_production_bridge_and_real_can_controller(chain, mode4)
     decoded.accFaulted = decoded.brakePressed = decoded.gasPressed = False
     decoded.vEgo = decoded.vEgoRaw = 20.
     ci.CS.scc_control = {'InfoDisplay': 0}
-    helper._update_cruise_buttons(decoded, cc, 80)
+    helper._update_cruise_buttons(decoded, cc, 80, controls_valid=True,
+      paddle_cancel_seen=ci.CS.paddle_input.cancel_seen)
     helper._paddle_gap_writer._queue.join()
     cc.hudControl.leadDistanceBars = params.get_int('LongitudinalPersonality') + 1
     publish_paddle_context(ci.CP, ci, helper, SM(carControl=cc, onroadEvents=[]), now)

@@ -242,7 +242,11 @@ class Car:
     #self.t2 = time.monotonic()
 
     #self.v_cruise_helper.update_v_cruise(CS, self.sm['carControl'].enabled, self.is_metric)
-    self.v_cruise_helper.update_v_cruise(CS, self.sm, self.is_metric)
+    # Same-batch driver CANCEL can disappear from the final button transition.
+    # Read current parser evidence, before publishing the next output context.
+    paddle_input = getattr(self.CI.CS, 'paddle_input', None)
+    self.v_cruise_helper.update_v_cruise(CS, self.sm, self.is_metric,
+      paddle_cancel_seen=bool(paddle_input is not None and paddle_input.cancel_seen))
     #self.t3 = time.monotonic()
     if self.sm['carControl'].enabled and not self.CC_prev.enabled:
       # Use CarState w/ buttons from the step selfdrived enables on
