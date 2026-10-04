@@ -83,6 +83,8 @@ Carrot Web 설정 화면에서는 다음 기능을 사용할 수 있습니다.
 
 ### 현재 값이 가장 우선입니다
 
+2026 스타리아 EV는 차량 선택에서 `Hyundai Staria EV 2026`을 사용합니다. 기존 스타리아 선택은 자동 변경되지 않으며, HDA2·카메라 SCC 설정은 차량 배선에 맞춰 별도로 확인합니다. [차량 선택 안내](carrot-web.md#도구-화면)를 참고하세요.
+
 업데이트 후에도 장치에 저장된 영구 설정은 유지될 수 있습니다. JSON의 `default`, 제목 괄호 안 숫자, 다른 사용자의 설정값보다 **내 장치의 Carrot Web에 표시된 현재 값**을 먼저 기록하세요.
 
 `default`는 모든 차량에 권장되는 튜닝값이라는 뜻이 아닙니다. 차종 기본 튜닝, 기존 Params와 브랜치에 따라 실제 시작값이 다를 수 있습니다.
@@ -101,11 +103,11 @@ Carrot Web 설정 화면에서는 다음 기능을 사용할 수 있습니다.
 
 ## 전체 설정 지도
 
-현재 `carrot-wip`의 `carrot_settings.json`에는 **182개 파라미터**가 있으며, 모든 항목이 아래 메뉴에 연결되어 있습니다.
+현재 `carrot-wip`의 `carrot_settings.json`에는 **183개 파라미터**가 있으며, 모든 항목이 아래 메뉴에 연결되어 있습니다.
 
 | 대분류 | 항목 수 | 중분류 |
 |---|---:|---|
-| 주행 제어 | 121 | 시작·오토, 버튼·프리셋, 차량 조향, 속도·감속, 크루즈·차간 |
+| 주행 제어 | 122 | 시작·오토, 버튼·프리셋, 차량 조향, 속도·감속, 크루즈·차간 |
 | 차량·하드웨어 | 15 | 현대·기아, CANFD·HDA, 레이더, 운전자 모니터링, 차량 보조, 기기 하드웨어 |
 | 화면 표시 | 34 | 정보 표시, 경로 표시, 밝기·주행화면, 외부 HUD |
 | 시스템 | 12 | 녹화·전원, 네트워크·지도, 사운드, 소프트웨어 |
@@ -133,7 +135,7 @@ Carrot Web 설정 화면에서는 다음 기능을 사용할 수 있습니다.
 
 | 세부 구역 | 파라미터 | 용도 |
 |---|---|---|
-| [버튼 모드](buttons-presets.md#button-modes) | `CruiseButtonMode`, `CancelButtonMode`, `LfaButtonMode`, `PaddleMode` | 크루즈, 캔슬, LFA와 패들 버튼의 동작 지정 |
+| [버튼 모드](buttons-presets.md#button-modes) | `CruiseButtonMode`, `CancelButtonMode`, `LfaButtonMode`, `PaddleMode` | 크루즈, 캔슬, LFA와 패들 버튼의 동작 지정. 패들 모드 4는 오른쪽 간격 감소·왼쪽 증가(1~4단계, 모드 전환 후 재시작). MQ4 HEV CANFD camera-SCC의 모드4 정상 ACC에서는 새 유효 당김 중 ACC 요청을 유지하며, 회생 단계 보존은 실차 확인 필요 |
 | [속도 단위](buttons-presets.md#speed-units) | `CruiseSpeedUnit`, `CruiseSpeedUnitBasic`, `CruiseButtonLongDelay` | 짧게·길게 누를 때의 속도 변경 단위와 판정 시간 |
 | [버튼 테스트](buttons-presets.md#button-spam) | `CruiseButtonTest1`, `CruiseButtonTest2`, `CruiseButtonTest3` | 순정 SCC 목표속도 동기화용 버튼 메시지 값 |
 | [속도 프리셋](buttons-presets.md#speed-presets) | `CruiseSpeed1`, `CruiseSpeed2`, `CruiseSpeed3`, `CruiseSpeed4`, `CruiseSpeed5` | 사용자3 모드에서 사용하는 속도 테이블 |
@@ -193,15 +195,15 @@ Carrot Web 설정 화면에서는 다음 기능을 사용할 수 있습니다.
 |---|---|---|
 | [가속 성향·드라이브 모드](cruise-gap.md#driving-mode) | `MyDrivingMode`, `MyDrivingModeAuto` | 연비, 안전, 일반, 고속 모드와 자동 전환 |
 | [가속 성향·속도별 가속값](cruise-gap.md#acceleration-table) | `CruiseMaxVals0`, `CruiseMaxVals1`, `CruiseMaxVals2`, `CruiseMaxVals3`, `CruiseMaxVals4`, `CruiseMaxVals5`, `CruiseMaxVals6` | 속도 구간별 최대 가속 성향 |
-| [정차·재출발](cruise-gap.md#stop-resume) | `StopDistanceCarrot`, `VEgoStopping`, `AChangeCostStarting` | 정지 위치, 정지 진입과 재출발 특성 |
+| [정차·재출발](cruise-gap.md#stop-resume) | `StopDistanceCarrot`, `StoppingAccel`, `VEgoStopping`, `AChangeCostStarting` | 정지 위치, 정지 진입과 재출발 특성 |
 | [가감속 튜닝](cruise-gap.md#longitudinal-tuning) | `LongTuningKpV`, `LongTuningKiV`, `LongTuningKf`, `LongActuatorDelay` | 현기차는 Kp/Ki/Kf `100/0/100` 고정·숨김, 다른 브랜드는 조정 가능 |
 | [차간거리](cruise-gap.md#following-gap) | `TFollowGap1`, `TFollowGap2`, `TFollowGap3`, `TFollowGap4`, `DynamicTFollowLC`, `SpeedTFFactor`, `TFollowDecelBoost` | 차간 단계별 시간, 정상 선택 앞차 기준 차로 변경 완화와 감속 여유(기본 0%) |
 | [추종응답성](cruise-gap.md#lead-response) | `LeadAccelResponse`, `LeadAccelResponseTF1`–`LeadAccelResponseTF4` | 모든 차간 단계의 앞차 출발·가속 추종과 접근 반응 |
-| [당근 크루즈](cruise-gap.md#carrot-cruise) | `CruiseEcoControl`, `CarrotCruiseDecel`, `CarrotCruiseAtcDecel` | 연비 제어와 당근 크루즈 감속 특성 |
+| [당근 크루즈](cruise-gap.md#carrot-cruise) | `CruiseEcoControl`, `CruiseCoastingPercent`, `CarrotCruiseDecel`, `CarrotCruiseAtcDecel` | 연비 제어, 진입 기준속도를 고정하는 코스팅 여유(기본 0%: 기존 제어), 당근 크루즈 감속 특성 |
 
 `MyDrivingMode`는 `1` 연비, `2` 안전, `3` 일반, `4` 고속 모드입니다. 고속 모드는 신호 감지를 무시하고 가속 성향을 높이므로 모드 이름만 보고 선택하지 말고 설명을 확인하세요.
 
-모드별 앞차 반응 상한은 연비 2, 안전 3이며 일반·고속은 선택값을 유지합니다. 공통값과 TF별 반응을 먼저 선택한 뒤 적용하고 낮은 값과 0은 올리지 않습니다. TF 배율은 연비 ×1.1·안전 ×1.2를 유지하며 모드 여유는 복귀 때 서서히 줄입니다. 자동전환은 정지 접근·지속 서행에서 안전을 선택합니다. 정지 접근이 아니며 앞차 가속도가 1.5m/s² 초과로 약 0.5초 유지되면 일반/연비로 복귀하고, 그 외에는 흐름 회복 6초 또는 앞차 없이 15km/h 이상 주행 4초를 확인합니다.
+모드별 앞차 반응 상한은 연비 2, 안전 3이며 일반·고속은 선택값을 유지합니다. 공통값과 TF별 반응을 먼저 선택한 뒤 적용하고 낮은 값과 0은 올리지 않습니다. TF 배율은 연비 ×1.1·안전 ×1.2를 유지하며 모드 여유는 복귀 때 서서히 줄입니다. 자동전환은 정지 접근·지속 서행에서 안전을 선택합니다. 정지 접근이 아니며 앞차 가속도가 1.0m/s² 초과로 약 0.5초 유지되면 일반/연비로 복귀하고, 그 외에는 흐름 회복 3초 또는 앞차 없이 15km/h 이상 주행 4초를 확인합니다.
 
 `CruiseGapLevels`(갭 단계 수)는 버튼 순환을 2단계부터 차량 최대 단계까지 줄일 수 있으며 기본값은 차량 최대 단계입니다. 2는 TF1·TF2, 3은 TF1~TF3을 사용합니다. 다음 갭 버튼 조작부터 적용하며 사용하지 않는 TF·추종응답성 값은 보관합니다. openpilot 가감속 제어에 적용합니다.
 
@@ -216,9 +218,11 @@ Carrot Web 설정 화면에서는 다음 기능을 사용할 수 있습니다.
 
 `LongTuning*`, `LongActuatorDelay`는 openpilot이 가감속을 제어하는 차량에서 직접적인 영향을 줄 수 있는 고급 항목입니다. 현대·기아·제네시스에서는 `LongTuningKpV`, `LongTuningKiV`, `LongTuningKf`가 안전값 `100/0/100`으로 고정되어 설정 화면에 나오지 않으며, 순정 ACC 차량에서는 관련 없는 항목도 있습니다.
 
-정지시작가속도는 모든 차종에서 `-0.50m/s²`(이전 저장값 `-50`)로 고정되어 설정에서 제거되었습니다. 기존 `StoppingAccel` 저장값은 적용하지 않습니다. 일반 정지 제어와 소프트홀드의 차이는 [정차·재출발](cruise-gap.md#stop-resume)을 참고하세요.
+`StoppingAccel`(정지시작가속도)은 기본 `-50`, 범위 `-100~-50`, 변경 단위 `10`으로 다시 조정할 수 있습니다. 저장값에 0.01을 곱한 가속도를 사용하며, 제어에서도 범위를 제한합니다. 기존 정지 진입·감속 방식과 차종별 소프트홀드를 사용하고 변경은 약 1초 안에 반영됩니다. [정차·재출발](cruise-gap.md#stop-resume)을 참고하세요.
 
-현대·기아 CANFD 오픈파일럿 종방향 제어의 조기 정지 판단, -0.50m/s² 수렴과 한 번의 정지 재시도는 별도 설정 없이 기본 적용됩니다. [CANFD 정지 제어](cruise-gap.md#canfd-stopping)를 참고하세요.
+`VEgoStopping`(정지출발민감도)은 범위 `1~100`, 변경 단위 `5`, 기본 `50`이며, `1`은 `0.01m/s`입니다. 기존 저장값을 자동으로 `10`으로 올리지 않습니다.
+
+현대·기아 CANFD 오픈파일럿 종방향 제어는 실제 속도 재상승 또는 지속적인 감속 소실을 확인해 한 번의 정지 재시도를 기본 적용합니다. 저속에서 감속이 이어지면 거리·시간 조건만으로 재시도하지 않습니다. [CANFD 정지 제어](cruise-gap.md#canfd-stopping)를 참고하세요.
 
 지원되는 Tesla 차량에서 추가 차량 버스가 감지되면 장치의 **alpha longitudinal**(`AlphaLongitudinalEnabled`) 토글을 켤 때 차량 수신 제한속도에 맞춘 [크루즈 설정속도 자동 조절](tesla.md#automatic-cruise-speed)도 활성화됩니다. 오른쪽 속도 휠을 직접 돌리면 일시 중지하며, 1초 안에 반대 방향으로 돌리거나 제어를 해제했다가 다시 켜면 재개합니다. 별도의 Carrot Web 설정은 없습니다.
 

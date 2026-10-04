@@ -1,5 +1,105 @@
 # Repository memory
 
+- On 2026-09-28, the user requested ordinary Git storage wherever possible to
+  eliminate this branch's Git LFS bandwidth dependency. All seven remaining
+  LFS pointers were converted to byte-identical Git blobs; bundled models and
+  the legacy updater are below GitHub's per-file limit. Do not reintroduce LFS
+  tracking or setup pulls. Existing NAS model delivery stays unchanged, and
+  historical refs are not rewritten. See docs/lfs_to_git_20260928.md.
+
+- On 2026-09-28, the user approved C3/C3X main UI onroad affinity cores0,1,2,3,6
+  with SCHED_OTHER/nice19, superseding core6-only for tici/tizi. C4/mici stays
+  core6. Apply to all UI threads; offroad returns to little cores, and onroad
+  C3 keeps nice19 during big-core unavailability. Cluster/core7, camera/control/
+  model/radar and IRQ policies are unchanged. Casper logs on a3278c04 measured
+  UI15.54/14.68Hz with camera20Hz and substantial UI runnable wait; this is
+  pre-change evidence, not validation of the new mask. Affinity does not pin
+  one whole frame or guarantee little-first placement. See docs/camera_core5_trial.md.
+
+- On 2026-09-28, the user requested a single Windows installation ZIP and a
+  minimal Korean guide: extract, run 01, run 02, insert the finished card.
+  Follow-up requires bilingual stage introductions, approximate durations,
+  exact response instructions and brief safety guidance; brevity must not
+  remove backup/write-in-progress cautions or Jetson shutdown and power
+  disconnection before card insertion. Label the link "설치파일 받기".
+  Present Korean first with English underneath on a separate, visually secondary
+  line. Use clear stage headings, spacing and a styled offline HTML guide; never
+  interleave Korean and English with slash-separated sentences.
+  Keep hashes, portable dependencies, USB-C patching and readback automatic;
+  do not restore manual Python/Etcher/hash/hotfix steps to the default guide.
+  The package prepares a patched file before writing, preserves the published
+  base image/runtime/model and confirms the selected USB card before erasing.
+  PC preparation and disk-guard tests do not establish physical-card writing
+  or first-boot validation. See docs/jetson_windows_installer_20260928.md.
+
+- On 2026-09-27, the user requested full integration of `carrot-jetlink` into
+  `carrot-wip` and Korean-first public installation/release instructions. The
+  complete Jetlink history through b9950442ca is merged; do not treat it as an
+  independently maintained vehicle feature branch or recreate older experiments.
+  Keep the existing internal model, AMD Cinque v3 selection, AGNOS and validity
+  policies unchanged. Jetson uses its separately pinned Cinque v2 contract and
+  signed f2b22dc host release; merging vehicle code does not promote a new host
+  runtime/model or justify another image rebuild. Public host sources remain in
+  ajouatom/carrot-jetson and images on NAS. PC offline SD patch first-boot and
+  integrated vehicle driving/C3 checks remain distinct from prior parked C4
+  trials. See docs/jetson_wip_integration_20260927.md and the linked Korean guide.
+
+- On 2026-09-24, the user requested AGNOS updates without per-update approval:
+  automatically download/install, wait and retry transient network failures,
+  then reboot and continue normal startup. Both startup UIs now start the
+  updater without consulting saved confirmation. Keep Wi-Fi setup accessible
+  during retries, prevent duplicate workers, and retain image verification,
+  inactive-slot installation and fatal-error handling. This does not change
+  the required OS image/version or authorize weakening startup compatibility.
+  See docs/cinque_v3_integration_20260919.md for behavior and validation limits.
+
+- On 2026-09-24, the user requested cleanup of accumulated root `.tmp_*`
+  analysis work. Local archives and an index are under
+  `.analysis/archive/2026-09-24/`; they are private, ignored working data,
+  not Git-tracked documentation or a remote backup. Use
+  `.analysis/scratch/<date>-<task>/` for new temporary analysis, captures,
+  dependency installs and Wiki staging instead of new root `.tmp_*` paths.
+  At task completion, retain useful findings/reproduction evidence with an
+  index in `.analysis/archive/`, then remove reproducible caches and scratch.
+  Keep durable conclusions in the relevant tracked investigation document.
+  Archived scripts may contain old relative paths; restore their original
+  layout in scratch and adjust paths before running them. For radar lead
+  validation, pass `--cache-dir .analysis/scratch/radar-validation-cache`
+  explicitly to avoid the tool's legacy root cache default. Never include
+  local captures, settings snapshots or credentials in commits.
+
+- On 2026-09-24, parked C4 exposure A/B/A on original bt1 reproduced isolated
+  driver-camera gaps of 95.671/95.653 ms when switching OS04C10 exposure
+  2298 -> 2309. CSID hardware timestamps also gap by 95.677/95.656 ms;
+  both other streams stay near 50 ms. Four historical isolated wide gaps have
+  the same near-limit exposure-byte crossing and three-frame command offset.
+  Grouping exposure/gain writes with manual delayed group-0 launch completed
+  600 s / 12,000 frames per camera without a >75 ms gap (maximum57.112 ms).
+  A separate brightness trial verified commands affect actual image statistics.
+  Camera-only A/B/A had stale model IPC and does not establish model validity;
+  a separate 600 s normal-AE/DM/eGPU run after reboot had 12,000 camera/model/
+  pose/DM messages each, no invalidity or model skips, camera max57.540 ms and
+  accelerometer/gyro max ages34.973/35.796 ms. DisableDM restored to2. Parked C4
+  validation does not establish loaded driving or C3 behavior.
+  No thresholds, exposure limits, priorities or model behavior are weakened.
+  This hazard predates September19; the recent frequency change and BT causality
+  remain unproved. f8d--3 is a distinct low-exposure IFE error-signalled fence,
+  not a wait timeout, and is not shown fixed by grouping. Radar work did not
+  spike before either incident type. The bt2 OS trial remains separate and has
+  not been installed. See docs/os04c10_exposure_investigation.md.
+
+- On 2026-09-23, Ioniq 5 C4 `00000594--abf5912e57--7` on 1fbfe331 reproduced
+  a 102.044 ms wide-camera BOOT_TS gap with consecutive raw-derived frame and
+  request IDs, one skipped model input and about 304 ms invalid pose inputs.
+  BOOT_TS is sampled in kernel SOF handling, not an independent sensor clock;
+  do not claim a physical sensor or UI cause from this log. Separately, startup
+  expected a 25 ms driver offset although bundled Panda still drives all FSIN
+  channels in phase from TIM1. Driver staggered_sof is now false, retaining
+  the strict startup tolerance and all runtime validity/scheduling policies.
+  Passive SOF/receive timing logs are bounded to one per second per camera.
+  The startup fix is not a demonstrated fix for the later driving gap; C3/C4
+  target validation remains required. See docs/camera_sof_gap_20260923.md.
+
 - On 2026-09-23, Group1 video/CAN comparisons showed reversed front lateral
   coordinates on one Tucson and one Sportage, but normal left/right on a
   Staria; another Sportage was inconclusive. Do not infer upside-down mounting

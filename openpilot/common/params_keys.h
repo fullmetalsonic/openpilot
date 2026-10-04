@@ -41,7 +41,6 @@ inline static std::unordered_map<std::string, ParamKeyAttributes> keys = {
     {"ExperimentalMode", {PERSISTENT, BOOL}},
     {"ExperimentalModeConfirmed", {PERSISTENT, BOOL}},
     {"FirmwareQueryDone", {CLEAR_ON_MANAGER_START | CLEAR_ON_ONROAD_TRANSITION, BOOL}},
-    {"FmsFirstInstallProfile", {PERSISTENT, STRING}},
     {"ForcePowerDown", {PERSISTENT, BOOL}},
     {"GitBranch", {PERSISTENT, STRING}},
     {"GitCommit", {PERSISTENT, STRING}},
@@ -217,6 +216,7 @@ inline static std::unordered_map<std::string, ParamKeyAttributes> keys = {
     {"SoftHoldOnCancel", {PERSISTENT, BOOL, "0"}},
     {"CruiseEcoControl", {PERSISTENT, INT, "2"}},
     {"CarrotCruiseDecel", {PERSISTENT, INT, "-1"}},
+    {"CruiseCoastingPercent", {PERSISTENT, INT, "0"}},
     {"CarrotCruiseAtcDecel", {PERSISTENT, INT, "-1"}},
 
     {"AutoGasTokSpeed", {PERSISTENT, INT, "0"}},
@@ -255,6 +255,7 @@ inline static std::unordered_map<std::string, ParamKeyAttributes> keys = {
     {"AutoRoadSpeedAdjust", {PERSISTENT, INT, "50"}},
 
     {"StopDistanceCarrot", {PERSISTENT, INT, "550"}},
+    {"StoppingAccel", {PERSISTENT, INT, "-50"}},
     {"CruiseButtonMode", {PERSISTENT, INT, "0"}},
     {"CancelButtonMode", {PERSISTENT, INT, "0"}},
     {"LfaButtonMode", {PERSISTENT, INT, "0"}},

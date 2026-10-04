@@ -7,6 +7,9 @@ Abort instead of guessing when upstream changes any expected code shape.
 from __future__ import annotations
 
 import re
+import subprocess
+import shutil
+import tempfile
 from pathlib import Path
 
 
@@ -15,6 +18,10 @@ CRUISE = ROOT / "openpilot/selfdrive/car/cruise.py"
 HYUNDAI_CANFD = ROOT / "opendbc_repo/opendbc/car/hyundai/hyundaicanfd.py"
 FORK_REMOTE = ROOT / "openpilot/selfdrive/carrot/server/services/fork_remote.py"
 TOOLS_DISPATCHER = ROOT / "openpilot/selfdrive/carrot/server/features/tools/dispatcher.py"
+STOPPING_PATCH = Path(__file__).with_name("independent_hold_stopping.patch")
+PADDLE_MODE4_PATCH = Path(__file__).with_name("paddle_mode4.patch")
+VEGO_STOPPING_PATCH = Path(__file__).with_name("vego_stopping_min1.patch")
+PADDLE_REGEN_PATCH = Path(__file__).with_name("paddle_regen_isolation.patch")
 
 
 def replace_once(text: str, original: str, patched: str, name: str) -> str:
@@ -27,6 +34,54 @@ def replace_once(text: str, original: str, patched: str, name: str) -> str:
   if patched in text:
     return text
   raise RuntimeError(f"Upstream code shape changed; refusing to guess: {name}")
+
+
+def replace_exactly(text: str, original: str, patched: str, count: int, name: str) -> str:
+  if text.count(original) == count:
+    return text.replace(original, patched)
+  if text.count(patched) == count and original not in text:
+    return text
+  raise RuntimeError(f"Upstream code shape changed; refusing to guess: {name}")
+
+
+def patch_independent_stopping() -> None:
+  # Exact-context patch for the upstream stopping FSM and controller wiring.
+  # A clean upstream gets the patch; a patched tree is unchanged. Any other
+  # structure fails closed instead of silently losing real CAN braking.
+  patch_file = str(STOPPING_PATCH)
+  check = subprocess.run(["git", "-C", str(ROOT), "apply", "--check", patch_file], capture_output=True)
+  if check.returncode == 0:
+    subprocess.run(["git", "-C", str(ROOT), "apply", patch_file], check=True)
+    return
+  already = subprocess.run(["git", "-C", str(ROOT), "apply", "--reverse", "--check", patch_file], capture_output=True)
+  if already.returncode != 0:
+    raise RuntimeError("Upstream stopping/controller shape changed; refusing to guess")
+
+
+def patch_paddle_mode4() -> None:
+  # Exact-context cruise patch; other PaddleMode 4 files are preserved by the
+  # WIP merge and checked by the dedicated paddle tests.
+  patch_file = str(PADDLE_MODE4_PATCH)
+  check = subprocess.run(["git", "-C", str(ROOT), "apply", "--check", patch_file], capture_output=True)
+  if check.returncode == 0:
+    subprocess.run(["git", "-C", str(ROOT), "apply", patch_file], check=True)
+    return
+  already = subprocess.run(["git", "-C", str(ROOT), "apply", "--reverse", "--check", patch_file], capture_output=True)
+  if already.returncode != 0:
+    raise RuntimeError("Upstream cruise/PaddleMode 4 shape changed; refusing to guess")
+
+
+def patch_vego_stopping() -> None:
+  # Keep the user's stored value and the minimum of 1 across runtime, menu,
+  # documentation, and regression tests. Refuse changed upstream context.
+  patch_file = str(VEGO_STOPPING_PATCH)
+  check = subprocess.run(["git", "-C", str(ROOT), "apply", "--check", patch_file], capture_output=True)
+  if check.returncode == 0:
+    subprocess.run(["git", "-C", str(ROOT), "apply", patch_file], check=True)
+    return
+  already = subprocess.run(["git", "-C", str(ROOT), "apply", "--reverse", "--check", patch_file], capture_output=True)
+  if already.returncode != 0:
+    raise RuntimeError("Upstream VEgoStopping shape changed; refusing to guess")
 
 
 def patch_cruise() -> None:
@@ -176,6 +231,7 @@ def patch_blinkers() -> None:
   acc_control_enabled = (enabled or soft_hold_active) and CS.out.cruiseState.available and CS.paddle_button_prev == 0 and not interlock_active
 """,
     """  soft_hold_active = CS.softHoldActive > 0
+  independent_hold = soft_hold_active and not enabled
   # Preserve the upstream availability gate for ordinary ACC. Only independent
   # SoftHold may hold the vehicle while OEM cruise is unavailable.
   acc_control_enabled = ((enabled and CS.out.cruiseState.available) or soft_hold_active) and CS.paddle_button_prev == 0 and not interlock_active
@@ -188,6 +244,7 @@ def patch_blinkers() -> None:
   acc_control_enabled = (enabled or soft_hold_active) and CS.out.cruiseState.available and not interlock_active
 """,
     """  soft_hold_active = CS.softHoldActive > 0
+  independent_hold = soft_hold_active and not enabled
   # Match the SCC2 path: ordinary ACC remains gated by OEM availability while
   # independent SoftHold retains its stop request.
   acc_control_enabled = ((enabled and CS.out.cruiseState.available) or soft_hold_active) and not interlock_active
@@ -199,6 +256,25 @@ def patch_blinkers() -> None:
     "  soft_hold = CS.softHoldActive > 0 and CS.out.cruiseState.available\n",
     "  soft_hold = CS.softHoldActive > 0\n",
     "recognize independent SoftHold in CANFD stopping (including mandatory default)",
+  )
+  text = replace_once(
+    text,
+    "def apply_canfd_stopping(values, CS, controller, accel, previous_value, jerk_u, jerk_l):\n",
+    "def apply_canfd_stopping(values, CS, controller, accel, previous_value, jerk_u, jerk_l, independent_hold=False):\n",
+    "pass independent hold mode to CANFD stopping",
+  )
+  text = replace_once(
+    text,
+    "    jerk_u=max(0.0, min(jerk_u, 5.0)), jerk_l=max(1.0, min(jerk_l, 5.0)),\n  )\n",
+    "    jerk_u=max(0.0, min(jerk_u, 5.0)), jerk_l=max(1.0, min(jerk_l, 5.0)),\n    independent_hold=independent_hold,\n  )\n",
+    "wire independent hold into stopping FSM",
+  )
+  text = replace_exactly(
+    text,
+    "  apply_canfd_stopping(values, CS, stop_controller, accel, previous_value, jerk_u, jerk_l)\n",
+    "  apply_canfd_stopping(values, CS, stop_controller, accel, previous_value, jerk_u, jerk_l,\n                       independent_hold=independent_hold)\n",
+    2,
+    "wire both CANFD ACC paths to independent stopping",
   )
   HYUNDAI_CANFD.write_text(text, encoding="utf-8")
 
@@ -214,10 +290,58 @@ def verify_fork_branch_support() -> None:
       raise RuntimeError(f"Fork branch support changed upstream; refusing to guess: {marker}")
 
 
-def main() -> None:
+def apply_base_patches() -> None:
+  patch_paddle_mode4()
   patch_cruise()
   patch_blinkers()
+  patch_independent_stopping()
+  patch_vego_stopping()
   verify_fork_branch_support()
+
+
+def main() -> None:
+  global ROOT, CRUISE, HYUNDAI_CANFD, FORK_REMOTE, TOOLS_DISPATCHER
+  patch = str(PADDLE_REGEN_PATCH)
+  already = subprocess.run(["git", "-C", str(ROOT), "apply", "--reverse", "--check", patch], capture_output=True)
+  if already.returncode == 0:
+    # New and old layers share SCC2 context. Verify the old layers and complete
+    # replay in scratch, never temporarily remove a safety layer in the product.
+    paths = {"openpilot/selfdrive/car/cruise.py", "opendbc_repo/opendbc/car/hyundai/hyundaicanfd.py",
+             "openpilot/selfdrive/carrot/server/services/fork_remote.py",
+             "openpilot/selfdrive/carrot/server/services/branch_catalog.py",
+             "openpilot/selfdrive/carrot/server/features/tools/dispatcher.py"}
+    for artifact in (STOPPING_PATCH, PADDLE_MODE4_PATCH, VEGO_STOPPING_PATCH, PADDLE_REGEN_PATCH):
+      paths.update(re.findall(r"^diff --git a/(\S+) b/", artifact.read_text(encoding="utf-8"), re.MULTILINE))
+    original_root = ROOT
+    original_paths = (CRUISE, HYUNDAI_CANFD, FORK_REMOTE, TOOLS_DISPATCHER)
+    with tempfile.TemporaryDirectory(prefix="paddle-patch-check-") as scratch:
+      target = Path(scratch)
+      for relative in paths:
+        source = original_root / relative
+        if source.is_file():
+          destination = target / relative
+          destination.parent.mkdir(parents=True, exist_ok=True)
+          shutil.copyfile(source, destination)
+      subprocess.run(["git", "-C", str(target), "init", "--quiet"], check=True)
+      subprocess.run(["git", "-C", str(target), "apply", "--reverse", patch], check=True, capture_output=True)
+      try:
+        ROOT = target
+        CRUISE, HYUNDAI_CANFD, FORK_REMOTE, TOOLS_DISPATCHER = (target / p.relative_to(original_root) for p in original_paths)
+        apply_base_patches()
+        subprocess.run(["git", "-C", str(target), "apply", patch], check=True, capture_output=True)
+        for relative in paths:
+          source, reconstructed = original_root / relative, target / relative
+          if source.is_file() != reconstructed.is_file():
+            raise RuntimeError(f"Patch replay changed file presence: {relative}")
+          if source.is_file() and source.read_text(encoding="utf-8") != reconstructed.read_text(encoding="utf-8"):
+            raise RuntimeError(f"Patch replay diverged: {relative}")
+      finally:
+        ROOT = original_root
+        CRUISE, HYUNDAI_CANFD, FORK_REMOTE, TOOLS_DISPATCHER = original_paths
+    return
+  apply_base_patches()
+  subprocess.run(["git", "-C", str(ROOT), "apply", "--check", patch], check=True, capture_output=True)
+  subprocess.run(["git", "-C", str(ROOT), "apply", patch], check=True, capture_output=True)
 
 
 if __name__ == "__main__":

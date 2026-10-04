@@ -136,6 +136,7 @@ class SelfdriveD:
     self.dm_lockout_set = False
     self.cutin_audio_tracker = CutinAlertTracker()
     self.dm_uncertain_alerted = False
+    self.update_reboot_alerted = False
     self.big_model_loading = False
     self.big_model_active = False
     self.big_model_ready_t = 0.0
@@ -184,6 +185,9 @@ class SelfdriveD:
     """Compute onroadEvents from carState"""
 
     self.events.clear()
+    from openpilot.selfdrive.modeld.jetlink.link import fault_active
+    if fault_active():
+      self.events.add(EventName.commIssue)
 
     if self.sm['controlsState'].lateralControlState.which() == 'debugState':
       self.events.add(EventName.joystickDebug)
@@ -202,6 +206,8 @@ class SelfdriveD:
     if not self.initialized:
       self.events.add(EventName.selfdriveInitializing)
       return
+
+    self.update_reboot_alert()
 
     # Check for user bookmark press (bookmark button or end of LKAS button feedback)
     if self.sm.updated['userBookmark']:
@@ -505,6 +511,15 @@ class SelfdriveD:
     #    self.personality = (self.personality - 1) % 3
     #    self.params.put_nonblocking('LongitudinalPersonality', str(self.personality))
     #    self.events.add(EventName.personalityChanged)
+
+  def update_reboot_alert(self):
+    # One NNFF-style notice per onroad session, after startup alerts finish.
+    # Use the manager's fixed startup identity across ignition cycles.
+    if (not REPLAY and not SIMULATION and not self.update_reboot_alerted
+        and self.sm.frame * DT_CTRL >= 15.0 and self.sm.all_checks(['managerState'])
+        and self.sm['managerState'].rebootRequired):
+      self.events.add(EventName.updateRebootRequired)
+      self.update_reboot_alerted = True
 
   def data_sample(self):
     car_state = messaging.recv_one(self.car_state_sock)
