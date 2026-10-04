@@ -320,7 +320,7 @@ class VCruiseCarrot:
       self.carrot_cmd = ""
       self.carrot_arg = ""
 
-  def update_v_cruise(self, CS, sm, is_metric):
+  def update_v_cruise(self, CS, sm, is_metric, *, paddle_cancel_seen=False):
     self._add_log("")
     self.update_params(is_metric)
     self.frame += 1
@@ -367,7 +367,8 @@ class VCruiseCarrot:
     self._prepare_brake_gas(CS, CC)
     if CC.enabled:
       self._cruise_ready = False
-    v_cruise_kph = self._update_cruise_buttons(CS, CC, self.v_cruise_kph)
+    v_cruise_kph = self._update_cruise_buttons(CS, CC, self.v_cruise_kph,
+      controls_valid=sm.all_checks(['carControl']), paddle_cancel_seen=paddle_cancel_seen)
 
     if self._activate_cruise > 0:
       #self.events.append(EventName.buttonEnable)
@@ -553,7 +554,21 @@ class VCruiseCarrot:
     
     return v_cruise_kph, button_type, long_pressed
 
-  def _update_cruise_buttons(self, CS, CC, v_cruise_kph):
+  def _paddle_gap_active(self, CS, CC, controls_valid, paddle_cancel_seen):
+    # CC is the last valid control snapshot; CS is the current receive batch.
+    # Non-PCM controlsd may cancel OEM ACC while normal openpilot ACC is ON.
+    # Use driver CANCEL evidence separately, never infer it from CC.cancel.
+    return bool(controls_valid and CC.enabled and CC.longActive
+      and self.CP.openpilotLongitudinalControl and self.params.get_int("LongitudinalPersonalityMax") == 4
+      and CS.canValid and CS.cruiseState.available and CS.gearShifter == GearShifter.drive
+      and not (CS.brakePressed or CS.gasPressed or is_hold_interlock_active(CS) or CS.accFaulted
+               or CC.cruiseControl.override or paddle_cancel_seen
+               or any(b.type == ButtonType.cancel for b in CS.buttonEvents)
+               or self._cruise_cancel_state or self._activate_cruise < 0
+               or self.carrot_cruise_active or self._paddle_decel_active))
+
+  def _update_cruise_buttons(self, CS, CC, v_cruise_kph, *, controls_valid=False, paddle_cancel_seen=False):
+    paddle_gap_delta = None
     if any(b.type == ButtonType.cancel and b.pressed for b in CS.buttonEvents):
       # selfdrived cancels on the press edge; latch here too instead of waiting
       # for the release/long-press decoder.
@@ -720,12 +735,7 @@ class VCruiseCarrot:
     elif self._paddle_mode == 4 and button_type in [ButtonType.paddleLeft, ButtonType.paddleRight]:
       # Gap-only input: never enter the legacy cruise-ready/deceleration paths.
       # Keep raw paddle state intact for the existing SCC2 output interlock.
-      cancel_event = any(b.type == ButtonType.cancel for b in CS.buttonEvents)
-      supported = self.CP.openpilotLongitudinalControl and self.params.get_int("LongitudinalPersonalityMax") == 4
-      if not cancel_event and CS.canValid and CS.gearShifter == GearShifter.drive and supported:
-        delta = -1 if button_type == ButtonType.paddleRight else 1
-        if not self._paddle_gap_writer.request("step", delta):
-          self._add_log("Gap setting unavailable; restart required")
+      paddle_gap_delta = -1 if button_type == ButtonType.paddleRight else 1
     elif self._paddle_mode > 0 and button_type in [ButtonType.paddleLeft, ButtonType.paddleRight]:  # paddle button
       if self._paddle_mode == 3:
         self.carrot_cruise_active = True
@@ -748,6 +758,11 @@ class VCruiseCarrot:
       self._cruise_control(1, -1, 'Cruise on (Bluetooth button)', manual=True)
       if self._activate_cruise > 0:
         self._lat_enabled = True
+    # Decide after all same-frame disengagement and remote commands. Accepted
+    # ON requests may finish persisting after OFF; OFF input never enters the queue.
+    if paddle_gap_delta is not None and self._paddle_gap_active(CS, CC, controls_valid, paddle_cancel_seen):
+      if not self._paddle_gap_writer.request("step", paddle_gap_delta):
+        self._add_log("Gap setting unavailable; restart required")
     return v_cruise_kph
 
   ## desiredSpeed :

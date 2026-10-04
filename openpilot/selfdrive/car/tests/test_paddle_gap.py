@@ -48,6 +48,7 @@ class MemoryParams:
 def mode4():
   helper, CS, CC = make_remote_helper(None, enabled=True)
   helper.CP = NS(openpilotLongitudinalControl=True)
+  CC.longActive = True
   helper._paddle_mode = 4
   params = MemoryParams()
   helper.params = params
@@ -62,7 +63,7 @@ def mode4():
 def drive_events(fixture, *events):
   helper, CS, CC, _, _ = fixture
   CS.buttonEvents = [car.CarState.ButtonEvent.new_message(type=t, pressed=p) for t, p in events]
-  assert helper._update_cruise_buttons(CS, CC, 80) == 80
+  assert helper._update_cruise_buttons(CS, CC, 80, controls_valid=True) == 80
 
 
 def press(fixture, side):
@@ -80,7 +81,7 @@ def test_each_step_and_boundaries_without_cruise_actions(mode4, current, side, d
   helper._cruise_cancel_state = not enabled
   press(mode4, side)
   helper._paddle_gap_writer._queue.join()
-  assert params.get_int("LongitudinalPersonality") == min(3, max(0, current + delta))
+  assert params.get_int("LongitudinalPersonality") == (min(3, max(0, current + delta)) if enabled else current)
   assert not calls and helper._activate_cruise == 0
   assert not helper._paddle_decel_active and not helper.carrot_cruise_active
   assert helper._cruise_cancel_state == (not enabled)
@@ -240,12 +241,147 @@ def test_legacy_physical_paddle_actions_preserved(mode4, mode):
 def test_gap_change_preserves_existing_soft_hold_state(mode4):
   helper, _, _, params, calls = mode4
   helper._soft_hold_active = 2
-  helper._cruise_cancel_state = True
+  helper._cruise_cancel_state = False  # normal ACC stop/restart, not independent hold
   press(mode4, ButtonType.paddleRight)
   helper._paddle_gap_writer._queue.join()
   assert params.get_int("LongitudinalPersonality") == 2
-  assert helper._soft_hold_active == 2 and helper._cruise_cancel_state
+  assert helper._soft_hold_active == 2 and not helper._cruise_cancel_state
   assert not calls and helper._activate_cruise == 0
+
+
+@pytest.mark.parametrize("side", [ButtonType.paddleLeft, ButtonType.paddleRight])
+@pytest.mark.parametrize("state", ["off", "standby", "cancel", "independent_hold"])
+def test_inactive_press_preserves_gap_after_reengagement(mode4, side, state):
+  helper, _, CC, params, calls = mode4
+  params.values["LongitudinalPersonality"] = 1
+  CC.enabled = False
+  CC.longActive = state != "independent_hold"
+  helper._cruise_ready = state == "standby"
+  helper._cruise_cancel_state = state == "cancel"
+  helper._soft_hold_active = 2 if state == "independent_hold" else 0
+  press(mode4, side)
+  CC.enabled = CC.longActive = True
+  helper._cruise_cancel_state = helper._cruise_ready = False
+  helper._soft_hold_active = 0
+  drive_events(mode4)
+  helper._paddle_gap_writer._queue.join()
+  assert params.get_int("LongitudinalPersonality") == 1 and params.writes == []
+  assert not calls
+
+
+@pytest.mark.parametrize("side,expected", [(ButtonType.paddleLeft, 2), (ButtonType.paddleRight, 0)])
+def test_off_held_to_on_requires_new_press(mode4, side, expected):
+  helper, _, CC, params, calls = mode4
+  params.values["LongitudinalPersonality"] = 1
+  CC.enabled = CC.longActive = False
+  drive_events(mode4, (side, True))
+  CC.enabled = CC.longActive = True
+  for _ in range(100):
+    drive_events(mode4)  # parser emits no new press while held
+  drive_events(mode4, (side, False))
+  helper._paddle_gap_writer._queue.join()
+  assert params.writes == []
+  press(mode4, side)
+  helper._paddle_gap_writer._queue.join()
+  assert params.writes == [expected] and not calls
+
+
+@pytest.mark.parametrize("veto", ["disabled", "long_off", "main_off", "brake", "gas", "avh", "parking",
+  "fault", "override", "cancel_latch", "carrot", "paddle_decel", "invalid_can", "stale_control", "raw_cancel",
+  "state_cancel", "remote_cancel"])
+def test_current_veto_blocks_candidate_before_enqueue(mode4, veto):
+  helper, CS, CC, params, _ = mode4
+  if veto == "disabled": CC.enabled = False
+  elif veto == "long_off": CC.longActive = False
+  elif veto == "main_off": CS.cruiseState.available = False
+  elif veto == "brake": CS.brakePressed = True
+  elif veto == "gas": CS.gasPressed = True
+  elif veto == "avh": CS.brakeHoldActive = True
+  elif veto == "parking": CS.parkingBrake = True
+  elif veto == "fault": CS.accFaulted = True
+  elif veto == "override": CC.cruiseControl.override = True
+  elif veto == "cancel_latch": helper._cruise_cancel_state = True
+  elif veto == "carrot": helper.carrot_cruise_active = True
+  elif veto == "paddle_decel": helper._paddle_decel_active = True
+  elif veto == "invalid_can": CS.canValid = False
+  elif veto == "state_cancel":
+    def cancel_state(CS, CC, speed):
+      helper._activate_cruise = -1
+      return speed
+    helper._update_cruise_state = cancel_state
+  elif veto == "remote_cancel":
+    helper.bluetooth_commands = NS(read=lambda **kwargs: "cancel")
+    def cancel_remote(*args, **kwargs): helper._activate_cruise = -1
+    helper._cruise_control = cancel_remote
+  CS.buttonEvents = [car.CarState.ButtonEvent.new_message(type=ButtonType.paddleRight, pressed=True)]
+  helper._update_cruise_buttons(CS, CC, 80, controls_valid=veto != "stale_control",
+    paddle_cancel_seen=veto == "raw_cancel")
+  helper._paddle_gap_writer._queue.join()
+  assert params.writes == []
+
+
+@pytest.mark.parametrize("stock_enabled", [False, True])
+def test_internal_oem_cancel_uses_previous_control_without_current_stock_equality(mode4, stock_enabled):
+  helper, CS, CC, params, _ = mode4
+  CC.cruiseControl.cancel = True  # previous non-PCM controlsd snapshot
+  CS.cruiseState.enabled = stock_enabled  # newer stock TCS snapshot may differ
+  press(mode4, ButtonType.paddleRight)
+  helper._paddle_gap_writer._queue.join()
+  assert params.writes == [2]
+
+
+def test_on_request_persists_after_off_but_off_presses_never_enqueue(mode4):
+  helper, _, CC, params, _ = mode4
+  params.release.clear()
+  press(mode4, ButtonType.paddleRight)
+  assert params.started.wait(2)
+  CC.enabled = CC.longActive = False
+  for side in [ButtonType.paddleRight, ButtonType.paddleLeft] * 4:
+    press(mode4, side)
+  params.release.set()
+  helper._paddle_gap_writer._queue.join()
+  assert params.writes == [2]
+  CC.enabled = CC.longActive = True
+  drive_events(mode4)
+  assert params.get_int("LongitudinalPersonality") == 2
+
+
+def test_off_direct_gap_button_and_web_value_remain_supported(mode4):
+  helper, _, CC, params, _ = mode4
+  CC.enabled = CC.longActive = False
+  press(mode4, ButtonType.gapAdjustCruise)
+  helper._paddle_gap_writer._queue.join()
+  assert params.writes == [2]
+  params.values["LongitudinalPersonality"] = 1  # external web write
+  press(mode4, ButtonType.paddleRight)
+  helper._paddle_gap_writer._queue.join()
+  assert params.get_int("LongitudinalPersonality") == 1 and params.writes == [2]
+  CC.enabled = CC.longActive = True
+  drive_events(mode4)
+  assert params.get_int("LongitudinalPersonality") == 1
+
+
+@pytest.mark.parametrize("valid", [False, True])
+@pytest.mark.parametrize("raw_cancel", [False, True])
+def test_public_update_checks_control_freshness_and_current_batch_cancel(mode4, valid, raw_cancel):
+  helper, CS, CC, params, _ = mode4
+  helper.update_params = lambda *args: None
+  helper._update_carrot_man = lambda *args: None
+  helper._prepare_brake_gas = lambda *args: None
+  helper.frame = 0
+  helper.v_cruise_kph = helper.v_cruise_cluster_kph = 80
+  helper._cruise_speed_max = 160
+  helper.cruise_state_available_last = True
+  helper.CP.pcmCruise = False
+  class SM(dict):
+    alive = dict.fromkeys(['longitudinalPlan', 'radarState', 'drivingModelData'], False)
+    def all_checks(self, services):
+      assert services == ['carControl']
+      return valid
+  CS.buttonEvents = [car.CarState.ButtonEvent.new_message(type=ButtonType.paddleRight, pressed=True)]
+  helper.update_v_cruise(CS, SM(carControl=CC), True, paddle_cancel_seen=raw_cancel)
+  helper._paddle_gap_writer._queue.join()
+  assert params.writes == ([2] if valid and not raw_cancel else [])
 
 
 @pytest.mark.parametrize("message", ["CRUISE_BUTTONS", "GEAR"])
@@ -294,7 +430,8 @@ def test_raw_can_to_gap_planner_and_scc_output(mode4, message, side):
                    "ButtonType": structs.CarState.ButtonEvent.Type, "create_button_events": create_button_events,
                    "read_paddle_input": read_paddle_input})
     CS.buttonEvents = [{"type": b.type, "pressed": b.pressed} for b in decoded.buttonEvents]
-    helper._update_cruise_buttons(CS, mode4[2], 80)
+    helper._update_cruise_buttons(CS, mode4[2], 80, controls_valid=True,
+      paddle_cancel_seen=state.paddle_input.cancel_seen)
     helper._paddle_gap_writer._queue.join()
     personality = params.get_int("LongitudinalPersonality")
     assert personality == (1 if frame == 0 else target)
