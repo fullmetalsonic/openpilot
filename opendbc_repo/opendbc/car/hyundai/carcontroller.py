@@ -7,7 +7,7 @@ from opendbc.car.common.conversions import Conversions as CV
 from opendbc.car.hyundai import hyundaicanfd, hyundaican
 from opendbc.car.hyundai.carstate import CarState
 from opendbc.car.hyundai.stopping import CanfdStopping
-from opendbc.car.hyundai.paddle_mode4 import PaddleGesture, normal_acc_eligible
+from opendbc.car.hyundai.paddle_mode4 import PaddleGesture, normal_acc_eligible, paddle_gap_scope
 from opendbc.car.hyundai.hyundaicanfd import CanBus
 from opendbc.car.hyundai.values import HyundaiFlags, Buttons, CarControllerParams, CAR, CAN_GEARS, HyundaiExtFlags
 from opendbc.car.interfaces import CarControllerBase
@@ -240,12 +240,10 @@ class CarController(CarControllerBase):
 
   def _paddle_gap_override(self, CC, CS, now_nanos):
     context = getattr(CS, "paddle_context", None)
-    scoped = (self.CP.carFingerprint == CAR.KIA_SORENTO_HEV_4TH_GEN
-              and self.CP.flags & HyundaiFlags.CANFD and self.CP.flags & HyundaiFlags.CAMERA_SCC
-              and self.CP.openpilotLongitudinalControl and not self.CP.pcmCruise)
+    scoped = paddle_gap_scope(self.CP)
     eligible = bool(scoped and context is not None and context.mode == 4 and context.supported
                     and CS.scc_control is not None
-                    and normal_acc_eligible(CC, CS.out) and self.hyundai_jerk.carrot_cruise == 0
+                    and normal_acc_eligible(CC, CS.out, allow_oem_cancel=scoped) and self.hyundai_jerk.carrot_cruise == 0
                     and all(np.isfinite(v) for v in (self.hyundai_jerk.jerk_u, self.hyundai_jerk.jerk_l)))
     return self.paddle_gesture.update(getattr(CS, "paddle_input", None), context, eligible,
                                       now_nanos, CS.paddle_button_prev)

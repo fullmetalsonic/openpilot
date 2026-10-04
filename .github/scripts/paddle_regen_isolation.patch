@@ -77,18 +77,18 @@ index 543efc9d..9e158d6f 100644
  | [버튼 테스트](buttons-presets.md#button-spam) | `CruiseButtonTest1`, `CruiseButtonTest2`, `CruiseButtonTest3` | 순정 SCC 목표속도 동기화용 버튼 메시지 값 |
  | [속도 프리셋](buttons-presets.md#speed-presets) | `CruiseSpeed1`, `CruiseSpeed2`, `CruiseSpeed3`, `CruiseSpeed4`, `CruiseSpeed5` | 사용자3 모드에서 사용하는 속도 테이블 |
 diff --git a/opendbc_repo/opendbc/car/hyundai/carcontroller.py b/opendbc_repo/opendbc/car/hyundai/carcontroller.py
-index f85e1818..8164ee36 100644
+index f85e1818..e78659e0 100644
 --- a/opendbc_repo/opendbc/car/hyundai/carcontroller.py
 +++ b/opendbc_repo/opendbc/car/hyundai/carcontroller.py
 @@ -7,6 +7,7 @@ from opendbc.car.common.conversions import Conversions as CV
  from opendbc.car.hyundai import hyundaicanfd, hyundaican
  from opendbc.car.hyundai.carstate import CarState
  from opendbc.car.hyundai.stopping import CanfdStopping
-+from opendbc.car.hyundai.paddle_mode4 import PaddleGesture, normal_acc_eligible
++from opendbc.car.hyundai.paddle_mode4 import PaddleGesture, normal_acc_eligible, paddle_gap_scope
  from opendbc.car.hyundai.hyundaicanfd import CanBus
  from opendbc.car.hyundai.values import HyundaiFlags, Buttons, CarControllerParams, CAR, CAN_GEARS, HyundaiExtFlags
  from opendbc.car.interfaces import CarControllerBase
-@@ -232,10 +233,23 @@ class CarController(CarControllerBase):
+@@ -232,10 +233,21 @@ class CarController(CarControllerBase):
      self.is_ldws_car = Params().get_bool("IsLdwsCar")
      self.enable_corner_radar = 0
      self.paddle_mode = Params().get_int("PaddleMode")
@@ -99,12 +99,10 @@ index f85e1818..8164ee36 100644
  
 +  def _paddle_gap_override(self, CC, CS, now_nanos):
 +    context = getattr(CS, "paddle_context", None)
-+    scoped = (self.CP.carFingerprint == CAR.KIA_SORENTO_HEV_4TH_GEN
-+              and self.CP.flags & HyundaiFlags.CANFD and self.CP.flags & HyundaiFlags.CAMERA_SCC
-+              and self.CP.openpilotLongitudinalControl and not self.CP.pcmCruise)
++    scoped = paddle_gap_scope(self.CP)
 +    eligible = bool(scoped and context is not None and context.mode == 4 and context.supported
 +                    and CS.scc_control is not None
-+                    and normal_acc_eligible(CC, CS.out) and self.hyundai_jerk.carrot_cruise == 0
++                    and normal_acc_eligible(CC, CS.out, allow_oem_cancel=scoped) and self.hyundai_jerk.carrot_cruise == 0
 +                    and all(np.isfinite(v) for v in (self.hyundai_jerk.jerk_u, self.hyundai_jerk.jerk_l)))
 +    return self.paddle_gesture.update(getattr(CS, "paddle_input", None), context, eligible,
 +                                      now_nanos, CS.paddle_button_prev)
@@ -112,7 +110,7 @@ index f85e1818..8164ee36 100644
    def update(self, CC, CS, now_nanos):
  
      if self.frame % 50 == 0:
-@@ -526,6 +540,7 @@ class CarController(CarControllerBase):
+@@ -526,6 +538,7 @@ class CarController(CarControllerBase):
          hud_lateral = self.display_lead_lateral.update(getattr(CS, "radarState", None), getattr(CS, "modelV2", None))
          self.hyundai_jerk.make_jerk(self.CP, CS, accel, actuators, hud_control)
          self.hyundai_jerk.check_carrot_cruise(CC, CS, hud_control, stopping, accel, actuators.aTarget)
@@ -120,7 +118,7 @@ index f85e1818..8164ee36 100644
  
          if True: #not camera_scc:
            can_sends.extend(hyundaicanfd.create_ccnc_messages(
-@@ -542,6 +557,7 @@ class CarController(CarControllerBase):
+@@ -542,6 +555,7 @@ class CarController(CarControllerBase):
              msg, self.accel_value_last = hyundaicanfd.create_acc_control_scc2(
                self.packer, self.CAN, CC.enabled, self.accel_value_last, accel, stopping, CC.cruiseControl.override,
                set_speed_in_units, hud_control, self.hyundai_jerk, CS, self.canfd_stopping, hud_lateral=hud_lateral,
@@ -191,112 +189,18 @@ index 785866e0..be049476 100644
    enabled = acc_control_enabled
  
    acc_mode = 0 if not enabled else (2 if gas_override else 1)
-diff --git a/openpilot/selfdrive/car/card.py b/openpilot/selfdrive/car/card.py
-index 03d7c040..0ef6b082 100644
---- a/openpilot/selfdrive/car/card.py
-+++ b/openpilot/selfdrive/car/card.py
-@@ -22,6 +22,7 @@ from openpilot.selfdrive.pandad import can_capnp_to_list, can_list_to_can_capnp
- from openpilot.selfdrive.car.alternative_experience import get_alternative_experience
- from openpilot.selfdrive.car.card_diagnostics import should_log_card_diagnostics
- from openpilot.selfdrive.car.cruise import VCruiseCarrot
-+from openpilot.selfdrive.car.paddle_context import publish_paddle_context
- from openpilot.selfdrive.car.car_specific import MockCarState
- from openpilot.selfdrive.car.openpilot_toggle import CruiseMainOpenpilotToggle
- from openpilot.selfdrive.carrot.xiaoge.xiaoge_vision import (
-@@ -264,6 +265,10 @@ class Car:
-     CS.carrotCruise = 1 if self.v_cruise_helper.carrot_cruise_active else 0
- 
-     self.CI.CS.softHoldActive = CS.softHoldActive
-+    # Same-process authority from the applied VCruise mode, including vetoes
-+    # while carControl is dead and controls_update skips CI.apply.
-+    publish_paddle_context(self.CP, self.CI, self.v_cruise_helper, self.sm,
-+                           self.can_log_mono_time if REPLAY else time.monotonic_ns())
-     state_done_ns = time.monotonic_ns()
-     self.card_diag_stage_current = {
-       'decode': (decode_done_ns - recv_ns) // 1000,
-diff --git a/openpilot/selfdrive/car/tests/test_paddle_gap.py b/openpilot/selfdrive/car/tests/test_paddle_gap.py
-index 9981bbfb..83c4073b 100644
---- a/openpilot/selfdrive/car/tests/test_paddle_gap.py
-+++ b/openpilot/selfdrive/car/tests/test_paddle_gap.py
-@@ -260,7 +260,8 @@ def test_raw_can_to_gap_planner_and_scc_output(mode4, message, side):
-   from pathlib import Path
-   from opendbc.can import CANPacker, CANParser
-   from opendbc.car import create_button_events, structs
--  from opendbc.car.hyundai.carstate import BUTTONS_DICT
-+  from opendbc.car.hyundai.carstate import BUTTONS_DICT, CarState
-+  from opendbc.car.hyundai.paddle_mode4 import read_paddle_input
-   from opendbc.car.hyundai.hyundaicanfd import create_acc_control, create_acc_control_scc2
-   from openpilot.cereal import log
- 
-@@ -282,6 +283,7 @@ def test_raw_can_to_gap_planner_and_scc_output(mode4, message, side):
-   parser = CANParser("hyundai_canfd_generated", [(message, 50)], 0)
-   state = NS(paddle_button_prev=0, cruise_btns_msg_canfd=message, gear_msg_canfd=message,
-              cruise_buttons=[0], main_buttons=[0])
-+  state._update_paddle_input = CarState._update_paddle_input.__get__(state)
-   target = 2 if side == "LEFT_PADDLE" else 0
-   for frame, pressed in enumerate([0, 1, 1, 0]):
-     frame_msg = packer.make_can_msg(message, 0, {side: pressed})
-@@ -289,7 +291,8 @@ def test_raw_can_to_gap_planner_and_scc_output(mode4, message, side):
-     decoded = NS(buttonEvents=[])
-     exec(decoder, {"self": state, "cp": parser, "ret": decoded, "prev_cruise_buttons": 0,
-                    "prev_main_buttons": 0, "BUTTONS_DICT": BUTTONS_DICT,
--                   "ButtonType": structs.CarState.ButtonEvent.Type, "create_button_events": create_button_events})
-+                   "ButtonType": structs.CarState.ButtonEvent.Type, "create_button_events": create_button_events,
-+                   "read_paddle_input": read_paddle_input})
-     CS.buttonEvents = [{"type": b.type, "pressed": b.pressed} for b in decoded.buttonEvents]
-     helper._update_cruise_buttons(CS, mode4[2], 80)
-     helper._paddle_gap_writer._queue.join()
-diff --git a/openpilot/selfdrive/carrot_settings.json b/openpilot/selfdrive/carrot_settings.json
-index 0af624be..450e6a09 100644
---- a/openpilot/selfdrive/carrot_settings.json
-+++ b/openpilot/selfdrive/carrot_settings.json
-@@ -1688,13 +1688,13 @@
-       "group": "버튼설정",
-       "name": "PaddleMode",
-       "title": "패들시프트 모드",
--      "descr": "0:크루즈ON, 1:크루즈대기, 2:자동감속, 3:CarrotCruise, 4:차간거리 조절. 4번: 오른쪽은 한 단계 감소(최소 1), 왼쪽은 증가(최대 4). 길게 당겨도 한 번만 변경. 롱컨·4단계 지원 차량용. 4번으로/에서 모드 변경은 재시작 후 적용되며, 4번 작동 중 간격 조절은 주행 중 반영됩니다. 기존 패들 출력 인터록은 유지됩니다.",
-+      "descr": "0:크루즈ON, 1:크루즈대기, 2:자동감속, 3:CarrotCruise, 4:차간거리 조절. 4번: 오른쪽은 한 단계 감소(최소 1), 왼쪽은 증가(최대 4). 길게 당겨도 한 번만 변경. 롱컨·4단계 지원 차량용. 4번으로/에서 모드 변경은 재시작 후 적용되며, 4번 작동 중 간격 조절은 주행 중 반영됩니다. MQ4 HEV CANFD camera-SCC 롱컨 구성의 모드4 정상 ACC에서는 새 패들 조작 중 ACC 요청을 유지합니다. CANCEL·페달 우선 및 독립 SoftHold 인터록은 유지하며, 회생 단계 보존은 실차 확인이 필요합니다.",
-       "egroup": "BUTN",
-       "etitle": "Paddle Shift Mode",
--      "edescr": "0:Cruise ON, 1:Cruise Ready, 2:Decel, 3:CarrotCruise, 4:Following gap. Mode 4: right decreases to 1, left increases to 4; one step per press, no hold repeat. Requires openpilot longitudinal control and four gap levels. Entering/leaving mode 4 requires a restart; gap changes while in mode 4 apply while driving. Existing paddle output interlocks remain.",
-+      "edescr": "0:Cruise ON, 1:Cruise Ready, 2:Decel, 3:CarrotCruise, 4:Following gap. Mode 4: right decreases to 1, left increases to 4; one step per press, no hold repeat. Requires openpilot longitudinal control and four gap levels. Entering/leaving mode 4 requires a restart; gap changes while in mode 4 apply while driving. On MQ4 HEV CANFD camera-SCC with openpilot longitudinal control, a new mode-4 gesture in normal ACC keeps the ACC request continuous. CANCEL, pedals and independent SoftHold interlocks remain; regen-state preservation needs vehicle validation.",
-       "cgroup": "按键设置",
-       "ctitle": "换挡拨片模式",
--      "cdescr": "0:巡航开启, 1:巡航就绪, 2:自动减速, 3:CarrotCruise, 4:跟车距离。模式4：右拨片减一档，最低1；左拨片加一档，最高4。长按不重复。需要openpilot纵向控制及四档车距。进入或退出模式4须重启；模式4下行驶中可调车距。保留原拨片输出联锁。",
-+      "cdescr": "0:巡航开启, 1:巡航就绪, 2:自动减速, 3:CarrotCruise, 4:跟车距离。模式4：右拨片减一档，最低1；左拨片加一档，最高4。长按不重复。需要openpilot纵向控制及四档车距。进入或退出模式4须重启；模式4下行驶中可调车距。MQ4 HEV CANFD camera-SCC纵向控制在模式4正常ACC中新拨片操作保持ACC请求。保留取消、踏板优先及独立SoftHold联锁；能量回收档位是否保持仍需实车验证。",
-       "min": 0,
-       "max": 4,
-       "default": 1,
-diff --git a/openpilot/selfdrive/car/paddle_context.py b/openpilot/selfdrive/car/paddle_context.py
-new file mode 100644
-index 00000000..9f22520b
---- /dev/null
-+++ b/openpilot/selfdrive/car/paddle_context.py
-@@ -0,0 +1,14 @@
-+"""card's same-process bridge from applied cruise policy to Hyundai control."""
-+from openpilot.cereal import log
-+from opendbc.car.hyundai.paddle_mode4 import make_paddle_context
-+
-+
-+def publish_paddle_context(CP, CI, helper, sm, now_nanos):
-+  if CP.brand != "hyundai":
-+    return
-+  initialized = (sm.seen['onroadEvents'] and
-+                 not any(e.name == log.OnroadEvent.EventName.selfdriveInitializing for e in sm['onroadEvents']))
-+  may_apply = initialized and not CP.passive and not CP.dashcamOnly
-+  state = CI.CS
-+  state.paddle_context = make_paddle_context(getattr(state, "paddle_context", None), helper, state,
-+                                           sm['carControl'], may_apply and sm.all_checks(['carControl']), now_nanos)
 diff --git a/opendbc_repo/opendbc/car/hyundai/paddle_mode4.py b/opendbc_repo/opendbc/car/hyundai/paddle_mode4.py
 new file mode 100644
-index 00000000..45596597
+index 00000000..a3200869
 --- /dev/null
 +++ b/opendbc_repo/opendbc/car/hyundai/paddle_mode4.py
-@@ -0,0 +1,133 @@
+@@ -0,0 +1,146 @@
 +"""Narrow MQ4 normal-ACC paddle gesture permission; raw CAN is never masked."""
 +from dataclasses import dataclass
 +from enum import Enum, auto
 +import math
++
++from opendbc.car.hyundai.values import CAR, HyundaiFlags
 +
 +
 +MAX_PADDLE_AGE_NS = 100_000_000
@@ -349,10 +253,20 @@ index 00000000..45596597
 +  return PaddleInput(sequence, source, timestamp, samples, True, cancel_seen)
 +
 +
-+def normal_acc_eligible(CC, out):
++def paddle_gap_scope(CP):
++  return bool(CP.carFingerprint == CAR.KIA_SORENTO_HEV_4TH_GEN
++              and CP.flags & HyundaiFlags.CANFD and CP.flags & HyundaiFlags.CAMERA_SCC
++              and CP.openpilotLongitudinalControl and not CP.pcmCruise)
++
++
++def normal_acc_eligible(CC, out, *, allow_oem_cancel=False):
++  # controlsd requests OEM cancellation on non-PCM platforms whenever stock
++  # ACC_REQ is set, even while openpilot remains enabled. Only the scoped
++  # mode-4 caller may disregard that field; raw CANCEL and cruise-helper vetoes
++  # are separate checks. Do not compare it with a newer CarState ACC_REQ.
 +  return bool(CC.enabled and CC.longActive
 +              and str(CC.actuators.longControlState) in ("pid", "stopping", "starting")
-+              and not CC.cruiseControl.cancel and not CC.cruiseControl.override
++              and (not CC.cruiseControl.cancel or allow_oem_cancel) and not CC.cruiseControl.override
 +              and out.canValid and out.cruiseState.available and not out.accFaulted
 +              and str(out.gearShifter) == "drive"
 +              and not (out.brakePressed or out.gasPressed or out.brakeHoldActive or out.parkingBrake)
@@ -364,14 +278,15 @@ index 00000000..45596597
 +  """Run on every card state update, including updates with no CI.apply."""
 +  mode = helper._paddle_mode
 +  supported = helper.CP.openpilotLongitudinalControl and helper.params.get_int("LongitudinalPersonalityMax") == 4
++  scoped = paddle_gap_scope(helper.CP) and mode == 4 and supported
 +  sample = getattr(state, "paddle_input", None)
-+  eligible = bool(controls_valid and mode == 4 and supported
++  eligible = bool(controls_valid and scoped
 +                  and not (helper._cruise_cancel_state or helper._activate_cruise < 0
 +                           or helper._paddle_decel_active or helper.carrot_cruise_active)
 +                  and sample is not None and sample.valid and not sample.cancel_seen
 +                  and getattr(state, "scc_control", None) is not None
 +                  and 0 <= now_nanos - sample.timestamp <= MAX_PADDLE_AGE_NS
-+                  and normal_acc_eligible(CC, state.out))
++                  and normal_acc_eligible(CC, state.out, allow_oem_cancel=scoped))
 +  generation = 0 if previous is None else previous.generation
 +  if not eligible or (previous is not None and now_nanos < previous.timestamp):
 +    generation += 1
@@ -428,10 +343,10 @@ index 00000000..45596597
 +    return self.state == GestureState.ACCEPTED and paddle_button != 0
 diff --git a/opendbc_repo/opendbc/car/hyundai/tests/test_paddle_mode4.py b/opendbc_repo/opendbc/car/hyundai/tests/test_paddle_mode4.py
 new file mode 100644
-index 00000000..6d8dc5d3
+index 00000000..8e2b99a3
 --- /dev/null
 +++ b/opendbc_repo/opendbc/car/hyundai/tests/test_paddle_mode4.py
-@@ -0,0 +1,347 @@
+@@ -0,0 +1,557 @@
 +"""Real parser/DBC and same-process control tests, not ECU/IPC validation."""
 +from copy import copy
 +import ast
@@ -447,7 +362,8 @@ index 00000000..6d8dc5d3
 +from opendbc.car import Bus, structs
 +from opendbc.car.hyundai import carstate, carcontroller, hyundaicanfd
 +from opendbc.car.hyundai.interface import CarInterface
-+from opendbc.car.hyundai.paddle_mode4 import PaddleInput, PaddleContext, PaddleGesture, GestureState, read_paddle_input, make_paddle_context
++from opendbc.car.hyundai.paddle_mode4 import (PaddleInput, PaddleContext, PaddleGesture, GestureState,
++                                          read_paddle_input, make_paddle_context, normal_acc_eligible, paddle_gap_scope)
 +from opendbc.car.hyundai.values import CAR, HyundaiFlags
 +from openpilot.selfdrive.car.paddle_context import publish_paddle_context
 +from openpilot.cereal import log
@@ -528,6 +444,215 @@ index 00000000..6d8dc5d3
 +  parser = CANParser("hyundai_canfd_generated", [("SCC_CONTROL", 50)], 0)
 +  parser.update([(1_000_000_000, [msg])])
 +  return parser.vl['SCC_CONTROL']
++
++
++@pytest.fixture
++def controls_cancel_producer():
++  # Execute the production assignment itself, including its non-PCM meaning.
++  # Importing full controlsd requires native messaging unavailable on this host.
++  root = Path(__file__).resolve().parents[5]
++  tree = ast.parse((root / 'openpilot/selfdrive/controls/controlsd.py').read_text(encoding='utf-8'))
++  assignments = [n for n in ast.walk(tree) if isinstance(n, ast.Assign)
++                 and any(ast.unparse(t) == 'CC.cruiseControl.cancel' for t in n.targets)]
++  assert len(assignments) == 1
++  code = compile(ast.Module(body=assignments, type_ignores=[]), '<production controlsd cancel>', 'exec')
++  def produce(CC, CS, CP):
++    exec(code, {'CC': CC, 'CS': CS, 'self': NS(CP=CP)})
++  return produce
++
++
++@pytest.fixture
++def production_chain(chain, mode4, controls_cancel_producer):
++  ci, _, cc = chain
++  helper, _, _, params, calls = mode4
++  helper.CP = ci.CP
++  ci.can_parsers = ci.CS.get_can_parsers(ci.CP)
++  ci.v_ego_cluster_seen = False
++  # These messages are dynamically registered after fingerprint/ready ticks
++  # onroad. Start the focused fixture after that registration boundary.
++  for name in ('TCS', 'GEAR_SHIFTER', 'WHEEL_SPEEDS'):
++    ci.can_parsers[Bus.pt]._add_message(name, 100)
++  packer = CANPacker('hyundai_canfd_generated')
++  baseline = CarInterface.__new__(CarInterface)
++  baseline.CP = ci.CP
++  baseline.CC = carcontroller.CarController({Bus.pt: 'hyundai_canfd_generated'}, ci.CP)
++  baseline.CC.hyundai_jerk.carrot_cruise = 0
++  class SM(dict):
++    seen = {'onroadEvents': True}
++    def all_checks(self, keys): return self.valid
++  class Driver:
++    index = 0
++    baseline_message = None
++    def tick(self, raw, *, acc_req=1, buttons=(0,), modify=None, apply=True, valid=True, initializing=False, wheel_speed=72.):
++      now = 1_000_000_000 + self.index * 10_000_000
++      self.index += 1
++      batch = [packer.make_can_msg('CRUISE_BUTTONS', 0, {'RIGHT_PADDLE': raw, 'CRUISE_BUTTONS': button})
++               for button in buttons]
++      batch += [packer.make_can_msg('TCS', 0, {'ACC_REQ': acc_req}),
++                packer.make_can_msg('GEAR_SHIFTER', 0, {'GEAR': 4}),
++                packer.make_can_msg('WHEEL_SPEEDS', 0, {f'WHEEL_SPEED_{i}': wheel_speed for i in range(1, 5)})]
++      decoded = ci.update([(now, batch)])
++      assert decoded.cruiseState.enabled == bool(acc_req)
++      assert str(decoded.gearShifter) == 'drive'
++      # Other periodic vehicle messages are intentionally absent: supply only
++      # synthetic global CAN validity/availability, not the decoded ACC_REQ.
++      decoded.canValid, decoded.cruiseState.available = True, True
++      ci.CS.scc_control = {'InfoDisplay': 0}
++      if modify is not None:
++        modify(ci, helper, cc)
++      controls_cancel_producer(cc, decoded, ci.CP)
++      helper._update_cruise_buttons(decoded, cc, 80)
++      helper._paddle_gap_writer._queue.join()
++      cc.hudControl.leadDistanceBars = params.get_int('LongitudinalPersonality') + 1
++      events = [NS(name=log.OnroadEvent.EventName.selfdriveInitializing)] if initializing else []
++      sm = SM(carControl=cc, onroadEvents=events)
++      sm.valid = valid
++      publish_paddle_context(ci.CP, ci, helper, sm, now)
++      if not apply:
++        return None
++      _, messages = ci.apply(cc.as_reader(), now)
++      # A second complete controller follows identical telemetry/control/HUD
++      # history, with the existing no-paddle SCC2 predicate as its reference.
++      baseline.CS = copy(ci.CS)
++      baseline.CS.scc_control = dict(ci.CS.scc_control)
++      baseline.CS.paddle_button_prev = 0
++      _, reference = baseline.apply(cc.as_reader(), now)
++      self.baseline_message = next((m for m in reference if m[0] == 0x1a0), None)
++      self.baseline_feedback = baseline.CC.accel_value_last
++      return next((m for m in messages if m[0] == 0x1a0), None)
++  return Driver(), ci, helper, cc, params, calls
++
++
++@pytest.mark.parametrize('raws', [(0, 1, 1, 0, 0), (0, 1, 0, 0, 0), (0, 0, 1, 0, 0)],
++                         ids=['long-press', 'short-odd-tick', 'short-even-send'])
++def test_production_oem_cancel_keeps_normal_acc_output(production_chain, raws):
++  driver, ci, helper, cc, params, calls = production_chain
++  modes = []
++  for raw in raws:
++    message = driver.tick(raw)
++    assert cc.enabled and cc.longActive and cc.cruiseControl.cancel
++    assert not helper._cruise_cancel_state
++    if message is not None:
++      modes.append(decode(message)['ACCMode'])
++      assert message == driver.baseline_message
++      assert ci.CC.accel_value_last == driver.baseline_feedback
++  assert modes == [1, 1, 1]
++  assert params.writes == [2] and not calls
++
++
++def test_oem_cancel_default_remains_a_veto(chain):
++  ci, _, cc = chain
++  cc.cruiseControl.cancel = True
++  assert not normal_acc_eligible(cc, ci.CS.out)
++  assert normal_acc_eligible(cc, ci.CS.out, allow_oem_cancel=paddle_gap_scope(ci.CP))
++
++
++@pytest.mark.parametrize('acc_req', [0, 1])
++def test_production_acc_req_changes_do_not_require_equal_current_cancel(production_chain, acc_req):
++  driver, ci, helper, cc, _, _ = production_chain
++  driver.tick(0, acc_req=acc_req)
++  driver.tick(1, acc_req=acc_req)
++  # card may have newer input than the controlsd-produced CarControl. Keep the
++  # previous cancel value while current ACC_REQ changes, as real IPC can do.
++  previous = cc.cruiseControl.cancel
++  driver.tick(1, acc_req=1 - acc_req, apply=False)
++  cc.cruiseControl.cancel = previous
++  ci.CS.paddle_context = make_paddle_context(ci.CS.paddle_context, helper, ci.CS, cc, True, 1_020_000_000)
++  _, messages = ci.apply(cc.as_reader(), 1_020_000_000)
++  assert decode(next(m for m in messages if m[0] == 0x1a0))['ACCMode'] == 1
++
++
++@pytest.mark.parametrize('long_state', ['stopping', 'starting'])
++def test_production_oem_cancel_allows_normal_acc_stop_and_restart(production_chain, long_state):
++  driver, ci, _, cc, _, _ = production_chain
++  cc.actuators.longControlState = long_state
++  def normal_stop(ci, helper, cc):
++    ci.CS.softHoldActive = 1
++    assert ci.CS.out.vEgo == ci.CS.out.vEgoRaw == 0.
++    assert ci.CS.out.wheelSpeeds.fl == ci.CS.out.wheelSpeeds.fr == ci.CS.out.wheelSpeeds.rl == ci.CS.out.wheelSpeeds.rr == 0.
++  for raw in [0, 1, 1, 0, 0]:
++    msg = driver.tick(raw, modify=normal_stop, wheel_speed=0.)
++    if msg is not None:
++      assert decode(msg)['ACCMode'] == 1
++      assert msg == driver.baseline_message
++      assert ci.CC.accel_value_last == driver.baseline_feedback
++
++
++@pytest.mark.parametrize('mode', range(4))
++def test_production_oem_cancel_other_applied_modes_keep_paddle_interlock(production_chain, mode):
++  driver, ci, helper, _, _, _ = production_chain
++  helper._paddle_mode = mode
++  driver.tick(0)
++  driver.tick(1)
++  msg = driver.tick(1)
++  assert not ci.CS.paddle_context.eligible
++  assert ci.CC.paddle_gesture.state == GestureState.WAIT_RELEASE
++  assert decode(msg)['ACCMode'] == 0
++
++
++@pytest.mark.parametrize('fault', ['brake', 'gas', 'override', 'mainOff', 'avh', 'parking', 'disabled', 'longOff',
++                                 'independentHold', 'helperCancel', 'negative', 'carrot', 'invalid'])
++def test_production_oem_cancel_does_not_bypass_real_veto_on_odd_tick(production_chain, fault):
++  driver, ci, helper, cc, _, _ = production_chain
++  driver.tick(0)
++  driver.tick(1)
++  assert decode(driver.tick(1))['ACCMode'] == 1
++  assert ci.CC.frame % 2 == 1
++  def veto(ci, helper, cc):
++    if fault == 'independentHold':
++      cc.enabled = cc.longActive = False
++      ci.CS.softHoldActive = 1
++    else:
++      obj, name, value = {
++        'brake': (ci.CS.out, 'brakePressed', True), 'gas': (ci.CS.out, 'gasPressed', True),
++        'override': (cc.cruiseControl, 'override', True), 'mainOff': (ci.CS.out.cruiseState, 'available', False),
++        'avh': (ci.CS.out, 'brakeHoldActive', True), 'parking': (ci.CS.out, 'parkingBrake', True),
++        'disabled': (cc, 'enabled', False), 'longOff': (cc, 'longActive', False),
++        'helperCancel': (helper, '_cruise_cancel_state', True), 'negative': (helper, '_activate_cruise', -1),
++        'carrot': (ci.CS.out, 'carrotCruise', 1), 'invalid': (ci.CS.out, 'canValid', False),
++      }[fault]
++      setattr(obj, name, value)
++  assert driver.tick(1, modify=veto) is None
++  assert ci.CC.paddle_gesture.state == GestureState.WAIT_RELEASE
++  cc.enabled = cc.longActive = True
++  cc.cruiseControl.override = False
++  helper._cruise_cancel_state = False
++  helper._activate_cruise = 0
++  ci.CS.softHoldActive = 0
++  assert decode(driver.tick(1))['ACCMode'] == 0  # same held input cannot rearm
++  driver.tick(0)
++  assert decode(driver.tick(1))['ACCMode'] == 1
++
++
++@pytest.mark.parametrize('buttons', [(4,), (4, 0)], ids=['cancel-press', 'cancel-press-release-batch'])
++def test_production_raw_cancel_veto_even_with_internal_oem_cancel(production_chain, buttons):
++  driver, ci, helper, cc, _, _ = production_chain
++  driver.tick(0)
++  driver.tick(1)
++  assert decode(driver.tick(1))['ACCMode'] == 1
++  assert driver.tick(1, buttons=buttons) is None
++  assert ci.CS.paddle_input.cancel_seen
++  assert ci.CC.paddle_gesture.state == GestureState.WAIT_RELEASE
++  assert decode(driver.tick(1))['ACCMode'] == 0
++  # Simulate later approved re-engagement; raw CANCEL cannot bypass its release.
++  helper._cruise_cancel_state = False
++  driver.tick(0)
++  assert decode(driver.tick(1))['ACCMode'] == 1
++
++
++@pytest.mark.parametrize('cause', ['invalidControl', 'initializing'])
++def test_production_oem_cancel_apply_skip_keeps_veto_epoch(production_chain, cause):
++  driver, ci, _, _, _, _ = production_chain
++  driver.tick(0)
++  driver.tick(1)
++  assert decode(driver.tick(1))['ACCMode'] == 1
++  driver.tick(1, apply=False, valid=cause != 'invalidControl', initializing=cause == 'initializing')
++  assert not ci.CS.paddle_context.eligible
++  # The first resumed control tick is odd, so the next tick sends SCC2.
++  assert driver.tick(1) is None
++  assert decode(driver.tick(1))['ACCMode'] == 0
++  driver.tick(0)
++  assert decode(driver.tick(1))['ACCMode'] == 1
 +
 +
 +@pytest.mark.parametrize('long_state', ['pid', 'stopping', 'starting'])
@@ -704,12 +829,12 @@ index 00000000..6d8dc5d3
 +  assert g.state == GestureState.WAIT_RELEASE
 +
 +
-+@pytest.mark.parametrize('fault', ['disabled', 'longOff', 'off', 'cancel', 'override', 'brake', 'gas', 'avh', 'parking', 'unavailable', 'invalid', 'gear', 'fault', 'carrot', 'helperCancel', 'negative', 'decel', 'helperCarrot', 'mode', 'levels', 'fingerprint', 'pcm', 'nonCamera', 'jerkCarrot'])
++@pytest.mark.parametrize('fault', ['disabled', 'longOff', 'off', 'override', 'brake', 'gas', 'avh', 'parking', 'unavailable', 'invalid', 'gear', 'fault', 'carrot', 'helperCancel', 'negative', 'decel', 'helperCarrot', 'mode', 'levels', 'fingerprint', 'pcm', 'nonCamera', 'jerkCarrot'])
 +def test_disallowed_states_keep_existing_paddle_cutoff(chain, fault, legacy_builder):
 +  ci, helper, cc = chain
 +  actions = {
 +    'disabled': (cc, 'enabled', False), 'longOff': (cc, 'longActive', False), 'off': (cc.actuators, 'longControlState', 'off'),
-+    'cancel': (cc.cruiseControl, 'cancel', True), 'override': (cc.cruiseControl, 'override', True),
++    'override': (cc.cruiseControl, 'override', True),
 +    'brake': (ci.CS.out, 'brakePressed', True), 'gas': (ci.CS.out, 'gasPressed', True),
 +    'avh': (ci.CS.out, 'brakeHoldActive', True), 'parking': (ci.CS.out, 'parkingBrake', True),
 +    'unavailable': (ci.CS.out.cruiseState, 'available', False), 'invalid': (ci.CS.out, 'canValid', False),
@@ -779,3 +904,99 @@ index 00000000..6d8dc5d3
 +  assert requests[0][0] == 1 and requests[0][1] < -.62
 +  assert requests[1] == (0, 0)
 +  assert requests[2][0] == 1 and requests[2][1] == pytest.approx(-.02)
+diff --git a/openpilot/selfdrive/car/card.py b/openpilot/selfdrive/car/card.py
+index 03d7c040..0ef6b082 100644
+--- a/openpilot/selfdrive/car/card.py
++++ b/openpilot/selfdrive/car/card.py
+@@ -22,6 +22,7 @@ from openpilot.selfdrive.pandad import can_capnp_to_list, can_list_to_can_capnp
+ from openpilot.selfdrive.car.alternative_experience import get_alternative_experience
+ from openpilot.selfdrive.car.card_diagnostics import should_log_card_diagnostics
+ from openpilot.selfdrive.car.cruise import VCruiseCarrot
++from openpilot.selfdrive.car.paddle_context import publish_paddle_context
+ from openpilot.selfdrive.car.car_specific import MockCarState
+ from openpilot.selfdrive.car.openpilot_toggle import CruiseMainOpenpilotToggle
+ from openpilot.selfdrive.carrot.xiaoge.xiaoge_vision import (
+@@ -264,6 +265,10 @@ class Car:
+     CS.carrotCruise = 1 if self.v_cruise_helper.carrot_cruise_active else 0
+ 
+     self.CI.CS.softHoldActive = CS.softHoldActive
++    # Same-process authority from the applied VCruise mode, including vetoes
++    # while carControl is dead and controls_update skips CI.apply.
++    publish_paddle_context(self.CP, self.CI, self.v_cruise_helper, self.sm,
++                           self.can_log_mono_time if REPLAY else time.monotonic_ns())
+     state_done_ns = time.monotonic_ns()
+     self.card_diag_stage_current = {
+       'decode': (decode_done_ns - recv_ns) // 1000,
+diff --git a/openpilot/selfdrive/car/paddle_context.py b/openpilot/selfdrive/car/paddle_context.py
+new file mode 100644
+index 00000000..9f22520b
+--- /dev/null
++++ b/openpilot/selfdrive/car/paddle_context.py
+@@ -0,0 +1,14 @@
++"""card's same-process bridge from applied cruise policy to Hyundai control."""
++from openpilot.cereal import log
++from opendbc.car.hyundai.paddle_mode4 import make_paddle_context
++
++
++def publish_paddle_context(CP, CI, helper, sm, now_nanos):
++  if CP.brand != "hyundai":
++    return
++  initialized = (sm.seen['onroadEvents'] and
++                 not any(e.name == log.OnroadEvent.EventName.selfdriveInitializing for e in sm['onroadEvents']))
++  may_apply = initialized and not CP.passive and not CP.dashcamOnly
++  state = CI.CS
++  state.paddle_context = make_paddle_context(getattr(state, "paddle_context", None), helper, state,
++                                           sm['carControl'], may_apply and sm.all_checks(['carControl']), now_nanos)
+diff --git a/openpilot/selfdrive/car/tests/test_paddle_gap.py b/openpilot/selfdrive/car/tests/test_paddle_gap.py
+index 9981bbfb..83c4073b 100644
+--- a/openpilot/selfdrive/car/tests/test_paddle_gap.py
++++ b/openpilot/selfdrive/car/tests/test_paddle_gap.py
+@@ -260,7 +260,8 @@ def test_raw_can_to_gap_planner_and_scc_output(mode4, message, side):
+   from pathlib import Path
+   from opendbc.can import CANPacker, CANParser
+   from opendbc.car import create_button_events, structs
+-  from opendbc.car.hyundai.carstate import BUTTONS_DICT
++  from opendbc.car.hyundai.carstate import BUTTONS_DICT, CarState
++  from opendbc.car.hyundai.paddle_mode4 import read_paddle_input
+   from opendbc.car.hyundai.hyundaicanfd import create_acc_control, create_acc_control_scc2
+   from openpilot.cereal import log
+ 
+@@ -282,6 +283,7 @@ def test_raw_can_to_gap_planner_and_scc_output(mode4, message, side):
+   parser = CANParser("hyundai_canfd_generated", [(message, 50)], 0)
+   state = NS(paddle_button_prev=0, cruise_btns_msg_canfd=message, gear_msg_canfd=message,
+              cruise_buttons=[0], main_buttons=[0])
++  state._update_paddle_input = CarState._update_paddle_input.__get__(state)
+   target = 2 if side == "LEFT_PADDLE" else 0
+   for frame, pressed in enumerate([0, 1, 1, 0]):
+     frame_msg = packer.make_can_msg(message, 0, {side: pressed})
+@@ -289,7 +291,8 @@ def test_raw_can_to_gap_planner_and_scc_output(mode4, message, side):
+     decoded = NS(buttonEvents=[])
+     exec(decoder, {"self": state, "cp": parser, "ret": decoded, "prev_cruise_buttons": 0,
+                    "prev_main_buttons": 0, "BUTTONS_DICT": BUTTONS_DICT,
+-                   "ButtonType": structs.CarState.ButtonEvent.Type, "create_button_events": create_button_events})
++                   "ButtonType": structs.CarState.ButtonEvent.Type, "create_button_events": create_button_events,
++                   "read_paddle_input": read_paddle_input})
+     CS.buttonEvents = [{"type": b.type, "pressed": b.pressed} for b in decoded.buttonEvents]
+     helper._update_cruise_buttons(CS, mode4[2], 80)
+     helper._paddle_gap_writer._queue.join()
+diff --git a/openpilot/selfdrive/carrot_settings.json b/openpilot/selfdrive/carrot_settings.json
+index 0af624be..450e6a09 100644
+--- a/openpilot/selfdrive/carrot_settings.json
++++ b/openpilot/selfdrive/carrot_settings.json
+@@ -1688,13 +1688,13 @@
+       "group": "버튼설정",
+       "name": "PaddleMode",
+       "title": "패들시프트 모드",
+-      "descr": "0:크루즈ON, 1:크루즈대기, 2:자동감속, 3:CarrotCruise, 4:차간거리 조절. 4번: 오른쪽은 한 단계 감소(최소 1), 왼쪽은 증가(최대 4). 길게 당겨도 한 번만 변경. 롱컨·4단계 지원 차량용. 4번으로/에서 모드 변경은 재시작 후 적용되며, 4번 작동 중 간격 조절은 주행 중 반영됩니다. 기존 패들 출력 인터록은 유지됩니다.",
++      "descr": "0:크루즈ON, 1:크루즈대기, 2:자동감속, 3:CarrotCruise, 4:차간거리 조절. 4번: 오른쪽은 한 단계 감소(최소 1), 왼쪽은 증가(최대 4). 길게 당겨도 한 번만 변경. 롱컨·4단계 지원 차량용. 4번으로/에서 모드 변경은 재시작 후 적용되며, 4번 작동 중 간격 조절은 주행 중 반영됩니다. MQ4 HEV CANFD camera-SCC 롱컨 구성의 모드4 정상 ACC에서는 새 패들 조작 중 ACC 요청을 유지합니다. CANCEL·페달 우선 및 독립 SoftHold 인터록은 유지하며, 회생 단계 보존은 실차 확인이 필요합니다.",
+       "egroup": "BUTN",
+       "etitle": "Paddle Shift Mode",
+-      "edescr": "0:Cruise ON, 1:Cruise Ready, 2:Decel, 3:CarrotCruise, 4:Following gap. Mode 4: right decreases to 1, left increases to 4; one step per press, no hold repeat. Requires openpilot longitudinal control and four gap levels. Entering/leaving mode 4 requires a restart; gap changes while in mode 4 apply while driving. Existing paddle output interlocks remain.",
++      "edescr": "0:Cruise ON, 1:Cruise Ready, 2:Decel, 3:CarrotCruise, 4:Following gap. Mode 4: right decreases to 1, left increases to 4; one step per press, no hold repeat. Requires openpilot longitudinal control and four gap levels. Entering/leaving mode 4 requires a restart; gap changes while in mode 4 apply while driving. On MQ4 HEV CANFD camera-SCC with openpilot longitudinal control, a new mode-4 gesture in normal ACC keeps the ACC request continuous. CANCEL, pedals and independent SoftHold interlocks remain; regen-state preservation needs vehicle validation.",
+       "cgroup": "按键设置",
+       "ctitle": "换挡拨片模式",
+-      "cdescr": "0:巡航开启, 1:巡航就绪, 2:自动减速, 3:CarrotCruise, 4:跟车距离。模式4：右拨片减一档，最低1；左拨片加一档，最高4。长按不重复。需要openpilot纵向控制及四档车距。进入或退出模式4须重启；模式4下行驶中可调车距。保留原拨片输出联锁。",
++      "cdescr": "0:巡航开启, 1:巡航就绪, 2:自动减速, 3:CarrotCruise, 4:跟车距离。模式4：右拨片减一档，最低1；左拨片加一档，最高4。长按不重复。需要openpilot纵向控制及四档车距。进入或退出模式4须重启；模式4下行驶中可调车距。MQ4 HEV CANFD camera-SCC纵向控制在模式4正常ACC中新拨片操作保持ACC请求。保留取消、踏板优先及独立SoftHold联锁；能量回收档位是否保持仍需实车验证。",
+       "min": 0,
+       "max": 4,
+       "default": 1,

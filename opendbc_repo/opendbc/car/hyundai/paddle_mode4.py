@@ -3,6 +3,8 @@ from dataclasses import dataclass
 from enum import Enum, auto
 import math
 
+from opendbc.car.hyundai.values import CAR, HyundaiFlags
+
 
 MAX_PADDLE_AGE_NS = 100_000_000
 
@@ -54,10 +56,20 @@ def read_paddle_input(cp, source, cancel_source, sequence):
   return PaddleInput(sequence, source, timestamp, samples, True, cancel_seen)
 
 
-def normal_acc_eligible(CC, out):
+def paddle_gap_scope(CP):
+  return bool(CP.carFingerprint == CAR.KIA_SORENTO_HEV_4TH_GEN
+              and CP.flags & HyundaiFlags.CANFD and CP.flags & HyundaiFlags.CAMERA_SCC
+              and CP.openpilotLongitudinalControl and not CP.pcmCruise)
+
+
+def normal_acc_eligible(CC, out, *, allow_oem_cancel=False):
+  # controlsd requests OEM cancellation on non-PCM platforms whenever stock
+  # ACC_REQ is set, even while openpilot remains enabled. Only the scoped
+  # mode-4 caller may disregard that field; raw CANCEL and cruise-helper vetoes
+  # are separate checks. Do not compare it with a newer CarState ACC_REQ.
   return bool(CC.enabled and CC.longActive
               and str(CC.actuators.longControlState) in ("pid", "stopping", "starting")
-              and not CC.cruiseControl.cancel and not CC.cruiseControl.override
+              and (not CC.cruiseControl.cancel or allow_oem_cancel) and not CC.cruiseControl.override
               and out.canValid and out.cruiseState.available and not out.accFaulted
               and str(out.gearShifter) == "drive"
               and not (out.brakePressed or out.gasPressed or out.brakeHoldActive or out.parkingBrake)
@@ -69,14 +81,15 @@ def make_paddle_context(previous, helper, state, CC, controls_valid, now_nanos):
   """Run on every card state update, including updates with no CI.apply."""
   mode = helper._paddle_mode
   supported = helper.CP.openpilotLongitudinalControl and helper.params.get_int("LongitudinalPersonalityMax") == 4
+  scoped = paddle_gap_scope(helper.CP) and mode == 4 and supported
   sample = getattr(state, "paddle_input", None)
-  eligible = bool(controls_valid and mode == 4 and supported
+  eligible = bool(controls_valid and scoped
                   and not (helper._cruise_cancel_state or helper._activate_cruise < 0
                            or helper._paddle_decel_active or helper.carrot_cruise_active)
                   and sample is not None and sample.valid and not sample.cancel_seen
                   and getattr(state, "scc_control", None) is not None
                   and 0 <= now_nanos - sample.timestamp <= MAX_PADDLE_AGE_NS
-                  and normal_acc_eligible(CC, state.out))
+                  and normal_acc_eligible(CC, state.out, allow_oem_cancel=scoped))
   generation = 0 if previous is None else previous.generation
   if not eligible or (previous is not None and now_nanos < previous.timestamp):
     generation += 1
