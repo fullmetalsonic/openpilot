@@ -1,0 +1,1195 @@
+{
+  "format": 1,
+  "upstream": "3f537bc13fdc325f4ef3852f8ab5a762566cefc1",
+  "policy": "latest non-DM plus existing FMS personal contracts and dca1f331 legacy DM/stopping behavior",
+  "normalization": "UTF-8 text with LF for comparison; a second application preserves existing bytes",
+  "bootstrap": [
+    "apply_carrot_user_patches.py",
+    "fms_integration_manifest.json",
+    "fms_preservation/*"
+  ],
+  "operations": [
+    {
+      "path": ".gitattributes",
+      "before_sha256": "df7b5098a93e4ee5202b889371fa3eb6979452199ed5136ac2857f4da21d8a26",
+      "after_sha256": "400ee84eb29a6263e091137df98788541430705e1e9416a63cd5a39276c00e3b",
+      "kind": "hunks",
+      "asset": "fms_preservation/618cd5b83d62060ba3d0.patch",
+      "asset_sha256": "86c9ba936e0910de5e805ca6076f7745ed6a5acf6d551abe6e3f6ca912207ef6",
+      "review_bundle": "fms_dm_shared_preservation.patch"
+    },
+    {
+      "path": ".github/workflows/backup-carrot.yml",
+      "before_sha256": null,
+      "after_sha256": "4ed81062815d7822a8127334f6e8a92933b1ee499af75a970589113925589be7",
+      "kind": "blob",
+      "asset": "fms_preservation/3fe0f68ef37dec801981.blob",
+      "asset_sha256": "4ed81062815d7822a8127334f6e8a92933b1ee499af75a970589113925589be7",
+      "review_bundle": "fms_dm_shared_preservation.patch"
+    },
+    {
+      "path": ".github/workflows/tests.yaml",
+      "before_sha256": "3627991b9734e0ec9dbc0159a2997b4339f99adc19a35015c5f995e4bbbb7929",
+      "after_sha256": "beb731a4ed4e4b3a113cfaf5beb8569a4b1a5137c735e9a5685a489456083158",
+      "kind": "hunks",
+      "asset": "fms_preservation/95557d53bf91069e59d8.patch",
+      "asset_sha256": "9ef221724602236b3062a5ab557ae83d4ce193c86d032f1e4a134d4765e4b3fb",
+      "review_bundle": "fms_dm_shared_preservation.patch"
+    },
+    {
+      "path": "AGENTS.md",
+      "before_sha256": "7f3f6944530c73e5a8c870b45761673bf632103ceb32ea56eafd5959c8a0d377",
+      "after_sha256": "59adb63a25700adb103cd3280a4babcd78c668300571f1efb130cbe806cbc56b",
+      "kind": "hunks",
+      "asset": "fms_preservation/a54ff182c7e8acf56acf.patch",
+      "asset_sha256": "f50713ea7c757050be9157af6c9d8b9093c4817ab63326a899b3876afb029fdb",
+      "review_bundle": "fms_dm_shared_preservation.patch"
+    },
+    {
+      "path": "docs/branch_catalog.md",
+      "before_sha256": null,
+      "after_sha256": "c7fce87ce34c17c804d5696089f9f6b88861c27d788b566dbf171d6e509ba4a0",
+      "kind": "blob",
+      "asset": "fms_preservation/a15bbfb70c8e84bb51d0.blob",
+      "asset_sha256": "c7fce87ce34c17c804d5696089f9f6b88861c27d788b566dbf171d6e509ba4a0",
+      "review_bundle": "fms_dm_shared_preservation.patch"
+    },
+    {
+      "path": "docs/dm_cluster_alerts_20261001.md",
+      "before_sha256": "653e4c283836aef014a617f76387c50c2995974423c7c4ddc1bbc23dfe7765d0",
+      "after_sha256": null,
+      "kind": "delete",
+      "review_bundle": "fms_dm_shared_preservation.patch"
+    },
+    {
+      "path": "docs/dm_onroad_preview_20260928.md",
+      "before_sha256": "f31f31853b883a14d26b737e35956fb5785a9f6c58008f3a85863f3632c73973",
+      "after_sha256": null,
+      "kind": "delete",
+      "review_bundle": "fms_dm_shared_preservation.patch"
+    },
+    {
+      "path": "docs/dm_reader_crash_20260928.md",
+      "before_sha256": "a9cfea806ab9c470d4ac30f26b8a260798a432122ccad69b99c24b05b9630b63",
+      "after_sha256": null,
+      "kind": "delete",
+      "review_bundle": "fms_dm_shared_preservation.patch"
+    },
+    {
+      "path": "docs/dm_traffic_hold_20260929.md",
+      "before_sha256": "e9e80187f5474ac1a8bbb4079d73bd7a2c2a97cddaed0f7ca0bf8264d385627d",
+      "after_sha256": null,
+      "kind": "delete",
+      "review_bundle": "fms_dm_shared_preservation.patch"
+    },
+    {
+      "path": "docs/driver_monitoring_dm2.md",
+      "before_sha256": "be08ebc55cba89de321b60057b197cfaf8d52fcb9852d578ed71cc2036f82ad9",
+      "after_sha256": null,
+      "kind": "delete",
+      "review_bundle": "fms_dm_shared_preservation.patch"
+    },
+    {
+      "path": "docs/fms_integration_contract.md",
+      "before_sha256": null,
+      "after_sha256": "460d04a3230c42165ed4ed626f184cc454f6699bc23fed620f6a0482bb573531",
+      "kind": "blob",
+      "asset": "fms_preservation/a24dd8e36e1f59ba0523.blob",
+      "asset_sha256": "460d04a3230c42165ed4ed626f184cc454f6699bc23fed620f6a0482bb573531",
+      "review_bundle": "fms_dm_shared_preservation.patch"
+    },
+    {
+      "path": "docs/id4_dm_enable_cadence_20261003.md",
+      "before_sha256": "c4ea82edf2cfe49cd84ffdf98e0606b205fe31b03ff5507ea362fe8aff83a23a",
+      "after_sha256": null,
+      "kind": "delete",
+      "review_bundle": "fms_dm_shared_preservation.patch"
+    },
+    {
+      "path": "docs/paddle_mode4.md",
+      "before_sha256": null,
+      "after_sha256": "bdae7e8d8867a61f2763a543f9362dbba1c61256efc1a295205f1be9f3915be8",
+      "kind": "blob",
+      "asset": "fms_preservation/fa3f0fa7227ab7d8c307.blob",
+      "asset_sha256": "bdae7e8d8867a61f2763a543f9362dbba1c61256efc1a295205f1be9f3915be8",
+      "review_bundle": "paddle_regen_isolation.patch"
+    },
+    {
+      "path": "docs/user/docs_map.json",
+      "before_sha256": "68f5fb3a86ab7707885253315c015726488ed2fc10c41dc3b4bcebffad87ad80",
+      "after_sha256": "0453c01e85f6650e7305bfa07d5788928b658455fbf51485b89bac2337df5e5a",
+      "kind": "hunks",
+      "asset": "fms_preservation/5c181818e5ff2ca3b423.patch",
+      "asset_sha256": "53e85994cf54531b69135921ba8395a25764212a3d95c012d45d926c7e863993",
+      "review_bundle": "fms_dm_shared_preservation.patch"
+    },
+    {
+      "path": "docs/user/en/buttons-presets.md",
+      "before_sha256": "91dbb4b5bf1c5ba0bf0008c3e1695e860e6081018526ebb9b83ddce6484e2ce3",
+      "after_sha256": "52160e944f1d8ed0a4b9e7626ec4acd6819d6aabcd25656ab855744f6aaeefef",
+      "kind": "hunks",
+      "asset": "fms_preservation/ed433a2b40b94cd23855.patch",
+      "asset_sha256": "dce908cc77fcbfe5ca249b6a64e42683029b89e2c7819858c7a93dfd06878b8d",
+      "review_bundle": "fms_dm_shared_preservation.patch"
+    },
+    {
+      "path": "docs/user/en/carrot-web.md",
+      "before_sha256": "2cdc7cdc77c2c4adfabee3b39353a736f963d401a01211129a9185eaecf62118",
+      "after_sha256": "78a7541ef85d9349d66d67f07c9796f0f2cb594f9fa0cf474f4a5e53bdb1e86a",
+      "kind": "hunks",
+      "asset": "fms_preservation/9740d88a82126bef4e5b.patch",
+      "asset_sha256": "c8c987fe1410570507441754ac6becb184587b64097f11624cebb006970a729f",
+      "review_bundle": "fms_dm_shared_preservation.patch"
+    },
+    {
+      "path": "docs/user/en/cruise-gap.md",
+      "before_sha256": "b2a96f5b82fae32ccc517adcdad07bf7f1d998bd877a754c7888a4a63a13959d",
+      "after_sha256": "a0b0b08158b647c3212aeadc58a8f7fb0044af2b547eea8084ab8da596ecc76e",
+      "kind": "hunks",
+      "asset": "fms_preservation/235f5b408c62e00f9bfb.patch",
+      "asset_sha256": "feeaebd77bade7f0b5ea537efb8b65801e768f1b3f01670cc37e7125c55181d3",
+      "review_bundle": "fms_dm_shared_preservation.patch"
+    },
+    {
+      "path": "docs/user/en/driver-monitoring.md",
+      "before_sha256": "b902102d334f0447502ec1710539f0276b42021bcb09d7aa924dcfa1f662dc69",
+      "after_sha256": "8f68645f609550e11a2330502f01fa28ebb28713c3a7027d99888d612aef30dc",
+      "kind": "hunks",
+      "asset": "fms_preservation/c5b45ee5a7078534e522.patch",
+      "asset_sha256": "c957a09a1b4627c64eaa5e44d454596d08dd36a2b2f80f1d05dbaea7e0557c58",
+      "review_bundle": "fms_dm_shared_preservation.patch"
+    },
+    {
+      "path": "docs/user/en/settings.md",
+      "before_sha256": "bbbb99b9970c72aeef46d36e837289226d9c3e021521d544477474397b88713b",
+      "after_sha256": "a603b2ca805cec88acacd691701e16c2e29d05bde1fed50124cd88ae566e309b",
+      "kind": "hunks",
+      "asset": "fms_preservation/81ad15a66b87a9ae04bc.patch",
+      "asset_sha256": "798581883229893b369c0529018b2696794ddc4c3b2c25ba2b28f76ac2aeb859",
+      "review_bundle": "fms_dm_shared_preservation.patch"
+    },
+    {
+      "path": "docs/user/ko/buttons-presets.md",
+      "before_sha256": "cc56f683018f97ac947858afa69347a76d60d7e8b0c97fe7f7afae5293937894",
+      "after_sha256": "307fa84f05e42924d5087fb108a31bf2db05328d35ecd75676fefbfbb6e5fff2",
+      "kind": "hunks",
+      "asset": "fms_preservation/44136c5c4c5e61db729e.patch",
+      "asset_sha256": "2ce0a093f9dd8bad7be95e9d17d69a41f9e4ac313862a346a356bd60250e288e",
+      "review_bundle": "fms_dm_shared_preservation.patch"
+    },
+    {
+      "path": "docs/user/ko/carrot-web.md",
+      "before_sha256": "b18d773e615157478824b970509080fea1efc74e974172d40df6e3e871dc759e",
+      "after_sha256": "c762ccc04d0a747d3a5f3e485c6f13b9621a8614142c6507e96f1a274d6e5bd0",
+      "kind": "hunks",
+      "asset": "fms_preservation/9a13039339aacac1b010.patch",
+      "asset_sha256": "da8e6e532ed7cf50ee16a044e38dc8060665b13d56afe3dad13aab24faaf66ed",
+      "review_bundle": "fms_dm_shared_preservation.patch"
+    },
+    {
+      "path": "docs/user/ko/cruise-gap.md",
+      "before_sha256": "510eab811b75e8c15e037af7b660d54c1b746f74aba40658168d4323c2bf5533",
+      "after_sha256": "c5d26f42043df9c569df02da5ba1ecaff50e9b7f1794e73e5aec2b062f628fc4",
+      "kind": "hunks",
+      "asset": "fms_preservation/e5079a9851a3f0344911.patch",
+      "asset_sha256": "c7ad34070ce80ae7a14b73eff28458f2f8ae80f3428256f1f1b3abd2fcc6fc2b",
+      "review_bundle": "fms_dm_shared_preservation.patch"
+    },
+    {
+      "path": "docs/user/ko/driver-monitoring.md",
+      "before_sha256": "97170e1ce46904f4d1b9c17b34d5017c97c620b445e89c69e35c5fdfc91706a4",
+      "after_sha256": "c58d4f1d84346357f4e3040a7663fcb4491c6dd260416a0e0711301cc06a91d9",
+      "kind": "hunks",
+      "asset": "fms_preservation/4764dfe6835ae16a4a79.patch",
+      "asset_sha256": "ae6319d96d9853ed4f19af641c1085ad5cfa0a888e0a25b9a87c2e6e90448f86",
+      "review_bundle": "fms_dm_shared_preservation.patch"
+    },
+    {
+      "path": "docs/user/ko/settings.md",
+      "before_sha256": "6c57f2de32ed72f1a337fd641cfd4caa5a32acbecb06e1d12810cf3c1e039ec1",
+      "after_sha256": "75c17f8885ec38776c53bba91c101e55f078dd5a1e7a7a81dd625eee5bdfdc24",
+      "kind": "hunks",
+      "asset": "fms_preservation/e47e44fda7cd0c5ed09f.patch",
+      "asset_sha256": "00e131b7157a69c81bce65723c4c4e9cef8926cfc323f311b77238e77af1578a",
+      "review_bundle": "fms_dm_shared_preservation.patch"
+    },
+    {
+      "path": "opendbc_repo/opendbc/car/car.capnp",
+      "before_sha256": "3042bfa92e6b42532145815a6a23fc5d9b775f2762b136384d1d2191cc7f1465",
+      "after_sha256": "d2eddf464b3bc9387a14bb1d873ab9d27bc004930b0aef07bbcb22369b028838",
+      "kind": "hunks",
+      "asset": "fms_preservation/bd32165cbeadf9029003.patch",
+      "asset_sha256": "f86e592f974795dbbd8e16695a04804942eff8b44536cb9022f7c3e5b24c12f3",
+      "review_bundle": "fms_dm_shared_preservation.patch"
+    },
+    {
+      "path": "opendbc_repo/opendbc/car/hyundai/carcontroller.py",
+      "before_sha256": "a768273050e51ca11e617c03b320c419e955b70513b092f90dbeefa14ba72321",
+      "after_sha256": "a161a346c7e979b8474f5602d065e0f48d349064dd78c29e0940dda5f2923049",
+      "kind": "hunks",
+      "asset": "fms_preservation/2f40ec78174b0d34e8f4.patch",
+      "asset_sha256": "8807b6d1fc2c1403755d02fa0e19bd302c67c517aadc73b8696741d28965734c",
+      "review_bundle": "independent_hold_stopping.patch"
+    },
+    {
+      "path": "opendbc_repo/opendbc/car/hyundai/carstate.py",
+      "before_sha256": "b4f06ee118f3abb27d9297584094666669668def05841bed2a9c54295710dcde",
+      "after_sha256": "9221f7f732fa2e6e45776676d2add7723702abd07080c90d99de13d1c2ae291d",
+      "kind": "hunks",
+      "asset": "fms_preservation/4a0877adfccb61ed9a47.patch",
+      "asset_sha256": "e10e049919e3604c8a1b2116807ca650a0d1a48029014aa27e426819fca1eafd",
+      "review_bundle": "paddle_regen_isolation.patch"
+    },
+    {
+      "path": "opendbc_repo/opendbc/car/hyundai/hyundaican.py",
+      "before_sha256": "c2f3cf729bbb54a71b8203e485e59d56fdc6987c4267d3220d657b22c219f49e",
+      "after_sha256": "728922fc0865499ae6c94a22f9c4413846c11a1a1f2db7716c7512bc1d0d9a9a",
+      "kind": "hunks",
+      "asset": "fms_preservation/29a6453fcd353b74c7ac.patch",
+      "asset_sha256": "00c3b73389a4c99e14845c90dcc482ebb64fda3c7074df5bb26ec51819fe0e54",
+      "review_bundle": "fms_dm_shared_preservation.patch"
+    },
+    {
+      "path": "opendbc_repo/opendbc/car/hyundai/hyundaicanfd.py",
+      "before_sha256": "662d637eac7094a2f719f05a402e6aa6e1f089b8a65b6b4b208544c5ca8ffa09",
+      "after_sha256": "86aab4ce6b6d3603551266be94555ad3662fb6baa6b64fb1f862a202ff70c3b9",
+      "kind": "hunks",
+      "asset": "fms_preservation/25986e4483d5e1eb45e5.patch",
+      "asset_sha256": "be92382d9374091ec7f312f87b74a0da49a83acff827ff7dfb48f9da589f11d4",
+      "review_bundle": "independent_hold_stopping.patch"
+    },
+    {
+      "path": "opendbc_repo/opendbc/car/hyundai/paddle_mode4.py",
+      "before_sha256": null,
+      "after_sha256": "dbcddd143871d95d4b7de9177ab51b534b7c2911e4a7447aa645b90615e88d14",
+      "kind": "blob",
+      "asset": "fms_preservation/a1a546bb314b2fee3d12.blob",
+      "asset_sha256": "dbcddd143871d95d4b7de9177ab51b534b7c2911e4a7447aa645b90615e88d14",
+      "review_bundle": "paddle_regen_isolation.patch"
+    },
+    {
+      "path": "opendbc_repo/opendbc/car/hyundai/steering_touch.py",
+      "before_sha256": "e8a470019a93d7633ae2c2af6f7422cc2a85eb6066a077cfcaf719ee50a72c03",
+      "after_sha256": null,
+      "kind": "delete",
+      "review_bundle": "fms_dm_shared_preservation.patch"
+    },
+    {
+      "path": "opendbc_repo/opendbc/car/hyundai/stopping.py",
+      "before_sha256": "1112e895053548c8d866fdcc9a89426b367b4c2609641830bb476ee106444cb0",
+      "after_sha256": "66fd227a7ec7486c9d6365f41cf1a98b985a33d45b32678307ed9ee5d666d10f",
+      "kind": "hunks",
+      "asset": "fms_preservation/4d4854a37219f0733cf9.patch",
+      "asset_sha256": "402ef0d3b6463832354b71ee93e00e294085a32a1d37d4dc0e889033d9adc1b4",
+      "review_bundle": "independent_hold_stopping.patch"
+    },
+    {
+      "path": "opendbc_repo/opendbc/car/hyundai/tests/fixtures/fms_hud_dca1f331.json",
+      "before_sha256": null,
+      "after_sha256": "847873c5257b8428dc221d2858f6ce8b9deb6f8e1ad54b6e6be47080e684627a",
+      "kind": "blob",
+      "asset": "fms_preservation/fca0fe082dc3e4ab1252.blob",
+      "asset_sha256": "847873c5257b8428dc221d2858f6ce8b9deb6f8e1ad54b6e6be47080e684627a",
+      "review_bundle": "fms_dm_shared_preservation.patch"
+    },
+    {
+      "path": "opendbc_repo/opendbc/car/hyundai/tests/fixtures/fms_stopping_dca1f331.json",
+      "before_sha256": null,
+      "after_sha256": "50c5341fcba4d6b90ef45b1f89020c5f88a54edcd936c129ac7a10d5ad0ce1e5",
+      "kind": "blob",
+      "asset": "fms_preservation/220b7218890e6bfd800a.blob",
+      "asset_sha256": "50c5341fcba4d6b90ef45b1f89020c5f88a54edcd936c129ac7a10d5ad0ce1e5",
+      "review_bundle": "fms_dm_shared_preservation.patch"
+    },
+    {
+      "path": "opendbc_repo/opendbc/car/hyundai/tests/test_dm_cluster.py",
+      "before_sha256": "d6e71442d9ddcc66a5ecb3b8fa0d9a47e21e94ce165cfbda8b9404ad05d5ce2f",
+      "after_sha256": "fa26e5f91aa9a03c4501216e298a51aceb04eb3817bfc3ef97dde551db1fe610",
+      "kind": "hunks",
+      "asset": "fms_preservation/8c872ea73c1dc0da1a9f.patch",
+      "asset_sha256": "385ba9fbc18cd8d6d863423560f2c2d2396c048cfb9d009c25eaa82e1c05e01a",
+      "review_bundle": "fms_dm_shared_preservation.patch"
+    },
+    {
+      "path": "opendbc_repo/opendbc/car/hyundai/tests/test_jerk.py",
+      "before_sha256": "ae98e9c72dc7b30da0533cdc2de24dc4aeca2af395e94c8d508f892b951036e8",
+      "after_sha256": "060e327fabcb6728f607b478819a26263297be9df600ea1d1b38ad352e90834a",
+      "kind": "hunks",
+      "asset": "fms_preservation/7d1bcaf98ec1a017c2b5.patch",
+      "asset_sha256": "7a09e1c2307b30eeee23b2bc9a551c4ae6b92e57a7645e432a5b2612bebed150",
+      "review_bundle": "fms_dm_shared_preservation.patch"
+    },
+    {
+      "path": "opendbc_repo/opendbc/car/hyundai/tests/test_paddle_mode4.py",
+      "before_sha256": null,
+      "after_sha256": "86db03db919bf8689e11683b779015d6f8233a7e4a589aa04ca5b08221fd5d2d",
+      "kind": "blob",
+      "asset": "fms_preservation/343f086fbd35774a3ac8.blob",
+      "asset_sha256": "86db03db919bf8689e11683b779015d6f8233a7e4a589aa04ca5b08221fd5d2d",
+      "review_bundle": "paddle_regen_isolation.patch"
+    },
+    {
+      "path": "opendbc_repo/opendbc/car/hyundai/tests/test_steering_touch.py",
+      "before_sha256": "14e0717f5996d875eaad5c2614b94ae665c25ed2b173d45e716b4c5adf275f93",
+      "after_sha256": null,
+      "kind": "delete",
+      "review_bundle": "fms_dm_shared_preservation.patch"
+    },
+    {
+      "path": "opendbc_repo/opendbc/car/hyundai/tests/test_stopping.py",
+      "before_sha256": "32636808b702b22abae43d65a4614d6c18c94688d04aebea186166ee78f54e0b",
+      "after_sha256": "eeb7ac906d3a1bb85741ffd3baf1345a87ce59598be5e3bc24a0c2ca44bbf55e",
+      "kind": "hunks",
+      "asset": "fms_preservation/607851253656e1a899b2.patch",
+      "asset_sha256": "470bae4a4b13c147dde90fe4b9951450e6bcbf50ba38dc5dcb0be1f98828a544",
+      "review_bundle": "fms_dm_shared_preservation.patch"
+    },
+    {
+      "path": "openpilot/cereal/log.capnp",
+      "before_sha256": "48fe892e247d907844dbc973fdb3bc5a4cb4127a0e9bd5b86a6bdbbae979fb74",
+      "after_sha256": "ee63cd5fbde2b08957bd7b5f17546b6747ddcbe434e97692826d606ce5e7b607",
+      "kind": "hunks",
+      "asset": "fms_preservation/cc4f78cb2745b38728cc.patch",
+      "asset_sha256": "b1cd7c583a8bbeb9cd9a1230a55a11906a9dd59353c6646b435a57c82a5abc89",
+      "review_bundle": "fms_dm_shared_preservation.patch"
+    },
+    {
+      "path": "openpilot/common/params_keys.h",
+      "before_sha256": "8f187aa9a521b72d55780a994ec7fa4cb08dda86e7f965689133b09b5ce9ebd2",
+      "after_sha256": "c1a32c2916c016429442d16213ef21e171e9d66003620668a5a1183774b1f3cf",
+      "kind": "hunks",
+      "asset": "fms_preservation/b368b9282ecd7af0ea13.patch",
+      "asset_sha256": "66ee63288d36b696319d3fdee1fc24cd95fe1b5e95b2502036e7edeed5d120e1",
+      "review_bundle": "fms_dm_shared_preservation.patch"
+    },
+    {
+      "path": "openpilot/common/stopping_params.py",
+      "before_sha256": "d4c419f5e3e4fdc27787b768c3566495226c6d1df102da1bed3a278f3ea104e3",
+      "after_sha256": null,
+      "kind": "delete",
+      "review_bundle": "vego_stopping_min1.patch"
+    },
+    {
+      "path": "openpilot/common/tests/test_params.py",
+      "before_sha256": "ab743f62b8488a1a85ad016e9964aacb85af0e7e8550ca0a3f24b3d9b5884fc5",
+      "after_sha256": "1bde4fff841c4001ac3ffb177e8217a039b18c4790176a5cfd3bab761c57ce08",
+      "kind": "hunks",
+      "asset": "fms_preservation/50595ac3134b0a8a9dc0.patch",
+      "asset_sha256": "13ca7d99ae52d93962aeed65db060df44a3f7615ea91be990de7867babd9239b",
+      "review_bundle": "fms_dm_shared_preservation.patch"
+    },
+    {
+      "path": "openpilot/selfdrive/car/card.py",
+      "before_sha256": "6c5890f382469445f0adc32f4663a2543ed713247fae2e2db5bb27b3ae9c913b",
+      "after_sha256": "7098a9ddb86708857d5dec6fa4d5894df9e4aba70f75da24f1b34537dc610e5c",
+      "kind": "hunks",
+      "asset": "fms_preservation/06eedf6d7dca5c425cea.patch",
+      "asset_sha256": "69bd64a1d98dc15e51890177bfa7febd077feedc9c681830dbbbf1374887e9ff",
+      "review_bundle": "paddle_regen_isolation.patch"
+    },
+    {
+      "path": "openpilot/selfdrive/car/cruise.py",
+      "before_sha256": "6cf4b9eba4a11ef0321d6ed6953266c32cebc9762553c7397f57f5e370a6c451",
+      "after_sha256": "9718b8de7fd130f0a6e29344d6f60ff41afe742683666479d976435ade3ec900",
+      "kind": "hunks",
+      "asset": "fms_preservation/89c058b9a146c09f4f30.patch",
+      "asset_sha256": "e6121c35c954085edb0ee4f75c61962c0bf46220a2fbf30d72eee5308c81f10a",
+      "review_bundle": "paddle_mode4.patch"
+    },
+    {
+      "path": "openpilot/selfdrive/car/paddle_context.py",
+      "before_sha256": null,
+      "after_sha256": "a8693dfb0a186ba8111ec51b996cb4c6151fd7b1ebac47dc8e388dbe47f85f43",
+      "kind": "blob",
+      "asset": "fms_preservation/62295ce8a29d1966b7f2.blob",
+      "asset_sha256": "a8693dfb0a186ba8111ec51b996cb4c6151fd7b1ebac47dc8e388dbe47f85f43",
+      "review_bundle": "paddle_regen_isolation.patch"
+    },
+    {
+      "path": "openpilot/selfdrive/car/tests/test_carrot_cruise_buttons.py",
+      "before_sha256": "59858eceffdfb30a3e412bce3ee4c3dec94dc19de85addbcc7ab18087703e7f9",
+      "after_sha256": "bf3565c7ea07f2f933d83578e2837a0cca69854c84aa016a3dba9bfc1e6f88e8",
+      "kind": "hunks",
+      "asset": "fms_preservation/8976944be748a91476ab.patch",
+      "asset_sha256": "cfa727ed23ea57efa64152598143babc032b59e19fb68023c3b9db911589ab41",
+      "review_bundle": "fms_dm_shared_preservation.patch"
+    },
+    {
+      "path": "openpilot/selfdrive/car/tests/test_paddle_gap.py",
+      "before_sha256": null,
+      "after_sha256": "fcc00a3412464614f021987bad4da61ba4cea9b262e8518c3f10231cf2fa2df0",
+      "kind": "blob",
+      "asset": "fms_preservation/e0990fbea8f3ec030662.blob",
+      "asset_sha256": "fcc00a3412464614f021987bad4da61ba4cea9b262e8518c3f10231cf2fa2df0",
+      "review_bundle": "paddle_regen_isolation.patch"
+    },
+    {
+      "path": "openpilot/selfdrive/car/tests/test_toyota_pcm_speed.py",
+      "before_sha256": "b3433d7c10e703dd04146ff479b925ddd018230c71719c1417a25d34f99e32cc",
+      "after_sha256": "38d285eb72df18a16d03020601ed3a4ee25bd52fd8933867aa8a8d831acd2dcc",
+      "kind": "hunks",
+      "asset": "fms_preservation/3b0bf5b14819dac8c498.patch",
+      "asset_sha256": "8081c1cbd4a55a2f36b8cabb369fa7d833ec53aaa59a2f0b9fe361ca0a0ad4a3",
+      "review_bundle": "fms_dm_shared_preservation.patch"
+    },
+    {
+      "path": "openpilot/selfdrive/carrot/bluetooth/daemon.py",
+      "before_sha256": "97c0bd572b4c08de6073fbff9e39b88c27d9a7b8eaf4794a9bceb02558071571",
+      "after_sha256": "d032d6069416bae35aea07e25f28f9930795f29cf0a9518c122bfecb6cebe4d3",
+      "kind": "hunks",
+      "asset": "fms_preservation/256ad92406b1b9e584c3.patch",
+      "asset_sha256": "d6d7d0afd2f1c804f136d7d1ea708cfbf3eea77b189f8838f0f8ea2c175238bc",
+      "review_bundle": "fms_dm_shared_preservation.patch"
+    },
+    {
+      "path": "openpilot/selfdrive/carrot/bluetooth/model.py",
+      "before_sha256": "2e36e5308d8c58ce0c2b7a8cfd1d619dd3399b034795f7c12650971be3da74ec",
+      "after_sha256": "74f65767da6459358c8809f6e0adf465a4e7007b4bbf4e160b23c98819e6a633",
+      "kind": "hunks",
+      "asset": "fms_preservation/8f8d3c4929853bfc1e82.patch",
+      "asset_sha256": "d31480d59e6013f0e98b929617bfaa944cb6722813d30a32e8621879671e66a4",
+      "review_bundle": "fms_dm_shared_preservation.patch"
+    },
+    {
+      "path": "openpilot/selfdrive/carrot/bluetooth/tests/test_daemon.py",
+      "before_sha256": "be1b01428822cbefcf458d8974ade473a69b1c5367a81960c10a557b661d140a",
+      "after_sha256": "a9cd553187f59df298b2ec53f05a11378ab75de04d628faea0b7418b7b19b09e",
+      "kind": "hunks",
+      "asset": "fms_preservation/5082ba6be54032bf5062.patch",
+      "asset_sha256": "2728ff6bea974358ab2326f739bef9e98df15e794748b996cdad53627845571e",
+      "review_bundle": "fms_dm_shared_preservation.patch"
+    },
+    {
+      "path": "openpilot/selfdrive/carrot/bluetooth/tests/test_input.py",
+      "before_sha256": "6c977408ba33125fada00526c91774be027dae3540865e8ecbe7254328fdd26c",
+      "after_sha256": "7668edae470a45095e6a1405835f4740914b87fb64da56f4c93d91f5778f6e4e",
+      "kind": "hunks",
+      "asset": "fms_preservation/f8d255e9ba65f884714c.patch",
+      "asset_sha256": "301991915c65200634db49bc0fd4bae355e15ae5a80afa043f72b1f7b969b11f",
+      "review_bundle": "fms_dm_shared_preservation.patch"
+    },
+    {
+      "path": "openpilot/selfdrive/carrot/paddle_gap.py",
+      "before_sha256": null,
+      "after_sha256": "95b93083e78ed060c1334112ecbf8e6ae216dc132c416768e6891dc964301b51",
+      "kind": "blob",
+      "asset": "fms_preservation/f29b5e2db394bb735645.blob",
+      "asset_sha256": "95b93083e78ed060c1334112ecbf8e6ae216dc132c416768e6891dc964301b51",
+      "review_bundle": "paddle_regen_isolation.patch"
+    },
+    {
+      "path": "openpilot/selfdrive/carrot/server/features/intro/presets.py",
+      "before_sha256": "27adfb16235d9957289442195fc65a48a67653b7669f11c7440873d18750afbc",
+      "after_sha256": "ec2dc9589808cc1655f68672d678cfe5109fdf6fcc7cba9687a84f9eba7f9bb0",
+      "kind": "hunks",
+      "asset": "fms_preservation/73d04a5018eeeffcce43.patch",
+      "asset_sha256": "ee9065b61b7e1b2129847dacd04a49043dfb7f2b48dd36ba5b5a1936b44eb425",
+      "review_bundle": "fms_dm_shared_preservation.patch"
+    },
+    {
+      "path": "openpilot/selfdrive/carrot/server/features/params.py",
+      "before_sha256": "1fdbd2b887d7502e9667090b875ce0e7e036e3f1f6279d6941378cea60da53e2",
+      "after_sha256": "aacdff123ad63cd9fd3194bf5600ab159c60c1181ce18601a23e8779ad43f0eb",
+      "kind": "hunks",
+      "asset": "fms_preservation/be5103c3ae0441a87e79.patch",
+      "asset_sha256": "af679916fe6747bcda2c4c3cddc95205b0bba0c18e0a5e0e2e1133ae139e5043",
+      "review_bundle": "fms_dm_shared_preservation.patch"
+    },
+    {
+      "path": "openpilot/selfdrive/carrot/server/features/tools/dispatcher.py",
+      "before_sha256": "3b11239bc9b80f1c8c4f7b8c57d8e92b39e6701f77f53db3b3b3500b72afb2ce",
+      "after_sha256": "3385cd4b99bdc1f820ea1a12349f8fb0c1dd2cba63dc2e00b10244a1bee646d0",
+      "kind": "hunks",
+      "asset": "fms_preservation/64fefc6880bfabc62ad8.patch",
+      "asset_sha256": "d8a9ea49ab3cfdf128ad771bf83d4103c746e8b9005265f6e85afe93feabe4c1",
+      "review_bundle": "fms_dm_shared_preservation.patch"
+    },
+    {
+      "path": "openpilot/selfdrive/carrot/server/services/branch_catalog.py",
+      "before_sha256": null,
+      "after_sha256": "bc99a2c645940269da3bf61bc54f67e5e353344c2578c481f1732b3ec2977fbc",
+      "kind": "blob",
+      "asset": "fms_preservation/f399d13d9f47cacd2661.blob",
+      "asset_sha256": "bc99a2c645940269da3bf61bc54f67e5e353344c2578c481f1732b3ec2977fbc",
+      "review_bundle": "fms_dm_shared_preservation.patch"
+    },
+    {
+      "path": "openpilot/selfdrive/carrot/server/services/fork_remote.py",
+      "before_sha256": null,
+      "after_sha256": "d3a2fdaaa73105015db55153aa8b0aa49e68a5749d3288ae33449eb8fe71b565",
+      "kind": "blob",
+      "asset": "fms_preservation/0aa5acd6917465c59864.blob",
+      "asset_sha256": "d3a2fdaaa73105015db55153aa8b0aa49e68a5749d3288ae33449eb8fe71b565",
+      "review_bundle": "fms_dm_shared_preservation.patch"
+    },
+    {
+      "path": "openpilot/selfdrive/carrot/server/services/params.py",
+      "before_sha256": "c03e5bde751399103cb6926269b172f45a99175cba9f1dc4ae02917675f8c9a4",
+      "after_sha256": "d6c705cf2120dfdadcf04c08df95d6b19cc5cee72dc34611b9839046db7a507d",
+      "kind": "hunks",
+      "asset": "fms_preservation/f54c49e19a0259112361.patch",
+      "asset_sha256": "39dcd40e0dc74e60a3a282c177e9a2b4705da50dfedc99b0034d9ddfb4707fe3",
+      "review_bundle": "fms_dm_shared_preservation.patch"
+    },
+    {
+      "path": "openpilot/selfdrive/carrot/server/services/setting_profiles.py",
+      "before_sha256": "5b40ad567f0df4b9bbc5eadce38873217b1908c7f44bb12981850e1c96f26768",
+      "after_sha256": "d9db485d2e82606efd39a97b3192a350c599a15849f012e6da2b44a630495e73",
+      "kind": "hunks",
+      "asset": "fms_preservation/73801bd9227c88981e9e.patch",
+      "asset_sha256": "c2d1d21cbe4d010745aff60e122dfd7331f465e96728df46c4c847728574fe7d",
+      "review_bundle": "fms_dm_shared_preservation.patch"
+    },
+    {
+      "path": "openpilot/selfdrive/carrot/server/services/settings.py",
+      "before_sha256": "9846d02f6380a6889880a02e0c95a001edbb313bd9df9df5f26f5664c786196b",
+      "after_sha256": "9ed1760bc42ef4d0e620fe88c4f8619c91ebcfdafc57ebcd5af98f2bc3860805",
+      "kind": "hunks",
+      "asset": "fms_preservation/0143df274090ca68d516.patch",
+      "asset_sha256": "a66fd9243a686e02e9dcb9201462af85606bad3d6260c666f0a00ef0a776b7a7",
+      "review_bundle": "fms_dm_shared_preservation.patch"
+    },
+    {
+      "path": "openpilot/selfdrive/carrot/server/services/vision_test.py",
+      "before_sha256": "5b09512aa02ad61d7246359ca9b45b5c67fd64354f69c905ad2240fd632157cb",
+      "after_sha256": "5d74193dae0d2234176c8b8af640ad08f59ed78abff75b4ce47749c6b9a8deaf",
+      "kind": "hunks",
+      "asset": "fms_preservation/599a66299353eaf9583e.patch",
+      "asset_sha256": "610d4a51369fba520f2dbc102451e8bf3acbf9cc9de88dc5d2aed317b8761da3",
+      "review_bundle": "fms_dm_shared_preservation.patch"
+    },
+    {
+      "path": "openpilot/selfdrive/carrot/server/tests/test_branch_catalog.py",
+      "before_sha256": null,
+      "after_sha256": "f7d6e90c23126ea189c396428bb99714e354c63fcc573dadc0a46e5b0f90fc5b",
+      "kind": "blob",
+      "asset": "fms_preservation/46db2a4ff48582090fdf.blob",
+      "asset_sha256": "f7d6e90c23126ea189c396428bb99714e354c63fcc573dadc0a46e5b0f90fc5b",
+      "review_bundle": "fms_dm_shared_preservation.patch"
+    },
+    {
+      "path": "openpilot/selfdrive/carrot/server/tests/test_git_config.py",
+      "before_sha256": "b0ed9e7ab5ad206336d2cfeda1faa55f1cd90a0f32d7dd5bb60bb7ff3123f870",
+      "after_sha256": "046858ba3716d4e1d4eca3e27b0292beea402240eeacebcfea5f5a8180e7760c",
+      "kind": "hunks",
+      "asset": "fms_preservation/277f17dfe8847ac41b5c.patch",
+      "asset_sha256": "a350b56a7544ecf1c139e43bce4af42175ffde8646ae54653c2d13f388e40c84",
+      "review_bundle": "fms_dm_shared_preservation.patch"
+    },
+    {
+      "path": "openpilot/selfdrive/carrot/server/tests/test_params_compat.py",
+      "before_sha256": "64c8b8acdf7cea0c7138af65ef813ef02734b4f2e602b5b0682e24ddd6455518",
+      "after_sha256": "2bbbe4a11338ef298d0c23d5af7a0a554e6b8efdead11260eb64c3cbb216c254",
+      "kind": "hunks",
+      "asset": "fms_preservation/848a865e99d7d67dd883.patch",
+      "asset_sha256": "0716657a33b527286ef2a36fc79a3a30a9ce59c6c0d138639a63ebe995f9286b",
+      "review_bundle": "fms_dm_shared_preservation.patch"
+    },
+    {
+      "path": "openpilot/selfdrive/carrot/server/tests/test_setting_profiles.py",
+      "before_sha256": "008cfc2d3e0d8b4a43a336feaaef1e37d85ff1d546ce19c9fd57ee9f73f024ab",
+      "after_sha256": "bb1ee02bd2589ab7cd8d01e37111337a8fad902cd71871117f0ed0576f9892c1",
+      "kind": "hunks",
+      "asset": "fms_preservation/cd37e0d091667faa6fc5.patch",
+      "asset_sha256": "20c31e2f391255683f7600b127378a4fdc637a3f809ea5affa3651343d3f24ae",
+      "review_bundle": "fms_dm_shared_preservation.patch"
+    },
+    {
+      "path": "openpilot/selfdrive/carrot/server/tests/test_settings_schema.py",
+      "before_sha256": "78f0583bd5d005376d95cdd36a65ed9b24d85453d64c4f177bbf1e2fc978465c",
+      "after_sha256": "587c00ff89ccba865ce23f47ad503e170e90aa20e22163eb88169c86372cd4ff",
+      "kind": "hunks",
+      "asset": "fms_preservation/dacde753d630b3108b5f.patch",
+      "asset_sha256": "c196c24d0269db476f6a344636939db46b8dca65cc2ae6e41e19f2158f5e7a43",
+      "review_bundle": "fms_dm_shared_preservation.patch"
+    },
+    {
+      "path": "openpilot/selfdrive/carrot/web/generated/asset-manifest.json",
+      "before_sha256": "e15f695013017e621638761a081457ae00c7e82e2cc50c7479f6fd5f833b2395",
+      "after_sha256": "cbc0014dc402a606b1a239bbe35c6eeccc90cda7375df9a2cb43b63a19d3fde2",
+      "kind": "hunks",
+      "asset": "fms_preservation/e91967e46ff9a3f749ea.patch",
+      "asset_sha256": "586c4ec51cf953beb86bc393327086ca7d576824b55ed816c197211f46305cfd",
+      "review_bundle": "fms_dm_shared_preservation.patch"
+    },
+    {
+      "path": "openpilot/selfdrive/carrot/web/js/generated/settings.js",
+      "before_sha256": "c9fd92152d42443b1ca3ada1f9ab129f8b7470d0b863f24a81f24b2db661ace4",
+      "after_sha256": "26062253ebf99bb7e9793b5e3aa914a27882ba2313a50796c8a835e1eab56046",
+      "kind": "hunks",
+      "asset": "fms_preservation/2456d9f98fe5db00b96a.patch",
+      "asset_sha256": "9d1655b9f066588149eac63b8ea05e9bd05519c98bc55f74a4d0cb45d886f667",
+      "review_bundle": "fms_dm_shared_preservation.patch"
+    },
+    {
+      "path": "openpilot/selfdrive/carrot/web/js/pages/branch.js",
+      "before_sha256": "7a5388d5092d6edfb28dcfa54568a6ead7356ab071312c611e8c3bf2033dbdf8",
+      "after_sha256": "624138c04faa2ba13ba9def4ab351b74bbecda9f1d31efead7ea062c3036904f",
+      "kind": "hunks",
+      "asset": "fms_preservation/c1a142134e671d7b8ccc.patch",
+      "asset_sha256": "7881ac9286c5b7a2fbbb65537b8efd9d7d44a9a6dd1ad04f9183924fafcb8def",
+      "review_bundle": "fms_dm_shared_preservation.patch"
+    },
+    {
+      "path": "openpilot/selfdrive/carrot/web/js/pages/setting.js",
+      "before_sha256": "14ad559eaa53890c3f7a326006b99b52b50e1525ffda7a3f3cea52c90db03847",
+      "after_sha256": "996f5f8ca05532e06fc371e92919093675e7711cee67d1d7894956a8d3034eaf",
+      "kind": "hunks",
+      "asset": "fms_preservation/2af9db477b1279481663.patch",
+      "asset_sha256": "d669589515cf2895c6af3dfa1219c50e9acec98dd1ab636aab92278319064bda",
+      "review_bundle": "fms_dm_shared_preservation.patch"
+    },
+    {
+      "path": "openpilot/selfdrive/carrot/web/js/realtime/app_realtime.js",
+      "before_sha256": "204e4a000fcf0215d1431207d70852740fd0e76ef3d1a41bbd0b667ffe505270",
+      "after_sha256": "5e82a7dea28c1c2a8b2e91789034adc2a50b35b544fbe758aee8a97c0e481090",
+      "kind": "hunks",
+      "asset": "fms_preservation/aef0bc5fbdb5d2b2587d.patch",
+      "asset_sha256": "859339cade05928a26cb0b26edf495c01d51e3259d1b696bdb385c48ee829f69",
+      "review_bundle": "fms_dm_shared_preservation.patch"
+    },
+    {
+      "path": "openpilot/selfdrive/carrot/web/js/realtime/vision_state.js",
+      "before_sha256": "2a5b7a4a0ebadacb66bcb32168e2324939752afe9283615a7200fd535ceb7351",
+      "after_sha256": "99dc948bca1022ab4796614064d9e57d20a36254fef0d731ff04700d9382a987",
+      "kind": "hunks",
+      "asset": "fms_preservation/9b9e7ffe3a206668b033.patch",
+      "asset_sha256": "928f9f743d665d17b3e2d1299ecb1f0a2e094b91d7250bc781168f50076d70ae",
+      "review_bundle": "fms_dm_shared_preservation.patch"
+    },
+    {
+      "path": "openpilot/selfdrive/carrot/web/js/shared/api.js",
+      "before_sha256": "6ea8c46b0bf095476d19df1f6b326d320dad9b1ba854e7e240704c590c1bb65d",
+      "after_sha256": "400de6c8632dab2a534fa776e4ffdeb643bb3abaee8921b3eb015ed8e138fb6a",
+      "kind": "hunks",
+      "asset": "fms_preservation/9a69698ca2cac1c1d69b.patch",
+      "asset_sha256": "1886064d90b93bd6fe3a31400386f79ed2973edbe3038533998afc52270ce1e4",
+      "review_bundle": "fms_dm_shared_preservation.patch"
+    },
+    {
+      "path": "openpilot/selfdrive/carrot/web/js/translations/en.js",
+      "before_sha256": "10f383666df85f9773a959cdee56c38d889882e628cb902006272e6f9c8ad07b",
+      "after_sha256": "42b07f5a2f05ce0728d91ce02d2ca861d565dd310c75c9b9ef0f2ac2ab55f286",
+      "kind": "hunks",
+      "asset": "fms_preservation/07ec238f30a1e4b236cf.patch",
+      "asset_sha256": "ef4253eb6346ef56a1bfabe01c94fac166cdea10d780a0df623243a7823bd57e",
+      "review_bundle": "fms_dm_shared_preservation.patch"
+    },
+    {
+      "path": "openpilot/selfdrive/carrot/web/js/translations/ko.js",
+      "before_sha256": "f200cb41da8469b86a96a788e2585e09678e32e52adf673cb33751458154e656",
+      "after_sha256": "aa0986659c82b50ddf9300857600e9502c56b67ba5b9171c08668f14c713a162",
+      "kind": "hunks",
+      "asset": "fms_preservation/30413c057cf1af81df8e.patch",
+      "asset_sha256": "67ea3aed25be0ac8b40777b514791e7691faa4e814c6bbc9f47ff71a55d36bcf",
+      "review_bundle": "fms_dm_shared_preservation.patch"
+    },
+    {
+      "path": "openpilot/selfdrive/carrot/web/js/translations/zh.js",
+      "before_sha256": "d73878a715d300976de332bc244775e785e90130e8bda8caf7d2aaf212d39634",
+      "after_sha256": "ce5500766982faf01fbc23508c79bf1a283acbf2401af6794f61dca11f7180a9",
+      "kind": "hunks",
+      "asset": "fms_preservation/458fe0da10c03404a979.patch",
+      "asset_sha256": "54993ffdf87981a8b202af78d0559ca2a46b49d2753e455c04ebe3983d18f561",
+      "review_bundle": "fms_dm_shared_preservation.patch"
+    },
+    {
+      "path": "openpilot/selfdrive/carrot/web/src/features/settings/derived_model.js",
+      "before_sha256": "b7167051acfda6a3e7e15c6684d39d2e5ce76e657539afa7fd2c5e0656d87078",
+      "after_sha256": "195c5c7b855aaf955d316f2adf643b8e29e0d67debb5bcf6d6ea04cb8417f249",
+      "kind": "hunks",
+      "asset": "fms_preservation/cdedae630eeb272c535e.patch",
+      "asset_sha256": "c74cec8201b4f94dd5dff87966adaeb05e65b386673a955f723667c33f5b9b77",
+      "review_bundle": "fms_dm_shared_preservation.patch"
+    },
+    {
+      "path": "openpilot/selfdrive/carrot/web/tests/branch_catalog.test.mjs",
+      "before_sha256": null,
+      "after_sha256": "670bd4b1848745f3a74b2c5fff0f86b2d62b63c31aba8fbe2336677e10fd7d26",
+      "kind": "blob",
+      "asset": "fms_preservation/924d694477cf29319eb8.blob",
+      "asset_sha256": "670bd4b1848745f3a74b2c5fff0f86b2d62b63c31aba8fbe2336677e10fd7d26",
+      "review_bundle": "fms_dm_shared_preservation.patch"
+    },
+    {
+      "path": "openpilot/selfdrive/carrot/web/tests/dm_settings.test.mjs",
+      "before_sha256": "6fe4a44dc765815ba500fd663c973732e7ce12ee19d43d4e023ec6d0beabef85",
+      "after_sha256": null,
+      "kind": "delete",
+      "review_bundle": "fms_dm_shared_preservation.patch"
+    },
+    {
+      "path": "openpilot/selfdrive/carrot/web/tests/paddle_mode.test.mjs",
+      "before_sha256": null,
+      "after_sha256": "69663230b2d37b667f64c47a1622cb8411b72e8d6ec5ecca73e85085d37e5d62",
+      "kind": "blob",
+      "asset": "fms_preservation/9b22362f4957d68e3887.blob",
+      "asset_sha256": "69663230b2d37b667f64c47a1622cb8411b72e8d6ec5ecca73e85085d37e5d62",
+      "review_bundle": "paddle_regen_isolation.patch"
+    },
+    {
+      "path": "openpilot/selfdrive/carrot/web/tests/settings_catalog.test.mjs",
+      "before_sha256": "74f8420c7826bcc94a3ffe08dde33ab268e1d960ee524d3caeffe8575a55ba87",
+      "after_sha256": "1cbbf0f9357b5e034e840da99721b566b1dcf598d39fd7ba9acecd57ca95796e",
+      "kind": "hunks",
+      "asset": "fms_preservation/850268b63bb9a0a8728b.patch",
+      "asset_sha256": "20c89e320194a126c19e62193cb864bfb698f72b310121800bd4b0c780c510f9",
+      "review_bundle": "fms_dm_shared_preservation.patch"
+    },
+    {
+      "path": "openpilot/selfdrive/carrot/web/tests/settings_derived_model.test.mjs",
+      "before_sha256": "86053605b487d3eafe3b5e2fae28d1f3b10a35c10d9c4478d7d4b4b5f660405b",
+      "after_sha256": "084d2951785c150c44f94e4b44db636962a86e0d26421738e170cd961e78b18c",
+      "kind": "hunks",
+      "asset": "fms_preservation/cbb453b547b8e2b91ad9.patch",
+      "asset_sha256": "19792d3bb5560baa5befb1f907da8a5ddf6b67cb1796a8e1ea5c3837a7992428",
+      "review_bundle": "fms_dm_shared_preservation.patch"
+    },
+    {
+      "path": "openpilot/selfdrive/carrot/web/tests/settings_search_entry_points.test.mjs",
+      "before_sha256": "dc6d2e7f679b904ed60fc08f7112bc2cd9ee756a27a1fa4a2a49dc0ceb121c81",
+      "after_sha256": "44c983c9f8dd3a85a05d91e9435ccb4714312175c9a68e62ce5800b47076010c",
+      "kind": "hunks",
+      "asset": "fms_preservation/b39c5e592e88281ee595.patch",
+      "asset_sha256": "8c818aa7f0af9499abc8dd3269de6249c6bbfb073cee9ad1e947c710d944dc18",
+      "review_bundle": "fms_dm_shared_preservation.patch"
+    },
+    {
+      "path": "openpilot/selfdrive/carrot/web/tests/vision_hud_availability.test.mjs",
+      "before_sha256": "f090a1d2e1b76552d8baf4a4749bf4b6c8f823ffb2d53f954fb3598c4959e247",
+      "after_sha256": "ecba9018c40ff09893642b2fc688edb5793648437db0ef89d55cf6682607befe",
+      "kind": "hunks",
+      "asset": "fms_preservation/b449e33084c6bf18a549.patch",
+      "asset_sha256": "c8ee15925fc2d3d3c71f299b8811f8de24e5ac1ef0250a02a013fa5533ae846c",
+      "review_bundle": "fms_dm_shared_preservation.patch"
+    },
+    {
+      "path": "openpilot/selfdrive/carrot_settings.json",
+      "before_sha256": "47862e9dfab66808d6d17ccb91228528922d34a4a5f35076be47d75740b433db",
+      "after_sha256": "aba2572320a9134c033606b5cb53b2afbe1f1c78dde5887d28df4d221424be1f",
+      "kind": "hunks",
+      "asset": "fms_preservation/b2b2e0d9301c6a4eba46.patch",
+      "asset_sha256": "12d8cfc7aee9caba9de404cd40454c61fb9a3e299302f6dd796113e079f029ba",
+      "review_bundle": "fms_dm_shared_preservation.patch"
+    },
+    {
+      "path": "openpilot/selfdrive/controls/controlsd.py",
+      "before_sha256": "3d2d1f9aa7dd2c5ba7afa38f19080ec67859d528a260278168dc252d2a5ce590",
+      "after_sha256": "d5e8544ebac07ecd0ac590957f8ea900c4d5547ecaa99828a3fc969423a256bc",
+      "kind": "hunks",
+      "asset": "fms_preservation/f94186ae8ffadd59abf4.patch",
+      "asset_sha256": "24388b21e812ce2add80764d5d86a5b8c4560698cc56737133dc7a272350b6a5",
+      "review_bundle": "fms_dm_shared_preservation.patch"
+    },
+    {
+      "path": "openpilot/selfdrive/controls/lib/longitudinal_planner.py",
+      "before_sha256": "0c83245122571a8f2e266bd245dea140d6e242363a383845a72583fd37dbc8bb",
+      "after_sha256": "cb5128cd34eda35a58234a52e9ef3de18e48ac39a120c5cef0ec59e007c6a9ce",
+      "kind": "hunks",
+      "asset": "fms_preservation/843fbbd5b573292e7d4a.patch",
+      "asset_sha256": "5b090389aadf0cd2ab84f27a71bd28ba4058300d44b4ed6e3094319dd090cf70",
+      "review_bundle": "vego_stopping_min1.patch"
+    },
+    {
+      "path": "openpilot/selfdrive/controls/tests/test_longitudinal_stopping.py",
+      "before_sha256": "9027855b747496b8d7b8c71ad44eab78643952051ff5dedce016e27eb0e33991",
+      "after_sha256": "7e4526d36aaa170d7f3b825ed1b4991f83ff05eb89296abdde8cea2b2a27b4d2",
+      "kind": "hunks",
+      "asset": "fms_preservation/c64df44f802ff9eab983.patch",
+      "asset_sha256": "6e82de59346adb8ec8aacee0ab2749384a0a738a9810b8d260efe29dc1e451a0",
+      "review_bundle": "fms_dm_shared_preservation.patch"
+    },
+    {
+      "path": "openpilot/selfdrive/controls/tests/test_stopping_speed_param.py",
+      "before_sha256": "3629112bad5d65dbb9e10710a338bb2f17ff76638700aa33c537a2f30660dbfa",
+      "after_sha256": "5339c4e80253c1dc71ff4e9ab33654a182c5f84a71e63f97d370b38f1fb5b6fe",
+      "kind": "hunks",
+      "asset": "fms_preservation/ef35c2d449984b3682cd.patch",
+      "asset_sha256": "cbb4cf4bf118ecaebbe70576837ab19d19a5e8ce898ccc599741c1a049b4302c",
+      "review_bundle": "vego_stopping_min1.patch"
+    },
+    {
+      "path": "openpilot/selfdrive/modeld/dmonitoringmodeld.py",
+      "before_sha256": "04d3d9f935b3a584ac86dc3410e369e8fc07cca76c83cf450832497a7092d705",
+      "after_sha256": "23e692a5e776864c4a22bb2c048bf7b7a711b6eca38284ce3448396032ccff01",
+      "kind": "hunks",
+      "asset": "fms_preservation/11b8010b08e69712e489.patch",
+      "asset_sha256": "786f8d6cccf17dea2c8b236b3bd2164411cf30750edbd4e97109b08a928760a6",
+      "review_bundle": "fms_dm_shared_preservation.patch"
+    },
+    {
+      "path": "openpilot/selfdrive/modeld/modeld.py",
+      "before_sha256": "2ae0addbc2ad8a85255038700ace327b35e91a7bac41ff7dc5d6ac78e56ceda6",
+      "after_sha256": "483bd76ae31824f5d07850a71e1dbbe2fa48864baa79a550aa2ba5bd28a59bf3",
+      "kind": "hunks",
+      "asset": "fms_preservation/2b005e9585d9de32d57b.patch",
+      "asset_sha256": "16ec119780d682270136e58758d8815bd5ebcaa382597c2fc45a6fde5de9a272",
+      "review_bundle": "vego_stopping_min1.patch"
+    },
+    {
+      "path": "openpilot/selfdrive/modeld/signal_neural_shadow.py",
+      "before_sha256": "51652d03f68b05cf95801ba7376a346050b9a8adc01c02c0e1106b797c10ddbf",
+      "after_sha256": "26d0b1a2ac9b2f6a0158923812966687cbeff48cea0e48842d30058b338a029b",
+      "kind": "hunks",
+      "asset": "fms_preservation/c41c713edef1aee22002.patch",
+      "asset_sha256": "5b50e4c320a48d4922c4715727684efc90dfcc8157eb616bccd1969fde27fd50",
+      "review_bundle": "fms_dm_shared_preservation.patch"
+    },
+    {
+      "path": "openpilot/selfdrive/modeld/tests/test_signal_neural_shadow.py",
+      "before_sha256": "7323b85e5c5cac78fc83e348087a362ae9962067ece556e0f1e1e47f25deffd4",
+      "after_sha256": "7351cb78e27657ee03417d58da173f6e35dfb2902cddbfb71203a4a385a90a79",
+      "kind": "hunks",
+      "asset": "fms_preservation/76839bc5d536ca2582de.patch",
+      "asset_sha256": "0f1be28f1a5cbaaf452fcb5191bf4e2121d55a99d600d2dcf9c27a42357098de",
+      "review_bundle": "fms_dm_shared_preservation.patch"
+    },
+    {
+      "path": "openpilot/selfdrive/monitoring/config.py",
+      "before_sha256": "04bc8823aa5016d8b6dc6f0cf934d491c8abe26f744bbb1fedec2dad471ba531",
+      "after_sha256": null,
+      "kind": "delete",
+      "review_bundle": "fms_dm_shared_preservation.patch"
+    },
+    {
+      "path": "openpilot/selfdrive/monitoring/dm2.py",
+      "before_sha256": "6068873aa0dc220000b4d076dbdf9421cf71dcfc3bbad4830dc0ff5b41044624",
+      "after_sha256": null,
+      "kind": "delete",
+      "review_bundle": "fms_dm_shared_preservation.patch"
+    },
+    {
+      "path": "openpilot/selfdrive/monitoring/dm2_cadence.py",
+      "before_sha256": "31ba20f192a070ac35f45cc88da722caf454f4a615bf13b4154c7088812fb6ae",
+      "after_sha256": null,
+      "kind": "delete",
+      "review_bundle": "fms_dm_shared_preservation.patch"
+    },
+    {
+      "path": "openpilot/selfdrive/monitoring/dm2_context.py",
+      "before_sha256": "63c5e3bf4ca88c205e103556322d12bca18a11f1c6ab202ae896bbdbb396ba2d",
+      "after_sha256": null,
+      "kind": "delete",
+      "review_bundle": "fms_dm_shared_preservation.patch"
+    },
+    {
+      "path": "openpilot/selfdrive/monitoring/dm2d.py",
+      "before_sha256": "4cd6aced5bcbe4fbe2c6c1c1022db52df9dc1ef56d4bcae2f68bd1d2e23954d2",
+      "after_sha256": null,
+      "kind": "delete",
+      "review_bundle": "fms_dm_shared_preservation.patch"
+    },
+    {
+      "path": "openpilot/selfdrive/monitoring/dm_alerts.py",
+      "before_sha256": "54e19558b59b94253d0801f4be9142f1158acb821a51b5e82d54861ce41c9be1",
+      "after_sha256": null,
+      "kind": "delete",
+      "review_bundle": "fms_dm_shared_preservation.patch"
+    },
+    {
+      "path": "openpilot/selfdrive/monitoring/test_config_params.py",
+      "before_sha256": "c50912a07b3b8a1a90226df3714c63bdba3fcf4334e921bf879b131239ef63e1",
+      "after_sha256": null,
+      "kind": "delete",
+      "review_bundle": "fms_dm_shared_preservation.patch"
+    },
+    {
+      "path": "openpilot/selfdrive/monitoring/test_dm2.py",
+      "before_sha256": "e8684e329e4a2a2f9aef2312d9b3c8827d7a0c5405204fd4bf79541ec71e09d3",
+      "after_sha256": null,
+      "kind": "delete",
+      "review_bundle": "fms_dm_shared_preservation.patch"
+    },
+    {
+      "path": "openpilot/selfdrive/monitoring/test_dm2_cadence.py",
+      "before_sha256": "1e59801775970164a09dbcecc37820be0a9807af241b694dcf59284d113dae59",
+      "after_sha256": null,
+      "kind": "delete",
+      "review_bundle": "fms_dm_shared_preservation.patch"
+    },
+    {
+      "path": "openpilot/selfdrive/monitoring/test_dm2_context.py",
+      "before_sha256": "766b4609c4e83f3f655525041261a0a1ee2be4edfe198e2c3124364d369f0c77",
+      "after_sha256": null,
+      "kind": "delete",
+      "review_bundle": "fms_dm_shared_preservation.patch"
+    },
+    {
+      "path": "openpilot/selfdrive/monitoring/test_dm2d.py",
+      "before_sha256": "d574ae3ffe8d35744e64321925048fe012c383d624803d7af7dab9eac82c28b5",
+      "after_sha256": null,
+      "kind": "delete",
+      "review_bundle": "fms_dm_shared_preservation.patch"
+    },
+    {
+      "path": "openpilot/selfdrive/monitoring/test_dm_alerts.py",
+      "before_sha256": "7ddffcf2a1b1aa476e361de49168d1be420fcb22360ad38b12a02f2d7921e77e",
+      "after_sha256": null,
+      "kind": "delete",
+      "review_bundle": "fms_dm_shared_preservation.patch"
+    },
+    {
+      "path": "openpilot/selfdrive/monitoring/test_parked_reset.py",
+      "before_sha256": "6dbbfc674089877cdfb9c643ed61af781cd729741d39e8acf9f755a8a207edb9",
+      "after_sha256": null,
+      "kind": "delete",
+      "review_bundle": "fms_dm_shared_preservation.patch"
+    },
+    {
+      "path": "openpilot/selfdrive/monitoring/test_steering_touch.py",
+      "before_sha256": "a514fe6ed1577ec957a0328b2e11aa75130632b4243c40e4829349e36312b971",
+      "after_sha256": null,
+      "kind": "delete",
+      "review_bundle": "fms_dm_shared_preservation.patch"
+    },
+    {
+      "path": "openpilot/selfdrive/selfdrived/camera_config.py",
+      "before_sha256": "562613ba3e89a4b23f2a9c9e0ea655d646ecbeff791893686ed64cff5710efac",
+      "after_sha256": "6cb3f8c703fef54c04964fba8f118009ff5e9951b4582065e714eb9704c9c758",
+      "kind": "hunks",
+      "asset": "fms_preservation/700b66e78b84e1f1815d.patch",
+      "asset_sha256": "983ec83ca67a54d4d79bc422b33320f145b4f8b843019e53e16db058b5b115c0",
+      "review_bundle": "fms_dm_shared_preservation.patch"
+    },
+    {
+      "path": "openpilot/selfdrive/selfdrived/events.py",
+      "before_sha256": "8124b5d368e8afcdef585d75750e1ca896200b286d302ce3d6c46e6ecf7f8a2c",
+      "after_sha256": "668e1115014531654623782481ba342b2d5e0062d1ae94b1aca8f14a14d2bea4",
+      "kind": "hunks",
+      "asset": "fms_preservation/d3bb925f8f3a0f431094.patch",
+      "asset_sha256": "c194d736c4af616ff5f56944d7cf8e6186265c1f311bfb9f430050cbac254136",
+      "review_bundle": "fms_dm_shared_preservation.patch"
+    },
+    {
+      "path": "openpilot/selfdrive/selfdrived/selfdrived.py",
+      "before_sha256": "047e5db3cb5d4829cc1a5952744904723329954c9016ef8f5b52aeab20bb503d",
+      "after_sha256": "7e34205043ab011c20f4f857b40cae6ca78571e7fffede66860943de0a9e3c4d",
+      "kind": "hunks",
+      "asset": "fms_preservation/40fcca13390a872c9883.patch",
+      "asset_sha256": "61d6796e7767af89b39e16c84a4df924ea1516885bebd16f2285a8d321fac891",
+      "review_bundle": "fms_dm_shared_preservation.patch"
+    },
+    {
+      "path": "openpilot/selfdrive/selfdrived/tests/test_camera_config.py",
+      "before_sha256": "0c4b6bcd313ab705663f9582a1b30b8dcf83cb800b9790b7f5b1943c078876dc",
+      "after_sha256": "0d0c731ebbf897007cf0502572f3d4b71df022bc5a22d0483e21d9057a9f26d3",
+      "kind": "hunks",
+      "asset": "fms_preservation/4de23cf3dec989490d8c.patch",
+      "asset_sha256": "f9df0a26e5f3265ec83905374267968d86d966d0573cdd1f59127e3e012529f8",
+      "review_bundle": "fms_dm_shared_preservation.patch"
+    },
+    {
+      "path": "openpilot/selfdrive/test/process_replay/process_replay.py",
+      "before_sha256": "44f5b4ccc06f6f7f9d238c4a47d595a3313f4226ac6a06b4b72fec34d70567b7",
+      "after_sha256": "26f3a50acfb98f8678be80e136cbae641ee7168b9121b90e79c332ab8b9baa0e",
+      "kind": "hunks",
+      "asset": "fms_preservation/4b8727802a0183b25aef.patch",
+      "asset_sha256": "e8ad4fcaa614c7c5ebaf983d9e79db34df780a1bbe1d4b31c25986c3c2e35d6f",
+      "review_bundle": "fms_dm_shared_preservation.patch"
+    },
+    {
+      "path": "openpilot/selfdrive/test/process_replay/test_dmonitoring_replay.py",
+      "before_sha256": "880261ba078b7362be4f77488d1be7bd2c8c36c14e7ab7d7fd8121e839de9dbd",
+      "after_sha256": null,
+      "kind": "delete",
+      "review_bundle": "fms_dm_shared_preservation.patch"
+    },
+    {
+      "path": "openpilot/selfdrive/ui/dm_preview.py",
+      "before_sha256": "a10d977df6a3594850328762d9d72c8efae3c35abcf84c5a7d9c2d2c1b8c7552",
+      "after_sha256": null,
+      "kind": "delete",
+      "review_bundle": "fms_dm_shared_preservation.patch"
+    },
+    {
+      "path": "openpilot/selfdrive/ui/mici/onroad/augmented_road_view.py",
+      "before_sha256": "2593a8fbe502704b0a9299897acd6069606a02975cf0619a4aabf52c09d54a1a",
+      "after_sha256": "0a7ca48e8411b8cc135645ebb78c9646e357641881056290d2ef3c9ee420c3b2",
+      "kind": "hunks",
+      "asset": "fms_preservation/b79d783c01220a506450.patch",
+      "asset_sha256": "bcd9352ae112f02f275251ad5855271d561cd7d0232db2bd08a18cf440200626",
+      "review_bundle": "fms_dm_shared_preservation.patch"
+    },
+    {
+      "path": "openpilot/selfdrive/ui/mici/onroad/driver_state.py",
+      "before_sha256": "c6ab1be41295818f619fd7623caddf49cf8251e13e5e84033a27c12e628ba524",
+      "after_sha256": "026bcc233163fdf7d287c91877aa58d3327236ab787dd11fd94d6dcc8d6cef50",
+      "kind": "hunks",
+      "asset": "fms_preservation/267b5b0ca13a509ecf0b.patch",
+      "asset_sha256": "18e791154a703aaa04713fd4f61e0aa675a2e1d0710503083424845cde7ff72b",
+      "review_bundle": "fms_dm_shared_preservation.patch"
+    },
+    {
+      "path": "openpilot/selfdrive/ui/onroad/augmented_road_view.py",
+      "before_sha256": "6f42a9b61a2a0bfca643e13b721e6a9d544d8bc39b1ac707fcb1de3c75d9f0f0",
+      "after_sha256": "c210cc407785cd4a3cea2767f9678a87a6a911c2d47c0d936681148392ebbc53",
+      "kind": "hunks",
+      "asset": "fms_preservation/9035ad59f4a681e7e5f9.patch",
+      "asset_sha256": "19f2c01f98502dee7d2aea91aa6c6f27e67d72a05617153748546d01ff321b52",
+      "review_bundle": "fms_dm_shared_preservation.patch"
+    },
+    {
+      "path": "openpilot/selfdrive/ui/onroad/driver_preview.py",
+      "before_sha256": "1cd6db502c55eb99653569b697856e9b0820ee01c795bda897792ecf0c5f2d33",
+      "after_sha256": null,
+      "kind": "delete",
+      "review_bundle": "fms_dm_shared_preservation.patch"
+    },
+    {
+      "path": "openpilot/selfdrive/ui/onroad/driver_state.py",
+      "before_sha256": "0962505a601aa11c734599ea124d28f74b5954f4030b82dcfb340927b69be59c",
+      "after_sha256": "571da708ad25502806747ff86575b1239bcc43ffdd46677878769f432fa10adc",
+      "kind": "hunks",
+      "asset": "fms_preservation/7e122038651b39a208ff.patch",
+      "asset_sha256": "fd6d28c6c00ae1116a74fef7737af50e473534eb123edd2d767f10957396f2fd",
+      "review_bundle": "fms_dm_shared_preservation.patch"
+    },
+    {
+      "path": "openpilot/selfdrive/ui/soundd.py",
+      "before_sha256": "d0460a47e088b607cadaaa0050206db0bc45f02f1a0dddd4b6b758fb1e519d83",
+      "after_sha256": "d76c38edb87cfa2a8d5d423ab80fbb26c94bf9a1bfbe518490191bae325deac6",
+      "kind": "hunks",
+      "asset": "fms_preservation/3f991d4cf5d13a4a49f0.patch",
+      "asset_sha256": "bd3ca89c2be74151570baf9473684715bd71ad45039b7c77a33d7ee4f8c2e369",
+      "review_bundle": "fms_dm_shared_preservation.patch"
+    },
+    {
+      "path": "openpilot/selfdrive/ui/tests/test_dm_preview.py",
+      "before_sha256": "52f202204c87f86c769021f45e099c43946d0bd1230399cdf50b57a5c75d8afe",
+      "after_sha256": null,
+      "kind": "delete",
+      "review_bundle": "fms_dm_shared_preservation.patch"
+    },
+    {
+      "path": "openpilot/selfdrive/ui/tests/test_mici_road_view_mode.py",
+      "before_sha256": "49e6591ed5f75546f4c5d7da3ac5d06a615a0fa1f9314548c344c9b3a0179c3f",
+      "after_sha256": "8ad0dce3b35fcb7015b263edc9fecaccef6c624ea59b9f661c8415ad5a554730",
+      "kind": "hunks",
+      "asset": "fms_preservation/a4d3f6f650ab93cae924.patch",
+      "asset_sha256": "901f9ea22da7d720b98e0a6d059db748ee7810be8d2e326e9eabf5d90da01a92",
+      "review_bundle": "fms_dm_shared_preservation.patch"
+    },
+    {
+      "path": "openpilot/selfdrive/ui/tests/test_soundd.py",
+      "before_sha256": "d4e757382cd61c9196aa23c8ca8cd44e3410b237c56a0284f5c168f6390df53c",
+      "after_sha256": "9fe8221831753df8b406f0ceda113be9de03efa811fd7c4246afe145bec94f57",
+      "kind": "hunks",
+      "asset": "fms_preservation/7c7d4b45ce6eb09a1f76.patch",
+      "asset_sha256": "4aca1c6316ee01895b14aeb0f19f9d102770724cc78c78d69b0b935591bcba5c",
+      "review_bundle": "fms_dm_shared_preservation.patch"
+    },
+    {
+      "path": "openpilot/selfdrive/ui/translations/app_en.po",
+      "before_sha256": "0d33aa494dd68755d724e787b43cb7bd1053488d2114a08332291ab988855053",
+      "after_sha256": "dbe5d7a26bf71611766c1e7c739baa141d555f7b0f5693a66c5d86d3bbfdbf91",
+      "kind": "hunks",
+      "asset": "fms_preservation/b59ccc1635eb9053fd86.patch",
+      "asset_sha256": "f26c08c78340ed9ef500e1c6bbb387f151bb24b5c81351bef9965be2fa1cce47",
+      "review_bundle": "fms_dm_shared_preservation.patch"
+    },
+    {
+      "path": "openpilot/selfdrive/ui/translations/app_ko.po",
+      "before_sha256": "48457765031f345f89a1bcfa7d3e59bc5aaf0ee9cad6a0d2a7de5db76687d0e9",
+      "after_sha256": "d0778d5139e8c113f9246a4b93b6da90c00a7d93dc1053d5d6bfd81a0496affc",
+      "kind": "hunks",
+      "asset": "fms_preservation/ada8b4da3cbdf5087b35.patch",
+      "asset_sha256": "c1c54e660bd44679605a1e066fa23356403bee29de1f8c6faa053ec718fd8f55",
+      "review_bundle": "fms_dm_shared_preservation.patch"
+    },
+    {
+      "path": "openpilot/system/camerad/SConscript",
+      "before_sha256": "839caf8fccdf5a4fed86050f483338e8efabbdc3b071337cf19000f93c70317c",
+      "after_sha256": "84902515737be0ba372326e5afcefd519ce98a78a3a4ffa68846c7b9a1c247b6",
+      "kind": "hunks",
+      "asset": "fms_preservation/cb590062c7479b285762.patch",
+      "asset_sha256": "508f80a634e343997f8329ddf172064637e6805de7c0d6bf9ff778c3b80dac95",
+      "review_bundle": "fms_dm_shared_preservation.patch"
+    },
+    {
+      "path": "openpilot/system/camerad/cameras/async_frame_wait.h",
+      "before_sha256": "6bf3ec805a579cf00656ee6081c6dc16ed047dd83f0250fce580c8de841b0f41",
+      "after_sha256": null,
+      "kind": "delete",
+      "review_bundle": "fms_dm_shared_preservation.patch"
+    },
+    {
+      "path": "openpilot/system/camerad/cameras/camera_qcom2.cc",
+      "before_sha256": "fa8cfdf761153c6149cd3962df7f7ec09cd1c109a6700bc5a66e699b34c1e8ce",
+      "after_sha256": "573c45e4799bf816e31aa60945cf5175d38dd0fb34f532f1697c8dcec0eacb29",
+      "kind": "hunks",
+      "asset": "fms_preservation/5e0199211b5b55634a88.patch",
+      "asset_sha256": "17c7de4c722b738c78506a3e20906b02e128d456db46d9385ffb7c0e786246aa",
+      "review_bundle": "fms_dm_shared_preservation.patch"
+    },
+    {
+      "path": "openpilot/system/camerad/cameras/spectra.cc",
+      "before_sha256": "e537c27f1d24f3232acc17a0c0b08183813253325e1a74662b27f8a61608943f",
+      "after_sha256": "503cf6d4cb74d901466b0e3b244f9bf218a525e76c0f2ef2790f92ce391a6587",
+      "kind": "hunks",
+      "asset": "fms_preservation/0f83fa87e657b0c2ac6b.patch",
+      "asset_sha256": "e1a5e34823722019f7d44e579a6f9556996cff1c72edfa69ca67616d0902a90a",
+      "review_bundle": "fms_dm_shared_preservation.patch"
+    },
+    {
+      "path": "openpilot/system/camerad/cameras/spectra.h",
+      "before_sha256": "66aa42ef892d9f2ca7e85c07d13d252bd34a6901ee58f8e7aa639f6dce3c1b4a",
+      "after_sha256": "ef9182505fcd05c37517c15e0981201cb7d17d97b2f8c593f5ee4fd6f0fc9928",
+      "kind": "hunks",
+      "asset": "fms_preservation/95a00e975c2c201f79e0.patch",
+      "asset_sha256": "fcccf87659213a1a0aeddd2b3d87ff6329b4cce8893b4e19a88018009290ba80",
+      "review_bundle": "fms_dm_shared_preservation.patch"
+    },
+    {
+      "path": "openpilot/system/camerad/test/SConscript",
+      "before_sha256": "d6c4a0594e13ac43b06992b3f95eb8079ee45a6ac60edc2ed9ae63242686f8ae",
+      "after_sha256": "7dae73167a0318a8f545455104032e6dd877e859d94e05655971befa9369cc28",
+      "kind": "hunks",
+      "asset": "fms_preservation/8a3af5e1804f9cc8afc7.patch",
+      "asset_sha256": "3fb25614427ceb0016e6aaee8a79bb5b6673c59de72b5298bb87facb48d70765",
+      "review_bundle": "fms_dm_shared_preservation.patch"
+    },
+    {
+      "path": "openpilot/system/camerad/test/test_async_frame_wait.cc",
+      "before_sha256": "8314d757a6797409f2409ecca86904e1050883550adab6c094235575834bfdbd",
+      "after_sha256": null,
+      "kind": "delete",
+      "review_bundle": "fms_dm_shared_preservation.patch"
+    },
+    {
+      "path": "openpilot/system/manager/manager.py",
+      "before_sha256": "d345dfc562125c4448f3986e30371294d66df8b0871142de714834b78efe0929",
+      "after_sha256": "6b4ebe0c8b0a5e33c0c49188881e58674da3c8ae151f164ce7cd8d06722f91ca",
+      "kind": "hunks",
+      "asset": "fms_preservation/ccbdf80df2d46cea017a.patch",
+      "asset_sha256": "1d9c20db1da876f27d44145e896eb206b3b7a4d5a9d3edcf8ed0560fadea81ac",
+      "review_bundle": "fms_dm_shared_preservation.patch"
+    },
+    {
+      "path": "openpilot/system/manager/process_config.py",
+      "before_sha256": "201cb80fce1e48e5eba70408f306ff0662185a7131a66f86f47b10506a4c828e",
+      "after_sha256": "a6bdb363d8db1e1a3f3488ad9c5831f5a908057fe29ef5e2e63c81fdd7fcfe20",
+      "kind": "hunks",
+      "asset": "fms_preservation/3b79706045dc6c8b1f33.patch",
+      "asset_sha256": "65c08fb0b4a4786f8472d1ffbcdbc0c29810b3ae0558be7e19c8f562b21fc165",
+      "review_bundle": "fms_dm_shared_preservation.patch"
+    },
+    {
+      "path": "openpilot/system/manager/test/test_manager.py",
+      "before_sha256": "5918dfe03eef9d103309dd472a621cd20b0409052429c7fa23c008c2d322ada9",
+      "after_sha256": "c8d73fc5b30135361e655b9fc2e44f2c962ad2ed182d6674c75975a92ac938d7",
+      "kind": "hunks",
+      "asset": "fms_preservation/6dadd53df6802b9d8f69.patch",
+      "asset_sha256": "177e82b053db1dc0478a044af3b09f2f7bd174aec385ce00f97db77aa05c6b44",
+      "review_bundle": "fms_dm_shared_preservation.patch"
+    },
+    {
+      "path": "tools/docs/wiki_settings/tests/test_generate.py",
+      "before_sha256": "1e5e37041f60848fb7396b3d9f8de6f56f967ae5cfd4eb5d3cf4498f0f96d074",
+      "after_sha256": "37a4f331e06aa8b89dc90d174491a7d4fdc9bbfff75acab407f4d91f3bc67b01",
+      "kind": "hunks",
+      "asset": "fms_preservation/afe96cbe56f8172891d2.patch",
+      "asset_sha256": "e1fc3a9464e96016c0cd6995a084982e0400392531f1c079acc18030590f157d",
+      "review_bundle": "fms_dm_shared_preservation.patch"
+    }
+  ]
+}

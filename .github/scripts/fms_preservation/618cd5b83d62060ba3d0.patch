@@ -1,0 +1,16 @@
+--- a/.gitattributes
++++ b/.gitattributes
+@@ -1,4 +1,13 @@
+ * text=auto -filter
++
++# Unified patches contain blank context lines represented by a single space.
++.github/scripts/independent_hold_stopping.patch whitespace=-blank-at-eol
++.github/scripts/paddle_mode4.patch whitespace=-blank-at-eol
++.github/scripts/vego_stopping_min1.patch whitespace=-blank-at-eol
++.github/scripts/paddle_regen_isolation.patch whitespace=-blank-at-eol
++.github/scripts/fms_dm_shared_preservation.patch whitespace=-blank-at-eol text eol=lf
++.github/scripts/fms_preservation/*.patch whitespace=-blank-at-eol,-blank-at-eof text eol=lf
++.github/scripts/fms_preservation/*.blob text eol=lf
+ 
+ # Offline bootstrap payloads must match Linux image bytes on every workstation.
+ tools/jetlink/*.py text eol=lf

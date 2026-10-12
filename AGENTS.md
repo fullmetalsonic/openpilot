@@ -1,4 +1,665 @@
+# FMS fork integration contract
+
+This fork preserves its own behavior contracts and selectively integrates
+reviewed upstream changes. Current user instructions supersede historical
+upstream repository memory below. Read `docs/fms_integration_contract.md`
+before updating FMS: retain legacy DisableDM behavior and the existing CANFD
+stopping core together with all personal patches. Do not adopt upstream DM
+changes merely because they are merged into carrot-wip. The current local
+integration is explicitly uncommitted; do not commit or push without a new
+user request. Stable and raw DDM branches and paused automation stay unchanged.
+
 # Repository memory
+
+- On 2026-10-12, during the color experiment, the user prioritized avoiding
+  false green over missed detections, accepted rejecting turn-time readings,
+  and suggested pose. Offline rotation variants now reject green before tracker
+  confirmation, immediately remove old confirmed green and preserve red history.
+  Existing red start latch holds through unknown; old green never releases it.
+  Steering+speed avoids treating a stationary -39.5-degree wheel as rotation.
+  Preferred pose experiment uses calibrated livePose yaw, required validity,
+  uncertainty and separate arrival/sample freshness; no permissive fallback.
+  Four-way3348-frame replay: pose gates898 observations with zero fresh/confirmed
+  green outputs, retains the stationary real green;108 tests pass. Counts are
+  not accuracy and LED/reflection false greens remain. Both variants stay
+  offline, no vehicle deployment. See docs/signal_color_experiment_20261012.md.
+
+- On 2026-10-12, the user requested a signal correction experiment. Add
+  default-OFF offline conservative_green HSV38-90 consistently across housing,
+  day/night seeds and templates. Exact-frame paired replay of13 full videos and
+  3348 observations reduces morning green candidates5608->581, not an accuracy
+  metric. Selected development boxes remove61 replayed background greens;
+  21 newly reviewed frames keep37 visible green lamps and reject29/36 backgrounds.
+  LED text/reflections remain; one motion-blurred real night green is lost.
+  Only one of two live red miscrops reproduces green in encoded pixels.
+  Guard color-confirmation probe differs from live release and is not control
+  validation. 84 tests pass;21 default-OFF image results match prior code.
+  No deployment, model training or live enable; keep DM GPU/start-guard policy.
+  See docs/signal_color_experiment_20261012.md and its private evidence archive.
+
+- On 2026-10-12, the user requested collecting unseen night/morning logs and
+  evaluating signal size/height/road-edge filtering, analysis first. All52
+  completed segments/169 source files are locally SHA256-verified. Morning CPU
+  observer emits6792 fresh green candidate samples,6011 from day_color_core;
+  reviewed branches/sky pass hue38-105. Two still-red signals receive green
+  through tiny/cropped housings and adjacent cyan sky. This is not just UI hold.
+  In73 selected labels, conservative geometry removes8/62 background candidates
+  and neither red miscrop; an exploratory narrower-hue pixel test removes61/62
+  and both miscrops but is not a validated detector or night regression test.
+  No runtime/settings/model change or deployment. Prioritize sky rejection and
+  complete housing/lamp alignment; road edges are supporting evidence, not lane
+  assignment. Keep DM GPU protection. See docs/signal_morning_false_green_20261012.md
+  and private .analysis/archive/2026-10-12-day-signal/ for evidence and limits.
+
+- On 2026-10-11, the next drive exposed signal QCOM GPU contention with DM:
+  parked A/B/A gives DM 10.6-10.8 Hz with neural GPU versus 20 Hz with CPU;
+  priority15 also fails. This supersedes eGPU-implies-QCOM eligibility below.
+  Auto AND explicit QCOM now use CPU comparison whenever DM or Driver View
+  needs the internal GPU; never disable DM or use camera failure as permission.
+  Preserve DM policies and external/internal driving-model selections. Latest
+  drive neural observations at 2.33-2.67 Hz reset identity on every >250 ms gap.
+  Display revision4 extends UI-only memory to two seconds from capture, unique
+  same-housing unknown-ID carry without renewing old color, dim/~ previous and
+  immediate new color replacement. Ten-phase replay reduces visibility dropouts
+  146-162 to14, not recognition accuracy. Stopped red guard stays650 ms, warning
+  ON and moving assist OFF. 163 desktop tests pass, one Linux-only skip.
+  See docs/signal_dm_flicker_20261011.md for native verification and limitations.
+
+- On 2026-10-11, the user explicitly requested red automatic-departure blocking
+  AND one warning sound. Add separate default-OFF start_guard_enabled, fresh
+  observation transport and stopped-only veto for both observer backends. Keep
+  old moving assist OFF. Red needs two samples/150 ms; green same red-anchored
+  housing needs three/700 ms with no competing forward red. Unknown/stale and
+  observer restart never grant green release. Stop-only freshness is 650 ms
+  for measured GPU latency; old moving-assist 200 ms stays unchanged. Gas
+  overrides with 10 s cooldown. Final shouldStop/vTarget/aTarget and ACC mode
+  enforce the veto; audioRefuse is once per blocked stop's departure request.
+  264 checks pass, one skip. 43,090-frame nominal/+20 ms replays block both
+  1095 red departures; reviewed-red green releases are zero, but green holds
+  remain. Forward ROI is not lane association and detection can still fail.
+  New MDM stays trial-only; auto chooses QCOM neural with eGPU, lightweight
+  CPU tracker with internal model. Both sustain ~20 Hz parked; internal+QCOM
+  co-load falls to ~8 Hz and is rejected. See docs/signal_start_guard_20261011.md
+  and docs/signal_gpu_dual_model_20261011.md for evidence and device status.
+
+- On 2026-10-11, the user redirected the new upstream 6f4c0faf eGPU model
+  to carrot-signal-shadow for testing before a combined promotion. Revert the
+  just-pushed 03142df861 model/runtime change from carrot-wip; wip keeps Cinque
+  v3. Retrained Mountain Dew 8d736683 and its d3f09c9 runtime belong only on
+  carrot-signal-shadow until the user approves promotion. Its verified NAS
+  package is comma4-big-mdm-8d736683. The public ONNX catalog now includes old
+  870a4823, but not 8d736683; keep Jetson Cinque v2 and internal/DM models.
+
+- On 2026-10-11, the user explicitly requested connecting the new neural
+  signal detector to the vehicle, engine-off camera testing and CPU/QCOM GPU
+  timing comparison. Add opt-in neural_enabled dispatch in signalcolord, a
+  display/log-only VisionIPC worker, hash-pinned artifacts and explicit CPU/QCOM
+  backends. Preserve original ONNX/x/v and assist OFF; no control transport.
+  Default remains existing observer unless explicitly selected. QCOM uses the
+  existing tinygrad runtime, fixed-shape JIT and synchronous readback; no hidden
+  CPU fallback. 130 desktop tests pass, one skip. Vehicle offroad/noOutput and
+  runtime inventory were read, but intermittent SSH timeouts interrupted model
+  upload. GPU speed/parity, new live inference and forced camera/model co-load
+  remain unvalidated and must not be called installed or activated. Last checked
+  vehicle HEAD fc7588d67a contains only the earlier display-continuity deployment.
+  Resume private scripts/data in .analysis/scratch/2026-10-11-signal-live/ after
+  connection recovery. See docs/signal_neural_live_20261011.md.
+
+- On 2026-10-11, the user requested holding prior signal display results and
+  combining upper ROI, neural detection, fast tracking and high-resolution crop.
+  New 26-segment data has 5,714 observations at2.71--4.99 Hz, median gap250 ms
+  and result age183 ms. Display revision3 remembers candidates up to800 ms from
+  capture, marks them dim/~ previous, immediately replaces new red/green and
+  never renews old color from unknown/repeated data. Camera/session failures reset
+  it. This supersedes display-only no-hold policy; control freshness stays200 ms.
+  Offline pinned neural+tracking on381 new frames reduces PC mean work100 to33 ms;
+  faster search after loss removes a150 ms green reacquisition delay in that case.
+  Dark-light loss/arrows remain unresolved. ROI NV12 copying is implemented, but
+  native full-resolution camerad access, dynamic path ROI and GPU inference are
+  not connected. New neural reference remains offline, original ONNX/assist OFF
+  preserved. 123 related tests pass, one Linux-only skip. Vehicle install guards
+  offroad/inactive Park; see private deployment.json for live activation status.
+  See docs/signal_continuity_20261011.md. Keep recordings private.
+
+- On 2026-10-11, the user requested the best distant/fast/accurate signal
+  recognition approach, including upper-path ROI and overlapping frames. Offline
+  pretrained Autoware YOLOX-s on 73 selected boxes improves IoU>=0.5 coverage
+  from rules 49 to whole-frame 63, upper ROI 68 and two tiles 70; this is not
+  exhaustive precision or vehicle timing. A separate MobileNet classifier still
+  misses arrow combinations and returns unknown on dark real-green frames.
+  Five-frame averaging retains old red across a green transition even after
+  alignment. Prefer native-pixel ROI, neural detection, tracking and fresh lamp
+  evidence; dynamic ROI/full-resolution/vehicle integration are not implemented.
+  Logs confirm OS04C10; code downsamples 2688x1520 to1344x760 and has a full-res
+  placeholder, whose safe per-frame access remains unverified. Preserve original
+  driving ONNX and assist OFF; no vehicle changes in this investigation.
+  See docs/signal_detection_strategy_20261011.md; keep all raw evidence private.
+
+- On 2026-10-11, the post-overlay 1096/1097 drive contains 22 collected segments.
+  Helper observations run 3.23--4.93 Hz; median result age is 178 ms and
+  2,345/5,345 gaps exceed the 250 ms color-confirmation limit. Track 1267
+  keeps identity but never confirms 13 raw green observations after red.
+  Display expiry and red-history qualification also cause hiding/unknown labels.
+  User requested installation before departure: display-only revision 2 uses
+  current color R?/G? for unconfirmed candidates, R/G for matching confirmation.
+  Preserve freshness/lost-track gates, original ONNX and assist OFF; no memory
+  hold or control timing change. 68 focused tests pass, one Linux-only skip.
+  See docs/signal_display_drive_20261011.md; keep all recordings private.
+
+- On 2026-10-11, the user requested signal candidate boxes on the USB
+  camera image and vehicle installation. display_enabled opts into a separate
+  bounded tmpfs display endpoint; comparison's experimental observer supplies
+  R/G/? boxes and track IDs. Use the road camera's actual image rectangle,
+  reject wide/replay/3D overlays, expired/lost tracks and reused camera buffers.
+  Display age is <=350 ms with <=250 ms/five-frame camera skew; control freshness
+  stays 200 ms. Installed 64151b60ff with revalidated/comparison/display ON and
+  assist OFF, original ONNX unchanged, existing camera mode 2. This supersedes
+  the prior vehicle-code-unchanged status only for observation/visualization;
+  the candidate remains unapproved for control. Parked verification saw 501
+  valid consecutive model frames at 20.01 Hz, 501 plans, 25 renderer updates,
+  an open USB device and unchanged process PIDs/control transport. 425 desktop
+  tests pass, one Linux-only skip. Physical panel/road accuracy remain distinct.
+  See docs/signal_usb_display_20261011.md; keep captures and telemetry private.
+
+- On 2026-10-11, accumulated signal replay tested 37 segments / 15,422
+  images and 43,090 planner updates. The opt-in candidate combines housing/core
+  proposals, image-supported 500 ms identity retention with unchanged 250 ms
+  color continuity and 200 ms freshness, and explicit producer-red-history reuse.
+  Five nominal false-start windows are blocked, but added-latency trials still
+  fail acquisition; 1094-10's new green release lacks visually verified green.
+  Eight isolated parked camera-timed sequences improve nominal holds/releases
+  but 1093-6 loses acquisition with +20 ms. Earlier dusk green coverage regresses.
+  Do not enable this candidate for control. revalidated_enabled is only an
+  experimental opt-in name, default OFF, with separate assist_enabled required.
+  Vehicle remains c115ce4, original ONNX, comparison ON and assist OFF; no vehicle
+  code/settings changes. 360 tests and production/prototype parity pass, not
+  perception or closed-loop validation. This is hand-written OpenCV, not neural
+  retraining. See docs/signal_revalidation_20261011.md. Keep raw evidence private.
+
+- On 2026-10-11, Ioniq 5 PE 1095 segments 65/66 show two red-light
+  departures without gas while original x/v changes produce trafficState green.
+  Both legacy and daytime shadow detectors recorded red; current c115ce4 vehicle
+  uses original internal ONNX with assist OFF and comparison-only publication.
+  Same-recorded-input planner replay blocks both departures with either observer,
+  but delaying daytime arrivals by 20 ms loses both holds: fresh observations
+  miss stop-time acquisition and consumer confirmation resets across gaps.
+  Sequential dual-engine timing penalizes the second result. No confirmed green
+  tracks in this drive; manual overrides prevent continuous green-release proof.
+  Do not treat replay as vehicle-response validation or enable failed candidate.
+  No vehicle/model/control changes in this investigation; CPL is not supported
+  as the remedy by these images. See docs/signal_1095_red_departure_20261011.md.
+  Keep raw logs and captures private.
+
+- On 2026-10-11, the user authorized installing the new signal detector for
+  live comparison recording, with the same pushed code on the vehicle. Add
+  explicit per-device daytime_comparison_enabled: one camera copy, independent
+  legacy/daytime trackers and separate signalTrackingShadow/DaytimeShadow logs.
+  In comparison mode never publish either engine to the control transport;
+  install with assist_enabled=0. Missing opt-in preserves legacy operation.
+  Keep original driving ONNX/x/v, CPU duty/affinity and freshness limits. The
+  failed daytime candidate is authorized for observation only, not braking/go.
+  329 related desktop tests pass, including actual worker logging/no-publish.
+  Use guarded Park/inactive installation and verify commit/model/log identity.
+  See docs/signal_live_comparison_20261011.md; keep vehicle evidence private.
+
+- On 2026-10-11, the user demanded actual corrections and validation of the
+  remaining daytime signal miss and latency failures. A compact colored-core
+  plus dark-bar trial fixes the reviewed morning underpass red-to-green case,
+  but full 23-segment replay exposes a new retained stop request at green in
+  1094-8 after selected-track loss. Do NOT promote this daytime detector into
+  the live worker: SignalTracker(daytime_cores=True) is analysis-only; default
+  construction preserves legacy proposals with equivalent compute optimizations.
+  10,631 trial observations match the clean port; 459 final default/trial image
+  comparisons and 324 related tests pass. Park-only camera-timed stored-image
+  workload reduces >200ms results from12/150 to0/107, but this is the rejected
+  daytime candidate's timing, not a guarantee for the default/live pipeline.
+  Keep 200ms freshness, same-track release, original ONNX/x/v and opt-in policy.
+  Vehicle production remains b80db2c97d; only an isolated test folder was used.
+  Validation was performed and partially failed, not left unperformed. Preserve
+  failed evidence privately; see docs/signal_day_latency_fix_20261011.md.
+
+- On 2026-10-11, the user requested latest-drive signal transition training and
+  validation using lamp brightness/color changes plus original ONNX x/v. Three
+  offline logistic probes were actually fitted; x/v reduced reviewed red abstention
+  but did not improve held-out-encounter green detection. Original driving ONNX
+  and vehicle files/settings remain unchanged; learned weights are analysis-only.
+  Fix the helper's 125 ms confirmation/cadence mismatch, count consecutive color
+  samples, retain bounded identity after a late result, and transport same-ID
+  producer green history (>=400 ms, >=3 samples) to avoid a second missed streak.
+  Keep 200 ms final freshness, 250 ms camera-gap expiry, default OFF, original
+  x/v and normal departure gates. Recorded-input replay releases both known
+  night holds and reaches normal departure states; 318 tests pass. Extra delay
+  still loses red acquisition, and daytime housing proposals merge into dark
+  background. No device deployment or vehicle-response validation is implied.
+  Keep footage, labels and weights private. See docs/signal_transition_training_20261011.md.
+
+- On 2026-10-11, first post-assist night/morning drives confirm a helper
+  regression: two visible green transitions remain hold_through_unknown until
+  gas/inactive override. Native stopping-function reconstruction is green on
+  69/13 overlapping held frames; not a full vehicle counterfactual. Tracker
+  confirmation restarts above125ms while44.1%/51.2% of real gaps exceed it.
+  Same103 observations yield0 green at recorded times vs24 at artificial100ms;
+  this diagnoses timing, not a deployable fix. A208ms stale result also wipes
+  red identity before green; morning visible-red housing proposals are missed.
+  23 driving segments,161 source files/2.21GB SHA256 verified;27,380 valid model
+  results. Existing internal ONNX hash unchanged, eGPU and Jetlink inactive.
+  Vehicle stays b80db2c97d with assist ON; analysis changed no vehicle settings.
+  Recommend disabling assist pending timing/identity/day-detector corrections
+  and both green-release/red-false-start regression validation. Parked readiness
+  and old replay were insufficient; do not claim the helper is road-validated.
+  Keep raw evidence private. See docs/signal_assist_followup_20261011.md.
+
+- On 2026-10-10, after successful parked installation, user requested bringing
+  the signal experiment into carrot-wip. Imported signal camera observation,
+  causal tracking, optional stop assistance, offline tools and investigation
+  documents from e3dc031730. Keep per-device opt-in default OFF; the user's
+  installed b80db2c97d vehicle has it ON. CANFD zero-aReq/no-retry is already
+  present here as2608792bdd and must not be applied twice. Original driving
+  ONNX/x/v unchanged; no failed trained model is promoted. Red hold survives
+  unknown, same-track green only removes the constraint, gas overrides with
+  10s cooldown. Moving red uses plausible original model distance and existing
+  lead/turn/speed gates. This is not lane/arrow association or guaranteed stop.
+  All300 focused observer/tracker/assist/CANFD tests pass (Windows Params stub,
+  OpenCV4.13). Prior parked checks belong to the signal branch; no carrot-wip
+  vehicle installation or closed-loop validation is implied by this promotion.
+  Preserve unrelated local edits. See docs/signal_assist_trial_20261010.md.
+
+- On 2026-10-10, RAV4 route 0d segments 5-9 on e7987ed confirmed an
+  onroadEvents cadence regression: healthy event-change bursts exceed the 1 Hz
+  tracker's upper bound and the continuous readiness gate interrupts steering.
+  Check event receipt/validity/liveness without fixed-rate rejection; retain
+  periodic-input checks and the separately requested startup-only latch in
+  7ceee11642, which includes this correction. Lateral selection alone still
+  needs active cruise or AlwaysLateral. All five minutes have cruise inactive;
+  no Panda TX rejection or new CAN errors. The long segment 6-7 inactivity is
+  not fully explained by event cadence; live setting changes are not captured.
+  166 focused tests pass; recorded-input readiness matches all 11,201 examined
+  decisions in segments 5/8 after warmup. No physical steering validation.
+  Keep incident data local. See docs/rav4_steering_20261010.md.
+
+- On 2026-10-10, the user clarified that the Sonata startup fix must apply
+  only until FIRST readiness, never reblock during operation. This supersedes
+  e7987ed0fd's continuous readiness checks and repeated PID/curvature resets.
+  controlsd/card now latch readiness once per process lifetime; disengagement,
+  reengagement and later bad inputs do not rearm it. Nominal geometry is startup-
+  only; measured curvature seeds the first lateral activation only. Restore
+  existing torque reset behavior. Hyundai camera-SCC waits only for its first
+  steering TX template, preserving the bounded first CAN command. Keep existing
+  runtime safety, limits, longitudinal policy and firmware unchanged. 241 focused
+  tests, 5,969 recorded-input frames and 6,000 post-startup control frames pass;
+  the latter exactly match pre-fix 5479d1279a outputs/PID/ratio with input health
+  changes and reengagement. Replay is not vehicle-response validation. Keep raw
+  incident data local. See docs/sonata_92_startup_steering_20261010.md.
+
+- On 2026-10-09, after trying Mountain Dew 870a4823, the user requested
+  returning carrot-wip's eGPU model to Cinque v3 (892fc3a1, AMD e758b96d,
+  isolated tinygrad d5e17c93). This supersedes the MDM selection below, not
+  the completed branch consolidation. Retain shared HUD/camera/startup/UI
+  fixes, MDM format compatibility, internal/DM models and Jetson Cinque v2.
+  Do not recreate retired branches. A user-facing model selector was discussed
+  as a possible follow-up, not implemented. See docs/mdm2_20261008.md.
+
+- On 2026-10-09, the user requested full integration of `carrot-mdm2` into
+  `carrot-wip` and deletion of the local and remote `carrot-mdm2`/`carrot-mdm`
+  branches. `carrot-wip` now selects Mountain Dew v1 checkpoint 870a4823,
+  AMD model e20cde17, with the existing pinned runtime and NAS mdm2 package URL.
+  This supersedes the branch-only restriction below; do not recreate the retired
+  branches. Keep the newer wip HUD/camera recovery, DM notices and GV70 fixes.
+  Internal/DM models, Jetson Cinque v2 and control/validity policies remain
+  unchanged. Model compatibility CI follows carrot-wip. See docs/mdm2_20261008.md.
+
+- On 2026-10-08, the user confirmed PR #39047 commit 4bfb534063 for `carrot-mdm2`,
+  starting from carrot-wip ca8f553d1e. The previous bea3fd4 remains carrot-mdm.
+  Pin the new e20cde17 AMD model and 870a4823/12864 metadata checkpoint on this
+  branch only; upstream's commit subject says 1284 but the file says 12864.
+  Keep the 9d0446a4 tinygrad runtime and MDM compatibility adapter. The matching
+  870a4823 ONNX is absent from the public export catalog; Jetson stays Cinque v2.
+  Do not label this a new official MDM v2 or claim Jetson MDM support. Preserve
+  internal/DM models, control, validity and C3 warp policy. Include the inherited
+  boot selected-model delivery gate and core4 USB cluster placement.
+  See docs/mdm2_20261008.md for artifact identity and validation limits.
+
+- On 2026-10-05, the user clarified that instructions such as "작업해" or
+  "진행해" include committing and pushing the completed task unless explicitly
+  instructed otherwise. Commit only the task's changes; preserve unrelated work.
+
+- On 2026-10-05, the user requested an offline clock floor after pull/reboot,
+  before building. AGNOS startup reads local HEAD's committer timestamp before
+  dependency/Params/main builds; only an earlier clock advances to commit+1s.
+  Log and verify correction; failures enter existing startup recovery. Preserve
+  later clocks, NTP/GPS, file mtimes, caches and Cython/SCons behavior. 26 focused
+  desktop tests pass; device clock setting and native builds remain unvalidated.
+  This does not establish the cause or cure of intermittent native build errors.
+  See docs/build_time_floor_20261005.md.
+
+- On 2026-10-05, the user approved a distance range for holding extra following
+  headroom. Define D as ego speed times base TF plus configured stop distance,
+  excluding extra TF. Preserve existing hold at <=1.2D; smoothly reduce its
+  envelope/rise rate and restore recovery strength through 1.2-1.5D; at >=1.5D
+  recover at the existing level rate even for a stopped/opening lead. Use the
+  same rule in live state and MPC prediction. Preserve new-lead entry, level-5
+  bypass, physical obstacles, base TF, stopping logic/limits and the J20 trial.
+  299 focused tests pass; recorded-input reference replay reduces one approach's
+  extra margin from 1.916 to 0.142 m, not a vehicle stopping-time/clearance result.
+  Closed-loop comfort and clearance remain unvalidated. Keep incident data local.
+  See docs/longitudinal_gap_hold_band_20261005.md.
+
+- On 2026-10-03, the user requested a manual compatibility option for intermittent
+  cluster warnings: HyundaiCanfdClusterDirectTx defaults OFF on every vehicle,
+  including EV6. In CAN-FD CAMERA_SCC only, enabling it at startup selects the
+  legacy direct host-TX path for 0x161/162/1e0/1ea/200 via Hyundai flag bit 27
+  and Panda safetyParam 2048. Preserve other control FIFOs/reuse, allowlists,
+  relay protection and the default RX-paced path. This explicitly permits
+  independent cluster TX only when selected; no automatic RX timeout fallback,
+  vehicle-specific default or live switching. Reboot and updated Panda firmware
+  are required. 543 focused/settings/Wiki/firmware-identity tests and F4/H7
+  builds pass; actual warning resolution and physical timing remain unvalidated.
+  See docs/canfd_cluster_rx_forwarding.md. Keep incident data local.
+
+- On 2026-10-03, the user explicitly approved adding core7 to C3/C3X main UI
+  onroad affinity: cores0,1,2,3,6,7 with SCHED_OTHER/nice19 for all UI threads.
+  This supersedes the earlier core7 exclusion for this UI. C4 stays core6;
+  offroad returns to cores0..3. Check each big core independently; preserve
+  model/DM, control/camera, IRQ and USB cluster policies. An allowed mask is
+  not a CPU quota or parallel rendering and may concentrate UI work on core7.
+  Device affinity/FPS and model/DM impact remain unvalidated. See
+  docs/camera_core5_trial.md.
+
+- On 2026-10-03, Tucson `0000030c--adf522a321--4` showed unnecessary left
+  steering while passing a transporter. Actual speed stayed near 104 km/h
+  while the model velocity trajectory fell to about 36 km/h; lane MPC remained
+  active because the old end/start 70% test missed whole-trajectory collapse.
+  The user requested diagnosis through correction. LaneModelSpeedGuard now
+  also requires model starting speed >=70% of measured speed, retaining the
+  original future-deceleration gate and continuous one-second reacquisition.
+  Preserve model paths/speeds, MPC tuning, actuator limits and angle handover.
+  26 focused tests pass; same-input target replay reduces initial left peak
+  about 79% with fallback around 6.33 s. Small-angle MPC reconstruction matches
+  logged mode decisions and incident curvature closely; this is not native
+  acados or vehicle-response validation. Shadow versus transporter influence
+  on the original model output remains unresolved. See
+  docs/tucson_30c_left_steering_20261003.md.
+
+- On 2026-10-03, the user selected existing combined handover mode 3 as
+  standard for Hyundai/Kia/Genesis angle control and removed the selector.
+  CarController always uses mode 3 inside ANGLE_CONTROL; SteerHandoverMode
+  registration, catalog/menu and runtime reads are removed. Saved values no
+  longer affect behavior. Preserve the combined algorithm, thresholds, targets,
+  angle/CAN limits, torque-control paths and touch/DM. Internal helper variants
+  remain for comparisons; diagnostics still identify mode 3. 83 steering tests,
+  45 settings tests, 25 Wiki tests and 6,000-frame old-mode-3/new CAN equality
+  pass on desktop with Windows Params storage substituted. This promotion is
+  not a new retry fix or vehicle-response validation. See
+  docs/steering_handover_20260930.md.
+
+- On 2026-10-02, after the native CPU experiment and Ioniq 5 PE before/after
+  logs, the user explicitly approved promotion to `carrot-wip` and deletion of
+  the remote `carrot-native-cpu` branch. Keep the tested Cython radar statistics/
+  path projection and CAN extraction/packing kernels, Python comparison/fallback,
+  strict floating-point build flags and backend timing diagnostics. Preserve
+  radar algorithms, history, thresholds, validity, counters and CPU placement.
+  The discussed trajectory prefilter is deferred and must not be included.
+  Ioniq 5 logs confirm native activation and core5 mean 77.7 -> 70.9%, but input
+  workload differs; same-input replay matches all 2,400 radar frames with 30-31%
+  lower PC compute time. EV9 overloaded mode-3 native vehicle behavior is still
+  unvalidated. Maintain native x86/ARM CI and the shared NAS replay build.
+  See docs/native_cpu_experiment_20261002.md.
+
+- On 2026-10-01, Casper EV `00001e75--ace5ac2325--9` confirmed SCC-only mode 0
+  with every SCC lateral measurement zero. The user requested always using the
+  measured SCC object in SCC-only modes and ignoring unreliable SCC lateral
+  position. Modes 0/-1 now use SCC longitudinal range/speed directly, then the
+  existing probability-qualified vision lead without an extra dPath gate when
+  SCC is absent. All SCC matching excludes its lateral coordinate; it cannot
+  establish geometric path occupancy. Mode 2 retains low-speed longitudinal
+  vision matching and independently corroborated SCC L2; mode 1 excludes SCC
+  and mode 3 retains front-first/SCC fallback. Web replay restores the recorded
+  source policy instead of forcing mode 2. Original mode-0 replay loses L1 on
+  30/1,199 frames with SCC and strong vision; corrected replay loses none and
+  uses vision on all 45 SCC-absent frames. Replay is not vehicle-response
+  validation. See docs/scc_longitudinal_lead_20261001.md.
+
+- On 2026-09-30, the user approved the handover revision and then explicitly
+  selected torque-ceiling-only rapid recovery: keep target angles and existing
+  angle limits unchanged, raise the ceiling faster for small error and slower
+  for large error, with no angle-error entry gate. This supersedes the earlier
+  captured-angle/offset-blending design proposal below. Mode 1 combines effort
+  and error levels/trends with tolerance, paused increases and gradual error-only
+  withdrawal; strong renewed force still yields quickly. Modes 2/3 use limited
+  early capture then low-force confirmation and continuous error-dependent rise.
+  Active experimental transitions own the total ceiling, so legacy max() cannot
+  bypass their rate; preserve independent legacy history, mode 0 and live polling.
+  88 focused tests and 6,000-frame mode-0 CAN/angle equivalence pass. Recorded-input
+  schedules are not vehicle response or steering-feel validation. See
+  docs/steering_handover_20260930.md for constants, replay and limitations.
+
+- On 2026-09-30, the handover follow-up review uses both angle-error and driver-
+  effort trends for mode 1, with tolerance and paused/gradual withdrawal for
+  ambiguous error growth, retaining fast yield for strong renewed driver effort.
+  For rapid release, onset angle error is an initial transition condition, not
+  a delayed small-error permission gate. Offline prototypes avoid ff7's short
+  46-to-25 withdrawal and schedule earlier limited offers, but unchanged-input
+  replay cannot establish vehicle response. The existing max(legacy, extra)
+  ceiling defeats bounded recovery; any implementation must coordinate total
+  authority and reference transition while preserving mode 0 and actuator limits.
+  This review changes no production code. See
+  docs/steering_handover_ff6_ff7_20260930.md for evidence and unresolved cases.
+
+- On 2026-09-30, Ioniq 5 PE ff6 segments 2/3 and ff7 segment 1 on b8a8a532
+  confirmed live handover mode 2→3 but delayed recovery after torque release.
+  Low-force confirmation can let angle error exceed the two-degree fast-recovery
+  gate; other releases miss arming/deadline conditions. No rapid recovery is
+  reconstructed in these windows. Legacy repeated-override ramps reach three
+  seconds; ff7's last release waits 520 ms then ramps for three seconds. One
+  short convergence offer is withdrawn 46→25 in about 12 ms on error growth
+  despite decreasing force. This may explain a tactile discontinuity but is not
+  proof of the user's exact felt moment. Touch-release edges arrive later and
+  are not demonstrated to be a faster cue. No controller change was requested
+  or made during this analysis. See docs/steering_handover_ff6_ff7_20260930.md.
+
+- On 2026-09-30, the user requested original-RX-paced forwarding of Hyundai
+  CAN-FD CAMERA_SCC cluster 0x161/162/1e0/1ea/200 from bus2 to bus0. Consume
+  allowed host copies into independent latest-value caches; use each stock RX
+  counter and recompute CRC, including byte-2 8-bit COUNTER for 8-byte 0x200.
+  No independent send without RX. Missing/expired host (150 ms) returns stock;
+  invalid original frames pass unchanged and invalidate the cache. Preserve
+  allowlists, relay protection, non-camera paths and existing control FIFO/reuse.
+  Latest-value sampling supports differing rates but can coalesce transient
+  displays and delay changes until next RX; freshness bounds host arrival only.
+  348 tests, 36,120-frame replay, 285,594 unchanged control comparisons and
+  F4/H7 builds pass. Wire timing, vehicle warning resolution and display/chime
+  behavior remain unvalidated. Requires updated Panda firmware. See
+  docs/canfd_cluster_rx_forwarding.md.
+
+- On 2026-09-30, the user requested live SteerHandoverMode for Hyundai/Kia/Genesis
+  angle control: 0 preserves legacy/default, 1 offers bounded recovery using
+  continuous driver effort and angle-error trends, 2 confirms abrupt force release
+  before faster recovery, and 3 combines them with release priority and no summed
+  gains. Poll every 0.5 seconds; only actual mode changes reset experimental history.
+  Keep legacy recovery state independent, steeringPressed boolean, torque-control
+  vehicles, touch/DM and angle/CAN limits unchanged. Effort is unbounded above 2;
+  the offer ceiling 80 is not physical torque or a proven tactile notification.
+  Reversal, rising force, error and invalidity withdraw added authority. Mode 0
+  matches the prior controller in a 6,000-frame input replay; synthetic/CAN tests
+  do not establish closed-loop driving or driver consent. A prolonged zero crossing
+  remains ambiguous. See docs/steering_handover_20260930.md for tests and limits.
+
+- On 2026-09-29, the user selected IMU-based suspected-impact detection at 1.5g
+  horizontal acceleration, with a visible/audible warning, ten seconds to cancel
+  by touching anywhere, then OpenpilotEnabledToggle=false and manager DoReboot.
+  Compensate gravity and mounting angle using fresh valid pose/calibration;
+  require two fresh samples within 30ms. aEgo is supporting context only.
+  Unseen/frozen UI cancels the transition; preserve takeover alert precedence.
+  Block control including AlwaysLateral during reboot, preserve normal volume,
+  and use the existing bounded reboot sound helper. Saved OFF persists until
+  manually enabled; reboot interrupts recording. No incident file protection or
+  upload is implied. The 1.5g threshold, drop/rough-road rejection, physical
+  display/audio and actual vehicle reboot remain unvalidated. See
+  docs/impact_dashcam_20260929.md.
+
+- On 2026-09-29, the user expanded the Carrot Web auto-update reboot sound request
+  to ordinary reboots. Use the stdlib-parent common/reboot.py helper for hardware,
+  manager, main Web tools and startup recovery: existing prompt.wav once before
+  reboot, separate audio child, four-second timeout, saved volume/mute respected.
+  Audio failure must not block reboot. Keep update eligibility and recovery policy
+  unchanged. Raw OS/factory-reset/standalone-recovery-web commands are not hooked.
+  Desktop tests do not establish physical speaker/reboot behavior. See
+  docs/reboot_sound_20260929.md.
+
+- On 2026-09-29, the user requested one onroad readiness sound at the first
+  engageable state (no NO_ENTRY event), preferring an existing sound. Use
+  prompt.wav once after 0.5 seconds of initialized, non-passive, onroad, healthy
+  CAN/service readiness and after current alerts finish. systemReady is sound-only
+  and lowest priority; preserve warning precedence and normal user/ambient volume.
+  The latch lasts for selfdrived's onroad process lifetime. Desktop tests do not
+  establish vehicle speaker/timing validation. See docs/system_ready_sound_20260929.md.
+
+- On 2026-09-29, Ioniq 5 PE C4 ff1 segments 0/2 on 250f14ed showed startup
+  DM inference/model readiness delay and a separate Jetlink 97.28 ms roundtrip
+  causing one model input skip and transient downstream invalidity. Expected
+  process PIDs and all camera frame-ID sequences remain continuous; this is
+  not evidence of a process crash or sensor capture loss. The user requested
+  hiding an absent Jetson: a fresh waiting report is now quiet before modeld's
+  first report, with READY restored on healthy connection. Preserve fresh model
+  errors, active-session conflicts and stale-link errors. Physical display and
+  the underlying isolated latency remain unvalidated. See
+  docs/jetlink_ff1_investigation_20260929.md.
+
+- On 2026-09-29, after two GV70 camera-side warning recurrences with unknown
+  cause, the user authorized blocking the observed stock-cluster popup and
+  requested checking its sound. Scope suppression to GENESIS_GV70_1ST_GEN
+  camera-SCC, lateral-only control, HDA_InfoPUDis=3 with the observed camera
+  FCA_SYSWARN=1/VALUE63=15 signature and no decoded MDPS/SCC fault or separate
+  popup/sound request. Modify only the outgoing cluster copy; retain raw CAN,
+  camera state, actual control and other fault/hands-off alerts. Both logs have
+  HDA_LFA_WrnSnd=0 and openpilot alertSound=none; popup-associated chime is an
+  inference, not confirmed audio causality. Replay removes all four observed
+  popup frames; physical display/sound suppression remains unvalidated.
+  See docs/canfd_feedback_counters.md. This supersedes the earlier recommendation
+  to leave this popup unchanged pending root-cause diagnosis.
+
+- On 2026-09-29, the user clarified that DM's 20-second standard hold starts
+  only when surrounding moving traffic appears after an absence. Additional
+  vehicles during occupancy do not extend it. Camera monitoring during the hold
+  uses stock timing/detection/inputs, expires prior grace and suspends experimental
+  resets; camera-unavailable timing stays 15/30/45. Then experimental criteria
+  resume, but occupied surroundings cannot earn the empty-road bonus. Retain
+  accumulated warnings/lockout and the two-second observation dropout retention.
+  No forced warning for attentive drivers. See docs/dm_traffic_hold_20260929.md.
+
+- On 2026-09-29, the user approved the C4 DM inset immediately right of D:
+  84x84 at (382,144), leaving 10px before the right strip. VISION moves above it;
+  confidence-dot travel returns to full height. C3 placement is unchanged.
+  DM event stage1 is visual-only; stage2 (first audible) has final PCM gain
+  >=0.7, and stage3 (final) always uses 1.0 regardless of user/ambient volume.
+  Match event identity and sound together so navigation sharing the WAV retains
+  normal volume. Desktop PCM/UI tests and synthetic rendering do not establish
+  physical-device loudness or readability. See docs/dm_onroad_preview_20260928.md.
+
+- On 2026-09-28, the user requested live DriverMonitoringMode changes. Poll
+  typed Params every 0.5 seconds in the existing DM dispatcher; ignore the retired
+  CARROT_DM_MODE startup latch. Preserve elapsed awareness, calibration, traffic
+  hold, warning counts and lockout. A real mode change ends previous interaction
+  grace and the forward-attention streak; an unchanged read must preserve them.
+  Shorter budgets may immediately trigger warnings; toggling is never attention
+  or a lockout reset. See docs/driver_monitoring_dm2.md for desktop validation.
+
+- On 2026-09-28, the user superseded the Ioniq 5 PE-only touch restriction:
+  Hyundai/Kia/Genesis CAN-FD uses original ECAN STEER_TOUCH_2AF by received
+  profile, without a vehicle-name whitelist. Require the named DBC/address/size,
+  existing layout/checksum/status/counter and freshness checks. Discover late
+  arrivals with optional registration only after reception; do not add missing-
+  hardware CAN faults or populate/modify ADAS TX caches. Address 0x2AF alone
+  is insufficient. All 37 configured CAN-FD platforms pass synthetic parser
+  tests; physical evidence remains Ioniq 5 PE only. See docs/driver_monitoring_dm2.md.
+
+- On 2026-09-28, the user authorized clearing DM lockout after confirmed parking:
+  valid/fresh Park, raw zero speed, standstill and disengaged/inactive status for
+  one continuous second, in both modes with or without camera. Filtered speed
+  may have only <0.01 m/s settling residue. Speed-only or engage OFF/ON resets
+  are excluded. Keep stock policy.py unchanged; selfdrived persists fresh DM
+  lock/release transitions so a cleared saved flag cannot relock on DM restart.
+  Desktop tests do not validate actual parking. See docs/driver_monitoring_dm2.md.
+
+- On 2026-09-28, the user requested a manual DM switch triggered by three
+  distinct physical vehicle CANCEL presses,
+  each separated by a release, within three seconds. Held/repeated packets, BT
+  CANCEL and automatic-control CANCEL echoes do not count. Another received
+  non-CANCEL button event, invalid/stale state, input-stream gap or timeout resets
+  progress. On 2026-09-29, the user removed all gear and speed restrictions:
+  every gear and standstill are eligible, and gear or speed changes alone do not
+  reset progress. Ambiguous stock-ACC speed-button echoes conservatively reset
+  progress because they cannot be distinguished from a physical intervening
+  press. The
+  cancel-echo filter correlates carControl requests rather than confirmed CAN
+  transmission, so a physical CANCEL overlapping that 150 ms window may be
+  conservatively ignored and must be pressed again. Hyundai/Kia/Genesis
+  openpilot-long bypasses this filter because its controller does not transmit
+  CANCEL buttons from that path even though the internal request level can stay
+  high; stock-long and other platforms retain the filter. Its paired-release
+  suppression expires after 0.5 seconds; an interleaved physical press/release
+  can therefore require one additional press without causing a false disable.
+  The gesture turns DM off only for the current ignition session. The later
+  2026-09-29 revision also retains DriverMonitoringEnabled as a persistent,
+  default-on switch exposed only through Carrot Web search. It is intended for
+  absent or failed DM cameras; recommend leaving it on, and explain that turning
+  DM off may violate applicable laws or driving requirements without claiming
+  universal illegality. The next ignition-on or manager/device restart clears
+  only DriverMonitoringSessionDisabled; a saved Web OFF stays off until the
+  user manually enables DriverMonitoringEnabled again. File/QR backups and
+  file/QR/profile restore paths exclude DriverMonitoringEnabled, including
+  values in older backups; old backup downloads are filtered too. Resetting all
+  settings may restore the default ON value. Persistent OFF must be selected
+  locally on each device. Disabled DM
+  stops the model during normal onroad operation and gates alerts, monitoring
+  force deceleration and lockout while retaining a neutral state heartbeat.
+  Driver View may run the model only for face preview while enforcement remains
+  neutral. Keep DriverMonitoringMode and CarrotVisionEnabled independent;
+  DisableDM remains migration-only. Desktop tests do not establish vehicle
+  validation. See docs/driver_monitoring_dm2.md and both localized DM guides.
+
+- On 2026-09-28, the user authorized automatic Git update/reboot after failed
+  builds or manager startup, waiting through network loss. The launcher owns a
+  standalone recovery display and releases its build lock before recovery Git.
+  Retry after 30 seconds; automatic reboot requires a newly applied commit, so
+  the same broken revision cannot reboot-loop. Keep the manual Git pull/reboot
+  button, current branch/upstream, dirty-file protection and shared repo lock.
+  No hard reset, normal onroad update action or AGNOS-policy change is implied.
+  Graphics failure has a stdlib-only update fallback. Desktop tests/renders do
+  not validate physical C3/C4 touch or device reboot. See docs/startup_recovery.md.
+
+- On 2026-09-28, the user requested original Ioniq 5 PE wheel touch in DM,
+  explicitly preserving existing ADAS transmission. ECAN 0x2AF raw bytes now
+  feed separate CarState.steeringTouch; torque-based steeringPressed and TX
+  remain unchanged. Six historical segments verify the receive layout/checksum
+  and counter, not physical-contact ground truth or current vehicle validation.
+  Accept the lowest reported touch level 1; raw TOUCH1/2 ranges overlap and must
+  not become an unvalidated baseline-plus-one threshold. No-camera modes accept
+  fresh held contact; camera mode 1 accepts only release-to-contact edges, never
+  indefinite grace from holding or reconnecting. Camera mode 0 stays stock.
+  Unknown, stale, malformed or frozen-counter data grants no touch credit;
+  terminal alerts remain. Scope this empirical profile to Ioniq 5 PE until other
+  vehicles are verified. See docs/driver_monitoring_dm2.md.
+
+- On 2026-09-28, the user revised DriverMonitoringMode after the initial DM2
+  implementation. Mode 0 keeps stock camera behavior, but unavailable-camera
+  interaction timing is now 15/30/45 seconds. Mode 1 uses the same interaction
+  timing, doubled only on a verified empty straight road. New moving traffic
+  removes the empty-road bonus for 20 seconds. Camera mode 1 uses 2x stock vision
+  timing, 4x on a verified empty road, and 20% head-pose tolerance relaxation.
+  The user explicitly selected a full interaction grace: fresh control/BT input
+  resets monitoring and defers camera warnings for 45/90 seconds before its
+  warning clock starts. This supersedes the earlier two-second credit and
+  protected-distraction debt restriction; detection thresholds remain unchanged,
+  but sleep/eye/phone warnings are also delayed. Confident forward attention for
+  two seconds resets the camera clock without renewing interaction grace.
+  Terminal alerts and lockout remain; no input or context change clears them.
+  Camera absence AND failure automatically use interaction monitoring, with
+  recovery preserving progress; do not add a manual camera-installation setting.
+  Stock policy/dmonitoringd files stay unchanged. DisableDM is migration-only;
+  CarrotVisionEnabled is independent. These are requested experimental timing
+  choices, not statutory limits or device/driving validation. See
+  docs/driver_monitoring_dm2.md and both localized DM guides.
 
 - On 2026-09-28, the user requested ordinary Git storage wherever possible to
   eliminate this branch's Git LFS bandwidth dependency. All seven remaining

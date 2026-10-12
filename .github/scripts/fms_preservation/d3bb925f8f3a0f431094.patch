@@ -1,0 +1,12 @@
+--- a/openpilot/selfdrive/selfdrived/events.py
++++ b/openpilot/selfdrive/selfdrived/events.py
+@@ -556,9 +556,6 @@
+       AlertStatus.userPrompt, AlertSize.small,
+       Priority.LOW, VisualAlert.steerRequired, AudibleAlert.none, 1.8),
+   },
+-
+-  # Retain the schema event for historical logs, without a fallback banner.
+-  EventName.driverMonitorFallback: {},
+ 
+   # The global UI renders the cancellable countdown, including over settings.
+   # Keep sound below critical driving alerts and honor normal user volume.

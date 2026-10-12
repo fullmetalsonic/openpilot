@@ -322,13 +322,19 @@ function invalidate_modeld_build_if_needed {
 
 function prepare_big_model_if_needed {
   BIG_MODEL_SHA=""
+  unset CARROT_BIG_MODEL_STARTUP_FAILED
 
-  # Only local state is consulted on the startup path. Remote model delivery
-  # runs in the background below and must never delay manager startup.
+  # With an attached eGPU, install this checkout's selection before building or
+  # starting modeld. Offline delivery retries here instead of running an old model.
   if ! python3 -c 'from openpilot.selfdrive.modeld.helpers import usbgpu_present; raise SystemExit(0 if usbgpu_present() else 1)' 2>/dev/null; then
     return
   fi
 
+  if ! flock /tmp/big_model_update.lock python3 -m openpilot.selfdrive.modeld.big_model --prepare-for-startup --retry-network; then
+    echo "Selected eGPU model preparation failed; using the internal model this boot."
+    export CARROT_BIG_MODEL_STARTUP_FAILED=1
+    return
+  fi
   BIG_MODEL_SHA="$(python3 -m openpilot.selfdrive.modeld.big_model --active-sha 2>/dev/null || true)"
 
   # Do not reject compilation from a one-shot 12V check here. During ignition
@@ -351,16 +357,16 @@ function start_big_model_update {
       exec 9>"$lock_path"
       flock -n 9 || exit 0
       if command -v ionice >/dev/null 2>&1; then
-        PYTHONUNBUFFERED=1 ionice -c 3 nice -n 10 python3 -m openpilot.selfdrive.modeld.big_model --ensure-if-egpu --network-wait-seconds 60
+        PYTHONUNBUFFERED=1 ionice -c 3 nice -n 10 python3 -m openpilot.selfdrive.modeld.big_model --ensure-if-egpu --network-wait-seconds 60 --retry-network
       else
-        PYTHONUNBUFFERED=1 nice -n 10 python3 -m openpilot.selfdrive.modeld.big_model --ensure-if-egpu --network-wait-seconds 60
+        PYTHONUNBUFFERED=1 nice -n 10 python3 -m openpilot.selfdrive.modeld.big_model --ensure-if-egpu --network-wait-seconds 60 --retry-network
       fi
     ) >> "$log_path" 2>&1 &
   else
     if command -v ionice >/dev/null 2>&1; then
-      PYTHONUNBUFFERED=1 ionice -c 3 nice -n 10 python3 -m openpilot.selfdrive.modeld.big_model --ensure-if-egpu --network-wait-seconds 60 >> "$log_path" 2>&1 &
+      PYTHONUNBUFFERED=1 ionice -c 3 nice -n 10 python3 -m openpilot.selfdrive.modeld.big_model --ensure-if-egpu --network-wait-seconds 60 --retry-network >> "$log_path" 2>&1 &
     else
-      PYTHONUNBUFFERED=1 nice -n 10 python3 -m openpilot.selfdrive.modeld.big_model --ensure-if-egpu --network-wait-seconds 60 >> "$log_path" 2>&1 &
+      PYTHONUNBUFFERED=1 nice -n 10 python3 -m openpilot.selfdrive.modeld.big_model --ensure-if-egpu --network-wait-seconds 60 --retry-network >> "$log_path" 2>&1 &
     fi
   fi
 }
@@ -399,6 +405,27 @@ function start_manager {
   fi
 }
 
+function run_startup_command {
+  "$@" 2>&1 | python3 -m openpilot.common.startup_recovery --capture-log /tmp/carrot_startup_failure.log
+  return "${PIPESTATUS[0]}"
+}
+
+function show_startup_failure {
+  local reason="$1"
+  # No build/manager can still hold the checkout when the update button runs.
+  flock -u 9
+  exec 9>&-
+  unset CARROT_BOOT_LOCK_FD
+  export CARROT_STARTUP_RECOVERY=1
+  start_carrot_recovery
+  while true; do
+    python3 "$DIR/openpilot/system/ui/startup_recovery.py" --reason "$reason" --log /tmp/carrot_startup_failure.log
+    echo "Recovery display stopped; checking for a fix without graphics. Web recovery remains on port 6999."
+    python3 -m openpilot.common.startup_recovery --repo "$DIR"
+    sleep 30
+  done
+}
+
 function launch {
   # Protect the checkout throughout bootstrap, SCons and manager initialization.
   # The manager releases this inherited flock after init; background web/recovery
@@ -412,6 +439,8 @@ function launch {
     while true; do sleep 1; done
   fi
   export CARROT_BOOT_LOCK_FD=9
+  # The launcher owns startup failure display, including Python import errors.
+  export CARROT_STARTUP_RECOVERY=1
   cleanup_stale_git_lfs_hooks
 
   # Check to see if there's a valid overlay-based update available. Conditions
@@ -474,21 +503,24 @@ function launch {
       flock -u 9
       while true; do sleep 1; done
     fi
+    # Offline wall-clock floor after any OS update, before dependency/bootstrap
+    # or Params SCons work. GPS timed starts only after the main build.
+    if ! run_startup_command python3 "$DIR/openpilot/common/build_time.py"; then
+      show_startup_failure "System clock correction failed before build"
+    fi
   fi
 
   # AGNOS must be current before installing its matching offline wheels. SCons
   # imports native dependency modules while building Params, so bootstrap them
   # before the first SCons invocation.
-  if ! bootstrap_runtime_dependencies; then
-    flock -u 9
-    while true; do sleep 1; done
+  if ! run_startup_command bootstrap_runtime_dependencies; then
+    show_startup_failure "Runtime dependency installation failed"
   fi
 
   # Build Params before any long-running carrot service imports it.
-  if ! bash "$DIR/scripts/ensure_params_build.sh"; then
+  if ! run_startup_command bash "$DIR/scripts/ensure_params_build.sh"; then
     echo "Params registry build failed, not starting openpilot."
-    flock -u 9
-    while true; do sleep 1; done
+    show_startup_failure "Params registry build failed"
   fi
 
   # Export in the parent so manager also knows the external watchdog owns the
@@ -514,10 +546,9 @@ function launch {
   # start manager
   cd openpilot/system/manager
   if [ "$FORCE_REBUILD" = "1" ] || [ ! -f $DIR/prebuilt ]; then
-    if ! ./build.py; then
+    if ! run_startup_command ./build.py; then
       echo "openpilot build failed, not starting manager."
-      flock -u 9
-      while true; do sleep 1; done
+      show_startup_failure "openpilot build failed"
     fi
     if [ "$FORCE_REBUILD" = "1" ]; then
       mkdir -p "$DIR/openpilot/selfdrive/modeld/models"
@@ -528,12 +559,14 @@ function launch {
     fi
   fi
   # Never start driving services if a rebuild left the Params registry stale.
-  if ! python3 "$DIR/openpilot/system/manager/params_check.py"; then
+  if ! run_startup_command python3 "$DIR/openpilot/system/manager/params_check.py"; then
     echo "Native Params still do not match this checkout; not starting manager."
-    return 1
+    show_startup_failure "Native Params do not match this checkout"
   fi
   start_big_model_update
-  start_manager
+  if ! run_startup_command start_manager; then
+    show_startup_failure "Manager failed to start"
+  fi
   # Also release if manager failed before reaching main()/initialization.
   flock -u 9
   exec 9>&-

@@ -1,0 +1,37 @@
+--- a/openpilot/selfdrive/carrot/web/src/features/settings/derived_model.js
++++ b/openpilot/selfdrive/carrot/web/src/features/settings/derived_model.js
+@@ -86,13 +86,13 @@
+ 
+   function getFavoriteEntries() {
+     return favorites.map(findItemByName)
+-      .filter((entry) => entry && !entry.item?.detail_parent && !entry.item?.search_only);
++      .filter((entry) => entry && !entry.item?.detail_parent);
+   }
+ 
+   function getProfileEntries(profile) {
+     return Object.keys(profile?.values || {})
+       .map(findItemByName)
+-      .filter((entry) => entry && !entry.item?.search_only)
++      .filter((entry) => entry)
+       .sort((left, right) => {
+         const leftGroup = groupIndex.get(left.group)?.index ?? 9999;
+         const rightGroup = groupIndex.get(right.group)?.index ?? 9999;
+@@ -164,7 +164,7 @@
+     const profile = getProfileByGroup(group);
+     if (profile) return getProfileEntries(profile);
+     return (itemsByGroup[group] || [])
+-      .filter((item) => !item?.detail_parent && !item?.search_only)
++      .filter((item) => !item?.detail_parent)
+       .map((item) => ({ group, item }));
+   }
+ 
+@@ -288,9 +288,6 @@
+       name: item.name,
+       title,
+       descr,
+-      // Search-only controls do not exist in their catalog group's ordinary
+-      // row list. Search selection must render them through inline search.
+-      searchOnly: item?.search_only === true,
+       // Empty for a top-level item; a detail child points at the parent whose
+       // detail screen must be open before the child row exists.
+       detailParent: parentItem ? String(parentItem.name || "") : "",

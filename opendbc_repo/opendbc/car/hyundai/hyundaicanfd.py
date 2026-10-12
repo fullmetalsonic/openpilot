@@ -338,7 +338,7 @@ def create_acc_cancel(packer, CP, CAN, cruise_info_copy):
   })
   return packer.make_can_msg("SCC_CONTROL", CAN.ECAN, values)
 
-def create_lfahda_cluster(packer, CS, CAN, long_active, lat_active):
+def create_lfahda_cluster(packer, CS, CAN, long_active, lat_active, *, suppress_camera_auto_disengage=False):
 
 
   if CS.lfahda_cluster is not None:
@@ -352,7 +352,23 @@ def create_lfahda_cluster(packer, CS, CAN, long_active, lat_active):
     values["HDA_OptUsmSta"] = 2
   values["HDA_CntrlModSta"] = 2 if long_active else 0
   values["HDA_LFA_SymSta"] = 2 if lat_active else 0
+  # The scoped GV70/Sorento HEV stock cameras can request this popup with lateral control,
+  # including while longitudinal control is active. Suppress only the observed
+  # signature in the outgoing cluster copy;
+  # retain raw camera evidence and all fault / hands-off popup identities.
+  lfa = CS.lfa if suppress_camera_auto_disengage else None
+  mdps = CS.mdps if suppress_camera_auto_disengage else None
+  scc = CS.scc_control if suppress_camera_auto_disengage else None
+  if (suppress_camera_auto_disengage and lat_active
+      and values.get("HDA_InfoPUDis") == 3 and values.get("HDA_InfoPUDis1") == 0
+      and values.get("HDA_LFA_WrnSnd") == 0
+      and lfa is not None and lfa.get("FCA_SYSWARN") == 1 and lfa.get("VALUE63") == 15
+      and mdps is not None and mdps.get("LKA_FAULT") == 0 and mdps.get("LFA2_FAULT") == 0
+      and scc is not None and scc.get("SysFailState") == 0):
+    values["HDA_InfoPUDis"] = 0
   return [packer.make_can_msg("LFAHDA_CLUSTER", CAN.ECAN, values, rx_counter=rx_counter)]
+
+
 
 def create_lfa_icon_non_camera_scc(packer, CS, CAN, CC):
   ret = []
@@ -1069,6 +1085,9 @@ def create_ccnc_messages(CP, packer, CAN, frame, CC, CS, hud_control,
 
       if CS.ccnc_0x162 is not None:
         values = copy.copy(CS.ccnc_0x162)
+        # Seed once from RX; the packer owns the per-message TX counter after that.
+        # RX-paced Panda forwarding replaces it with the original RX counter.
+        rx_counter = values.pop("COUNTER", None)
 
         _normalize_cluster_corner_objects(values, ccnc=True)
         _convert_ccnc_front_box_to_car(values)
@@ -1083,7 +1102,7 @@ def create_ccnc_messages(CP, packer, CAN, frame, CC, CS, hud_control,
           values["FAULT_LSS"] = 0
           values["FAULT_DAS"] = 0
 
-        ret.append(packer.make_can_msg("CCNC_0x162", CAN.ECAN, values))
+        ret.append(packer.make_can_msg("CCNC_0x162", CAN.ECAN, values, rx_counter=rx_counter))
 
     # --- NEW_MSG_4B9 (corner radar keep-alive?) ---
     if enable_corner_radar > 0:

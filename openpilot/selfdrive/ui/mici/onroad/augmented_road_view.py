@@ -4,6 +4,8 @@ import pyray as rl
 from openpilot.cereal import messaging, car, log
 from msgq.visionipc import VisionStreamType
 from openpilot.selfdrive.ui.ui_state import ui_state, UIStatus
+from openpilot.selfdrive.ui.render_diagnostics import RenderDiagnostics
+from openpilot.system.ui.lib import native_draw, native_geometry, native_text
 from openpilot.selfdrive.ui.mici.onroad import SIDE_PANEL_WIDTH
 from openpilot.selfdrive.ui.mici.onroad.alert_renderer import AlertRenderer
 from openpilot.selfdrive.ui.mici.onroad.driver_state import DriverStateRenderer
@@ -40,8 +42,6 @@ WIDE_CAM_MAX_SPEED = 5.0  # m/s (10 mph)
 ROAD_CAM_MIN_SPEED = 10  # m/s (25 mph)
 
 CAM_Y_OFFSET = 20
-ROAD_VIEW_HIDE_DELAY = 10.0
-ROAD_VIEW_HIDE_TOLERANCE = 3.0
 
 
 class BookmarkIcon(Widget):
@@ -218,6 +218,10 @@ class AugmentedRoadView(CameraView):
     # plotMode 갱신(가끔 파일 읽기)은 drawTime 창 밖에서 — total을 오염시키지 않는다
     self._refresh_plot_mode(time.monotonic())
     start_draw = time.monotonic()
+    if not hasattr(self, '_render_diagnostics'):
+      self._render_diagnostics = RenderDiagnostics('uiC4')
+    timing = self._render_diagnostics
+    timing.start()
     # 구간별 계측(계측 전용) — 렌더 호출 순서는 그대로, 각 구간 전후 monotonic만 잰다.
     # alert/extras처럼 흩어진 구간은 누적(+=). scissor begin/end는 raylib 배치 flush
     # 지점이라 특정 구간에 귀속시키지 않는다 — total과 구간 합의 차이(미귀속)로 남는다.
@@ -255,7 +259,7 @@ class AugmentedRoadView(CameraView):
     if not self._suppress_camera_for_cluster and road_view_mode in (0, 2):
       # Draw all UI overlays
       _t = time.monotonic()
-      self._model_renderer.render(self._content_rect)
+      timing.call('model', self._model_renderer.render, self._content_rect)
       model_ms = (time.monotonic() - _t) * 1000.0
 
     if not self._suppress_camera_for_cluster:
@@ -331,22 +335,15 @@ class AugmentedRoadView(CameraView):
     ud.plotMode = self._plot_mode
     ud.recording = gui_app.is_recording()
     self._pm.send('uiDebug', msg)
+    timing.values['native_draw'] = float(native_draw.active())
+    timing.values['native_geometry'] = float(native_geometry.active())
+    timing.values['native_text'] = float(native_text.active())
+    timing.finish()
 
   def _road_view_mode(self):
-    mode = ui_state.show_model_view
-    if mode <= 0:
+    if not ui_state.started:
       return 0
-
-    ratio = ui_state.show_brightness_ratio
-    if not ui_state.started or ratio <= 0.0 or ratio >= 1.0:
-      return 0
-
-    if time.monotonic() - ui_state.started_time < ROAD_VIEW_HIDE_DELAY:
-      return 0
-
-    target_brightness = ratio * 100.0
-    current_brightness = ui_state.sm['deviceState'].screenBrightnessPercent
-    return min(mode, 3) if current_brightness <= target_brightness + ROAD_VIEW_HIDE_TOLERANCE else 0
+    return max(0, min(ui_state.show_model_view, 3))
 
   def _switch_stream_if_needed(self, sm):
     if sm['selfdriveState'].experimentalMode and WIDE_CAM in self.available_streams:

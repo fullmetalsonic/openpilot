@@ -24,6 +24,7 @@ from openpilot.selfdrive.controls.lib.latcontrol_angle import LatControlAngle, S
 from openpilot.selfdrive.controls.lib.latcontrol_torque import LatControlTorque
 from openpilot.selfdrive.controls.lib.longcontrol import LongControl
 from openpilot.selfdrive.controls.lib.steer_ratio import resolve_vehicle_model_steer_ratio
+from openpilot.selfdrive.controls.lib.lateral_readiness import LateralStartupGate, lateral_vehicle_parameters
 
 
 from openpilot.common.realtime import DT_CTRL, DT_MDL
@@ -60,8 +61,6 @@ class Controls:
 
     self.CI = interfaces[self.CP.carFingerprint](self.CP)
 
-    self.disable_dm = False
-
     self.sm = messaging.SubMaster(['liveDelay', 'liveParameters', 'liveTorqueParameters', 'modelV2', 'selfdriveState',
                                    'liveCalibration', 'livePose', 'longitudinalPlan', 'carState', 'carOutput',
                                    'carrotMan', 'lateralPlan', 'radarState',
@@ -71,6 +70,8 @@ class Controls:
     self.steer_limited_by_safety = False
     self.curvature = 0.0
     self.desired_curvature = 0.0
+    self.lateral_startup = LateralStartupGate()
+    self.lateral_started = False
 
     # VW MEB(ID.4/ID.5)에서만 사용. infiniteCable2 LatControlCurvature 정확 복제:
     # EnableCurvatureController=1(기본 ON) 상태의 곡률 폐루프 PID + useCarSteerCurvature 보정
@@ -111,17 +112,16 @@ class Controls:
 
   def state_control(self):
     CS = self.sm['carState']
+    lateral_ready = self.lateral_startup.update(self.sm, CS, 'carState')
 
     # Update VehicleModel
-    lp = self.sm['liveParameters']
+    lp = self.sm['liveParameters'] if lateral_ready else lateral_vehicle_parameters(self.sm, self.CP)
     x = max(lp.stiffnessFactor, 0.1)
-    # VW MEB uses the learned ratio directly. Other platforms may scale it or
-    # override it, but legacy/out-of-range persisted rates must never collapse
-    # the vehicle-model ratio and destabilize lateral feedback.
+    # All platforms, including VW MEB, honor the manual ratio and live scaling.
+    # Invalid persisted rates still fall back to the unscaled learned ratio.
     sr = resolve_vehicle_model_steer_ratio(lp.steerRatio,
                                            self.params.get_float("SteerRatioRate"),
-                                           self.params.get_float("CustomSR"),
-                                           self.is_vw_meb)
+                                           self.params.get_float("CustomSR"))
     self.VM.update_params(x, sr)
 
     steer_angle_without_offset = math.radians(CS.steeringAngleDeg - lp.angleOffsetDeg)
@@ -154,7 +154,13 @@ class Controls:
                                            CS.steerFaultTemporary, CS.steerFaultPermanent, below_min_speed,
                                            CS.standstill, steer_at_standstill)
     CC.latActive = self.carrot_controls.lat_suspend_control(CS, CC.latActive)
+    # Wait only for the first readiness confirmation, including AlwaysLateral.
+    CC.latActive = CC.latActive and lateral_ready
     CC.longActive = CC.enabled and not any(e.overrideLongitudinal for e in self.sm['onroadEvents']) and self.CP.openpilotLongitudinalControl
+
+    # AlwaysLateral must also stop while manager drains workers for this reboot.
+    if self.params.get_bool("ImpactDashcamReboot"):
+      CC.enabled = CC.latActive = CC.longActive = False
 
     actuators = CC.actuators
 
@@ -165,6 +171,9 @@ class Controls:
 
     if not CC.latActive:
       self.LaC.reset()
+    if CC.latActive and not self.lateral_started:
+      self.desired_curvature = self.curvature
+      self.lateral_started = True
     if not CC.longActive:
       self.LoC.reset()
 

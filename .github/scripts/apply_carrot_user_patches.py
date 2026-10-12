@@ -1,347 +1,169 @@
 #!/usr/bin/env python3
-"""Reapply the narrow, user-owned CarrotPilot patches after an upstream merge.
+"""Reconstruct the reviewed FMS integration from the pinned upstream tree.
 
-Abort instead of guessing when upstream changes any expected code shape.
+All target and asset hashes are checked before any product file is written.
+Shared files use exact-context hunks against the latest upstream; pure additions
+are bundled blobs. No Git history, network access, Params, or device is needed.
 """
-
 from __future__ import annotations
 
+import hashlib
+import json
+from pathlib import Path, PurePosixPath
 import re
-import subprocess
-import shutil
-import tempfile
-from pathlib import Path
-
 
 ROOT = Path(__file__).resolve().parents[2]
-CRUISE = ROOT / "openpilot/selfdrive/car/cruise.py"
-HYUNDAI_CANFD = ROOT / "opendbc_repo/opendbc/car/hyundai/hyundaicanfd.py"
-FORK_REMOTE = ROOT / "openpilot/selfdrive/carrot/server/services/fork_remote.py"
-TOOLS_DISPATCHER = ROOT / "openpilot/selfdrive/carrot/server/features/tools/dispatcher.py"
-STOPPING_PATCH = Path(__file__).with_name("independent_hold_stopping.patch")
-PADDLE_MODE4_PATCH = Path(__file__).with_name("paddle_mode4.patch")
-VEGO_STOPPING_PATCH = Path(__file__).with_name("vego_stopping_min1.patch")
-PADDLE_REGEN_PATCH = Path(__file__).with_name("paddle_regen_isolation.patch")
+ASSETS = Path(__file__).resolve().parent
+MANIFEST = ASSETS / "fms_integration_manifest.json"
+
+
+def normalized(data: bytes) -> bytes:
+  return data.replace(b"\r\n", b"\n")
+
+
+def digest(data: bytes | None) -> str | None:
+  return hashlib.sha256(data).hexdigest() if data is not None else None
+
+
+def safe_path(root: Path, relative: str) -> Path:
+  path = PurePosixPath(relative)
+  if path.is_absolute() or ".." in path.parts or not path.parts or "\\" in relative or ":" in relative:
+    raise RuntimeError(f"Unsafe manifest path: {relative}")
+  target = root.joinpath(*path.parts)
+  if not target.resolve().is_relative_to(root.resolve()):
+    raise RuntimeError(f"Manifest path escapes root: {relative}")
+  return target
 
 
 def replace_once(text: str, original: str, patched: str, name: str) -> str:
-  # A removal patch can be a prefix of the original block. Check the complete
-  # original first; otherwise a fresh upstream file is incorrectly left intact.
+  # A deletion result may be a prefix of its original. Original always wins.
   if original in text:
     if text.count(original) != 1:
-      raise RuntimeError(f"Ambiguous upstream code shape; refusing to guess: {name}")
+      raise RuntimeError(f"Ambiguous original block: {name}")
     return text.replace(original, patched, 1)
   if patched in text:
     return text
-  raise RuntimeError(f"Upstream code shape changed; refusing to guess: {name}")
+  raise RuntimeError(f"Source shape changed: {name}")
 
 
-def replace_exactly(text: str, original: str, patched: str, count: int, name: str) -> str:
-  if text.count(original) == count:
-    return text.replace(original, patched)
-  if text.count(patched) == count and original not in text:
-    return text
-  raise RuntimeError(f"Upstream code shape changed; refusing to guess: {name}")
-
-
-def patch_independent_stopping() -> None:
-  # Exact-context patch for the upstream stopping FSM and controller wiring.
-  # A clean upstream gets the patch; a patched tree is unchanged. Any other
-  # structure fails closed instead of silently losing real CAN braking.
-  patch_file = str(STOPPING_PATCH)
-  check = subprocess.run(["git", "-C", str(ROOT), "apply", "--check", patch_file], capture_output=True)
-  if check.returncode == 0:
-    subprocess.run(["git", "-C", str(ROOT), "apply", patch_file], check=True)
-    return
-  already = subprocess.run(["git", "-C", str(ROOT), "apply", "--reverse", "--check", patch_file], capture_output=True)
-  if already.returncode != 0:
-    raise RuntimeError("Upstream stopping/controller shape changed; refusing to guess")
-
-
-def patch_paddle_mode4() -> None:
-  # Exact-context cruise patch; other PaddleMode 4 files are preserved by the
-  # WIP merge and checked by the dedicated paddle tests.
-  patch_file = str(PADDLE_MODE4_PATCH)
-  check = subprocess.run(["git", "-C", str(ROOT), "apply", "--check", patch_file], capture_output=True)
-  if check.returncode == 0:
-    subprocess.run(["git", "-C", str(ROOT), "apply", patch_file], check=True)
-    return
-  already = subprocess.run(["git", "-C", str(ROOT), "apply", "--reverse", "--check", patch_file], capture_output=True)
-  if already.returncode != 0:
-    raise RuntimeError("Upstream cruise/PaddleMode 4 shape changed; refusing to guess")
-
-
-def patch_vego_stopping() -> None:
-  # Keep the user's stored value and the minimum of 1 across runtime, menu,
-  # documentation, and regression tests. Refuse changed upstream context.
-  patch_file = str(VEGO_STOPPING_PATCH)
-  check = subprocess.run(["git", "-C", str(ROOT), "apply", "--check", patch_file], capture_output=True)
-  if check.returncode == 0:
-    subprocess.run(["git", "-C", str(ROOT), "apply", patch_file], check=True)
-    return
-  already = subprocess.run(["git", "-C", str(ROOT), "apply", "--reverse", "--check", patch_file], capture_output=True)
-  if already.returncode != 0:
-    raise RuntimeError("Upstream VEgoStopping shape changed; refusing to guess")
-
-
-def patch_cruise() -> None:
-  text = CRUISE.read_text(encoding="utf-8")
-
-  text = replace_once(
-    text,
-    """    if not self._cruise_available:
-      self._cruise_ready = False
-      self._paddle_decel_active = False
-      self._soft_hold_count = 0
-      self._soft_hold_active = 0
-""",
-    """    if not self._cruise_available:
-      self._cruise_ready = False
-      self._paddle_decel_active = False
-""",
-    "preserve soft hold while cruise is unavailable",
-  )
-  # 3bbc3c12 adds `manual` for Bluetooth/HID actions. Keep the upstream
-  # signature: SoftHold now holds through CAN without requesting cruise ON.
-  legacy_signature = """  def _cruise_control(self, enable, cancel_timer, reason, allow_cancel_state=False):
-    if enable > 0 and not self._cruise_available:
-"""
-  manual_signature = """  def _cruise_control(self, enable, cancel_timer, reason, allow_cancel_state=False, manual=False):
-    # Explicit HID button requests bypass automatic-engage preferences only;
-    # availability/interlocks below and selfdrived's normal no-entry checks remain.
-    if enable > 0 and not self._cruise_available:
-"""
-  patched_signature = """  def _cruise_control(self, enable, cancel_timer, reason, allow_cancel_state=False, manual=False, allow_unavailable=False,
-                      allow_auto_cruise_cancel_timer=False):
-    # Manual Bluetooth/HID input keeps upstream's automatic-engage preference
-    # bypass. The two allow_* exceptions below are reserved for independent
-    # SoftHold and do not bypass steering or hold interlocks.
-    if enable > 0 and not self._cruise_available and not allow_unavailable:
-"""
-  if patched_signature in text:
-    text = text.replace(patched_signature, manual_signature, 1)
-  elif manual_signature not in text and legacy_signature not in text:
-    raise RuntimeError("Upstream code shape changed; refusing to guess: preserve cruise-control signature")
-
-  patched_timer = """      if not manual and self.autoCruiseControl_cancel_timer > 0 and enable != 0 and not allow_auto_cruise_cancel_timer:
-"""
-  manual_timer = """      if not manual and self.autoCruiseControl_cancel_timer > 0 and enable != 0:
-"""
-  legacy_timer = """      if self.autoCruiseControl_cancel_timer > 0 and enable != 0:
-"""
-  if patched_timer in text:
-    text = text.replace(patched_timer, manual_timer, 1)
-  elif manual_timer not in text and legacy_timer not in text:
-    raise RuntimeError("Upstream code shape changed; cannot preserve cruise cancel timer")
-
-  hold_only = """  def _engage_soft_hold(self):
-    self._soft_hold_active = 2
-    self._add_log("Soft hold active (hold only)")
-"""
-  upstream_engage = """  def _engage_soft_hold(self):
-    self._soft_hold_active = 2
-    self._cruise_control(1, -1, "Cruise on (soft hold)", allow_cancel_state=self.soft_hold_on_cancel)
-"""
-  previous_patch_engage = """  def _engage_soft_hold(self):
-    self._soft_hold_active = 2
-    if self._cruise_cancel_state:
-      self._add_log("Soft hold active (cancel state)")
-      return
-    self._cruise_control(1, -1, "Cruise on (soft hold)", allow_cancel_state=self.soft_hold_on_cancel,
-                         allow_unavailable=True, allow_auto_cruise_cancel_timer=True)
-"""
-  if hold_only not in text:
-    if previous_patch_engage in text:
-      text = text.replace(previous_patch_engage, hold_only, 1)
-    elif upstream_engage in text:
-      text = text.replace(upstream_engage, hold_only, 1)
+def apply_exact_hunks(source: bytes, patch: bytes, name: str) -> bytes:
+  """Apply ordinary unified hunks without offset search, fuzz, or guessing."""
+  lines = source.decode("utf-8").splitlines(keepends=True)
+  patch_lines: list[str] = []
+  for line in patch.decode("utf-8").splitlines(keepends=True):
+    if line == "\\ No newline at end of file\n":
+      if not patch_lines or patch_lines[-1][0] not in " +-":
+        raise RuntimeError(f"Malformed missing-newline marker: {name}")
+      patch_lines[-1] = patch_lines[-1].removesuffix("\n")
     else:
-      raise RuntimeError("Upstream code shape changed; cannot safely patch SoftHold engagement")
-
-  text = replace_once(
-    text,
-    """  def _update_cruise_buttons(self, CS, CC, v_cruise_kph):
-    remote = self.bluetooth_commands.read(allowed=(CS.canValid and CS.cruiseState.available and
-""",
-    """  def _update_cruise_buttons(self, CS, CC, v_cruise_kph):
-    if any(b.type == ButtonType.cancel and b.pressed for b in CS.buttonEvents):
-      # selfdrived cancels on the press edge; latch here too instead of waiting
-      # for the release/long-press decoder.
-      self._cruise_cancel_state = True
-    remote = self.bluetooth_commands.read(allowed=(CS.canValid and CS.cruiseState.available and
-""",
-    "latch physical cancel on the press edge",
-  )
-
-  text = replace_once(
-    text,
-    """    if self._soft_hold_active > 0:
-      #self.events.append(EventName.softHold)
-      #self._cruise_cancel_state = False
-      pass
-
-    if not self.disengage_on_accelerator and self._gas_tok and self.v_ego_kph_set >= self.autoGasTokSpeed:
-""",
-    """    if self._soft_hold_active > 0:
-      # Keep the real CAN hold active without turning SoftHold itself into a
-      # selfdrived enable request. Explicit SET/RES clears SoftHold earlier in
-      # the button path; after gas release the normal CruiseOnDist logic remains.
-      return self._auto_speed_up(v_cruise_kph)
-
-    if not self.disengage_on_accelerator and self._gas_tok and self.v_ego_kph_set >= self.autoGasTokSpeed:
-""",
-    "block automatic cruise activation while SoftHold owns the stop",
-  )
-  text = replace_once(
-    text,
-    """      soft_hold_available = CS.cruiseState.available and self.autoCruiseControl != 0 and not self.CP.pcmCruise and \\
-""",
-    """      soft_hold_available = self.autoCruiseControl != 0 and not self.CP.pcmCruise and \\
-""",
-    "remove cruise-availability gate from soft hold arming",
-  )
-
-  timer_gate = """                            self.autoCruiseControl_cancel_timer == 0 and \\
-"""
-  if timer_gate in text:
-    text = text.replace(timer_gate, "", 1)
-  elif "soft_hold_available = self.autoCruiseControl != 0" not in text:
-    raise RuntimeError("Upstream code shape changed; cannot preserve independent SoftHold arming")
-
-  text = replace_once(
-    text,
-    '      elif self.params.get_bool("ActivateCruiseAfterBrake"):\n',
-    '      elif self._soft_hold_active == 0 and self.params.get_bool("ActivateCruiseAfterBrake"):\n',
-    "defer GM brake-resume request while independent SoftHold owns the stop",
-  )
-  CRUISE.write_text(text, encoding="utf-8")
+      patch_lines.append(line)
+  output: list[str] = []
+  cursor = 0
+  i = 0
+  hunks = 0
+  while i < len(patch_lines):
+    header = re.fullmatch(r"@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@[^\n]*\n?", patch_lines[i])
+    if header is None:
+      if patch_lines[i].startswith(("--- ", "+++ ")):
+        i += 1
+        continue
+      raise RuntimeError(f"Malformed patch header: {name}")
+    old_start, old_count, new_start, new_count = header.groups()
+    old_count, new_count = int(old_count or 1), int(new_count or 1)
+    position = int(old_start) - (1 if old_count else 0)
+    if position < cursor or position > len(lines):
+      raise RuntimeError(f"Invalid patch position: {name}")
+    output.extend(lines[cursor:position])
+    if len(output) != int(new_start) - (1 if new_count else 0):
+      raise RuntimeError(f"New patch position mismatch: {name}")
+    cursor = position
+    seen_old = seen_new = 0
+    i += 1
+    while i < len(patch_lines) and not patch_lines[i].startswith("@@ "):
+      entry = patch_lines[i]
+      if not entry or entry[0] not in " +-":
+        raise RuntimeError(f"Malformed patch body: {name}")
+      kind, value = entry[0], entry[1:]
+      if kind in " -":
+        if cursor >= len(lines) or lines[cursor] != value:
+          raise RuntimeError(f"Exact patch context changed: {name}, line {cursor + 1}")
+        cursor += 1
+        seen_old += 1
+      if kind in " +":
+        output.append(value)
+        seen_new += 1
+      i += 1
+    if (seen_old, seen_new) != (old_count, new_count):
+      raise RuntimeError(f"Patch hunk count mismatch: {name}")
+    hunks += 1
+  if not hunks:
+    raise RuntimeError(f"Patch contains no hunks: {name}")
+  output.extend(lines[cursor:])
+  return "".join(output).encode("utf-8")
 
 
-def patch_blinkers() -> None:
-  text = HYUNDAI_CANFD.read_text(encoding="utf-8")
-  for name in ("LEFT_BLINK_HOLD", "RIGHT_BLINK_HOLD"):
-    pattern = rf"(?m)^(\s*values\['{name}'\]\s*=\s*)[^\r\n]+$"
-    text, replacements = re.subn(pattern, rf"\g<1>0", text, count=1)
-    if replacements != 1:
-      raise RuntimeError(f"Upstream code shape changed; cannot patch {name}")
-
-  text = replace_once(
-    text,
-    """  soft_hold_active = CS.softHoldActive > 0 and CS.out.cruiseState.available
-  acc_control_enabled = (enabled or soft_hold_active) and CS.out.cruiseState.available and CS.paddle_button_prev == 0 and not interlock_active
-""",
-    """  soft_hold_active = CS.softHoldActive > 0
-  independent_hold = soft_hold_active and not enabled
-  # Preserve the upstream availability gate for ordinary ACC. Only independent
-  # SoftHold may hold the vehicle while OEM cruise is unavailable.
-  acc_control_enabled = ((enabled and CS.out.cruiseState.available) or soft_hold_active) and CS.paddle_button_prev == 0 and not interlock_active
-""",
-    "preserve CANFD SCC2 stop request for independent soft hold",
-  )
-  text = replace_once(
-    text,
-    """  soft_hold_active = CS.softHoldActive > 0 and CS.out.cruiseState.available
-  acc_control_enabled = (enabled or soft_hold_active) and CS.out.cruiseState.available and not interlock_active
-""",
-    """  soft_hold_active = CS.softHoldActive > 0
-  independent_hold = soft_hold_active and not enabled
-  # Match the SCC2 path: ordinary ACC remains gated by OEM availability while
-  # independent SoftHold retains its stop request.
-  acc_control_enabled = ((enabled and CS.out.cruiseState.available) or soft_hold_active) and not interlock_active
-""",
-    "preserve CANFD SCC stop request for independent soft hold",
-  )
-  text = replace_once(
-    text,
-    "  soft_hold = CS.softHoldActive > 0 and CS.out.cruiseState.available\n",
-    "  soft_hold = CS.softHoldActive > 0\n",
-    "recognize independent SoftHold in CANFD stopping (including mandatory default)",
-  )
-  text = replace_once(
-    text,
-    "def apply_canfd_stopping(values, CS, controller, accel, previous_value, jerk_u, jerk_l):\n",
-    "def apply_canfd_stopping(values, CS, controller, accel, previous_value, jerk_u, jerk_l, independent_hold=False):\n",
-    "pass independent hold mode to CANFD stopping",
-  )
-  text = replace_once(
-    text,
-    "    jerk_u=max(0.0, min(jerk_u, 5.0)), jerk_l=max(1.0, min(jerk_l, 5.0)),\n  )\n",
-    "    jerk_u=max(0.0, min(jerk_u, 5.0)), jerk_l=max(1.0, min(jerk_l, 5.0)),\n    independent_hold=independent_hold,\n  )\n",
-    "wire independent hold into stopping FSM",
-  )
-  text = replace_exactly(
-    text,
-    "  apply_canfd_stopping(values, CS, stop_controller, accel, previous_value, jerk_u, jerk_l)\n",
-    "  apply_canfd_stopping(values, CS, stop_controller, accel, previous_value, jerk_u, jerk_l,\n                       independent_hold=independent_hold)\n",
-    2,
-    "wire both CANFD ACC paths to independent stopping",
-  )
-  HYUNDAI_CANFD.write_text(text, encoding="utf-8")
-
-
-def verify_fork_branch_support() -> None:
-  if not FORK_REMOTE.is_file():
-    raise RuntimeError("Fork branch support file is missing after upstream merge")
-  if not (FORK_REMOTE.parent / "branch_catalog.py").is_file():
-    raise RuntimeError("Read-only branch catalog support is missing after upstream merge")
-  text = TOOLS_DISPATCHER.read_text(encoding="utf-8")
-  for marker in ("list_branches", "checkout_branch", "sync_branches"):
-    if marker not in text:
-      raise RuntimeError(f"Fork branch support changed upstream; refusing to guess: {marker}")
+def apply_integration(root: Path = ROOT, manifest_path: Path = MANIFEST) -> dict[str, int]:
+  manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+  if manifest.get("format") != 1 or manifest.get("upstream") != "3f537bc13fdc325f4ef3852f8ab5a762566cefc1":
+    raise RuntimeError("Unsupported integration manifest/base")
+  prepared: list[tuple[Path, bytes | None]] = []
+  visited: set[str] = set()
+  for operation in manifest["operations"]:
+    name = operation["path"]
+    if name in visited:
+      raise RuntimeError(f"Duplicate manifest target: {name}")
+    visited.add(name)
+    destination = safe_path(root, name)
+    if destination.exists() and not destination.is_file():
+      raise RuntimeError(f"Source target is not a regular file: {name}")
+    for parent in destination.parents:
+      if parent == root.resolve():
+        break
+      if parent.exists() and not parent.is_dir():
+        raise RuntimeError(f"Source parent is not a directory: {name}")
+    current = normalized(destination.read_bytes()) if destination.is_file() else None
+    current_hash = digest(current)
+    asset_data = None
+    if operation.get("asset"):
+      asset = safe_path(manifest_path.parent, operation["asset"])
+      asset_data = asset.read_bytes()
+      if digest(asset_data) != operation["asset_sha256"]:
+        raise RuntimeError(f"Preservation asset hash mismatch: {name}")
+    # Validate every asset even on a fully applied tree.
+    if current_hash == operation["after_sha256"]:
+      continue
+    if current_hash != operation["before_sha256"]:
+      raise RuntimeError(f"Source hash/shape changed; refusing to guess: {name}")
+    kind = operation["kind"]
+    if kind == "delete":
+      candidate = None
+    elif kind == "blob":
+      candidate = asset_data
+    elif kind == "hunks" and current is not None and asset_data is not None:
+      candidate = apply_exact_hunks(current, asset_data, name)
+    else:
+      raise RuntimeError(f"Unsupported preservation operation: {name}")
+    if digest(candidate) != operation["after_sha256"]:
+      raise RuntimeError(f"Reconstruction result hash mismatch: {name}")
+    prepared.append((destination, candidate))
+  # Preflight is complete: malformed input cannot leave a partly applied tree.
+  for destination, content in prepared:
+    if content is None:
+      destination.unlink()
+    else:
+      destination.parent.mkdir(parents=True, exist_ok=True)
+      destination.write_bytes(content)
+  return {"changed": len(prepared), "verified": len(visited)}
 
 
 def apply_base_patches() -> None:
-  patch_paddle_mode4()
-  patch_cruise()
-  patch_blinkers()
-  patch_independent_stopping()
-  patch_vego_stopping()
-  verify_fork_branch_support()
+  """Compatibility entry point; all overlapping layers are one manifest now."""
+  apply_integration()
 
 
 def main() -> None:
-  global ROOT, CRUISE, HYUNDAI_CANFD, FORK_REMOTE, TOOLS_DISPATCHER
-  patch = str(PADDLE_REGEN_PATCH)
-  already = subprocess.run(["git", "-C", str(ROOT), "apply", "--reverse", "--check", patch], capture_output=True)
-  if already.returncode == 0:
-    # New and old layers share SCC2 context. Verify the old layers and complete
-    # replay in scratch, never temporarily remove a safety layer in the product.
-    paths = {"openpilot/selfdrive/car/cruise.py", "opendbc_repo/opendbc/car/hyundai/hyundaicanfd.py",
-             "openpilot/selfdrive/carrot/server/services/fork_remote.py",
-             "openpilot/selfdrive/carrot/server/services/branch_catalog.py",
-             "openpilot/selfdrive/carrot/server/features/tools/dispatcher.py"}
-    for artifact in (STOPPING_PATCH, PADDLE_MODE4_PATCH, VEGO_STOPPING_PATCH, PADDLE_REGEN_PATCH):
-      paths.update(re.findall(r"^diff --git a/(\S+) b/", artifact.read_text(encoding="utf-8"), re.MULTILINE))
-    original_root = ROOT
-    original_paths = (CRUISE, HYUNDAI_CANFD, FORK_REMOTE, TOOLS_DISPATCHER)
-    with tempfile.TemporaryDirectory(prefix="paddle-patch-check-") as scratch:
-      target = Path(scratch)
-      for relative in paths:
-        source = original_root / relative
-        if source.is_file():
-          destination = target / relative
-          destination.parent.mkdir(parents=True, exist_ok=True)
-          shutil.copyfile(source, destination)
-      subprocess.run(["git", "-C", str(target), "init", "--quiet"], check=True)
-      subprocess.run(["git", "-C", str(target), "apply", "--reverse", patch], check=True, capture_output=True)
-      try:
-        ROOT = target
-        CRUISE, HYUNDAI_CANFD, FORK_REMOTE, TOOLS_DISPATCHER = (target / p.relative_to(original_root) for p in original_paths)
-        apply_base_patches()
-        subprocess.run(["git", "-C", str(target), "apply", patch], check=True, capture_output=True)
-        for relative in paths:
-          source, reconstructed = original_root / relative, target / relative
-          if source.is_file() != reconstructed.is_file():
-            raise RuntimeError(f"Patch replay changed file presence: {relative}")
-          if source.is_file() and source.read_text(encoding="utf-8") != reconstructed.read_text(encoding="utf-8"):
-            raise RuntimeError(f"Patch replay diverged: {relative}")
-      finally:
-        ROOT = original_root
-        CRUISE, HYUNDAI_CANFD, FORK_REMOTE, TOOLS_DISPATCHER = original_paths
-    return
-  apply_base_patches()
-  subprocess.run(["git", "-C", str(ROOT), "apply", "--check", patch], check=True, capture_output=True)
-  subprocess.run(["git", "-C", str(ROOT), "apply", patch], check=True, capture_output=True)
+  result = apply_integration()
+  print(json.dumps(result, sort_keys=True))
 
 
 if __name__ == "__main__":

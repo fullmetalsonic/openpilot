@@ -304,6 +304,7 @@
               <span id="egpuModelState" class="egpu-model-card__state">Checking</span>
             </div>
             <p id="egpuModelDetail" class="egpu-model-card__detail"></p>
+            <p id="egpuModelRecovery" class="egpu-model-card__detail" hidden></p>
             <div id="egpuModelProgress" class="egpu-model-card__progress" hidden>
               <div class="egpu-model-card__track"><span id="egpuModelProgressBar"></span></div>
             </div>
@@ -351,6 +352,7 @@
           </button>
           <div id="toolsGroupBodySystem" class="tools-group__body">
             <div class="tools-group__bodyInner ui-action-grid">
+              <button id="btnRecordToggle" class="btn" type="button" aria-label="Record">Record</button>
               <button id="btnDeviceLang" class="btn" hidden style="display:none;">Device Lang</button>
               <button id="btnResetCalib" class="btn btn--danger">Reset Calib</button>
               <button id="btnSendTmuxLog" class="btn">capture tmux</button>
@@ -727,7 +729,7 @@
             </section>
           </div>
         </aside>
-        <div class="carrot-stage__controls" role="group" aria-label="Sound, HUD, display and recording controls">
+        <div class="carrot-stage__controls" role="group" aria-label="Sound, HUD and display controls">
           <label id="carrotReplayHudControl" class="carrot-stage__controlBtn carrot-stage__controlBtn--hud carrot-replay-controls__hudToggle" for="carrotReplayHudToggle" hidden>
             <input id="carrotReplayHudToggle" type="checkbox">
             <span id="carrotReplayHudToggleLabel">HUD</span>
@@ -735,7 +737,6 @@
           <button id="btnWebSound" class="carrot-stage__controlBtn carrot-stage__controlBtn--sound" type="button" aria-label="Web sound">Sound</button>
           <button id="btnCarrotReplaySpeed" class="carrot-stage__controlBtn carrot-stage__controlBtn--replay-speed" type="button" aria-label="Replay speed" hidden>1×</button>
           <button id="btnDisplayModeCycle" class="carrot-stage__controlBtn carrot-stage__controlBtn--display" type="button" aria-label="Display mode">Normal</button>
-          <button id="btnRecordToggle" class="carrot-stage__controlBtn carrot-stage__controlBtn--record" type="button" aria-label="Record">Record</button>
         </div>
         </div>
         <div id="carrotNaviDivider" class="carrot-navi-divider" data-drive-workspace-divider role="separator" aria-orientation="vertical" aria-label="Resize Carrot Navi" aria-valuemin="30" aria-valuemax="70" aria-valuenow="70" tabindex="0" hidden>
@@ -857,7 +858,6 @@
     <button id="btnHome" class="nav-btn active">
       <span id="navHomeStatusBadges" class="nav-status-badges" aria-hidden="true">
         <span id="navRecordStatusBadge" class="nav-status-badge nav-status-badge--record" hidden>REC</span>
-        <span id="navYouTubeStatusBadge" class="nav-status-badge nav-status-badge--live" hidden>LIVE</span>
       </span>
       <span class="nav-icon">
         <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg>
@@ -968,7 +968,6 @@
   <script src="/js/shared/ui/media_transport.js"></script>
   <script src="/js/shared/ui/navigation.js"></script>
   <script src="/js/pages/car.js"></script>
-  <script src="/js/pages/setting_youtube_live.js"></script>
   <script src="/js/pages/setting_mapbox_tokens.js"></script>
   <script src="/js/shared/ui/nav_status_badges.js"></script>
   <script src="/js/pages/setting.js"></script>

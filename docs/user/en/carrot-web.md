@@ -39,6 +39,8 @@ The Drive page displays live video and driving state. Its usual layout contains 
 
 ### Live video and HUD
 
+Web road video requires `DisableDM=2` and a device reboot. It is unavailable while `ClusterHud` is enabled.
+
 - Select `Start Drive Vision` to begin connecting to the camera stream.
 - The HUD may show vehicle speed, set speed, speed limit, following gap, lead vehicle, and driving alerts.
 - Enable or disable AR in `Tools > Web Settings`.

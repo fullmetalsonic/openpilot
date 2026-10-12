@@ -12,6 +12,7 @@ from openpilot.selfdrive.ui.soundd import (
 import os
 import time
 import wave
+import numpy as np
 from types import SimpleNamespace
 
 from openpilot.common.basedir import BASEDIR
@@ -23,7 +24,7 @@ class _SoundSubMaster:
   def __init__(self, countdown, *, selfdrive_updated=False, carrot_updated=True):
     self.updated = {"selfdriveState": selfdrive_updated, "carrotMan": carrot_updated}
     self.services = {
-      "selfdriveState": SimpleNamespace(alertSound=SimpleNamespace(raw=AudibleAlert.none)),
+      "selfdriveState": SimpleNamespace(alertSound=SimpleNamespace(raw=AudibleAlert.none), alertType=""),
       "carrotMan": SimpleNamespace(leftSec=countdown),
     }
 
@@ -72,6 +73,7 @@ class TestSoundd:
   def test_radar_alert_sound_assets(self):
     expected = {
       AudibleAlert.radarCutin: ("prompt.wav", 1.506),
+      AudibleAlert.systemReady: ("prompt.wav", 1.506),
     }
     sound_dir = os.path.join(BASEDIR, "openpilot", "selfdrive", "assets", "sounds_eng")
 
@@ -82,6 +84,25 @@ class TestSoundd:
         assert sound.getsampwidth() == 2
         assert sound.getframerate() == 48000
         assert abs(sound.getnframes() / sound.getframerate() - duration) < 0.001
+
+  def test_ready_chime_plays_once_and_warning_interrupts_it(self):
+    soundd = Soundd.__new__(Soundd)
+    soundd.current_alert = AudibleAlert.none
+    soundd.current_sound_frame = 0
+    soundd.current_volume = 0.2
+    soundd.loaded_sounds = {
+      AudibleAlert.systemReady: np.ones(4, dtype=np.float32),
+      AudibleAlert.warningImmediate: np.ones(4, dtype=np.float32),
+    }
+    soundd.update_alert(AudibleAlert.systemReady)
+    soundd.update_alert(AudibleAlert.none)
+    np.testing.assert_allclose(soundd.get_sound_data(4), .2)
+    np.testing.assert_allclose(soundd.get_sound_data(4), 0.)
+    soundd.update_alert(AudibleAlert.none)
+    soundd.update_alert(AudibleAlert.systemReady)
+    soundd.get_sound_data(1)
+    soundd.update_alert(AudibleAlert.warningImmediate)
+    np.testing.assert_allclose(soundd.get_sound_data(4), .2)
 
   def test_completed_one_shot_alert_returns_to_none(self):
     soundd = Soundd.__new__(Soundd)

@@ -1,0 +1,17 @@
+--- a/AGENTS.md
++++ b/AGENTS.md
+@@ -1,3 +1,14 @@
++# FMS fork integration contract
++
++This fork preserves its own behavior contracts and selectively integrates
++reviewed upstream changes. Current user instructions supersede historical
++upstream repository memory below. Read `docs/fms_integration_contract.md`
++before updating FMS: retain legacy DisableDM behavior and the existing CANFD
++stopping core together with all personal patches. Do not adopt upstream DM
++changes merely because they are merged into carrot-wip. The current local
++integration is explicitly uncommitted; do not commit or push without a new
++user request. Stable and raw DDM branches and paused automation stay unchanged.
++
+ # Repository memory
+ 
+ - On 2026-10-12, during the color experiment, the user prioritized avoiding

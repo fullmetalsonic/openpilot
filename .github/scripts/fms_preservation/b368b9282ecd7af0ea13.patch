@@ -1,0 +1,15 @@
+--- a/openpilot/common/params_keys.h
++++ b/openpilot/common/params_keys.h
+@@ -378,11 +378,7 @@
+     {"MaxTimeOffroadMin", {PERSISTENT, INT, "60"}},
+     {"TeslaWakeOnCAN", {PERSISTENT, BOOL, "1"}},
+ 
+-    {"DisableDM", {PERSISTENT, INT, "0"}},  // retired; read only for one-time streaming migration
+-    {"DriverMonitoringEnabled", {PERSISTENT, BOOL, "1"}},
+-    {"DriverMonitoringSessionDisabled", {CLEAR_ON_MANAGER_START | CLEAR_ON_IGNITION_ON, BOOL}},
+-    {"DriverMonitoringMode", {PERSISTENT, INT, "0"}},
+-    {"CarrotVisionEnabled", {PERSISTENT, BOOL, "0"}},
++    {"DisableDM", {PERSISTENT, INT, "0"}},
+     {"MuteDoor", {PERSISTENT, INT, "0"}},
+     {"MuteSeatbelt", {PERSISTENT, INT, "0"}},
+ 

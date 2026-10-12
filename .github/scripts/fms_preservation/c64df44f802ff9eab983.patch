@@ -1,0 +1,18 @@
+--- a/openpilot/selfdrive/controls/tests/test_longitudinal_stopping.py
++++ b/openpilot/selfdrive/controls/tests/test_longitudinal_stopping.py
+@@ -31,12 +31,14 @@
+   start = next(i for i, n in enumerate(update.body) if isinstance(n, ast.If)
+                and any(isinstance(x, ast.Assign) and any(ast.unparse(t) == 'self.output_should_stop' for t in x.targets)
+                        for x in n.body))
++  end = next(i for i, n in enumerate(update.body) if isinstance(n, ast.Expr)
++             and isinstance(n.value, ast.Call) and ast.unparse(n.value.func) == 'self.update_coasting')
+   state = SimpleNamespace(mpc=SimpleNamespace(mode=mode))
+   ns = {'self': state, 'output_should_stop_mpc': mpc_stop, 'output_should_stop_e2e': model_stop,
+         'output_a_target_mpc': -.3, 'output_a_target_e2e': -.5, 'output_a_target_base': -.3,
+         'output_v_target_mpc': .6, 'output_v_target_now_e2e': .4}
+   state.j_desired_trajectory = [0.]
+-  exec(compile(ast.Module(body=update.body[start:], type_ignores=[]), str(path), 'exec'), ns)
++  exec(compile(ast.Module(body=update.body[start:end], type_ignores=[]), str(path), 'exec'), ns)
+   assert state.output_should_stop == (mpc_stop if mode == 'acc' else mpc_stop or model_stop)
+ 
+ 

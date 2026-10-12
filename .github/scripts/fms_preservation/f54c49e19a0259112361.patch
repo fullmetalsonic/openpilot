@@ -1,0 +1,77 @@
+--- a/openpilot/selfdrive/carrot/server/services/params.py
++++ b/openpilot/selfdrive/carrot/server/services/params.py
+@@ -370,15 +370,14 @@
+     params.put(key, str(value))
+ 
+ 
+-INTERNAL_SESSION_PARAMS = frozenset({"DriverMonitoringSessionDisabled", "JetsonLegacyUpdatePending"})
+-BACKUP_EXCLUDED_PARAMS = frozenset({"DriverMonitoringEnabled"})
++INTERNAL_SESSION_PARAMS = frozenset({"JetsonLegacyUpdatePending"})
+ 
+ 
+ def filter_param_backup_values(values: dict[str, Any]) -> dict[str, Any]:
+   return {
+     str(key): value
+     for key, value in values.items()
+-    if str(key) not in INTERNAL_SESSION_PARAMS and str(key) not in BACKUP_EXCLUDED_PARAMS
++    if str(key) not in INTERNAL_SESSION_PARAMS
+   }
+ 
+ 
+@@ -404,8 +403,6 @@
+       raise
+     _put_unregistered_setting(params, name, value, p)
+ 
+-  if name == "DriverMonitoringEnabled" and not _coerce_bool(value) and not params.get_bool("IsOnroad"):
+-    params.remove("Offroad_DriverMonitoringUncertain")
+ 
+ # -----------------------
+ # Bulk backup / restore
+@@ -426,7 +423,7 @@
+     else:
+       key = str(k)
+ 
+-    if key in INTERNAL_SESSION_PARAMS or key in BACKUP_EXCLUDED_PARAMS:
++    if key in INTERNAL_SESSION_PARAMS:
+       continue
+ 
+     try:
+@@ -527,8 +524,6 @@
+ 
+   for key, value in values.items():
+     if key in INTERNAL_SESSION_PARAMS:
+-      continue
+-    if source != "reset_defaults" and key in BACKUP_EXCLUDED_PARAMS:
+       continue
+     try:
+       definition = definitions.get(key)
+@@ -1268,8 +1263,7 @@
+     return str(left) == str(right)
+ 
+ 
+-def preview_param_restore_values(values: Dict[str, Any], selected_keys: Optional[List[str]] = None,
+-                                 source: str = "restore") -> Dict[str, Any]:
++def preview_param_restore_values(values: Dict[str, Any], selected_keys: Optional[List[str]] = None) -> Dict[str, Any]:
+   if not HAS_PARAMS or ParamKeyType is None:
+     raise RuntimeError("Params/ParamKeyType not available")
+ 
+@@ -1291,10 +1285,6 @@
+     if key in INTERNAL_SESSION_PARAMS:
+       status = "invalid"
+       reason = "controlled internally"
+-      can_apply = False
+-    elif source != "reset_defaults" and key in BACKUP_EXCLUDED_PARAMS:
+-      status = "skipped"
+-      reason = "excluded from backup restore"
+       can_apply = False
+     else:
+       try:
+@@ -1346,7 +1336,7 @@
+ 
+ def restore_param_values_validated(values: Dict[str, Any], selected_keys: Optional[List[str]] = None,
+                                    source: str = "restore") -> Dict[str, Any]:
+-  preview = preview_param_restore_values(values, selected_keys, source=source)
++  preview = preview_param_restore_values(values, selected_keys)
+   apply_values = {
+     entry["key"]: entry["value"]
+     for entry in preview["entries"]

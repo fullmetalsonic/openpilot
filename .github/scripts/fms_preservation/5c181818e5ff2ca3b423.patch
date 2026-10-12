@@ -1,0 +1,15 @@
+--- a/docs/user/docs_map.json
++++ b/docs/user/docs_map.json
+@@ -58,10 +58,8 @@
+       "enforcement": "required",
+       "description": "운전자 감시 정책, 입력과 경고 동작",
+       "code_paths": [
+-        "openpilot/selfdrive/monitoring/config.py",
+-        "openpilot/selfdrive/monitoring/dm2.py",
+-        "openpilot/selfdrive/monitoring/dm2_context.py",
+-        "openpilot/selfdrive/monitoring/dm2d.py",
++        "openpilot/selfdrive/monitoring/dmonitoringd.py",
++        "openpilot/selfdrive/monitoring/policy.py",
+         "openpilot/selfdrive/controls/controlsd.py",
+         "openpilot/selfdrive/selfdrived/selfdrived.py",
+         "openpilot/system/manager/process_config.py",

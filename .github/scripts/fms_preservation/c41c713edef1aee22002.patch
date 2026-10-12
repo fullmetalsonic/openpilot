@@ -1,0 +1,14 @@
+--- a/openpilot/selfdrive/modeld/signal_neural_shadow.py
++++ b/openpilot/selfdrive/modeld/signal_neural_shadow.py
+@@ -40,8 +40,9 @@
+   # The DM model also runs on the internal GPU with an external driving model.
+   # Parked A/B/A showed ~20 -> 10 Hz DM even at QCOM priority 15. Camera failure
+   # must never grant GPU access: that would keep the overloaded DM in fallback.
+-  dm_needed = (params.get_bool('DriverMonitoringEnabled') and
+-               not params.get_bool('DriverMonitoringSessionDisabled')) or params.get_bool('IsDriverViewEnabled')
++  # Reserve conservatively whenever the legacy DM setting permits its model.
++  # DriverView, missing frames and delayed packets cannot release this reservation.
++  dm_needed = params.get_int('DisableDM') == 0
+   return 'qcom' if params.get_bool('UsbGpuActive') and not dm_needed else 'tracking_cpu'
+ 
+ 

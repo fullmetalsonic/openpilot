@@ -1,0 +1,29 @@
+name: Backup carrot from carrot-wip
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out carrot-wip
+        uses: actions/checkout@v4
+        with:
+          ref: carrot-wip
+          fetch-depth: 0
+
+      - name: Fast-forward backup branch
+        env:
+          TARGET_BRANCH: carrot
+          SOURCE_BRANCH: carrot-wip
+        run: |
+          git fetch origin "$TARGET_BRANCH" "$SOURCE_BRANCH"
+          if ! git merge-base --is-ancestor "origin/$TARGET_BRANCH" "origin/$SOURCE_BRANCH"; then
+            echo "Refusing to overwrite $TARGET_BRANCH: it has commits not in $SOURCE_BRANCH."
+            exit 1
+          fi
+          git push origin "origin/$SOURCE_BRANCH:refs/heads/$TARGET_BRANCH"

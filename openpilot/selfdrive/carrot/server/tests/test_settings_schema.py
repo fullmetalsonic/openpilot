@@ -185,7 +185,8 @@ def test_longitudinal_pid_defaults_match_registry(params):
     "LongTuningKpV", "LongTuningKiV", "LongTuningKf",
   )) == (100, 0, 100)
   for name in ("LongTuningKpV", "LongTuningKiV", "LongTuningKf"):
-    assert by_name[name]["hidden_brands"] == ["hyundai"]
+    assert by_name[name]["hidden_brands"] == ["hyundai", "toyota"]
+    assert "Toyota/Lexus" in by_name[name]["edescr"]
     assert "현대·기아·제네시스" in by_name[name]["descr"]
     assert "hidden and ignored" in by_name[name]["edescr"]
 
@@ -198,13 +199,14 @@ def test_longitudinal_pid_defaults_match_registry(params):
     assert f'{{"{name}", {{PERSISTENT, INT, "{default}"}}}}' in params_keys
 
 
-def test_hyundai_catalog_hides_longitudinal_pid_settings(settings):
+@pytest.mark.parametrize("brand", ["hyundai", "toyota"])
+def test_fixed_tuning_catalog_hides_longitudinal_pid_settings(settings, brand):
   groups, by_name, groups_list = group_index(settings)
   categories = build_menu_categories(settings, by_name)
   hidden = {"LongTuningKpV", "LongTuningKiV", "LongTuningKf"}
 
   filtered_groups, filtered_groups_list, filtered_categories, hidden_names = filter_settings_catalog_for_brand(
-    groups, groups_list, categories, "hyundai",
+    groups, groups_list, categories, brand,
   )
   visible_names = {item["name"] for items in filtered_groups.values() for item in items}
   menu_names = {
@@ -219,7 +221,8 @@ def test_hyundai_catalog_hides_longitudinal_pid_settings(settings):
   assert hidden.isdisjoint(visible_names)
   assert hidden.isdisjoint(menu_names)
   assert all(
-    group["count"] == sum(1 for item in filtered_groups[group["group"]] if not item.get("detail_parent"))
+    group["count"] == sum(1 for item in filtered_groups[group["group"]]
+                          if not item.get("detail_parent"))
     for group in filtered_groups_list
   )
 
@@ -228,7 +231,7 @@ def test_other_brands_keep_longitudinal_pid_settings(settings):
   groups, by_name, groups_list = group_index(settings)
   categories = build_menu_categories(settings, by_name)
   filtered_groups, _filtered_groups_list, _filtered_categories, hidden_names = filter_settings_catalog_for_brand(
-    groups, groups_list, categories, "toyota",
+    groups, groups_list, categories, "gm",
   )
   visible_names = {item["name"] for items in filtered_groups.values() for item in items}
 
@@ -284,6 +287,24 @@ def test_wide_camera_fallback_setting_is_exposed(settings, params):
 
   params_keys = PARAMS_KEYS_PATH.read_text(encoding="utf-8")
   assert '{"UseWideCamera", {PERSISTENT, BOOL, "1"}}' in params_keys
+
+
+def test_legacy_driver_monitoring_is_restart_setting_in_menu(settings, params):
+  by_name = {p["name"]: p for p in params}
+  dm = by_name["DisableDM"]
+  assert (dm["min"], dm["max"], dm["default"], dm["unit"]) == (0, 2, 0, 1)
+  assert "reboot" in dm["descr"].lower()
+  for name in ("DriverMonitoringEnabled", "DriverMonitoringSessionDisabled", "DriverMonitoringMode", "CarrotVisionEnabled"):
+    assert name not in by_name
+  vehicle = next(category for category in settings["menu"] if category["id"] == "VEHICLE")
+  driver_monitoring = next(group for group in vehicle["groups"] if group["id"] == "VEH_DM")
+  assert driver_monitoring["params"] == ["DisableDM", "MuteDoor", "MuteSeatbelt"]
+  groups, indexed, _ = group_index(settings)
+  view = next(group for category in build_menu_categories(settings, indexed)
+              for group in category["groups"] if group["id"] == "VEH_DM")
+  assert view["count"] == 3
+  assert dm in groups[dm["group"]]
+  assert not any(p.get("search_only") for p in params)
 
 
 def test_vehicle_navi_can_control_exposes_route_filter_modes(settings, params):

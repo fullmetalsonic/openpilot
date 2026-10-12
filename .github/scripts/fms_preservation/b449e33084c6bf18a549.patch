@@ -1,0 +1,28 @@
+--- a/openpilot/selfdrive/carrot/web/tests/vision_hud_availability.test.mjs
++++ b/openpilot/selfdrive/carrot/web/tests/vision_hud_availability.test.mjs
+@@ -9,11 +9,11 @@
+ assert.ok(start >= 0 && end > start);
+ 
+ for (const clusterHud of [0, 1]) {
+-  for (const enabled of [0, 1]) {
+-    test(`web video availability: HUD=${clusterHud}, vision=${enabled}`, async () => {
++  for (const disableDm of [0, 1, 2]) {
++    test(`web video availability: HUD=${clusterHud}, DisableDM=${disableDm}`, async () => {
+       let availability;
+       const context = vm.createContext({
+-        fetchCarrotDeviceRuntimeState: async () => ({ clusterHud, carrotVisionEnabled: enabled, changed: true }),
++        fetchCarrotDeviceRuntimeState: async () => ({ clusterHud, disableDm, changed: true }),
+         isCarrotRecordedReplayActive: () => false,
+         isCarrotVisionTestActive: () => false,
+         updateCarrotVisionAvailabilityUi: (available) => { availability = available; },
+@@ -21,8 +21,8 @@
+         getUIText: (_key, fallback) => fallback,
+       });
+       vm.runInContext(source.slice(start, end), context);
+-      assert.equal(await context.syncCarrotVisionAvailability(), Boolean(enabled));
+-      assert.equal(availability, Boolean(enabled));
++      assert.equal(await context.syncCarrotVisionAvailability(), clusterHud === 0 && disableDm === 2);
++      assert.equal(availability, clusterHud === 0 && disableDm === 2);
+     });
+   }
+ }

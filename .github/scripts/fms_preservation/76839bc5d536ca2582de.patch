@@ -1,0 +1,33 @@
+--- a/openpilot/selfdrive/modeld/tests/test_signal_neural_shadow.py
++++ b/openpilot/selfdrive/modeld/tests/test_signal_neural_shadow.py
+@@ -106,9 +106,9 @@
+     def close(self): self.closed = True
+   def value(key):
+     if key == 'UsbGpuActive': return True if change_dm else modes[position[0]]
+-    if key == 'DriverMonitoringEnabled': return not modes[position[0]] if change_dm else False
+     return False
+-  monkeypatch.setattr(params, 'Params', lambda: SimpleNamespace(get_bool=value))
++  monkeypatch.setattr(params, 'Params', lambda: SimpleNamespace(
++    get_bool=value, get_int=lambda key: int(modes[position[0]]) if change_dm else 1))
+   monkeypatch.setattr(worker, 'requested', lambda _: position[0] < len(modes))
+   monkeypatch.setattr(worker, 'neural_requested', lambda _: True)
+   monkeypatch.setattr(worker, 'backend_requested', lambda _: selection)
+@@ -131,12 +131,12 @@
+ 
+ 
+ @pytest.mark.parametrize('external', [False, True])
+-@pytest.mark.parametrize('enabled,session_off,preview', [(True,False,False), (True,True,False), (False,False,False), (False,False,True), (True,True,True)])
+-def test_gpu_selection_preserves_dm_and_preview(external, enabled, session_off, preview):
+-  values = dict(UsbGpuActive=external, DriverMonitoringEnabled=enabled,
+-                DriverMonitoringSessionDisabled=session_off, IsDriverViewEnabled=preview)
+-  selected = worker.automatic_backend(SimpleNamespace(get_bool=values.__getitem__))
+-  assert selected == ('qcom' if external and not ((enabled and not session_off) or preview) else 'tracking_cpu')
++@pytest.mark.parametrize('disable_dm', [0, 1, 2])
++@pytest.mark.parametrize('preview', [False, True])
++def test_gpu_selection_reserves_legacy_dm(external, disable_dm, preview):
++  values = dict(UsbGpuActive=external, IsDriverViewEnabled=preview)
++  selected = worker.automatic_backend(SimpleNamespace(get_bool=values.__getitem__, get_int=lambda key: disable_dm))
++  assert selected == ('qcom' if external and disable_dm != 0 else 'tracking_cpu')
+ 
+ 
+ def test_auto_cpu_is_comparison_only_and_gpu_requires_cache(monkeypatch, tmp_path):

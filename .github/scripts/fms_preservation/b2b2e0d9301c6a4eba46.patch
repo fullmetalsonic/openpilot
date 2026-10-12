@@ -1,0 +1,201 @@
+--- a/openpilot/selfdrive/carrot_settings.json
++++ b/openpilot/selfdrive/carrot_settings.json
+@@ -426,9 +426,7 @@
+           "en": "Driver Monitor",
+           "zh": "驾驶员监控",
+           "params": [
+-            "DriverMonitoringEnabled",
+-            "DriverMonitoringMode",
+-            "CarrotVisionEnabled",
++            "DisableDM",
+             "MuteDoor",
+             "MuteSeatbelt"
+           ]
+@@ -1354,14 +1352,14 @@
+       "group": "주행튜닝",
+       "name": "VEgoStopping",
+       "title": "정지출발민감도(50)x0.01",
+-      "descr": "계획 속도를 기준으로 정지 진입과 재출발을 판단합니다. 낮추면 정지 판단이 늦어지고 출발 시 정지 상태가 더 빨리 풀릴 수 있습니다. 최저값은 10(0.10m/s)이며, 기존에 10 미만으로 저장된 값도 자동으로 10으로 올립니다.",
++      "descr": "계획 속도를 기준으로 정지 진입과 재출발을 판단합니다. 낮추면 정지 판단이 늦어지고 출발 시 정지 상태가 더 빨리 풀릴 수 있습니다. 최저값은 1(0.01m/s)이며 기존 저장값을 자동으로 올리지 않습니다.",
+       "egroup": "LONG",
+       "etitle": "VEgoStopping(50)x0.01",
+-      "edescr": "Uses planned speeds to determine stop entry and departure. Lower values delay stop recognition and may release stop state sooner on departure. The minimum is 10 (0.10 m/s); previously stored values below 10 are automatically raised to 10.",
++      "edescr": "Uses planned speeds to determine stop entry and departure. Lower values delay stop recognition and may release stop state sooner on departure. The minimum is 1 (0.01 m/s); saved values are not automatically raised.",
+       "cgroup": "纵向控制",
+       "ctitle": "停止/启动灵敏度(50)x0.01",
+-      "cdescr": "根据规划速度判断停车与起步。降低数值会推迟停车判断，并可能更早解除停车状态。最低值为10（0.10m/s），此前保存的小于10的值也会自动提高到10。",
+-      "min": 10,
++      "cdescr": "根据规划速度判断停车与起步。降低数值会推迟停车判断，并可能更早解除停车状态。最低值为1（0.01m/s），不会自动提高已保存的数值。",
++      "min": 1,
+       "max": 100,
+       "default": 50,
+       "unit": 5
+@@ -1682,16 +1680,16 @@
+     {
+       "group": "버튼설정",
+       "name": "PaddleMode",
+-      "title": "패들시프트모드(0)",
+-      "descr": "0:크루즈ON, 1:크루즈대기, 2:자동감속, 3:CarrotCruise ",
++      "title": "패들시프트 모드",
++      "descr": "0:크루즈ON, 1:크루즈대기, 2:자동감속, 3:CarrotCruise, 4:차간거리 조절. 4번: 정상 크루즈 ON에서만 오른쪽은 한 단계 감소(최소 1), 왼쪽은 증가(최대 4). 대기·해제·CANCEL·독립 SoftHold 중 회생 조작은 간격을 바꾸지 않으며 다시 ON해도 기존 간격 유지. OFF부터 잡은 패들은 ON 후 놓고 새로 당겨야 변경. ON 접수 요청은 저장 지연 시 OFF 후 완료될 수 있으며 직접 간격 버튼·웹 설정은 OFF도 허용. 길게 당겨도 한 번만 변경. 롱컨·4단계 지원 차량용. 4번으로/에서 모드 변경은 재시작 후 적용되며, 4번 작동 중 간격 조절은 주행 중 반영됩니다. MQ4 HEV CANFD camera-SCC 롱컨 구성의 모드4 정상 ACC에서는 새 패들 조작 중 ACC 요청을 유지합니다. CANCEL·페달 우선 및 독립 SoftHold 인터록은 유지하며, 회생 단계 보존은 실차 확인이 필요합니다.",
+       "egroup": "BUTN",
+-      "etitle": "PaddleShift Mode(0)",
+-      "edescr": "After Regen paddle, 0:Cruise ON, 1:Cruise Ready, 2: decel & cruise ready, 3: CarrotCruise",
++      "etitle": "Paddle Shift Mode",
++      "edescr": "0:Cruise ON, 1:Cruise Ready, 2:Decel, 3:CarrotCruise, 4:Following gap. Mode 4: only during normal cruise ON, right decreases to 1 and left increases to 4. Regen input during standby, OFF, CANCEL or independent SoftHold preserves the saved gap on re-engagement. A paddle held from OFF must be released and newly pressed after ON. An accepted ON request may finish saving after OFF; direct gap button/web changes remain allowed while OFF; one step per press, no hold repeat. Requires openpilot longitudinal control and four gap levels. Entering/leaving mode 4 requires a restart; gap changes while in mode 4 apply while driving. On MQ4 HEV CANFD camera-SCC with openpilot longitudinal control, a new mode-4 gesture in normal ACC keeps the ACC request continuous. CANCEL, pedals and independent SoftHold interlocks remain; regen-state preservation needs vehicle validation.",
+       "cgroup": "按键设置",
+-      "ctitle": "换挡拨片模式(0)",
+-      "cdescr": "动能回收拨片后, 0: 巡航开启, 1: 巡航就绪, 2: 减速并巡航就绪, 3: 胡萝卜巡航",
+-      "min": 0,
+-      "max": 3,
++      "ctitle": "换挡拨片模式",
++      "cdescr": "0:巡航开启, 1:巡航就绪, 2:自动减速, 3:CarrotCruise, 4:跟车距离。模式4：仅在正常巡航开启时，右拨片减一档，最低1；左拨片加一档，最高4。待机、关闭、取消或独立SoftHold时调整回收档位不改变保存车距，再次开启保持原车距。关闭时已按住的拨片须在开启后松开并重新按下。开启时已接受的请求可能延迟至关闭后保存；直接车距按钮和网页设置在关闭时仍可使用。长按不重复。需要openpilot纵向控制及四档车距。进入或退出模式4须重启；模式4下行驶中可调车距。MQ4 HEV CANFD camera-SCC纵向控制在模式4正常ACC中新拨片操作保持ACC请求。保留取消、踏板优先及独立SoftHold联锁；能量回收档位是否保持仍需实车验证。",
++      "min": 0,
++      "max": 4,
+       "default": 1,
+       "unit": 1
+     },
+@@ -1910,85 +1908,19 @@
+     },
+     {
+       "group": "시작",
+-      "name": "DriverMonitoringEnabled",
+-      "title": "운전자 감시 사용 (예외 설정)",
+-      "descr": "기본값은 켜짐이며 그대로 두는 것을 권장합니다. 이 예외 옵션은 DM 카메라가 없거나 고장 나서 정상 운전자 감시를 사용할 수 없는 장치를 위한 것입니다. 끄면 일반 주행의 DM 모델과 경고, 감시로 인한 강제 감속 및 재사용 제한이 비활성화됩니다. 운전자 감시 없이 운행하면 지역 법규, 차량 요건 또는 사용 조건을 위반할 수 있으므로 적용 요건과 안전 책임을 확인한 경우에만 끄세요.",
++      "name": "DisableDM",
++      "title": "DisableDM",
++      "descr": "1.DisableDM, 2: +EnableWebRTC, reboot required",
+       "egroup": "START",
+-      "etitle": "Enable Driver Monitoring (Exception)",
+-      "edescr": "Enabled by default, and leaving it enabled is recommended. This exception is intended only for devices without a DM camera or with a failed DM camera that cannot provide normal driver monitoring. Turning it off disables the normal-driving DM model and alerts, monitoring-triggered force deceleration, and lockout. Driving without driver monitoring may violate applicable laws, vehicle requirements, or terms of use; turn it off only after checking the requirements and accepting the safety responsibility.",
++      "etitle": "DisableDM",
++      "edescr": "1.DisableDM, 2: +EnableWebRTC, Reboot required",
+       "cgroup": "启动设置",
+-      "ctitle": "启用驾驶员监控（例外设置）",
+-      "cdescr": "默认开启，建议保持开启。此例外选项仅供未安装 DM 摄像头，或 DM 摄像头故障而无法正常进行驾驶员监控的设备使用。关闭后，正常行驶时的 DM 模型与警告、监控触发的强制减速及锁定都会停用。未启用驾驶员监控时驾驶，可能违反所在地法律、车辆要求或使用条件；请仅在确认适用要求并承担安全责任后关闭。",
+-      "min": 0,
+-      "max": 1,
+-      "default": 1,
+-      "unit": 1,
+-      "control": "toggle",
+-      "risk": "high",
+-      "search_only": true
+-    },
+-    {
+-      "group": "시작",
+-      "name": "DriverMonitoringMode",
+-      "title": "운전자 감시 모드",
+-      "descr": "0: 기본, 1: 실험 모드. 실험 모드는 법규에 위배될 수 있으므로 통제된 시험 환경에서만 사용하세요. 카메라 없는 기본 감시는 15/30/45초이며, 실험 모드는 관측 가능한 빈 직선도로에서 30/60/90초로 늘립니다. 주변 이동 차량이 없다가 처음 확인될 때만 20초간 기본 모드 기준으로 감시합니다. 차량 추가나 지속 관측으로 연장하지 않으며 이후 실험 감시로 복귀합니다. 이 구간에는 카메라 조작 유예·전방주시 강제 초기화·검출 완화를 적용하지 않고 이전 유예도 종료합니다. 카메라 있는 0은 콤마 순정입니다. 카메라 있는 1은 10/16/26초, 빈 도로에서는 20/32/52초이며 고개 방향 허용 폭을 20% 늘립니다. 운전자·BT 조작은 감시시간을 초기화하고 카메라 경고를 45초 또는 90초 유예한 뒤 카메라 감시를 시작합니다. 유예는 졸음·눈 감김·휴대전화 경고도 지연합니다. 뚜렷한 전방주시가 2초 유지되면 카메라 감시시간을 초기화합니다. 최고 경고·재사용 제한은 조작으로 해제하지 않습니다. 카메라 고장은 자동으로 조작 감시로 전환합니다. 0도 법적 인증을 보장하지 않습니다. 모드 변경은 재부팅 없이 약 0.5초 주기로 적용됩니다. 전환해도 누적 감시시간·경고 횟수·재사용 제한은 초기화되지 않으며, 이전 조작 유예와 전방주시 연속 판정은 종료됩니다. 현대·기아·제네시스 CAN-FD에서 차종명 제한 없이 수신 형식·체크섬·카운터·최신성이 검증된 원본 STEER_TOUCH_2AF 터치는 카메라 불가 시 접촉 중 감시시간을 초기화하며, 카메라 정상·1번은 새 접촉만 조작으로 인정합니다. 카메라 정상·0번은 그대로입니다. 공통 예외: 카메라 유무와 0·1번 모두 P단·완전 정차·인게이지 해제가 유효한 신호로 1초간 확인되면 누적 경고와 재사용 제한을 초기화합니다. 속도 0이나 OFF/ON만으로는 해제하지 않으며 재인게이지는 수동입니다.",
+-      "egroup": "START",
+-      "etitle": "Driver Monitoring Mode",
+-      "edescr": "0: Standard; 1: Experimental. Experimental mode may violate law; use only in controlled tests. Without a camera, base alerts are 15/30/45 seconds; experimental mode uses 30/60/90 on a verified empty straight road. Only the transition from no moving traffic to confirmed moving traffic starts 20 seconds of standard monitoring. Additional or continuously observed vehicles do not extend it; experimental monitoring resumes afterwards. During the hold, camera interaction grace, special forward-attention resets and detection relaxation are suspended, and previous grace ends. Camera mode 0 retains comma behavior. Camera mode 1 uses 10/16/26 seconds, or 20/32/52 on an empty road, with 20% wider head-pose tolerance. Driver/BT input resets monitoring and defers camera warnings for 45 or 90 seconds before camera monitoring starts. This also delays sleep, eye-closure and phone warnings. Two seconds of confident forward attention resets camera monitoring. Input cannot clear terminal alerts or lockout. Camera faults automatically select interaction monitoring. Mode 0 is not legal certification. Mode changes apply live at roughly half-second intervals without rebooting. Switching preserves accumulated monitoring time, warning counts and lockout, and ends the previous interaction grace and forward-attention streak. Original STEER_TOUCH_2AF input on Hyundai/Kia/Genesis CAN-FD, validated for layout, checksum, counter and freshness without a vehicle-name whitelist, resets interaction timing while held when camera monitoring is unavailable; healthy-camera mode 1 counts only a new contact. Healthy-camera mode 0 stays stock. Shared exception: in both modes with or without a camera, one continuous second of valid Park, standstill and disengaged status resets accumulated warnings and lockout. Zero speed or engagement OFF/ON alone cannot release it; re-engagement is manual.",
+-      "cgroup": "启动设置",
+-      "ctitle": "驾驶员监控模式",
+-      "cdescr": "0：标准；1：实验。实验模式可能违反法规，仅限受控测试。无摄像头时基础警告为15/30/45秒；实验模式在确认的空旷直道上为30/60/90秒。周围从无移动车辆变为首次确认有移动车辆时，才启用20秒标准监测。持续观测或新增车辆不会延长，之后恢复实验监测。此期间停止摄像头操作宽限、特殊前方注视重置和检测放宽，并结束此前宽限。有摄像头的0模式保留comma行为；1模式为10/16/26秒，空旷道路为20/32/52秒，头部姿态容差增加20%。驾驶员或蓝牙按键操作重置计时，推迟摄像头警告45或90秒后开始摄像头监控；这也会延迟困倦、闭眼和手机警告。连续2秒明确注视前方可重置摄像头计时。操作不能解除最高警告或锁定。摄像头故障自动切换为操作监控。标准模式不保证合法认证。模式更改无需重启，约每0.5秒实时应用。切换保留累计监控时间、警告次数和锁定，并结束此前的操作宽限及连续前方注视判定。 现代/起亚/捷尼赛思CAN-FD中不按车型名称限制、通过格式、校验和、计数器及新鲜度验证的原始STEER_TOUCH_2AF触摸在摄像头不可用时持续重置操作计时；摄像头正常的1模式仅将新接触视为操作，0模式保持原样。 共同例外：无论摄像头是否可用，两种模式均在有效信号持续确认P挡、完全静止及辅助驾驶解除1秒后重置累计警告和锁定。仅零速或关闭再开启不能解除，必须手动重新启用。",
+-      "min": 0,
+-      "max": 1,
+-      "default": 0,
+-      "unit": 1,
+-      "control": "select",
+-      "options": {
+-        "ko": [
+-          "기본",
+-          "실험 모드 (시험 전용)"
+-        ],
+-        "en": [
+-          "Standard",
+-          "Experimental (testing only)"
+-        ],
+-        "zh": [
+-          "标准",
+-          "实验（仅供测试）"
+-        ]
+-      },
+-      "risk": "high"
+-    },
+-    {
+-      "group": "시작",
+-      "name": "CarrotVisionEnabled",
+-      "title": "Carrot Vision 사용",
+-      "descr": "웹 도로 영상 스트리밍을 활성화합니다. 운전자 감시와 독립적으로 동작하며 외부 HUD와 함께 사용할 수 있습니다. 동시 영상 사용 시 기기 부하가 증가할 수 있습니다.",
+-      "egroup": "START",
+-      "etitle": "Enable Carrot Vision",
+-      "edescr": "Enables web road-camera streaming independently of driver monitoring, including while the external HUD is enabled. Simultaneous video use may increase device load.",
+-      "cgroup": "启动设置",
+-      "ctitle": "启用 Carrot Vision",
+-      "cdescr": "独立于驾驶员监控启用网页道路视频，可与外部HUD同时使用。同时使用视频可能增加设备负载。",
+-      "min": 0,
+-      "max": 1,
+-      "default": 0,
+-      "unit": 1,
+-      "control": "select",
+-      "options": {
+-        "ko": [
+-          "끄기",
+-          "켜기"
+-        ],
+-        "en": [
+-          "Off",
+-          "On"
+-        ],
+-        "zh": [
+-          "关闭",
+-          "开启"
+-        ]
+-      }
++      "ctitle": "禁用驾驶员监控",
++      "cdescr": "1. 禁用 DM, 2: + 开启 WebRTC, 需要重启",
++      "min": 0,
++      "max": 2,
++      "default": 0,
++      "unit": 1
+     },
+     {
+       "group": "시작",
+@@ -2734,9 +2666,18 @@
+       "unit": 1,
+       "control": "select",
+       "options": {
+-        "ko": ["정상", "좌우 반전"],
+-        "en": ["Normal", "Invert left/right"],
+-        "zh": ["正常", "左右反转"]
++        "ko": [
++          "정상",
++          "좌우 반전"
++        ],
++        "en": [
++          "Normal",
++          "Invert left/right"
++        ],
++        "zh": [
++          "正常",
++          "左右反转"
++        ]
+       },
+       "risk": "high"
+     },
+@@ -2853,9 +2794,21 @@
+       "unit": 1,
+       "control": "select",
+       "options": {
+-        "ko": ["2단계", "3단계", "4단계"],
+-        "en": ["2 levels", "3 levels", "4 levels"],
+-        "zh": ["2级", "3级", "4级"]
++        "ko": [
++          "2단계",
++          "3단계",
++          "4단계"
++        ],
++        "en": [
++          "2 levels",
++          "3 levels",
++          "4 levels"
++        ],
++        "zh": [
++          "2级",
++          "3级",
++          "4级"
++        ]
+       }
+     },
+     {

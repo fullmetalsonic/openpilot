@@ -16,6 +16,7 @@ CATALOG = {
   "ApplyModelSpeed": {"default": 0, "min": -120, "max": 120},
   "TFollowDecelBoost": {"default": 50, "min": 0, "max": 100},
   "CruiseSpeed1": {"default": 30, "min": 0, "max": 160},
+  "DisableDM": {"default": 0, "min": 0, "max": 2},
 }
 
 
@@ -151,3 +152,11 @@ def test_the_store_is_written_atomically(profile_store):
   assert not (profile_store.parent / (profile_store.name + ".tmp")).exists()
   on_disk = json.loads(profile_store.read_text(encoding="utf-8"))
   assert len(on_disk["profiles"]) == 1
+
+
+@pytest.mark.parametrize("mode", [0, 1, 2])
+def test_disable_dm_remains_a_normal_profile_setting(profile_store, mode):
+  created = setting_profiles.create_setting_profile("dm")
+  updated = setting_profiles.update_setting_profile(created["id"], {"values": {"DisableDM": mode}})
+  assert updated["values"]["DisableDM"] == mode
+  assert setting_profiles.get_setting_profile(created["id"])["values"]["DisableDM"] == mode

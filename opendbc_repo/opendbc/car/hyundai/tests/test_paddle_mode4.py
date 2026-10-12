@@ -134,7 +134,8 @@ def production_chain(chain, mode4, controls_cancel_producer):
   class Driver:
     index = 0
     baseline_message = None
-    def tick(self, raw, *, acc_req=1, buttons=(0,), modify=None, apply=True, valid=True, initializing=False, wheel_speed=72.):
+    def tick(self, raw, *, acc_req=1, buttons=(0,), modify=None, apply=True, valid=True, initializing=False, wheel_speed=72.,
+             final_apply=None):
       now = 1_000_000_000 + self.index * 10_000_000
       self.index += 1
       batch = [packer.make_can_msg('CRUISE_BUTTONS', 0, {'RIGHT_PADDLE': raw, 'CRUISE_BUTTONS': button})
@@ -162,7 +163,10 @@ def production_chain(chain, mode4, controls_cancel_producer):
       publish_paddle_context(ci.CP, ci, helper, sm, now)
       if not apply:
         return None
-      _, messages = ci.apply(cc.as_reader(), now)
+      if final_apply is None:
+        _, messages = ci.apply(cc.as_reader(), now)
+      else:
+        messages = final_apply(ci, cc, decoded, now)
       # A second complete controller follows identical telemetry/control/HUD
       # history, with the existing no-paddle SCC2 predicate as its reference.
       baseline.CS = copy(ci.CS)
@@ -173,6 +177,55 @@ def production_chain(chain, mode4, controls_cancel_producer):
       self.baseline_feedback = baseline.CC.accel_value_last
       return next((m for m in messages if m[0] == 0x1a0), None)
   return Driver(), ci, helper, cc, params, calls
+
+
+@pytest.mark.parametrize('reboot', [False, True])
+def test_production_card_final_control_gate_revokes_paddle_before_can(production_chain, reboot):
+  # Use the entire production controls_update method, including its final CC
+  # rewrite, then real CI/controller/DBC. Only IPC send and timing are local.
+  import time
+  from openpilot.cereal import car
+  root = Path(__file__).resolve().parents[5]
+  tree = ast.parse((root / 'openpilot/selfdrive/car/card.py').read_text(encoding='utf-8'))
+  method = next(n for n in ast.walk(tree) if isinstance(n, ast.FunctionDef) and n.name == 'controls_update')
+  namespace = {'car': car, 'time': time, 'REPLAY': True,
+               'can_list_to_can_capnp': lambda messages, **kwargs: messages}
+  exec(compile(ast.Module(body=[method], type_ignores=[]), '<production card final apply>', 'exec'), namespace)
+  driver, ci, _, cc, _, _ = production_chain
+  driver.tick(0)
+  driver.tick(1)
+  assert ci.CC.paddle_gesture.state == GestureState.ACCEPTED
+
+  class SM(dict):
+    valid = alive = {'modelV2': False, 'radarState': False}
+    def all_alive(self, keys): return True
+
+  cards = []
+  def final_apply(interface, command, state, now):
+    sends = []
+    instance = NS(initialized_prev=True, CI=interface, CP=interface.CP,
+                  sm=SM(), params=NS(get_bool=lambda key: reboot),
+                  lateral_startup=NS(update=lambda *args: False),
+                  pm=NS(send=lambda topic, payload: sends.extend(payload)),
+                  can_log_mono_time=now, card_diag_recv_ns=time.monotonic_ns(),
+                  card_diag_stage_current={}, card_diag_stage_names=(), card_diag_process_max_us=0,
+                  card_diag_slow_process=0, card_diag_frames=0)
+    namespace['controls_update'](instance, state, command.as_reader())
+    cards.append(instance)
+    return sends
+
+  cc.latActive = True
+  msg = driver.tick(1, final_apply=final_apply)
+  assert not cards[-1].CC_prev.latActive
+  assert cards[-1].CC_prev.enabled == (not reboot)
+  assert cards[-1].CC_prev.longActive == (not reboot)
+  assert decode(msg)['ACCMode'] == (0 if reboot else 1)
+  # A final-boundary veto must not become a fresh press when a queued,
+  # pre-reboot ON command arrives again with the same held paddle.
+  driver.tick(1)
+  assert decode(driver.tick(1))['ACCMode'] == (0 if reboot else 1)
+  driver.tick(0)
+  assert decode(driver.tick(1))['ACCMode'] == 1
 
 
 @pytest.mark.parametrize('raws', [(0, 1, 1, 0, 0), (0, 1, 0, 0, 0), (0, 0, 1, 0, 0)],

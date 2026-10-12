@@ -1,4 +1,8 @@
 from types import SimpleNamespace
+import ast
+import hashlib
+import json
+from pathlib import Path
 
 import pytest
 
@@ -577,3 +581,108 @@ def test_independent_and_normal_stop_mode_transition(camera):
   assert values['aReqRaw'] == pytest.approx(-.5)
   assert 0 <= values['aReqValue'] - prior_value <= .04 + .0051
   assert values['aReqValue'] < -1.1
+
+
+def _read_frozen_fms_stopping_sources(path):
+  # Pin the whole fixture, including provenance, before compiling its source.
+  # read_text normalizes checkout CRLF so Windows autocrlf does not alter the pin.
+  content = path.read_text(encoding='utf-8')
+  assert hashlib.sha256(content.encode('utf-8')).hexdigest() == \
+    '50c5341fcba4d6b90ef45b1f89020c5f88a54edcd936c129ac7a10d5ad0ce1e5', 'Frozen FMS fixture changed'
+  fixture = json.loads(content)
+  assert fixture['format_version'] == 1
+  assert fixture['git_revision'] == 'dca1f33137b8f24dfd23e35bc2bc3d9fd21c5d69'
+  expected = {
+    'opendbc_repo/opendbc/car/hyundai/stopping.py': ['CanfdStopping'],
+    'opendbc_repo/opendbc/car/hyundai/hyundaicanfd.py': [
+      'apply_canfd_stopping', 'create_acc_control_scc2', 'create_acc_control',
+    ],
+  }
+  assert set(fixture['sources']) == set(expected)
+  for name, names in expected.items():
+    entry = fixture['sources'][name]
+    assert entry['selected_names'] == names
+    assert hashlib.sha256(entry['source'].encode('utf-8')).hexdigest() == entry['source_sha256']
+    assert [node.name for node in ast.parse(entry['source']).body] == names
+  return {name: entry['source'] for name, entry in fixture['sources'].items()}
+
+
+@pytest.fixture(scope='module')
+def frozen_fms_stopping_sources():
+  return _read_frozen_fms_stopping_sources(Path(__file__).with_name('fixtures') / 'fms_stopping_dca1f331.json')
+
+
+@pytest.mark.parametrize('mutation', ['source', 'revision', 'crlf'])
+def test_frozen_fms_stopping_fixture_integrity(tmp_path, mutation):
+  content = (Path(__file__).with_name('fixtures') / 'fms_stopping_dca1f331.json').read_text(encoding='utf-8')
+  if mutation == 'source':
+    content = content.replace('class CanfdStopping:', 'class ChangedStopping:', 1)
+  elif mutation == 'revision':
+    content = content.replace('dca1f33137b8f24dfd23e35bc2bc3d9fd21c5d69', '0' * 40, 1)
+  else:
+    content = content.replace('\n', '\r\n')
+  path = tmp_path / 'fixture.json'
+  path.write_bytes(content.encode('utf-8'))
+  if mutation == 'crlf':
+    assert _read_frozen_fms_stopping_sources(path)
+  else:
+    with pytest.raises(AssertionError, match='Frozen FMS fixture changed'):
+      _read_frozen_fms_stopping_sources(path)
+
+
+@pytest.mark.parametrize('camera', [True, False])
+@pytest.mark.parametrize('initial_output', [0., -1.2])
+@pytest.mark.parametrize('held', [False, True])
+def test_frozen_fms_stop_transition_trace_matches_actual_dbc(camera, initial_output, held, frozen_fms_stopping_sources):
+  """Keep normal/raw and independent/actual feedback distinct across modes."""
+  from opendbc.car.hyundai import hyundaicanfd, stopping as stopping_module
+  def source(path):
+    return frozen_fms_stopping_sources[path]
+  namespace = dict(stopping_module.__dict__)
+  core = next(n for n in ast.parse(source('opendbc_repo/opendbc/car/hyundai/stopping.py')).body
+              if isinstance(n, ast.ClassDef) and n.name == 'CanfdStopping')
+  exec(compile(ast.Module(body=[core], type_ignores=[]), '<frozen FMS stopping>', 'exec'), namespace)
+  baseline_controller = namespace['CanfdStopping']()
+  baseline = dict(hyundaicanfd.__dict__)
+  names = {'apply_canfd_stopping', 'create_acc_control_scc2', 'create_acc_control'}
+  functions = [n for n in ast.parse(source('opendbc_repo/opendbc/car/hyundai/hyundaicanfd.py')).body
+               if isinstance(n, ast.FunctionDef) and n.name in names]
+  assert len(functions) == len(names)
+  exec(compile(ast.Module(body=functions, type_ignores=[]), '<frozen FMS ACC builders>', 'exec'), baseline)
+
+  cs = make_cs()
+  cs.out.vEgo = cs.out.vEgoRaw = 0.
+  cs.out.wheelSpeeds = SimpleNamespace(fl=0., fr=0., rl=0., rr=0.)
+  cs.canfdSccHoldActive = held
+  packer, reference = CANPacker('hyundai_canfd_generated'), CANPacker('hyundai_canfd_generated')
+  can, hud = SimpleNamespace(ECAN=0), SimpleNamespace(leadDistanceBars=2, leadVisible=False)
+  jerk = SimpleNamespace(carrot_cruise=0, jerk_u=2., jerk_l=1.)
+  controller = CanfdStopping()
+  previous = expected_previous = initial_output
+  previous_target = initial_output
+  # Independent hold starts from the actual prior output, then returns to a
+  # raw target deliberately different from that output before normal restart.
+  for enabled, target, requested, hold, available, ticks in [
+    (False, 0., False, 2, False, 75),
+    (True, -.2, True, 0, True, 8),
+    (True, .2, False, 0, True, 8),
+    (True, -.8, True, 0, True, 8),
+    (False, 0., False, 2, False, 40),
+    (True, 0., False, 0, False, 1),
+  ]:
+    cs.softHoldActive, cs.out.cruiseState.available = hold, available
+    for _ in range(ticks):
+      if camera:
+        args = (can, enabled, previous, target, requested, False, 30., hud, jerk, cs, controller)
+        expected_args = (can, enabled, expected_previous, target, requested, False, 30., hud, jerk, cs, baseline_controller)
+        message, previous = hyundaicanfd.create_acc_control_scc2(packer, *args)
+        expected_message, expected_previous = baseline['create_acc_control_scc2'](reference, *expected_args)
+      else:
+        args = (can, enabled, previous_target, target, requested, False, 30., hud, 2., 1., cs)
+        message, previous = hyundaicanfd.create_acc_control(packer, *args, controller, accel_value_last=previous)
+        expected_message, expected_previous = baseline['create_acc_control'](
+          reference, *args, baseline_controller, accel_value_last=expected_previous)
+      assert message == expected_message
+      assert previous == expected_previous
+      assert controller.phase == baseline_controller.phase
+      previous_target = target

@@ -1,0 +1,76 @@
+--- a/openpilot/selfdrive/carrot/server/tests/test_settings_schema.py
++++ b/openpilot/selfdrive/carrot/server/tests/test_settings_schema.py
+@@ -41,6 +41,14 @@
+ def test_the_catalogue_is_readable_and_populated(params):
+   assert len(params) > 100
+   assert all(isinstance(p.get("name"), str) and p["name"] for p in params)
++
++
++def test_paddle_mode_four_uses_common_dropdown_and_restart_description(params):
++  paddle = next(p for p in params if p["name"] == "PaddleMode")
++  assert (paddle["min"], paddle["max"], paddle["default"], paddle["unit"]) == (0, 4, 1, 1)
++  assert "control" not in paddle  # Five options use the common select rule.
++  assert "재시작" in paddle["descr"] and "주행 중" in paddle["descr"]
++  assert "restart" in paddle["edescr"] and "重启" in paddle["cdescr"]
+ 
+ 
+ @pytest.mark.parametrize("maximum", (3, 4))
+@@ -214,7 +222,7 @@
+   assert hidden.isdisjoint(menu_names)
+   assert all(
+     group["count"] == sum(1 for item in filtered_groups[group["group"]]
+-                          if not item.get("detail_parent") and not item.get("search_only"))
++                          if not item.get("detail_parent"))
+     for group in filtered_groups_list
+   )
+ 
+@@ -281,36 +289,22 @@
+   assert '{"UseWideCamera", {PERSISTENT, BOOL, "1"}}' in params_keys
+ 
+ 
+-def test_driver_monitoring_setting_is_default_on_search_only_and_session_state_is_internal(settings, params):
+-  by_name = {p["name"]: p for p in params}
+-  enabled = by_name["DriverMonitoringEnabled"]
+-  assert (enabled["min"], enabled["max"], enabled["default"]) == (0, 1, 1)
+-  assert enabled["control"] == "toggle"
+-  assert enabled["risk"] == "high"
+-  assert enabled["search_only"] is True
+-  assert "DM 카메라" in enabled["descr"] and "법규" in enabled["descr"]
+-  assert "DM camera" in enabled["edescr"] and "laws" in enabled["edescr"]
+-  assert "DriverMonitoringSessionDisabled" not in by_name
+-
++def test_legacy_driver_monitoring_is_restart_setting_in_menu(settings, params):
++  by_name = {p["name"]: p for p in params}
++  dm = by_name["DisableDM"]
++  assert (dm["min"], dm["max"], dm["default"], dm["unit"]) == (0, 2, 0, 1)
++  assert "reboot" in dm["descr"].lower()
++  for name in ("DriverMonitoringEnabled", "DriverMonitoringSessionDisabled", "DriverMonitoringMode", "CarrotVisionEnabled"):
++    assert name not in by_name
+   vehicle = next(category for category in settings["menu"] if category["id"] == "VEHICLE")
+   driver_monitoring = next(group for group in vehicle["groups"] if group["id"] == "VEH_DM")
+-  assert driver_monitoring["params"][:2] == ["DriverMonitoringEnabled", "DriverMonitoringMode"]
+-
++  assert driver_monitoring["params"] == ["DisableDM", "MuteDoor", "MuteSeatbelt"]
+   groups, indexed, _ = group_index(settings)
+-  categories = build_menu_categories(settings, indexed)
+-  driver_monitoring_view = next(
+-    group for category in categories for group in category["groups"] if group["id"] == "VEH_DM"
+-  )
+-  assert "DriverMonitoringEnabled" in driver_monitoring_view["sections"][0]["items"]
+-  assert driver_monitoring_view["count"] == sum(
+-    1 for name in driver_monitoring["params"]
+-    if not indexed[name].get("detail_parent") and not indexed[name].get("search_only")
+-  )
+-  assert enabled in groups[enabled["group"]]
+-
+-  params_keys = PARAMS_KEYS_PATH.read_text(encoding="utf-8")
+-  assert '{"DriverMonitoringEnabled", {PERSISTENT, BOOL, "1"}}' in params_keys
+-  assert '{"DriverMonitoringSessionDisabled", {CLEAR_ON_MANAGER_START | CLEAR_ON_IGNITION_ON, BOOL}}' in params_keys
++  view = next(group for category in build_menu_categories(settings, indexed)
++              for group in category["groups"] if group["id"] == "VEH_DM")
++  assert view["count"] == 3
++  assert dm in groups[dm["group"]]
++  assert not any(p.get("search_only") for p in params)
+ 
+ 
+ def test_vehicle_navi_can_control_exposes_route_filter_modes(settings, params):
