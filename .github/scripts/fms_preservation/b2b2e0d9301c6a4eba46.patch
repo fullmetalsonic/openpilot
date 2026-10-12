@@ -1,6 +1,6 @@
 --- a/openpilot/selfdrive/carrot_settings.json
 +++ b/openpilot/selfdrive/carrot_settings.json
-@@ -426,9 +426,7 @@
+@@ -427,9 +427,7 @@
            "en": "Driver Monitor",
            "zh": "驾驶员监控",
            "params": [
@@ -11,7 +11,7 @@
              "MuteDoor",
              "MuteSeatbelt"
            ]
-@@ -1354,14 +1352,14 @@
+@@ -1355,14 +1353,14 @@
        "group": "주행튜닝",
        "name": "VEgoStopping",
        "title": "정지출발민감도(50)x0.01",
@@ -30,7 +30,7 @@
        "max": 100,
        "default": 50,
        "unit": 5
-@@ -1682,16 +1680,16 @@
+@@ -1683,16 +1681,16 @@
      {
        "group": "버튼설정",
        "name": "PaddleMode",
@@ -55,7 +55,7 @@
        "default": 1,
        "unit": 1
      },
-@@ -1910,85 +1908,19 @@
+@@ -1911,85 +1909,19 @@
      },
      {
        "group": "시작",
@@ -152,7 +152,7 @@
      },
      {
        "group": "시작",
-@@ -2734,9 +2666,18 @@
+@@ -2735,9 +2667,18 @@
        "unit": 1,
        "control": "select",
        "options": {
@@ -174,7 +174,7 @@
        },
        "risk": "high"
      },
-@@ -2853,9 +2794,21 @@
+@@ -2854,9 +2795,21 @@
        "unit": 1,
        "control": "select",
        "options": {
@@ -199,3 +199,20 @@
        }
      },
      {
+@@ -3340,13 +3293,13 @@
+       "group": "감속제어",
+       "name": "SignalAssistMode",
+       "title": "신호보조 모드 (시험)",
+-      "descr": "0:신호보조 끔. 1:판정·표시·알림과 정차 중 적색 출발 제한. 2:1의 기능에 감속 준비 추가. 앞차 없이 유효한 적색을 확인하면 약 -0.5m/s²까지 점진적으로 감속을 요청합니다. 변경은 약 1초 내 반영되며 관측기 재시작은 더 걸릴 수 있습니다. 기본 모델의 신호감지와 별개입니다. 오감지·미감지가 가능한 시험 기능입니다.",
++      "descr": "0:신호보조 끔. 1:판정·표시·알림과 정차 중 적색 출발 제한. 감속 준비 판정·알림은 하지만 실제 감속 요청은 하지 않습니다. 2:1의 기능에 실제 감속 준비 요청 추가. 앞차 없이 유효한 적색을 확인하면 약 -0.5m/s²까지 점진적으로 감속을 요청합니다. 변경은 약 1초 내 반영되며 관측기 재시작은 더 걸릴 수 있습니다. 기본 모델의 신호감지와 별개입니다. 오감지·미감지가 가능한 시험 기능입니다.",
+       "egroup": "SPEED",
+       "etitle": "Signal Assistance Mode (Trial)",
+-      "edescr": "0: Assistance off. 1: Recognition, display, alerts and stopped-red departure veto. 2: Mode 1 plus red stop preparation, gradually requesting about -0.5m/s² with valid red evidence and no lead. Changes apply in about one second; observer restart may take longer. Separate from driving-model signal detection. Experimental: false and missed detections remain possible.",
++      "edescr": "0: Assistance off. 1: Recognition, display, alerts, stopped-red departure veto and preparation evaluation without deceleration requests. 2: Mode 1 plus actual red stop preparation, gradually requesting about -0.5m/s² with valid red evidence and no lead. Changes apply in about one second; observer restart may take longer. Separate from driving-model signal detection. Experimental: false and missed detections remain possible.",
+       "cgroup": "速度控制",
+       "ctitle": "信号辅助模式（试验）",
+-      "cdescr": "0:关闭辅助。1:识别、显示、提醒及停车时红灯起步限制。2:在1的基础上增加减速准备；无前车且确认有效红灯时逐渐请求约-0.5m/s²减速。修改约1秒内生效，观察进程重启可能更久。与主模型检测独立，试验功能仍可能误检或漏检。",
++      "cdescr": "0:关闭辅助。1:识别、显示、提醒及停车时红灯起步限制；评估减速准备但不请求实际减速。2:在1的基础上增加实际减速准备请求；无前车且确认有效红灯时逐渐请求约-0.5m/s²减速。修改约1秒内生效，观察进程重启可能更久。与主模型检测独立，试验功能仍可能误检或漏检。",
+       "min": 0,
+       "max": 2,
+       "default": 0,

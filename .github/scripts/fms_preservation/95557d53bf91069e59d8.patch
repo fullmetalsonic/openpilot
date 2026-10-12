@@ -33,10 +33,10 @@
 +            openpilot/system/tests/test_acados_build.py openpilot/system/tests/test_offline_python_bootstrap.py
 +          .venv/bin/python -m pytest -c /dev/null --rootdir=. --confcutdir=openpilot/selfdrive/controls/tests \
 +            openpilot/selfdrive/controls/tests/test_lateral_mpc.py openpilot/selfdrive/controls/tests/test_long_mpc_a_change_cost.py
-       - name: Check passive camera SOF diagnostics
-         run: openpilot/system/camerad/test/test_camera_event_timing
-       - name: Check coherent OS04C10 exposure updates
-@@ -118,12 +112,6 @@
+       - name: Bosch provider regression tests
+         run: |
+           python -m pytest -o addopts='' -q \
+@@ -127,12 +121,6 @@
            python -m pytest -o addopts='' -q \
              openpilot/common/tests/test_egpu_diagnostics.py \
              openpilot/selfdrive/monitoring/test_monitoring.py \

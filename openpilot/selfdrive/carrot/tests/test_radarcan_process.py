@@ -6,6 +6,39 @@ import time
 
 import pytest
 
+# Context forwarding is pure logic; IPC lifecycle tests below still require
+# the actual built Linux runtime. Never import native transport at collection.
+import ast
+import hashlib
+from pathlib import Path
+
+_context_source = Path(__file__).resolve().parents[1] / 'radar/radarcan.py'
+_context_node = next(n for n in ast.parse(_context_source.read_text(encoding='utf-8')).body
+                     if isinstance(n, ast.FunctionDef) and n.name == '_set_bosch_context')
+assert hashlib.sha256(ast.dump(_context_node, include_attributes=False).encode()).hexdigest() == '5c88103f26586c6810608a554b8bf11700b101660500d0a249328c58b024abb1'
+_context_namespace = {}
+exec(compile(ast.Module(body=[_context_node], type_ignores=[]), str(_context_source), 'exec'), _context_namespace)
+_set_bosch_context = _context_namespace['_set_bosch_context']
+
+
+def test_bosch_context_preserves_validity_and_timestamps():
+  class Radar:
+    def set_bosch_context(self, *args):
+      self.context = args
+
+  pose = object()
+  model = object()
+  sm = type('Context', (), {
+    'valid': {'livePose': True, 'modelV2': False},
+    'logMonoTime': {'livePose': 90, 'modelV2': 80},
+    '__getitem__': lambda self, service: {'livePose': pose, 'modelV2': model}[service],
+  })()
+  radar = Radar()
+
+  _set_bosch_context(radar, sm, 100)
+
+  assert radar.context == (100, pose, 90, None, 80)
+
 
 @pytest.mark.skipif(sys.platform != 'linux', reason='requires built Linux msgq/Params runtime')
 @pytest.mark.parametrize('radar_track_flip', [False, True])

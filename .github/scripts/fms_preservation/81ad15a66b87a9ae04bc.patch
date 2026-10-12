@@ -1,16 +1,17 @@
 --- a/docs/user/en/settings.md
 +++ b/docs/user/en/settings.md
-@@ -105,14 +105,14 @@
+@@ -105,18 +105,18 @@
  
  ## Settings map
  
 -The current `carrot_settings.json` contains **187 parameters**. One driver-monitoring exception is search only; the remaining entries appear in these menus:
-+The current `carrot_settings.json` contains **182 parameters**. Every entry appears in these menus:
++The current `carrot_settings.json` contains **183 parameters**. Every entry appears in these menus:
  
  | Category | Count | Groups |
  |---|---:|---|
- | Driving control | 123 | Startup and auto, buttons and presets, steering, speed and deceleration, cruise and following gap |
+-| Driving control | 123 | Startup and auto, buttons and presets, steering, speed and deceleration, cruise and following gap |
 -| Vehicle and hardware | 17 | Hyundai/Kia, CAN FD/HDA, radar, driver monitoring, vehicle assistance, device hardware |
++| Driving control | 124 | Startup and auto, buttons and presets, steering, speed and deceleration, cruise and following gap |
 +| Vehicle and hardware | 16 | Hyundai/Kia, CAN FD/HDA, radar, driver monitoring, vehicle assistance, device hardware |
  | Display | 34 | Information, path, brightness/on-road view, external HUD |
 -| System | 12 | Recording/power, network/map, sound, software |
@@ -18,6 +19,11 @@
  
  ## Driving control
  
+-These 123 settings can affect vehicle motion. Change one item at a time.
++These 124 settings can affect vehicle motion. Change one item at a time.
+ 
+ <a id="start-auto"></a>
+ ### Startup and auto — 9 settings
 @@ -138,7 +138,7 @@
  
  | Section | Parameters | Purpose |
@@ -27,7 +33,36 @@
  | [Speed units](buttons-presets.md#speed-units) | `CruiseSpeedUnit`, `CruiseSpeedUnitBasic`, `CruiseButtonLongDelay` | Short/long-press increments and long-press timing |
  | [Button-message tests](buttons-presets.md#button-spam) | `CruiseButtonTest1`, `CruiseButtonTest2`, `CruiseButtonTest3` | Values used to synchronize the stock SCC set speed |
  | [Speed presets](buttons-presets.md#speed-presets) | `CruiseSpeed1` through `CruiseSpeed5` | Speed table used by custom mode 3 |
-@@ -228,14 +228,13 @@
+@@ -184,7 +184,7 @@
+ 
+ Force-sensor trends do not establish loss of hand contact or driver consent to handover. Existing `steeringPressed` and driver monitoring remain unchanged. Making this behavior standard does not establish the same steering feel on every vehicle.
+ 
+-### Speed and deceleration — 23 settings
++### Speed and deceleration — 24 settings
+ 
+ | Section | Parameters | Purpose |
+ |---|---|---|
+@@ -192,7 +192,7 @@
+ | [Road speed limit](speed-deceleration.md#road-speed-limit) | `AutoRoadSpeedLimitOffset`, `AutoRoadSpeedAdjust`, `AutoSpeedUptoRoadSpeedLimit` | Desired-speed adjustment from the road limit |
+ | [Speed bumps](speed-deceleration.md#speed-bump) | `AutoNaviSpeedBumpTime`, `AutoNaviSpeedBumpSpeed`, `AutoNaviSpeedBumpEndDistance` | Completion time, crossing speed, and early-release distance |
+ | [Curves and turns](speed-deceleration.md#curve-turn) | `AutoCurveSpeedFactor`, `AutoCurveSpeedLowerLimit`, `TurnSpeedControlMode`, `MapTurnSpeedFactor`, `ApplyModelSpeed` | Curve slowing from curvature and distance, prompt recovery after confirmed easing, and route-turn speed |
+-| [Traffic lights](speed-deceleration.md#traffic-light) | `TrafficLightDetectMode`, `TrafficStopDistanceAdjust` | Stop/go detection, stop-position adjustment, and automatic stopped-vehicle alignment |
++| [Traffic lights](speed-deceleration.md#traffic-light) | `TrafficLightDetectMode`, `SignalAssistMode`, `TrafficStopDistanceAdjust` | Stop/go detection, stop-position adjustment, and automatic stopped-vehicle alignment |
+ 
+ `AutoNaviSpeedCtrlMode` is `0` off, `1` fixed speed cameras, `2` cameras plus speed bumps, or `3` those events plus mobile-camera events.
+ 
+@@ -203,6 +203,10 @@
+ `AutoNaviSpeedDecelRate` defaults to `120` (1.20 m/s²); a lower value begins slowing farther away. Updating the software does not change an existing saved value. `AutoNaviSpeedSafetyFactor` applies a percentage of the event limit as the target. Before tuning either value, confirm that the event type, limit, and remaining distance are being received correctly.
+ 
+ `TrafficLightDetectMode` is `0` off, `1` stop detection, or `2` stop and go detection. This is model-based assistance; the driver must always verify the signal.
++
++`SignalAssistMode` defaults to `0`: `0` disables auxiliary assistance; `1` provides recognition, display, alerts and a stopped-red departure veto; `2` adds actual stop-preparation deceleration requests. Mode `1` can evaluate and report preparation conditions but does not request deceleration from that result. Mode `2` gradually requests about -0.5m/s² when red evidence and driving conditions are valid and no lead is present; it does not guarantee a complete stop. This trial is independent of the driving model's `TrafficLightDetectMode`, and false or missed detections remain possible.
++
++Changes apply without reboot in about one second; observer restart may take longer. After updating, native Params must be rebuilt to use the new setting key. Legacy `enabled`, `tracking_enabled`, `display_enabled`, `start_guard_enabled` and `stop_prepare_enabled` files cannot bypass the production setting. The former moving-red `assist_enabled` override is retired and stays disabled in every mode.
+ 
+ ### Cruise and following gap — 29 settings overall, 26 on Hyundai/Kia/Genesis
+ 
+@@ -228,14 +232,13 @@
  
  `SpeedTFFactor` applies a linear speed multiplier to the selected base TF: 10 is unchanged; 20 doubles it at 100 km/h. `LeadAccelResponseTF1`–`TF4` use the common response at -1 and a gap-specific response at 0–5. Levels 4–5 retain speed TF. The driving-screen bar shows the dynamically adjusted following target in metres.
  
@@ -43,7 +78,7 @@
  
  For Hyundai/Kia CANFD openpilot longitudinal control, aReqRaw and aReqValue become zero in the first StopReq frame, so this setting does not change transmitted acceleration while StopReq remains active. Automatic release/retry is removed.
  
-@@ -251,18 +250,14 @@
+@@ -251,18 +254,14 @@
  | Hyundai/Kia | `HyundaiCameraSCC`, `IsLdwsCar`, `HapticFeedbackWhenSpeedCamera` | SCC connection, LDWS behavior, and speed-event haptics |
  | CAN FD/HDA | `CanfdHDA2`, `HyundaiCanfdClusterDirectTx`, `CanfdDebug`, `HDPuse` | HDA2 selection, cluster direct send, CAN FD diagnostics, and HDP |
  | Radar | `EnableRadarTracks`, `RadarTrackFlip`, `EnableCornerRadar`, `CarrotRadarMode`, `CarrotRadarCutInSensitivity` | SCC radar, front-track orientation, corner radar, and Carrot Radar processing and cut-in sensitivity |
@@ -64,7 +99,7 @@
  
  See [Radar tracks and corner radar](radar.md) before changing radar modes.
  
-@@ -292,8 +287,6 @@
+@@ -294,8 +293,6 @@
  `ClusterHud` (External HUD Display) switches a **HUD connected directly to the device USB port** on or off. A HUD connected to Jetson starts automatically even when this value is `0`, and normally turns its display off with ignition. Use the existing always-on `ClusterHudDebug` modes to keep it visible offroad. Brightness and layout settings also apply to the Jetson HUD.
  
  The Jetson HUD shows the highest internal sensor temperature below `jetSON`, or in the upper-right corner in full-screen navigation/graph modes. If temperature data has not refreshed for three seconds, it shows `--°C`. A top-strip temperature warning starts 5°C below each sensor's configured thermal limit; reaching that limit shows an overheating warning. For example, a device configured to throttle at 99°C warns from 94°C. Check the fan and ventilation when warned. Vehicle driving alerts take precedence, and Jetson temperature remains separate from device temperature/memory statistics. This feature requires updated Jetson HUD software.
@@ -73,7 +108,7 @@
  
  | Group | Parameters | Purpose |
  |---|---|---|
-@@ -372,10 +365,6 @@
+@@ -374,10 +371,6 @@
  
  Check storage use for recording and network use, heat, and privacy before enabling live streaming.
  

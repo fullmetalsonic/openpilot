@@ -1,6 +1,6 @@
 {
   "format": 1,
-  "upstream": "3f537bc13fdc325f4ef3852f8ab5a762566cefc1",
+  "upstream": "5e187ab9da726c524ca51aebacc6120802480415",
   "policy": "latest non-DM plus existing FMS personal contracts and dca1f331 legacy DM/stopping behavior",
   "normalization": "UTF-8 text with LF for comparison; a second application preserves existing bytes",
   "bootstrap": [
@@ -29,20 +29,20 @@
     },
     {
       "path": ".github/workflows/tests.yaml",
-      "before_sha256": "3627991b9734e0ec9dbc0159a2997b4339f99adc19a35015c5f995e4bbbb7929",
-      "after_sha256": "beb731a4ed4e4b3a113cfaf5beb8569a4b1a5137c735e9a5685a489456083158",
+      "before_sha256": "ebea0e6b62674f20b67cd2428693cd483b76fb757c27a280fecfad5d7cb2732c",
+      "after_sha256": "70c67a531fc50117d9287d33933d140118e783b48fb627f5b42dbcfd65117c48",
       "kind": "hunks",
       "asset": "fms_preservation/95557d53bf91069e59d8.patch",
-      "asset_sha256": "9ef221724602236b3062a5ab557ae83d4ce193c86d032f1e4a134d4765e4b3fb",
+      "asset_sha256": "f14a714e4e0582733cbfd7f8eff05a88199eede6413e3e80cfbf2309964244c6",
       "review_bundle": "fms_dm_shared_preservation.patch"
     },
     {
       "path": "AGENTS.md",
-      "before_sha256": "7f3f6944530c73e5a8c870b45761673bf632103ceb32ea56eafd5959c8a0d377",
-      "after_sha256": "59adb63a25700adb103cd3280a4babcd78c668300571f1efb130cbe806cbc56b",
+      "before_sha256": "019288ed408e6654b62bb9f5e6b7686bf68fdafe8f8baffcb0c6b3f57440fed0",
+      "after_sha256": "167b6ea5a0ba08c320ea3fa8e5191d83359751f633d32fd9e369e6b5947cbc9d",
       "kind": "hunks",
       "asset": "fms_preservation/a54ff182c7e8acf56acf.patch",
-      "asset_sha256": "f50713ea7c757050be9157af6c9d8b9093c4817ab63326a899b3876afb029fdb",
+      "asset_sha256": "a8d5832f6eb6a829117c5e65dd1059bfdb866c2f312b2b6f7678d1dec22898ec",
       "review_bundle": "fms_dm_shared_preservation.patch"
     },
     {
@@ -92,10 +92,10 @@
     {
       "path": "docs/fms_integration_contract.md",
       "before_sha256": null,
-      "after_sha256": "460d04a3230c42165ed4ed626f184cc454f6699bc23fed620f6a0482bb573531",
+      "after_sha256": "78978f34ac0781ac86c9b8e62f1a4c041feb29c2cb1e622f95b9fdf2e296bfa2",
       "kind": "blob",
       "asset": "fms_preservation/a24dd8e36e1f59ba0523.blob",
-      "asset_sha256": "460d04a3230c42165ed4ed626f184cc454f6699bc23fed620f6a0482bb573531",
+      "asset_sha256": "78978f34ac0781ac86c9b8e62f1a4c041feb29c2cb1e622f95b9fdf2e296bfa2",
       "review_bundle": "fms_dm_shared_preservation.patch"
     },
     {
@@ -161,11 +161,11 @@
     },
     {
       "path": "docs/user/en/settings.md",
-      "before_sha256": "bbbb99b9970c72aeef46d36e837289226d9c3e021521d544477474397b88713b",
-      "after_sha256": "a603b2ca805cec88acacd691701e16c2e29d05bde1fed50124cd88ae566e309b",
+      "before_sha256": "fd5dba6904183173e4ea5b3da0647cc80d384bb86bab220ce9766549496afc21",
+      "after_sha256": "b2621d5281d40236af2ffda5fdfb137394293470b6d5caa5be47823872b8b75b",
       "kind": "hunks",
       "asset": "fms_preservation/81ad15a66b87a9ae04bc.patch",
-      "asset_sha256": "798581883229893b369c0529018b2696794ddc4c3b2c25ba2b28f76ac2aeb859",
+      "asset_sha256": "160a39337dba8c660943995791c9e64f6993abb6dbbb835004ae0e23ca8960ea",
       "review_bundle": "fms_dm_shared_preservation.patch"
     },
     {
@@ -206,11 +206,11 @@
     },
     {
       "path": "docs/user/ko/settings.md",
-      "before_sha256": "6c57f2de32ed72f1a337fd641cfd4caa5a32acbecb06e1d12810cf3c1e039ec1",
-      "after_sha256": "75c17f8885ec38776c53bba91c101e55f078dd5a1e7a7a81dd625eee5bdfdc24",
+      "before_sha256": "f3c2dedde70c65fedef2a25655155f37637fd63dc549ae7072adf43ceedbefe4",
+      "after_sha256": "94e496dc8020c7b60fa2c2e8d1c802ce5bb2d15896790435a878e6c4b0f6e109",
       "kind": "hunks",
       "asset": "fms_preservation/e47e44fda7cd0c5ed09f.patch",
-      "asset_sha256": "00e131b7157a69c81bce65723c4c4e9cef8926cfc323f311b77238e77af1578a",
+      "asset_sha256": "61477f09560fc786e0470011126821cbde58988e57d3e2debb41eacdce54b33c",
       "review_bundle": "fms_dm_shared_preservation.patch"
     },
     {
@@ -251,11 +251,11 @@
     },
     {
       "path": "opendbc_repo/opendbc/car/hyundai/hyundaicanfd.py",
-      "before_sha256": "662d637eac7094a2f719f05a402e6aa6e1f089b8a65b6b4b208544c5ca8ffa09",
+      "before_sha256": "ee3f3b7a77c999b4b2444ad9d81f13bb5cf75b4dd018807db5e9ca93d3203d4c",
       "after_sha256": "86aab4ce6b6d3603551266be94555ad3662fb6baa6b64fb1f862a202ff70c3b9",
       "kind": "hunks",
       "asset": "fms_preservation/25986e4483d5e1eb45e5.patch",
-      "asset_sha256": "be92382d9374091ec7f312f87b74a0da49a83acff827ff7dfb48f9da589f11d4",
+      "asset_sha256": "8677c1bf11732a9d79c88ec93f539d9054cc85c90a57572040d8d1cb05ed7de0",
       "review_bundle": "independent_hold_stopping.patch"
     },
     {
@@ -276,11 +276,11 @@
     },
     {
       "path": "opendbc_repo/opendbc/car/hyundai/stopping.py",
-      "before_sha256": "1112e895053548c8d866fdcc9a89426b367b4c2609641830bb476ee106444cb0",
+      "before_sha256": "ee5abe0b20d91b8bcfd8c891cae26d029168efe1f4b499cb898f4f897655268d",
       "after_sha256": "66fd227a7ec7486c9d6365f41cf1a98b985a33d45b32678307ed9ee5d666d10f",
       "kind": "hunks",
       "asset": "fms_preservation/4d4854a37219f0733cf9.patch",
-      "asset_sha256": "402ef0d3b6463832354b71ee93e00e294085a32a1d37d4dc0e889033d9adc1b4",
+      "asset_sha256": "feb33e6acf9a56c61d4e1beaeb772bee3735163aabccbadf8530e2b63d53023c",
       "review_bundle": "independent_hold_stopping.patch"
     },
     {
@@ -290,6 +290,15 @@
       "kind": "blob",
       "asset": "fms_preservation/fca0fe082dc3e4ab1252.blob",
       "asset_sha256": "847873c5257b8428dc221d2858f6ce8b9deb6f8e1ad54b6e6be47080e684627a",
+      "review_bundle": "fms_dm_shared_preservation.patch"
+    },
+    {
+      "path": "opendbc_repo/opendbc/car/hyundai/tests/fixtures/fms_signal_radar_3f86e7d3.json",
+      "before_sha256": null,
+      "after_sha256": "6e8b138fbd269d5c16075813c0f794047792dec34129f6bfa494660bd05d42d3",
+      "kind": "blob",
+      "asset": "fms_preservation/ff42edbf3950cda3a044.blob",
+      "asset_sha256": "6e8b138fbd269d5c16075813c0f794047792dec34129f6bfa494660bd05d42d3",
       "review_bundle": "fms_dm_shared_preservation.patch"
     },
     {
@@ -329,6 +338,15 @@
       "review_bundle": "paddle_regen_isolation.patch"
     },
     {
+      "path": "opendbc_repo/opendbc/car/hyundai/tests/test_signal_fms_integration.py",
+      "before_sha256": null,
+      "after_sha256": "12d6452cf26eaa1ff11013d1a3f8bd339066fa2d2f08d88b306f25bc1ba3ecdc",
+      "kind": "blob",
+      "asset": "fms_preservation/9928bbc4c03cda7d4da9.blob",
+      "asset_sha256": "12d6452cf26eaa1ff11013d1a3f8bd339066fa2d2f08d88b306f25bc1ba3ecdc",
+      "review_bundle": "fms_dm_shared_preservation.patch"
+    },
+    {
       "path": "opendbc_repo/opendbc/car/hyundai/tests/test_steering_touch.py",
       "before_sha256": "14e0717f5996d875eaad5c2614b94ae665c25ed2b173d45e716b4c5adf275f93",
       "after_sha256": null,
@@ -337,11 +355,11 @@
     },
     {
       "path": "opendbc_repo/opendbc/car/hyundai/tests/test_stopping.py",
-      "before_sha256": "32636808b702b22abae43d65a4614d6c18c94688d04aebea186166ee78f54e0b",
+      "before_sha256": "a9b1d15ab3d175c01fb1edc969acef01b78e6458c6c05ddbe46bf027129e78bd",
       "after_sha256": "eeb7ac906d3a1bb85741ffd3baf1345a87ce59598be5e3bc24a0c2ca44bbf55e",
       "kind": "hunks",
       "asset": "fms_preservation/607851253656e1a899b2.patch",
-      "asset_sha256": "470bae4a4b13c147dde90fe4b9951450e6bcbf50ba38dc5dcb0be1f98828a544",
+      "asset_sha256": "680b3f64ec402f9635e42bd2356a9cfda1270f1307395faef426f36a4add636d",
       "review_bundle": "fms_dm_shared_preservation.patch"
     },
     {
@@ -355,11 +373,11 @@
     },
     {
       "path": "openpilot/common/params_keys.h",
-      "before_sha256": "8f187aa9a521b72d55780a994ec7fa4cb08dda86e7f965689133b09b5ce9ebd2",
-      "after_sha256": "c1a32c2916c016429442d16213ef21e171e9d66003620668a5a1183774b1f3cf",
+      "before_sha256": "10f221f2ba41805ff6fa7d43fe97dfd258fb6252e0fa492d0e0b6a993f89ed92",
+      "after_sha256": "de27ebbb6c642b34aea51aa248bf7e3cf3ee374c051d50bb09ddd39697f23b14",
       "kind": "hunks",
       "asset": "fms_preservation/b368b9282ecd7af0ea13.patch",
-      "asset_sha256": "66ee63288d36b696319d3fdee1fc24cd95fe1b5e95b2502036e7edeed5d120e1",
+      "asset_sha256": "40819e0cb8eb2e1dc11dd683bfd2dd85d50568db52d892a47f410f3b9e46bca5",
       "review_bundle": "fms_dm_shared_preservation.patch"
     },
     {
@@ -604,9 +622,27 @@
       "review_bundle": "fms_dm_shared_preservation.patch"
     },
     {
+      "path": "openpilot/selfdrive/carrot/tests/test_radarcan_process.py",
+      "before_sha256": "050dc9716d853284b40c6932369ffdeaa66a85e312819b8cb2f939f018a42f2f",
+      "after_sha256": "0836debfbea196567fc9e89ac6d527d765ddac07e4183824a7a0eeb10a2ce3c7",
+      "kind": "hunks",
+      "asset": "fms_preservation/d2623fe18680faf5426f.patch",
+      "asset_sha256": "8a39467ace447d6a072bbc8e0456effd485115869acf9ac80c3a713736faeafe",
+      "review_bundle": "fms_dm_shared_preservation.patch"
+    },
+    {
+      "path": "openpilot/selfdrive/carrot/tests/test_radard_dpath.py",
+      "before_sha256": "ffee7e3bafa95c48e56a5e8fe4e332003d14c9d0e930cefaa82f218c8d09045c",
+      "after_sha256": "f4f8457d57f26bc5ec9f2c13fd3936ceb2918fa1a3b7f512b31bc45f71b7c013",
+      "kind": "hunks",
+      "asset": "fms_preservation/c5ebb1e9bb25e3103ba3.patch",
+      "asset_sha256": "6364cfbb9f902f2433f2c0b2395259dec83e190bfa609c904b5d743ee46da5e2",
+      "review_bundle": "fms_dm_shared_preservation.patch"
+    },
+    {
       "path": "openpilot/selfdrive/carrot/web/generated/asset-manifest.json",
-      "before_sha256": "e15f695013017e621638761a081457ae00c7e82e2cc50c7479f6fd5f833b2395",
-      "after_sha256": "cbc0014dc402a606b1a239bbe35c6eeccc90cda7375df9a2cb43b63a19d3fde2",
+      "before_sha256": "d34a574f043e679e7f11e61b4edf1ba596b202b6a0e76f847105a5ddbfabf333",
+      "after_sha256": "69702f45d09438cbd008f98cfd371c4364fcf28fcf2fdbc540fceb1f7d50c473",
       "kind": "hunks",
       "asset": "fms_preservation/e91967e46ff9a3f749ea.patch",
       "asset_sha256": "586c4ec51cf953beb86bc393327086ca7d576824b55ed816c197211f46305cfd",
@@ -765,11 +801,11 @@
     },
     {
       "path": "openpilot/selfdrive/carrot_settings.json",
-      "before_sha256": "47862e9dfab66808d6d17ccb91228528922d34a4a5f35076be47d75740b433db",
-      "after_sha256": "aba2572320a9134c033606b5cb53b2afbe1f1c78dde5887d28df4d221424be1f",
+      "before_sha256": "c0cd49eadc67557155b46e782cc6f6396b6ddb76b69b429fade6c4b399905197",
+      "after_sha256": "39db27d93b2463241469ee7d7253aca5c0d383ec8b2d2d08ef8109ecb730bb33",
       "kind": "hunks",
       "asset": "fms_preservation/b2b2e0d9301c6a4eba46.patch",
-      "asset_sha256": "12d8cfc7aee9caba9de404cd40454c61fb9a3e299302f6dd796113e079f029ba",
+      "asset_sha256": "391eafd487cd9405f786c55601d658023131fb7f7444d9f7d192048523c16831",
       "review_bundle": "fms_dm_shared_preservation.patch"
     },
     {
@@ -783,8 +819,8 @@
     },
     {
       "path": "openpilot/selfdrive/controls/lib/longitudinal_planner.py",
-      "before_sha256": "0c83245122571a8f2e266bd245dea140d6e242363a383845a72583fd37dbc8bb",
-      "after_sha256": "cb5128cd34eda35a58234a52e9ef3de18e48ac39a120c5cef0ec59e007c6a9ce",
+      "before_sha256": "414b33f56c1addac9bb594cd6e283c361032e1e674028f314bf6bc4c6aaa51e8",
+      "after_sha256": "ad68a71c7f26b03cc2103eb182da92b899d2275c2384085491ee16b907d3784c",
       "kind": "hunks",
       "asset": "fms_preservation/843fbbd5b573292e7d4a.patch",
       "asset_sha256": "5b090389aadf0cd2ab84f27a71bd28ba4058300d44b4ed6e3094319dd090cf70",
@@ -828,20 +864,20 @@
     },
     {
       "path": "openpilot/selfdrive/modeld/signal_neural_shadow.py",
-      "before_sha256": "51652d03f68b05cf95801ba7376a346050b9a8adc01c02c0e1106b797c10ddbf",
-      "after_sha256": "26d0b1a2ac9b2f6a0158923812966687cbeff48cea0e48842d30058b338a029b",
+      "before_sha256": "7be13ee4aadf6adb568e2598a59beeb4e40b96c35e3860e9a6af000117eea29d",
+      "after_sha256": "6a1bbb9ef891485638e5d8be11db0d886b60bc4e739513b5c45d2e8c9164e76e",
       "kind": "hunks",
       "asset": "fms_preservation/c41c713edef1aee22002.patch",
-      "asset_sha256": "5b50e4c320a48d4922c4715727684efc90dfcc8157eb616bccd1969fde27fd50",
+      "asset_sha256": "d502090f0af4bfda2e5e94418f66eacac5fa943ac3a3d700114701f929e87710",
       "review_bundle": "fms_dm_shared_preservation.patch"
     },
     {
       "path": "openpilot/selfdrive/modeld/tests/test_signal_neural_shadow.py",
       "before_sha256": "7323b85e5c5cac78fc83e348087a362ae9962067ece556e0f1e1e47f25deffd4",
-      "after_sha256": "7351cb78e27657ee03417d58da173f6e35dfb2902cddbfb71203a4a385a90a79",
+      "after_sha256": "3b17a180a7ac5e23e25e1250e07e178ae9253c1fd37e4acee03898797b5a8853",
       "kind": "hunks",
       "asset": "fms_preservation/76839bc5d536ca2582de.patch",
-      "asset_sha256": "0f1be28f1a5cbaaf452fcb5191bf4e2121d55a99d600d2dcf9c27a42357098de",
+      "asset_sha256": "2cbe8a560e92f24b9468711998a5a11713c5aca110028ca1bb6c3b98c7223fd3",
       "review_bundle": "fms_dm_shared_preservation.patch"
     },
     {
@@ -980,8 +1016,8 @@
     },
     {
       "path": "openpilot/selfdrive/test/process_replay/process_replay.py",
-      "before_sha256": "44f5b4ccc06f6f7f9d238c4a47d595a3313f4226ac6a06b4b72fec34d70567b7",
-      "after_sha256": "26f3a50acfb98f8678be80e136cbae641ee7168b9121b90e79c332ab8b9baa0e",
+      "before_sha256": "98b1aefae1043b18e5479160bff38acabb76bbe9375c72c06a88f1595fd708fb",
+      "after_sha256": "44ffef48a06842bdadb4e31653c9bca004b5bfbac811eb58fbfae8668e29af61",
       "kind": "hunks",
       "asset": "fms_preservation/4b8727802a0183b25aef.patch",
       "asset_sha256": "e8ad4fcaa614c7c5ebaf983d9e79db34df780a1bbe1d4b31c25986c3c2e35d6f",
@@ -1183,12 +1219,21 @@
       "review_bundle": "fms_dm_shared_preservation.patch"
     },
     {
+      "path": "tools/docs/wiki_settings/tests/test_ci_check.py",
+      "before_sha256": "15f4d46e314a7453f71cf9a326f7c52a1909f5655dd4b69f2f075c87c4bbc015",
+      "after_sha256": "501db95e9717831c153824f7c1040ebf4c96b424ddc0cc1dfd1c6dce43e79489",
+      "kind": "hunks",
+      "asset": "fms_preservation/f82ca541ebcad10754b5.patch",
+      "asset_sha256": "36069623b6c7904cdb691f60208369390aa96d75ccdd56691efe69e1d5744ca5",
+      "review_bundle": "fms_dm_shared_preservation.patch"
+    },
+    {
       "path": "tools/docs/wiki_settings/tests/test_generate.py",
-      "before_sha256": "1e5e37041f60848fb7396b3d9f8de6f56f967ae5cfd4eb5d3cf4498f0f96d074",
-      "after_sha256": "37a4f331e06aa8b89dc90d174491a7d4fdc9bbfff75acab407f4d91f3bc67b01",
+      "before_sha256": "dfcf5a409d8308100259600357da2c1f2f7557de7fd3dcb5c53bc33897daf55c",
+      "after_sha256": "be7028bbe397fdf3f1e1225f47724d3a6b761a9d555ddaa7c927457168879948",
       "kind": "hunks",
       "asset": "fms_preservation/afe96cbe56f8172891d2.patch",
-      "asset_sha256": "e1fc3a9464e96016c0cd6995a084982e0400392531f1c079acc18030590f157d",
+      "asset_sha256": "64ce3c79f06e225469399ae2991c5aca389d3cfdd603a7dd773c3b32016bc176",
       "review_bundle": "fms_dm_shared_preservation.patch"
     }
   ]

@@ -84,10 +84,10 @@ diff --git a/.github/workflows/tests.yaml b/.github/workflows/tests.yaml
 +            openpilot/system/tests/test_acados_build.py openpilot/system/tests/test_offline_python_bootstrap.py
 +          .venv/bin/python -m pytest -c /dev/null --rootdir=. --confcutdir=openpilot/selfdrive/controls/tests \
 +            openpilot/selfdrive/controls/tests/test_lateral_mpc.py openpilot/selfdrive/controls/tests/test_long_mpc_a_change_cost.py
-       - name: Check passive camera SOF diagnostics
-         run: openpilot/system/camerad/test/test_camera_event_timing
-       - name: Check coherent OS04C10 exposure updates
-@@ -118,12 +112,6 @@
+       - name: Bosch provider regression tests
+         run: |
+           python -m pytest -o addopts='' -q \
+@@ -127,12 +121,6 @@
            python -m pytest -o addopts='' -q \
              openpilot/common/tests/test_egpu_diagnostics.py \
              openpilot/selfdrive/monitoring/test_monitoring.py \
@@ -103,7 +103,7 @@ diff --git a/.github/workflows/tests.yaml b/.github/workflows/tests.yaml
 diff --git a/AGENTS.md b/AGENTS.md
 --- a/AGENTS.md
 +++ b/AGENTS.md
-@@ -1,3 +1,14 @@
+@@ -1,3 +1,16 @@
 +# FMS fork integration contract
 +
 +This fork preserves its own behavior contracts and selectively integrates
@@ -111,13 +111,15 @@ diff --git a/AGENTS.md b/AGENTS.md
 +upstream repository memory below. Read `docs/fms_integration_contract.md`
 +before updating FMS: retain legacy DisableDM behavior and the existing CANFD
 +stopping core together with all personal patches. Do not adopt upstream DM
-+changes merely because they are merged into carrot-wip. The current local
-+integration is explicitly uncommitted; do not commit or push without a new
-+user request. Stable and raw DDM branches and paused automation stay unchanged.
++changes merely because they are merged into carrot-wip. Commit or push only
++within the current user's explicit WIP update authorization after verification.
++Stable and raw DDM branches and paused automation stay unchanged. The 2026-10-12
++follow-up also preserves the existing stopping output instead of adopting the
++upstream lower-band timing trial in 0e4ee1bd.
 +
  # Repository memory
  
- - On 2026-10-12, during the color experiment, the user prioritized avoiding
+ - On 2026-10-12, SignalAssistMode adds the requested live0/1/2 selection on
 diff --git a/docs/branch_catalog.md b/docs/branch_catalog.md
 --- /dev/null
 +++ b/docs/branch_catalog.md
@@ -774,18 +776,19 @@ diff --git a/docs/driver_monitoring_dm2.md b/docs/driver_monitoring_dm2.md
 diff --git a/docs/fms_integration_contract.md b/docs/fms_integration_contract.md
 --- /dev/null
 +++ b/docs/fms_integration_contract.md
-@@ -0,0 +1,58 @@
+@@ -0,0 +1,68 @@
 +# FMS 선별 통합 운영 계약
 +
 +## 상태와 방향
 +
 +2026-10-12 사용자 결정: FMS는 원본의 동작과 같아지는 것을 목표로 하는 자동 동기화 브랜치가 아니다. **현재 FMS의 동작 계약을 유지하며 필요한 원본 변경을 선별 이식하는 포크**로 관리한다. 설정 몇 개를 바꾸는 수준의 패치만으로 해석하지 않는다.
 +
-+현재 승인 범위는 최신 원본의 검토된 비DM 변경을 로컬에 통합하고 검증하는 것이다. 커밋·푸시, 기기 설치/설정 변경, 안정판/DDM 갱신, 예약 재개는 승인 범위에 없다. 통합 검증 뒤 Astra Extra High가 실제 코드와 검증 근거를 최종 검토한다.
++최신 원본의 검토된 비DM 변경을 통합·검증하며, 해당 작업에서 사용자가 승인한 경우에만 WIP에 커밋·푸시한다. 기기 설치/설정 변경, 안정판/DDM 갱신과 예약 재개는 별도 명시 요청이 필요하다. 중요한 통합은 검증 뒤 Astra Extra High가 실제 코드와 검증 근거를 최종 검토한다.
 +
 +- FMS 동작/DM/개인 패치 기준: `dca1f33137b8f24dfd23e35bc2bc3d9fd21c5d69`.
 +- 원본 기반: `ef586a41637a00968e4521aeb99021fe609b5105`.
-+- 이번 검토 대상: `3f537bc13fdc325f4ef3852f8ab5a762566cefc1`.
++- 직전 검증·게시 FMS: `3f86e7d325c35f03bdfc6145463a1eea37389515` (원본 `3f537bc1` 기반).
++- 이번 추가 검토 대상: `5e187ab9da726c524ca51aebacc6120802480415`.
 +- 안정판 유지: `609cecef51011d893e252cf61079ba6b90faabc4`.
 +- 원본 보관 DDM 유지: `ef586a41637a00968e4521aeb99021fe609b5105`.
 +
@@ -817,11 +820,20 @@ diff --git a/docs/fms_integration_contract.md b/docs/fms_integration_contract.md
 +
 +`2608792b`의 zero-aReq/복구 FSM 삭제와 `82290515`의 첫 StopReq jerkUpper 변경은 정지 범위만 분리해 제외한다. 원본이 ECU에서 실패한다는 판정이 아니라, 현행 FMS 출력 계약을 유지하기 위한 선택이다.
 +
++후속 `0e4ee1bd`의 일반 ACC lower-band 선출력·접근 단계 lower=0.20·blocked lower 변경도 제외한다. `stopping.py`, `hyundaicanfd.py`와 현재 정지 시험을 직전 FMS 기준으로 유지하며 새 레이더/신호 기능은 별도 접점으로 통합한다.
++
 +- `stopping.py`의 현행 prepare/request/release/retry/fallback/held 코어와 a_ego/value/previous_value/independent_hold 의미를 유지한다.
 +- `hyundaicanfd.py`의 두 builder에서 원래 enabled 기준 일반/독립 분리와 인터록, 실제 aReq 반환/전달을 보존한다. gate 예외만 복구해서는 음수 준비/유지가 돌아오지 않는다.
 +- `carcontroller.py`의 stopping 생성자/호출/실제 출력 feedback과 패들 문맥을 최신 비DM 코드에 접합한다. 직전 출력을0으로 초기화하지 않는다.
 +- camera/non-camera 일반 제한식과 독립 실제 출력 feedback의 차이를 임의 통일하지 않는다. 삭제된 CanfdStopRetry 설정을 부활시키지 않는다.
 +- 준비 횟수는 입력에 따라 달라진다. 기존 ECU held 표시가 있으면 첫 출력0 뒤 음수로 수렴할 수 있으므로, 첫 패킷을 무조건 -0.5로 강제하는 새 정책을 만들지 않는다.
++
++## 추가 비DM 기능의 경계
++
++- `SignalAssistMode`는 기본0이다. 0에서는 과거 production enable 파일도 제어를 켜지 못한다. 1은 표시·알림과 정차 적색 출발 제한, 2에서만 추가 감속 준비를 허용한다. 기존 파일을 새 설정으로 자동 이행하거나 설정을 임의로 켜지 않는다. 모드 변경은 캐시 주기를 거치며 저장 즉시 0ms 해제를 보장하지 않는다.
++- 새 `e2eStopPrepare=6`을 VCruise의 기존 정지 신호 `[3,5]`에 추가하지 않는다. 신호 준비가 SoftHold/자동 크루즈 ON·RES 권한을 만들지 않으며 OFF/CANCEL·페달·lead·회전·모델 정지·무효/스테일 관측에서는 기존 제어 경계를 유지한다.
++- Bosch passive 레이더는 허용된 비CANFD 차종·완전한 동일 버스 지문·EnableRadarTracks 조건에서만 선택한다. MQ4 CANFD는 제외되며 기존 공급자·20Hz 경로를 보존한다. 이 구성이 수신용이라는 설명과 특정 Bosch 구성에서 ECU disable/트랙 활성화 쓰기를 생략하는 변경을 함께 검증한다.
++- Mountain Dew 재학습 모델과 신구 runtime API 호환은 주행 모델 변경이다. 기존 DM 동결과 구분하며 패키지 무결성/선택 실패 시 내부 모델 fallback을 보존한다. URL 접근 검사나 host fixture를 실제 eGPU 추론·실차 성능 검증으로 확대하지 않는다.
 +
 +## 검증·재현·완료 기준
 +
@@ -1175,17 +1187,18 @@ diff --git a/docs/user/en/driver-monitoring.md b/docs/user/en/driver-monitoring.
 diff --git a/docs/user/en/settings.md b/docs/user/en/settings.md
 --- a/docs/user/en/settings.md
 +++ b/docs/user/en/settings.md
-@@ -105,14 +105,14 @@
+@@ -105,18 +105,18 @@
  
  ## Settings map
  
 -The current `carrot_settings.json` contains **187 parameters**. One driver-monitoring exception is search only; the remaining entries appear in these menus:
-+The current `carrot_settings.json` contains **182 parameters**. Every entry appears in these menus:
++The current `carrot_settings.json` contains **183 parameters**. Every entry appears in these menus:
  
  | Category | Count | Groups |
  |---|---:|---|
- | Driving control | 123 | Startup and auto, buttons and presets, steering, speed and deceleration, cruise and following gap |
+-| Driving control | 123 | Startup and auto, buttons and presets, steering, speed and deceleration, cruise and following gap |
 -| Vehicle and hardware | 17 | Hyundai/Kia, CAN FD/HDA, radar, driver monitoring, vehicle assistance, device hardware |
++| Driving control | 124 | Startup and auto, buttons and presets, steering, speed and deceleration, cruise and following gap |
 +| Vehicle and hardware | 16 | Hyundai/Kia, CAN FD/HDA, radar, driver monitoring, vehicle assistance, device hardware |
  | Display | 34 | Information, path, brightness/on-road view, external HUD |
 -| System | 12 | Recording/power, network/map, sound, software |
@@ -1193,6 +1206,11 @@ diff --git a/docs/user/en/settings.md b/docs/user/en/settings.md
  
  ## Driving control
  
+-These 123 settings can affect vehicle motion. Change one item at a time.
++These 124 settings can affect vehicle motion. Change one item at a time.
+ 
+ <a id="start-auto"></a>
+ ### Startup and auto — 9 settings
 @@ -138,7 +138,7 @@
  
  | Section | Parameters | Purpose |
@@ -1202,7 +1220,36 @@ diff --git a/docs/user/en/settings.md b/docs/user/en/settings.md
  | [Speed units](buttons-presets.md#speed-units) | `CruiseSpeedUnit`, `CruiseSpeedUnitBasic`, `CruiseButtonLongDelay` | Short/long-press increments and long-press timing |
  | [Button-message tests](buttons-presets.md#button-spam) | `CruiseButtonTest1`, `CruiseButtonTest2`, `CruiseButtonTest3` | Values used to synchronize the stock SCC set speed |
  | [Speed presets](buttons-presets.md#speed-presets) | `CruiseSpeed1` through `CruiseSpeed5` | Speed table used by custom mode 3 |
-@@ -228,14 +228,13 @@
+@@ -184,7 +184,7 @@
+ 
+ Force-sensor trends do not establish loss of hand contact or driver consent to handover. Existing `steeringPressed` and driver monitoring remain unchanged. Making this behavior standard does not establish the same steering feel on every vehicle.
+ 
+-### Speed and deceleration — 23 settings
++### Speed and deceleration — 24 settings
+ 
+ | Section | Parameters | Purpose |
+ |---|---|---|
+@@ -192,7 +192,7 @@
+ | [Road speed limit](speed-deceleration.md#road-speed-limit) | `AutoRoadSpeedLimitOffset`, `AutoRoadSpeedAdjust`, `AutoSpeedUptoRoadSpeedLimit` | Desired-speed adjustment from the road limit |
+ | [Speed bumps](speed-deceleration.md#speed-bump) | `AutoNaviSpeedBumpTime`, `AutoNaviSpeedBumpSpeed`, `AutoNaviSpeedBumpEndDistance` | Completion time, crossing speed, and early-release distance |
+ | [Curves and turns](speed-deceleration.md#curve-turn) | `AutoCurveSpeedFactor`, `AutoCurveSpeedLowerLimit`, `TurnSpeedControlMode`, `MapTurnSpeedFactor`, `ApplyModelSpeed` | Curve slowing from curvature and distance, prompt recovery after confirmed easing, and route-turn speed |
+-| [Traffic lights](speed-deceleration.md#traffic-light) | `TrafficLightDetectMode`, `TrafficStopDistanceAdjust` | Stop/go detection, stop-position adjustment, and automatic stopped-vehicle alignment |
++| [Traffic lights](speed-deceleration.md#traffic-light) | `TrafficLightDetectMode`, `SignalAssistMode`, `TrafficStopDistanceAdjust` | Stop/go detection, stop-position adjustment, and automatic stopped-vehicle alignment |
+ 
+ `AutoNaviSpeedCtrlMode` is `0` off, `1` fixed speed cameras, `2` cameras plus speed bumps, or `3` those events plus mobile-camera events.
+ 
+@@ -203,6 +203,10 @@
+ `AutoNaviSpeedDecelRate` defaults to `120` (1.20 m/s²); a lower value begins slowing farther away. Updating the software does not change an existing saved value. `AutoNaviSpeedSafetyFactor` applies a percentage of the event limit as the target. Before tuning either value, confirm that the event type, limit, and remaining distance are being received correctly.
+ 
+ `TrafficLightDetectMode` is `0` off, `1` stop detection, or `2` stop and go detection. This is model-based assistance; the driver must always verify the signal.
++
++`SignalAssistMode` defaults to `0`: `0` disables auxiliary assistance; `1` provides recognition, display, alerts and a stopped-red departure veto; `2` adds actual stop-preparation deceleration requests. Mode `1` can evaluate and report preparation conditions but does not request deceleration from that result. Mode `2` gradually requests about -0.5m/s² when red evidence and driving conditions are valid and no lead is present; it does not guarantee a complete stop. This trial is independent of the driving model's `TrafficLightDetectMode`, and false or missed detections remain possible.
++
++Changes apply without reboot in about one second; observer restart may take longer. After updating, native Params must be rebuilt to use the new setting key. Legacy `enabled`, `tracking_enabled`, `display_enabled`, `start_guard_enabled` and `stop_prepare_enabled` files cannot bypass the production setting. The former moving-red `assist_enabled` override is retired and stays disabled in every mode.
+ 
+ ### Cruise and following gap — 29 settings overall, 26 on Hyundai/Kia/Genesis
+ 
+@@ -228,14 +232,13 @@
  
  `SpeedTFFactor` applies a linear speed multiplier to the selected base TF: 10 is unchanged; 20 doubles it at 100 km/h. `LeadAccelResponseTF1`–`TF4` use the common response at -1 and a gap-specific response at 0–5. Levels 4–5 retain speed TF. The driving-screen bar shows the dynamically adjusted following target in metres.
  
@@ -1218,7 +1265,7 @@ diff --git a/docs/user/en/settings.md b/docs/user/en/settings.md
  
  For Hyundai/Kia CANFD openpilot longitudinal control, aReqRaw and aReqValue become zero in the first StopReq frame, so this setting does not change transmitted acceleration while StopReq remains active. Automatic release/retry is removed.
  
-@@ -251,18 +250,14 @@
+@@ -251,18 +254,14 @@
  | Hyundai/Kia | `HyundaiCameraSCC`, `IsLdwsCar`, `HapticFeedbackWhenSpeedCamera` | SCC connection, LDWS behavior, and speed-event haptics |
  | CAN FD/HDA | `CanfdHDA2`, `HyundaiCanfdClusterDirectTx`, `CanfdDebug`, `HDPuse` | HDA2 selection, cluster direct send, CAN FD diagnostics, and HDP |
  | Radar | `EnableRadarTracks`, `RadarTrackFlip`, `EnableCornerRadar`, `CarrotRadarMode`, `CarrotRadarCutInSensitivity` | SCC radar, front-track orientation, corner radar, and Carrot Radar processing and cut-in sensitivity |
@@ -1239,7 +1286,7 @@ diff --git a/docs/user/en/settings.md b/docs/user/en/settings.md
  
  See [Radar tracks and corner radar](radar.md) before changing radar modes.
  
-@@ -292,8 +287,6 @@
+@@ -294,8 +293,6 @@
  `ClusterHud` (External HUD Display) switches a **HUD connected directly to the device USB port** on or off. A HUD connected to Jetson starts automatically even when this value is `0`, and normally turns its display off with ignition. Use the existing always-on `ClusterHudDebug` modes to keep it visible offroad. Brightness and layout settings also apply to the Jetson HUD.
  
  The Jetson HUD shows the highest internal sensor temperature below `jetSON`, or in the upper-right corner in full-screen navigation/graph modes. If temperature data has not refreshed for three seconds, it shows `--°C`. A top-strip temperature warning starts 5°C below each sensor's configured thermal limit; reaching that limit shows an overheating warning. For example, a device configured to throttle at 99°C warns from 94°C. Check the fan and ventilation when warned. Vehicle driving alerts take precedence, and Jetson temperature remains separate from device temperature/memory statistics. This feature requires updated Jetson HUD software.
@@ -1248,7 +1295,7 @@ diff --git a/docs/user/en/settings.md b/docs/user/en/settings.md
  
  | Group | Parameters | Purpose |
  |---|---|---|
-@@ -372,10 +365,6 @@
+@@ -374,10 +371,6 @@
  
  Check storage use for recording and network use, heat, and privacy before enabling live streaming.
  
@@ -1425,17 +1472,18 @@ diff --git a/docs/user/ko/driver-monitoring.md b/docs/user/ko/driver-monitoring.
 diff --git a/docs/user/ko/settings.md b/docs/user/ko/settings.md
 --- a/docs/user/ko/settings.md
 +++ b/docs/user/ko/settings.md
-@@ -105,14 +105,14 @@
+@@ -105,18 +105,18 @@
  
  ## 전체 설정 지도
  
 -현재 `carrot-wip`의 `carrot_settings.json`에는 **187개 파라미터**가 있습니다. 운전자 감시 예외 설정 1개는 검색으로만 표시되며, 나머지는 아래 메뉴에 표시됩니다.
-+현재 `carrot-wip`의 `carrot_settings.json`에는 **182개 파라미터**가 있습니다. 모든 항목은 아래 메뉴에 표시됩니다.
++현재 `carrot-wip`의 `carrot_settings.json`에는 **183개 파라미터**가 있습니다. 모든 항목은 아래 메뉴에 표시됩니다.
  
  | 대분류 | 항목 수 | 중분류 |
  |---|---:|---|
- | 주행 제어 | 123 | 시작·오토, 버튼·프리셋, 차량 조향, 속도·감속, 크루즈·차간 |
+-| 주행 제어 | 123 | 시작·오토, 버튼·프리셋, 차량 조향, 속도·감속, 크루즈·차간 |
 -| 차량·하드웨어 | 17 | 현대·기아, CANFD·HDA, 레이더, 운전자 모니터링, 차량 보조, 기기 하드웨어 |
++| 주행 제어 | 124 | 시작·오토, 버튼·프리셋, 차량 조향, 속도·감속, 크루즈·차간 |
 +| 차량·하드웨어 | 16 | 현대·기아, CANFD·HDA, 레이더, 운전자 모니터링, 차량 보조, 기기 하드웨어 |
  | 화면 표시 | 34 | 정보 표시, 경로 표시, 밝기·주행화면, 외부 HUD |
 -| 시스템 | 12 | 녹화·전원, 네트워크·지도, 사운드, 소프트웨어 |
@@ -1443,6 +1491,11 @@ diff --git a/docs/user/ko/settings.md b/docs/user/ko/settings.md
  
  ## 주행 제어
  
+-주행 제어는 차량 움직임에 영향을 줄 수 있는 123개 항목입니다. 한 번에 여러 값을 변경하지 마세요.
++주행 제어는 차량 움직임에 영향을 줄 수 있는 124개 항목입니다. 한 번에 여러 값을 변경하지 마세요.
+ 
+ <a id="start-auto"></a>
+ ### 시작·오토 — 9개
 @@ -138,7 +138,7 @@
  
  | 세부 구역 | 파라미터 | 용도 |
@@ -1452,7 +1505,36 @@ diff --git a/docs/user/ko/settings.md b/docs/user/ko/settings.md
  | [속도 단위](buttons-presets.md#speed-units) | `CruiseSpeedUnit`, `CruiseSpeedUnitBasic`, `CruiseButtonLongDelay` | 짧게·길게 누를 때의 속도 변경 단위와 판정 시간 |
  | [버튼 테스트](buttons-presets.md#button-spam) | `CruiseButtonTest1`, `CruiseButtonTest2`, `CruiseButtonTest3` | 순정 SCC 목표속도 동기화용 버튼 메시지 값 |
  | [속도 프리셋](buttons-presets.md#speed-presets) | `CruiseSpeed1`, `CruiseSpeed2`, `CruiseSpeed3`, `CruiseSpeed4`, `CruiseSpeed5` | 사용자3 모드에서 사용하는 속도 테이블 |
-@@ -232,14 +232,13 @@
+@@ -184,7 +184,7 @@
+ 
+ 힘 센서의 추세는 손 접촉 해제나 운전자의 인계 동의를 뜻하지 않습니다. 기존 `steeringPressed` 판정과 운전자 감시는 그대로이며, 기본 적용이 모든 차량에서 동일한 조향감을 보장하지는 않습니다.
+ 
+-### 속도·감속 — 23개
++### 속도·감속 — 24개
+ 
+ 아래 표의 **세부 구역 제목을 누르면** 카메라 감속 계산, 제한속도 연동과 커브·신호 로직을 설명한 페이지로 이동합니다.
+ 
+@@ -194,7 +194,7 @@
+ | [도로 제한속도](speed-deceleration.md#road-speed-limit) | `AutoRoadSpeedLimitOffset`, `AutoRoadSpeedAdjust`, `AutoSpeedUptoRoadSpeedLimit` | 도로 제한속도에 맞춘 목표 속도 조절 |
+ | [과속방지턱](speed-deceleration.md#speed-bump) | `AutoNaviSpeedBumpTime`, `AutoNaviSpeedBumpSpeed`, `AutoNaviSpeedBumpEndDistance` | 방지턱 감속 완료 시점, 통과 속도와 조기 종료 거리 |
+ | [커브·턴](speed-deceleration.md#curve-turn) | `AutoCurveSpeedFactor`, `AutoCurveSpeedLowerLimit`, `TurnSpeedControlMode`, `MapTurnSpeedFactor`, `ApplyModelSpeed` | 곡률·남은 거리 기반 감속, 회전 완화 확인 후 빠른 복구와 경로 턴 속도 |
+-| [신호감지](speed-deceleration.md#traffic-light) | `TrafficLightDetectMode`, `TrafficStopDistanceAdjust` | 신호 정지·출발 감지, 정지 위치 및 정지차 기준 자동 보정 |
++| [신호감지](speed-deceleration.md#traffic-light) | `TrafficLightDetectMode`, `SignalAssistMode`, `TrafficStopDistanceAdjust` | 신호 정지·출발 감지, 정지 위치 및 정지차 기준 자동 보정 |
+ 
+ `AutoNaviSpeedCtrlMode`는 `0` 미사용, `1` 과속카메라, `2` 과속카메라+방지턱, `3` 과속카메라+방지턱+이동식카메라입니다.
+ 
+@@ -205,6 +205,10 @@
+ `AutoNaviSpeedDecelRate`의 기본값은 `120`(1.20m/s²)이며, 값이 낮을수록 더 먼 거리에서 감속을 시작합니다. 기존 저장값은 업데이트만으로 변경되지 않습니다. `AutoNaviSpeedSafetyFactor`는 감속 목표에 적용하는 제한속도 비율입니다. 감속이 이상하면 값부터 바꾸지 말고 이벤트 종류, 제한속도와 남은 거리가 정상 수신되는지 먼저 확인하세요.
+ 
+ `TrafficLightDetectMode`는 `0` 미사용, `1` 정지만 감지, `2` 정지와 출발을 모두 감지합니다. 모델 판단에 의존하므로 운전자가 항상 직접 확인해야 합니다.
++
++`SignalAssistMode`는 기본값 `0`이며 `0` 보조 끔, `1` 신호 판정·표시·알림과 정차 중 적색 출발 제한, `2`는 여기에 실제 감속 준비 요청을 추가합니다. 모드 `1`에서도 감속 준비 조건을 판정하고 알릴 수 있지만 그 결과로 감속을 요청하지 않습니다. 모드 `2`는 앞차가 없고 적색 신호와 주행 조건이 유효할 때 약 -0.5m/s²까지 점진적으로 감속을 요청하며, 완전 정차를 보장하지 않습니다. 기본 모델의 `TrafficLightDetectMode`와 독립된 시험 기능으로 오감지·미감지가 가능합니다.
++
++변경은 재부팅 없이 약 1초 안에 반영되며 관측기 재시작은 더 걸릴 수 있습니다. 업데이트 후 새 설정 키를 사용하려면 native Params 재빌드가 필요합니다. 기존 `enabled`, `tracking_enabled`, `display_enabled`, `start_guard_enabled`, `stop_prepare_enabled` 파일은 운영 중 설정을 우회하지 못하며, 이전 주행 중 적색 보조인 `assist_enabled`는 퇴역해 어느 모드에서도 활성화되지 않습니다.
+ 
+ ### 크루즈·차간 — 전체 29개, 현대·기아·제네시스 26개
+ 
+@@ -232,14 +236,13 @@
  
  `SpeedTFFactor`는 선택한 기본 TF에 속도별 선형 배율을 적용합니다. 10은 변화 없음, 20은 100km/h에서 2배입니다. 단계별 `LeadAccelResponseTF1`~`TF4`는 -1이면 공통값, 0~5이면 해당 반응을 사용합니다. 반응 4~5도 속도 배율을 유지합니다. 주행 화면의 거리 바는 동적 보정이 반영된 추종 목표거리를 m로 표시합니다.
  
@@ -1468,7 +1550,7 @@ diff --git a/docs/user/ko/settings.md b/docs/user/ko/settings.md
  
  현대·기아 CANFD 오픈파일럿 종방향 제어에서는 StopReq를 켜는 첫 프레임부터 aReqRaw·aReqValue를 0으로 보내므로, 이 설정은 StopReq 유지 중 송신 가속도를 바꾸지 않습니다. 자동 해제·재시도는 제거되었습니다.
  
-@@ -248,14 +247,14 @@
+@@ -248,14 +251,14 @@
  <a id="vehicle-hardware"></a>
  ## 차량·하드웨어
  
@@ -1485,7 +1567,7 @@ diff --git a/docs/user/ko/settings.md b/docs/user/ko/settings.md
  | 차량 보조 | `MaxAngleFrames`, `SpeedFromPCM` | 최대 조향각 관련 프레임과 순정 SCC 속도 제어 방식 |
  | 기기 하드웨어 | `HardwareC3xLite` | 스피커가 없는 C3X Lite의 알림음과 프로세스 구성 |
  
-@@ -273,12 +272,7 @@
+@@ -275,12 +278,7 @@
  `EnableRadarTracks=1`~`3`에서는 확인된 프런트 선행차의 바깥쪽 레이더 움직임과 비전의 먼 차량 전환이 일치하면 ACC의 미래 추종 거리 요구를 제한적으로 완화합니다. [CUT-OUT 예측 처리](radar.md)를 참고하세요.
  - `CarrotRadarMode`: 전방·코너 레이더로 차량의 움직임을 계속 추적해 끼어드는 차량을 감지하고, 카메라 영상과 레이더 정보를 새로운 방식으로 맞춰 앞차를 선택합니다. 코너 레이더와 레이더 트랙 기능이 모두 없는 차량에서는 기존 방식과 동일하게 동작합니다. 가감속 동작이 달라질 수 있으므로 검증을 마친 동일 차량에서만 켭니다. 변경값은 다음 OnRoad가 시작될 때 고정되므로, 변경 후 현재 주행을 끝내고 차량을 재시동하거나 기기를 재부팅해야 적용됩니다. 기존 `RadarMotionMode` 값은 업데이트 후 처음 시작할 때 새 이름으로 한 번 자동 이관됩니다.
  - `CarrotRadarCutInSensitivity`: 당근레이더모드 전용 CUT-IN 감도입니다. `0`은 사용 안 함, `1`은 둔감, `3`은 보통(기본값), `5`는 아주 민감이며 `2`와 `4`는 중간 단계입니다. 단계 `1`~`5`는 실제 측정 움직임이 각각 `0.50`, `0.40`, `0.35`, `0.25`, `0.20초` 계속될 때 확정하며, 물리 미래 예측시간은 5.0초로 고정합니다. 전방 레이더의 최근 실측 이력에서 0.50m 이상 강한 단방향 진입이 확인되면 timestamp 양자화로 확정을 놓치지 않도록 최대 20Hz 레이더 한 프레임만 반영하며, 작은 인접 차로 흔들림에는 적용하지 않습니다. 기존 레이더모드와 `EnableCornerRadar`에는 영향을 주지 않습니다. 다음 OnRoad 시작 때 읽으므로 변경 후 차량을 재시동하거나 기기를 재부팅해야 적용됩니다.
@@ -1499,7 +1581,7 @@ diff --git a/docs/user/ko/settings.md b/docs/user/ko/settings.md
  - `SpeedFromPCM`: 기본값은 `2`(커브·카메라 감속)이며, PCM 차량의 버튼 스패밍과 속도 선택에 영향을 줍니다. `3`에서 토요타·렉서스는 순정 설정속도를 사용하며 가감속 제어 방식은 바뀌지 않습니다. [버튼 전송 상세](buttons-presets.md#button-spam)를 참고하세요.
  
  `HardwareC3xLite`는 일반 C3/C3X에서는 반드시 꺼 두고 C3X Lite에서만 켠 뒤 기기를 재부팅하세요. 이 설정을 켜면 존재하지 않는 앰프를 초기화하지 않아 I2C 재시도로 인한 시작 지연을 없애고, 경고음을 GPIO 부저로 출력합니다. 또한 `micd`, `soundd`, `loggerd`를 실행하지 않고 `RecordAudio`를 끄므로 이 하드웨어 모드에서는 일반 주행 로그 기록을 사용할 수 없습니다.
-@@ -291,8 +285,6 @@
+@@ -293,8 +291,6 @@
  `ClusterHud`(외부 HUD 활성화)는 **본체 USB에 직접 연결한 HUD**를 켜고 끄는 설정입니다. Jetson에 연결한 HUD는 이 값이 `0`이어도 자동 실행되며, 기본적으로 시동 OFF 시 화면을 끕니다. 시동 OFF에도 표시하려면 기존 `ClusterHudDebug`의 항상 켜기를 사용합니다. 밝기·화면 구성 설정은 Jetson HUD에도 적용됩니다.
  
  Jetson HUD에는 `jetSON` 아래에 Jetson 내부 센서의 최고 온도가 표시됩니다. 전체 내비게이션·그래프 화면에서는 우측 상단에 표시하며, 온도 정보가 3초 이상 갱신되지 않으면 `--°C`로 바뀝니다. 각 센서의 장치 설정 온도 한계보다 5°C 낮은 지점부터 상단에 온도 높음 경고, 한계 도달 시 과열 경고를 표시합니다. 예를 들어 성능 제한 온도가 99°C인 장치는 94°C부터 사전 경고합니다. 경고가 나타나면 팬과 통풍 상태를 확인하세요. 차량 운전 경고가 우선 표시되며, 이 온도 표시는 본체 온도·메모리 통계와 구분됩니다. 이 기능은 업데이트된 Jetson HUD 소프트웨어가 필요합니다.
@@ -1508,7 +1590,7 @@ diff --git a/docs/user/ko/settings.md b/docs/user/ko/settings.md
  
  | 중분류 | 파라미터 | 용도 |
  |---|---|---|
-@@ -365,7 +357,7 @@
+@@ -367,7 +363,7 @@
  <a id="system"></a>
  ## 시스템
  
@@ -1517,7 +1599,7 @@ diff --git a/docs/user/ko/settings.md b/docs/user/ko/settings.md
  
  | 중분류 | 파라미터 | 용도 |
  |---|---|---|
-@@ -378,10 +370,6 @@
+@@ -380,10 +376,6 @@
  - `MaxTimeOffroadMin`: 시동이 꺼진 뒤 장치가 자동으로 꺼질 때까지의 시간입니다.
  - `HotspotOnBoot`: USIM을 장착한 장치에서 자동 핫스팟을 사용할 때의 설정입니다.
  - `SoftwareMenu`: 메모리 문제가 있을 때 끌 수 있는 Carrot Web 메뉴 설정입니다.
@@ -1528,7 +1610,7 @@ diff --git a/docs/user/ko/settings.md b/docs/user/ko/settings.md
  
  ## 위험도별로 접근하기
  
-@@ -405,7 +393,7 @@
+@@ -407,7 +399,7 @@
  - `EnableRadarTracks`, `RadarTrackFlip`, `EnableCornerRadar`, `CarrotRadarMode`, `CarrotRadarCutInSensitivity`
  - `SpeedFromPCM`, `DisableMinSteerSpeed`
  - `LateralTorqueCustom`, `CustomSteer*`
@@ -1682,6 +1764,34 @@ diff --git a/opendbc_repo/opendbc/car/hyundai/tests/fixtures/fms_hud_dca1f331.js
 +      ],
 +      "source_sha256": "e7b97c49faf6f1564af015fa2822fd2e22f625f054646b3d3a7fcb69d958fc59",
 +      "source": "def create_lfahda_cluster(packer, CS, CAN, long_active, lat_active):\n\n\n  if CS.lfahda_cluster is not None:\n    values = copy.copy(CS.lfahda_cluster)\n    rx_counter = values.pop(\"COUNTER\", None)\n  else:\n    return []\n    values = {}\n    rx_counter = None\n    values[\"LFA_OptUsmSta\"] = 2\n    values[\"HDA_OptUsmSta\"] = 2\n  values[\"HDA_CntrlModSta\"] = 2 if long_active else 0\n  values[\"HDA_LFA_SymSta\"] = 2 if lat_active else 0\n  return [packer.make_can_msg(\"LFAHDA_CLUSTER\", CAN.ECAN, values, rx_counter=rx_counter)]\n\ndef create_lfa_icon_non_camera_scc(packer, CS, CAN, CC):\n  ret = []\n  if CS.adrv_0x161 is not None:\n    values = copy.copy(CS.adrv_0x161)\n    rx_counter = values.pop(\"COUNTER\", None)\n\n    lat_active = CC.latActive\n    lat_enabled = CS.out.latEnabled\n\n    values[\"LFA_ICON\"] = 2 if lat_active else 1 if lat_enabled else 0\n    values[\"LKA_ICON\"] = 4 if lat_active else 3 if lat_enabled else 0\n\n    if values[\"ALERTS_2\"] in [1, 2, 5, 6, 10, 21, 22]:\n      values[\"ALERTS_2\"] = 0\n      values[\"DAW_ICON\"] = 0\n\n    if values[\"ALERTS_1\"] == 0:\n      values[\"SOUNDS_1\"] = 0\n      values[\"SOUNDS_2\"] = 0\n      values[\"SOUNDS_4\"] = 0\n\n    if values[\"ALERTS_3\"] in [3, 4, 11, 12, 13, 14, 17, 19, 26, 7, 8, 9, 10]:\n      values[\"ALERTS_3\"] = 0\n      values[\"SOUNDS_3\"] = 0\n\n    if values[\"ALERTS_5\"] in [1, 2, 3, 4, 5]:\n      values[\"ALERTS_5\"] = 0\n\n    ret.append(packer.make_can_msg(\"ADRV_0x161\", CAN.ECAN, values, rx_counter=rx_counter))\n  return ret\n\ndef create_ccnc_messages(CP, packer, CAN, frame, CC, CS, hud_control,\n                         disp_angle, left_lane_warning, right_lane_warning,\n                         enable_corner_radar, stopping, canfd_debug, paddle_mode, hud_lateral=None):\n  ret = []\n  interlock_active = longitudinal_interlock_active(CS)\n  display_lead = _display_lead(getattr(CS, \"radarState\", None))\n  lead_visible = display_lead is not None\n  lead_distance = float(np.clip(display_lead.dRel, 0.1, 204.5)) if lead_visible else 0.0\n\n  md = CS.modelV2\n  if not hasattr(create_ccnc_messages, '_lane_line_check') or frame % 100 == 0:\n    create_ccnc_messages._lane_line_check = Params().get_int(\"LaneLineCheck\")\n  lane_line_check = create_ccnc_messages._lane_line_check\n  desire, lane_changing = _get_desire_and_lane_changing(md)\n\n  if CP.flags & HyundaiFlags.CAMERA_SCC.value:\n    HDA_CntrlModSta = 0\n    HDA_LFA_SymSta = 0\n    if CS.lfahda_cluster is not None:\n      HDA_CntrlModSta = CS.lfahda_cluster[\"HDA_CntrlModSta\"]\n      HDA_LFA_SymSta = CS.lfahda_cluster[\"HDA_LFA_SymSta\"]\n\n    if frame % 2 == 0:\n      #if CS.adrv_0x160 is not None:\n      #  values = copy.copy(CS.adrv_0x160)\n      #  ret.append(packer.make_can_msg(\"ADRV_0x160\", CAN.ECAN, values))\n\n      if getattr(CS, \"cruise_buttons_alt2\", None) is not None:\n        ret.append(create_alt2_adas_button_request(packer, CAN, frame, CC, CS, stopping))\n      elif CS.cruise_buttons_msg is not None:\n        values = copy.copy(CS.cruise_buttons_msg)\n        # Keep the physical long press on ECAN for CarState, but don't forward it to CAM.\n        values[\"NORMAL_CRUISE_MAIN_BTN\"] = 0\n\n        if  HDA_LFA_SymSta == 0 and 0 < frame % 200 < 12:\n          values[\"LFA_BTN\"] = 1\n\n        if CC.enabled and not interlock_active:\n          if not CS.MainMode_ACC:\n            if 10 < frame % 200 <= 16 and CS.out.vEgo > 3.:\n              values[\"ADAPTIVE_CRUISE_MAIN_BTN\"] = 1\n          elif CS.ACCMode in [0, 4]:\n            if 10 < frame % 200 <= 16 and CS.out.vEgo > 3.:\n              values[\"CRUISE_BUTTONS\"] = 2\n          elif CS.scc_control is not None and CS.scc_control[\"InfoDisplay\"] == 4:\n            if 10 < frame % 30 <= 16 and not stopping:\n              values[\"CRUISE_BUTTONS\"] = 2\n          else:\n            if CS.adrv_0x1ea is not None and CS.adrv_0x1ea[\"HDA_MODE2\"] == 0: # if corner radar is disabled, send main btn\n              if 10 < frame % 1000 <= 16 and CS.out.vEgo > 3:\n                values[\"ADAPTIVE_CRUISE_MAIN_BTN\"] = 1\n\n        ret.append(packer.make_can_msg(CS.cruise_btns_msg_canfd, CAN.CAM, values))\n\n    # --- 0x161/0x200/0x1ea/0x162 (frame%5) ---\n    if frame % 5 == 0:\n      lat_active = CC.latActive\n\n      if CS.adrv_0x161 is not None:\n        main_enabled = CS.out.cruiseState.available\n        cruise_enabled = CC.enabled\n        lat_enabled = CS.out.latEnabled\n        nav_active = hud_control.activeCarrot > 1\n        vehicle_navi_available = CS.out.vehicleNaviAvailable\n        nav_icon_available = nav_active or vehicle_navi_available\n\n        # hdpuse carrot\n        hdp_use = int(Params().get(\"HDPuse\"))\n        hdp_active = False\n        if hdp_use == 1:\n          hdp_active = cruise_enabled and nav_active\n        elif hdp_use == 2:\n          hdp_active = cruise_enabled\n        # hdpuse carrot\n\n        values = copy.copy(CS.adrv_0x161)\n        rx_counter = values.pop(\"COUNTER\", None)\n        values[\"SETSPEED\"] = (6 if hdp_active else 3 if cruise_enabled else 1) if main_enabled else 0\n        values[\"SETSPEED_HUD\"] = (5 if hdp_active else 3 if cruise_enabled else 1) if main_enabled else 0\n\n        set_speed_in_units = hud_control.setSpeed * (CV.MS_TO_KPH if CS.is_metric else CV.MS_TO_MPH)\n        values[\"vSetDis\"] = int(set_speed_in_units + 0.5)\n\n        values[\"DISTANCE\"] = 4 if hdp_active else hud_control.leadDistanceBars\n        values[\"DISTANCE_LEAD\"] = 2 if cruise_enabled and lead_visible else 1 if main_enabled and lead_visible else 0\n        values[\"DISTANCE_CAR\"] = 3 if hdp_active else 2 if cruise_enabled else 1 if main_enabled else 0\n        values[\"DISTANCE_SPACING\"] = 5 if hdp_active else 1 if cruise_enabled else 0\n\n        values[\"TARGET\"] = 1 if lead_visible and cruise_enabled else 0\n        values[\"TARGET_DISTANCE\"] = lead_distance\n\n        values[\"BACKGROUND\"] = _select_cluster_background(\n          cruise_enabled, lat_active, CS.paddle_button_prev > 0, paddle_mode,\n        )\n        values[\"CENTERLINE\"] = 1 if HDA_CntrlModSta > 0 else 0\n        values[\"CAR_CIRCLE\"] = 2 if hdp_active else 1 if cruise_enabled else 0\n\n        values[\"NAV_ICON\"] = 2 if nav_icon_available and cruise_enabled else 1 if main_enabled and nav_icon_available else 0\n        values[\"HDA_ICON\"] = 5 if hdp_active else 2 if cruise_enabled else 1 if main_enabled else 0\n        values[\"LFA_ICON\"] = 5 if hdp_active else 2 if lat_active else 1 if lat_enabled else 0\n        values[\"LKA_ICON\"] = 4 if lat_active else 3 if lat_enabled else 0\n        values[\"FCA_ALT_ICON\"] = 0\n\n        if values[\"ALERTS_2\"] in [1, 2, 5, 6, 10, 21, 22]:\n          values[\"ALERTS_2\"] = 0\n          values[\"DAW_ICON\"] = 0\n\n        if values[\"ALERTS_1\"] == 0: # alerts가 있으면 사운드도 같이 나옴\n          values[\"SOUNDS_1\"] = 0\n          values[\"SOUNDS_2\"] = 0\n          values[\"SOUNDS_4\"] = 0\n\n        if values[\"ALERTS_3\"] in [3, 4, 11, 12, 13, 14, 17, 19, 20, 26, 27, 28, 7, 8, 9, 10]: # hide gap distance msg.(11,12,13,14), lanechange(19,20,27, 28)\n          values[\"ALERTS_3\"] = 0\n          values[\"SOUNDS_3\"] = 0\n\n        if values[\"ALERTS_5\"] in [1, 2, 3, 4, 5]:\n          values[\"ALERTS_5\"] = 0\n\n        if values[\"ALERTS_5\"] in [11] and CS.softHoldActive == 0:\n          values[\"ALERTS_5\"] = 0\n\n        # curvature 표시(0x161쪽 기존 로직 유지)\n        _suppress_trailer_mode_warning(values, CS)\n\n        curvature = round(CS.out.steeringAngleDeg / 3)\n        values[\"LANELINE_CURVATURE\"] = (min(abs(curvature), 15) + (-1 if curvature < 0 else 0)) if lat_active else 0\n        values[\"LANELINE_CURVATURE_DIRECTION\"] = 1 if curvature < 0 and lat_active else 0\n\n        trailer_lane_change_blocked = CS.trailer_connected\n        if trailer_lane_change_blocked:\n          values[\"LANELINE_LEFT\"] = 2 if hud_control.leftLaneVisible else 0\n          values[\"LANELINE_RIGHT\"] = 2 if hud_control.rightLaneVisible else 0\n        else:\n          lane_color = 6 if md is not None and md.meta.laneChangeAvailableLeft else 2\n          if lane_line_check >= 1:\n            lane_line_warn_left = CS.out.leftLaneLine % 10 not in (0, 5)\n          else:\n            lane_line_warn_left = CS.out.leftLaneLine // 10 == 2\n          lane_color = 4 if lane_line_warn_left or CS.out.leftBlindspot else lane_color\n          if hud_control.leftLaneDepart:\n            values[\"LANELINE_LEFT\"] = 4 if (frame // 50) % 2 == 0 else 1\n          else:\n            values[\"LANELINE_LEFT\"] = lane_color if hud_control.leftLaneVisible else 0\n\n          lane_color = 6 if md is not None and md.meta.laneChangeAvailableRight else 2\n          if lane_line_check >= 1:\n            lane_line_warn_right = CS.out.rightLaneLine % 10 not in (0, 5)\n          else:\n            lane_line_warn_right = CS.out.rightLaneLine // 10 == 2\n          lane_color = 4 if lane_line_warn_right or CS.out.rightBlindspot else lane_color\n          if hud_control.rightLaneDepart:\n            values[\"LANELINE_RIGHT\"] = 4 if (frame // 50) % 2 == 0 else 1\n          else:\n            values[\"LANELINE_RIGHT\"] = lane_color if hud_control.rightLaneVisible else 0\n\n        values[\"LCA_LEFT_ARROW\"] = 2 if CS.out.leftBlinker else 0\n        values[\"LCA_RIGHT_ARROW\"] = 2 if CS.out.rightBlinker else 0\n\n        if trailer_lane_change_blocked:\n          values[\"LCA_LEFT_ICON\"] = 1 if lat_active else 0\n          values[\"LCA_RIGHT_ICON\"] = 1 if lat_active else 0\n        else:\n          values[\"LCA_LEFT_ICON\"] = (1 if CS.out.leftBlindspot else 2) if lat_active else 0\n          values[\"LCA_RIGHT_ICON\"] = (1 if CS.out.rightBlindspot else 2) if lat_active else 0\n\n        values[\"LANE_LEFT\"] = 0 if trailer_lane_change_blocked else 1 if desire in (1, 3) else 0\n        values[\"LANE_RIGHT\"] = 0 if trailer_lane_change_blocked else 1 if desire in (2, 4) else 0\n\n        ret.append(packer.make_can_msg(\"ADRV_0x161\", CAN.ECAN, values, rx_counter = rx_counter))\n\n      if CS.adrv_0x200 is not None:\n        values = copy.copy(CS.adrv_0x200)\n        rx_counter = values.pop(\"COUNTER\", None)\n        values[\"TauGapSet\"] = hud_control.leadDistanceBars\n        ret.append(packer.make_can_msg(\"ADRV_0x200\", CAN.ECAN, values, rx_counter = rx_counter))\n\n      if CS.adrv_0x1ea is not None:\n        values = copy.copy(CS.adrv_0x1ea)\n        rx_counter = values.pop(\"COUNTER\", None)\n        # Never hold the physical turn signal for an automated lane change.\n        # The lane-change state remains active, but the vehicle can cancel the\n        # indicator as soon as the driver releases the stalk.\n        values['LEFT_BLINK_HOLD'] = 0\n        values['RIGHT_BLINK_HOLD'] = 0\n\n        _apply_cluster_lane_lines(values, CS, lat_active, desire)\n        _normalize_cluster_corner_objects(values)\n\n        ret.append(packer.make_can_msg(\"ADRV_0x1ea\", CAN.ECAN, values, rx_counter = rx_counter))\n\n      if CS.ccnc_0x162 is not None:\n        values = copy.copy(CS.ccnc_0x162)\n\n        _normalize_cluster_corner_objects(values, ccnc=True)\n        _convert_ccnc_front_box_to_car(values)\n        _apply_ccnc_lead(values, getattr(CS, \"radarState\", None), CC.enabled, getattr(CS, \"modelV2\", None), hud_lateral)\n\n        if (left_lane_warning and not CS.out.leftBlinker) or (right_lane_warning and not CS.out.rightBlinker):\n          values[\"VIBRATE\"] = 1\n\n        _hide_replaced_adas_service_warning(values)\n\n        if canfd_debug > 0:\n          values[\"FAULT_LSS\"] = 0\n          values[\"FAULT_DAS\"] = 0\n\n        ret.append(packer.make_can_msg(\"CCNC_0x162\", CAN.ECAN, values))\n\n    # --- NEW_MSG_4B9 (corner radar keep-alive?) ---\n    if enable_corner_radar > 0:\n      if HDA_CntrlModSta == 0:\n        if frame % 500 in [10, 20, 30]:\n          values = {\n            'BYTE_1': 0,\n            'BYTE_2': 0,\n            'BYTE_3': 0x80,\n            'BYTE_4': 0x8A,\n            'BYTE_5': 0x32,\n            'BYTE_6': 0x30,\n            'BYTE_7': 0x01,\n            'BYTE_8': 0x00,\n          }\n          ret.append(packer.make_can_msg(\"NEW_MSG_4B9\", CAN.CAM, values))\n        elif frame % 500 in [40, 50, 60]:\n          values = {\n            'BYTE_1': 0xff,\n            'BYTE_2': 0xff,\n            'BYTE_3': 0xff,\n            'BYTE_4': 0xff,\n            'BYTE_5': 0xff,\n            'BYTE_6': 0xff,\n            'BYTE_7': 0xff,\n            'BYTE_8': 0xff,\n          }\n          ret.append(packer.make_can_msg(\"NEW_MSG_4B9\", CAN.CAM, values))\n\n      if False:  # canfd_debug > 1 and frame % 20 == 0:\n        if CS.hda_info_4a3 is not None:\n          values = copy.copy(CS.hda_info_4a3)\n          values[\"LinkClass\"] = 1\n          values[\"SPEED_LIMIT\"] = 100\n          ret.append(packer.make_can_msg(\"HDA_INFO_4A3\", CAN.CAM, values))\n\n  return ret\n"
++    }
++  }
++}
+diff --git a/opendbc_repo/opendbc/car/hyundai/tests/fixtures/fms_signal_radar_3f86e7d3.json b/opendbc_repo/opendbc/car/hyundai/tests/fixtures/fms_signal_radar_3f86e7d3.json
+--- /dev/null
++++ b/opendbc_repo/opendbc/car/hyundai/tests/fixtures/fms_signal_radar_3f86e7d3.json
+@@ -0,0 +1,24 @@
++{
++  "format_version": 1,
++  "git_revision": "3f86e7d325c35f03bdfc6145463a1eea37389515",
++  "sources": {
++    "openpilot/selfdrive/carrot/carrot_functions.py": {
++      "selected_names": [
++        "XState",
++        "get_driving_mode_factors",
++        "get_driving_mode_comfort_brake_factor",
++        "TrafficState",
++        "CarrotPlanner"
++      ],
++      "source": "class XState(Enum):\n  lead = 0\n  cruise = 1\n  e2eCruise = 2\n  e2eStop = 3\n  e2ePrepare = 4\n  e2eStopped = 5\n\n  def __str__(self):\n    return self.name\n\ndef get_driving_mode_factors(driving_mode: DrivingMode, eco_factor: float = 0.9,\n                             safe_factor: float = 0.8) -> tuple[float, float]:\n  \"\"\"Return the accel/comfort and following-time factors for a drive mode.\"\"\"\n  if driving_mode == DrivingMode.Eco:\n    return eco_factor, get_t_follow_mode_factor(eco_factor)\n  if driving_mode == DrivingMode.Safe:\n    return safe_factor, get_t_follow_mode_factor(safe_factor)\n  return 1.0, 1.0\n\ndef get_driving_mode_comfort_brake_factor(driving_mode: DrivingMode) -> float:\n  \"\"\"Keep Eco efficient while giving Safe a modestly earlier braking profile.\"\"\"\n  return 0.9 if driving_mode == DrivingMode.Safe else 1.0\n\nclass TrafficState(Enum):\n  off = 0\n  red = 1\n  green = 2\n\n  def __str__(self):\n    return self.name\n\nclass CarrotPlanner:\n  def __init__(self, signal_assist=None, start_guard=None):\n    # Per-device opt-in only; no flag means the original controller path.\n    self.signal_assist = signal_assist\n    self._signal_runtime = None\n    if signal_assist is None:\n      from openpilot.selfdrive.carrot.signal_assist_runtime import SignalAssistRuntime\n      runtime = SignalAssistRuntime()\n      if runtime.assist is not None:\n        self._signal_runtime = runtime\n        self.signal_assist = runtime.assist\n    self.signal_decision = None\n    from openpilot.selfdrive.carrot.signal_start_guard import SignalStartRuntime\n    self._start_runtime = SignalStartRuntime() if start_guard is None else None\n    self.start_guard = start_guard if start_guard is not None else self._start_runtime.guard\n    self.start_decision = None\n    self.params = Params()\n    self.params_count = 0\n    self.frame = 0\n\n    #self.log = \"\"\n\n    #self.aChangeCost = 200\n    #self.aChangeCostStart = 40\n    #self.tFollowSpeedAdd = 0.0\n    #self.tFollowSpeedAddM = 0.0\n    #self.tFollowLeadCarSpeed = 0.0\n    #self.tFollowLeadCarAccel = 0.0\n    #self.lo_timer = 0\n    #self.v_ego_prev = 0.0\n\n    self.trafficState = TrafficState.off\n    self.xStopFilter = MyMovingAverage(3)\n    self.xStopFilter2 = MyMovingAverage(15)\n    self.vFilter = MyMovingAverage(10)\n    #self.t_follow_prev = self.get_T_FOLLOW()\n    self.stop_distance = 6.0\n    self.fakeCruiseDistance = 0.0\n    self.xState = XState.cruise\n    self.xStop = 0.0\n    self.actual_stop_distance = 0.0\n    #self.debugLongText = \"\"\n    self.stopping_count = 0\n    self.traffic_starting_count = 0\n    self.user_stop_distance = -1\n\n    self.t_follow_last = 1.5\n    self._tf_base_last = 1.5\n    self.lane_change_active = False\n    self.lane_change_gap = LaneChangeGapPlan()\n    self._lane_change_tracker = LaneChangeGapTracker()\n    self._lane_change_model_ns = 0\n\n    self.startSignCount = 0\n    self.stopSignCount = 0\n\n    self.stop_distance = 6.0\n    self.trafficStopDistanceAdjust = 2.5 #params.get_float(\"TrafficStopDistanceAdjust\") / 100.\n    self.comfortBrake = 2.4\n    self.comfort_brake = self.comfortBrake\n\n    self.soft_hold_active = 0\n    self.events = Events()\n    self.myDrivingMode = DrivingMode(self.params.get_int(\"MyDrivingMode\"))\n    self.myDrivingMode_last = self.myDrivingMode\n    self.myDrivingModeAuto = self.params.get_int(\"MyDrivingModeAuto\")\n    self.myDrivingMode_disable_auto = False\n    self.myEcoModeFactor = 0.9\n    self.mySafeModeFactor = 0.8\n    self.myHighModeFactor = 1.2\n    self.drivingModeDetector = DrivingModeDetector()\n    self.mySafeFactor = 1.0\n    self.myTFollowFactor = 1.0\n\n    self.tFollowGap1 = 1.1\n    self.tFollowGap2 = 1.3\n    self.tFollowGap3 = 1.45\n    self.tFollowGap4 = 1.6\n\n    self.leadAccelResponse = 0\n    self.leadAccelResponseBase = 0\n    self.leadAccelResponseTF = [-1] * 4\n    self.dynamicTFollowLC = 1.0\n    self.speedTFFactor = 10\n    self.tFollowDecelBoost = 0.0\n    self._tf_decel_extra = 0.0\n    self.personality = 1\n\n    self.cruiseMaxVals0 = 1.6\n    self.cruiseMaxVals1 = 1.6\n    self.cruiseMaxVals2 = 1.2\n    self.cruiseMaxVals3 = 1.0\n    self.cruiseMaxVals4 = 0.8\n    self.cruiseMaxVals5 = 0.7\n    self.cruiseMaxVals6 = 0.6\n\n    self.aChangeCostStarting = 10.0\n\n    self.trafficLightDetectMode = 2 # 0: None, 1:Stop, 2:Stop&Go\n    self.trafficState_carrot = 0\n    self.carrot_stay_stop = False\n\n    self.eco_over_speed = 2\n    self.eco_target_speed = 0\n    \n    self.autoNaviSpeedDecelRate = 1.5\n\n    self.desireState = 0.0\n    self.desireStateCount = 0\n    self.jerk_factor = 1.0\n\n    self.activeCarrot = 0\n    self.xDistToTurn = 0\n    self.atcType = \"\"\n    self.atc_active = False\n\n    self._stop_x_rl = None\n    self._traffic_stop_model_lead_matcher = TrafficStopModelLeadMatcher()\n    self.trafficStopModelLeadOffset = 0.0\n    self.last_event_time = 0.0\n\n  def _params_update(self):\n    self.frame += 1\n    self.params_count += 1\n    if self.params_count % 10 == 0:\n      myDrivingMode = DrivingMode(self.params.get_int(\"MyDrivingMode\"))\n      if myDrivingMode != self.myDrivingMode_last:\n        self.myDrivingMode_disable_auto = True\n      self.myDrivingMode_last = myDrivingMode\n      \n      self.myDrivingModeAuto = self.params.get_int(\"MyDrivingModeAuto\")\n      if self.myDrivingModeAuto > 0 and not self.myDrivingMode_disable_auto:\n        self.myDrivingMode = self.drivingModeDetector.get_mode(self.myDrivingModeAuto)\n      else:\n        self.myDrivingMode = myDrivingMode\n\n    if self.params_count == 10:\n      self.myHighModeFactor = 1.2 #float(self.params.get_int(\"MyHighModeFactor\")) / 100.\n      self.trafficLightDetectMode = self.params.get_int(\"TrafficLightDetectMode\") # 0: None, 1:Stop, 2:Stop&Go\n    elif self.params_count == 20:\n      self.tFollowGap1 = self.params.get_float(\"TFollowGap1\") / 100.\n      self.tFollowGap2 = self.params.get_float(\"TFollowGap2\") / 100.\n      self.tFollowGap3 = self.params.get_float(\"TFollowGap3\") / 100.\n      self.tFollowGap4 = self.params.get_float(\"TFollowGap4\") / 100.\n      self.leadAccelResponseBase = int(np.clip(self.params.get_int(\"LeadAccelResponse\"), 0, 5))\n      self.leadAccelResponseTF = [int(np.clip(self.params.get_int(f\"LeadAccelResponseTF{i}\"), -1, 5)) for i in range(1, 5)]\n      self.dynamicTFollowLC = self.params.get_float(\"DynamicTFollowLC\") / 100.\n      self.speedTFFactor = int(np.clip(self.params.get_int(\"SpeedTFFactor\"), 10, 30))\n      self.tFollowDecelBoost = self.params.get_float(\"TFollowDecelBoost\") / 100.\n    elif self.params_count == 30:\n      self.cruiseMaxVals0 = self.params.get_float(\"CruiseMaxVals0\") / 100.\n      self.cruiseMaxVals1 = self.params.get_float(\"CruiseMaxVals1\") / 100.\n      self.cruiseMaxVals2 = self.params.get_float(\"CruiseMaxVals2\") / 100.\n      self.cruiseMaxVals3 = self.params.get_float(\"CruiseMaxVals3\") / 100.\n      self.cruiseMaxVals4 = self.params.get_float(\"CruiseMaxVals4\") / 100.\n      self.cruiseMaxVals5 = self.params.get_float(\"CruiseMaxVals5\") / 100.\n      self.cruiseMaxVals6 = self.params.get_float(\"CruiseMaxVals6\") / 100.\n    elif self.params_count == 40:\n      self.stop_distance = self.params.get_float(\"StopDistanceCarrot\") / 100.\n      self.eco_over_speed = self.params.get_int(\"CruiseEcoControl\")\n      self.autoNaviSpeedDecelRate = float(self.params.get_int(\"AutoNaviSpeedDecelRate\")) * 0.01\n      self.aChangeCostStarting = self.params.get_float(\"AChangeCostStarting\")\n      self.trafficStopDistanceAdjust = self.params.get_float(\"TrafficStopDistanceAdjust\") / 100.\n    elif self.params_count >= 100:\n\n      self.params_count = 0\n\n  def get_carrot_accel(self, v_ego):\n    cruiseMaxVals = [self.cruiseMaxVals0, self.cruiseMaxVals1, self.cruiseMaxVals2, self.cruiseMaxVals3, self.cruiseMaxVals4, self.cruiseMaxVals5, self.cruiseMaxVals6]\n    factor = self.myHighModeFactor if self.myDrivingMode == DrivingMode.High else self.mySafeFactor\n    return np.interp(v_ego, A_CRUISE_MAX_BP_CARROT, cruiseMaxVals) * factor\n\n  def _get_base_t_follow(self, personality, v_ego):\n    if personality == log.LongitudinalPersonality.moreRelaxed:\n      self.jerk_factor = 1.0\n      tf_base = self.tFollowGap4\n    elif personality == log.LongitudinalPersonality.relaxed:\n      self.jerk_factor = 1.0\n      tf_base = self.tFollowGap3\n    elif personality == log.LongitudinalPersonality.standard:\n      self.jerk_factor = 0.7\n      tf_base = self.tFollowGap2\n    elif personality == log.LongitudinalPersonality.aggressive:\n      self.jerk_factor = 0.5\n      tf_base = self.tFollowGap1\n    else:\n      raise NotImplementedError(\"Longitudinal personality not supported\")\n    return float(tf_base)\n\n  def _apply_speed_t_follow_scale(self, tf_base, v_ego):\n    return float(tf_base * get_speed_t_follow_factor(self.speedTFFactor, v_ego * CV.MS_TO_KPH))\n\n  def _apply_decel_hold_and_boost_t_follow(self, tf_target, a_ego):\n    # Hold only the unboosted baseline. Feeding the previous boosted target\n    # back here would add the same margin on every planner cycle.\n    previous_extra = getattr(self, \"_tf_decel_extra\", 0.0)\n    previous_base = getattr(self, \"_tf_decel_base\", getattr(self, \"_tf_applied\", tf_target) - previous_extra)\n    self._tf_decel_base = max(tf_target, previous_base) if a_ego <= -0.2 else tf_target\n    requested_extra = float(np.interp(a_ego, [-2.5, -1.0, -0.3, 0.0], [0.50, 0.25, 0.06, 0.0])) * self.tFollowDecelBoost\n    # Add braking margin promptly; release only the extra margin progressively\n    # so its removal does not suddenly invite acceleration to a shorter gap.\n    self._tf_decel_extra = max(requested_extra, previous_extra - 0.10 * DT_MDL)\n    return float(self._tf_decel_base + self._tf_decel_extra)\n\n\n  def _clip_t_follow(self, t_follow):\n    # The selected, speed-scaled baseline can exceed every configured static gap.\n    # Preserve the deceleration hold when speed (and its multiplier) falls.\n    tf_max = max(getattr(self, '_tf_mode_target', t_follow), getattr(self, '_tf_decel_base', t_follow))\n    tf_max = get_t_follow_mode_max(tf_max, 1.0, self._tf_decel_extra)\n    return float(np.clip(t_follow, 0.3, max(0.3, tf_max)))\n\n  def get_T_FOLLOW(self, personality=log.LongitudinalPersonality.standard, v_ego=0.0, a_ego=0.0):\n    tf_base = self._get_base_t_follow(personality, v_ego)\n    tf_target = self._apply_speed_t_follow_scale(tf_base, v_ego)\n    self._tf_mode_factor = ramp_mode_t_follow_factor(\n      self.myTFollowFactor, getattr(self, \"_tf_mode_factor\", self.myTFollowFactor), DT_MDL,\n    )\n    tf_mode_target = float(tf_target * self._tf_mode_factor)\n    self._tf_mode_target = tf_mode_target\n    tf_adjusted = self._apply_decel_hold_and_boost_t_follow(tf_mode_target, a_ego)\n    tf_final = self._clip_t_follow(tf_adjusted)\n    self._tf_applied = float(tf_final)\n    # Apply the baseline increase ramp once per planner cycle.\n    self._tf_base_last = ramp_t_follow(tf_final, getattr(self, '_tf_base_last', self.t_follow_last), self._tf_decel_extra, DT_MDL)\n    self.t_follow_last = float(self._tf_base_last)\n    return self.t_follow_last\n\n\n  def _update_model_desire(self, sm):\n    meta = sm['modelV2'].meta\n    carState = sm['carState']\n    self.lane_change_active = meta.laneChangeState in (LaneChangeState.laneChangeStarting, LaneChangeState.laneChangeFinishing)\n\n    if meta.laneChangeState == LaneChangeState.laneChangeStarting:\n      self.desireState = meta.desireState[3] if carState.leftBlinker else meta.desireState[4]\n      self.desireStateCount += 1\n    else:\n      self.desireState = 0.0\n      self.desireStateCount = 0\n\n    self._update_lane_change_gap(sm)\n\n  def _update_lane_change_gap(self, sm):\n    state, model, radar = sm['carState'], sm['modelV2'], sm['radarState']\n    signal = state.leftBlinker != state.rightBlinker\n    direction = ((-1 if state.leftBlinker else 1) if signal else self._lane_change_tracker.direction) if self.lane_change_active else 0\n    now_ns = int(sm.logMonoTime['modelV2'])\n    valid = all(sm.valid[key] and sm.alive[key] for key in ('carState', 'modelV2', 'radarState'))\n    valid = valid and abs(now_ns - int(sm.logMonoTime['radarState'])) <= 200_000_000\n    if not valid or direction == 0:\n      self._lane_change_tracker.reset()\n      self.lane_change_gap = LaneChangeGapPlan(active=self.lane_change_active, reason='invalid-input' if self.lane_change_active else 'inactive')\n      self._lane_change_model_ns = 0\n      return\n    if now_ns == self._lane_change_model_ns:\n      return  # fast radar must not count the same model/pose twice\n    self._lane_change_model_ns = now_ns\n    pose = sm['livePose']\n    angular = pose.angularVelocityDevice\n    pose_valid = (sm.valid['livePose'] and sm.alive['livePose'] and pose.inputsOK and pose.sensorsOK and angular.valid\n                  and abs(now_ns - int(sm.logMonoTime['livePose'])) <= 150_000_000)\n    self.lane_change_gap = self._lane_change_tracker.update(\n      now=now_ns * 1e-9, direction=direction, v_ego=float(state.vEgo),\n      yaw_rate=float(angular.z) if pose_valid else float('nan'),\n      path_t=tuple(model.position.t), path_x=tuple(model.position.x), path_y=tuple(model.position.y),\n      primary=radar.leadOne, secondary=radar.leadTwo,\n      blindspot=not signal or bool(state.leftBlindspot if direction == -1 else state.rightBlindspot), valid=valid,\n    )\n\n\n  def update_stop_dist(self, stop_x):\n    stop_x = self.xStopFilter.process(stop_x, median = True)\n    stop_x = self.xStopFilter2.process(stop_x)\n    return stop_x\n\n  def check_model_stopping(self, v_cruise, v, v_ego, a_ego, model_x, y, d_rel):\n    v_ego_kph = v_ego * CV.MS_TO_KPH\n    model_v = self.vFilter.process(v[-1])\n    startSign = model_v > 5.0 or model_v > (v[0] + 2)\n\n    if v_ego_kph < 1.0:\n      stopSign = model_x < 20.0 and model_v < 10.0\n    elif v_ego_kph < 82.0:\n      stopSign = (model_x < d_rel - 3.0 and\n                  model_x < np.interp(v[0] * 3.6, [60, 80], [120.0, 150]) and\n                  ((model_v < 3.0) or (model_v < v[0] * 0.7)) and\n                  abs(y[-1]) < 5.0)\n      # 정상 주행 중 감속하는 경우(카메라 감속 등)에는 오감지가 많음.\n      # 회생 감속으로 v_cruise가 0인 경우에는 신호를 감지하도록 함.\n      if v_cruise != 0 and (self.xState == XState.e2eCruise and a_ego < -1.0):\n        stopSign = False\n    else:\n      stopSign = False\n\n    # self.stopSignCount = (\n    #   self.stopSignCount + 1\n    #   if (\n    #     stopSign\n    #     and (\n    #       model_x > get_safe_obstacle_distance(\n    #         v_ego,\n    #         t_follow=0,\n    #         comfort_brake=COMFORT_BRAKE,\n    #         stop_distance=-1.0,\n    #       )\n    #     )\n    #   )\n    #   else 0\n    # )\n    self.stopSignCount = self.stopSignCount + 1 if stopSign else 0\n    self.startSignCount = self.startSignCount + 1 if startSign and not stopSign else 0\n\n    if self.stopSignCount * DT_MDL > 0.0:\n      self.trafficState = TrafficState.red\n    elif self.startSignCount * DT_MDL > 0.2:\n      self.trafficState = TrafficState.green\n    else:\n      self.trafficState = TrafficState.off\n\n  def _update_carrot_man(self, sm, v_ego_kph, v_cruise_kph):\n    atc_active = False\n    carrot_man = get_carrot_man(sm)\n    if carrot_man is not None:\n      atc_turn_left = carrot_man.atcType in [\"turn left\", \"atc left\"]\n      trigger_start = self.carrot_stay_stop = False\n      if atc_turn_left or sm['carState'].leftBlinker:\n        if self.trafficState_carrot == 1 and carrot_man.trafficState == 3: # red -> left triggered\n          trigger_start = True\n        elif carrot_man.trafficState in [1, 2]:\n          self.carrot_stay_stop = True\n      elif self.trafficState_carrot == 1 and carrot_man.trafficState == 2:  # red -> green triggered\n        trigger_start = True\n      else:\n        trigger_start = False\n      self.trafficState_carrot = carrot_man.trafficState\n\n      if trigger_start:\n        if self.soft_hold_active > 0:\n          self.add_event(EventName.trafficSignChanged)\n        elif self.xState in [XState.e2eStop, XState.e2eStopped]:\n          self.xState = XState.e2eCruise\n          self.traffic_starting_count = 10.0 / DT_MDL\n\n      self.activeCarrot = carrot_man.activeCarrot\n      self.xDistToTurn = carrot_man.xDistToTurn\n      atc_active = self.activeCarrot > 1 and 0 < self.xDistToTurn < 100\n      self.atcType = carrot_man.atcType\n\n      v_cruise_kph = min(v_cruise_kph, carrot_man.desiredSpeed)\n    else:\n      self.trafficState_carrot = 0\n      self.carrot_stay_stop = False\n      self.activeCarrot = 0\n      self.xDistToTurn = 0\n      self.atcType = \"\"\n\n    return v_cruise_kph, atc_active\n\n  def cruise_eco_control(self, v_ego_kph, v_cruise_kph):\n    v_cruise_kph_apply = v_cruise_kph\n    if self.eco_over_speed > 0:\n      if self.eco_target_speed > 0:\n        if self.eco_target_speed < v_cruise_kph:\n          self.eco_target_speed = v_cruise_kph\n        elif self.eco_target_speed > v_cruise_kph:\n          self.eco_target_speed = 0\n      elif self.eco_target_speed == 0 and v_ego_kph + 3 < v_cruise_kph and v_cruise_kph > 20.0:  # 주행중 속도가 떨어지면 다시 크루즈연비제어 시작.\n        self.eco_target_speed = v_cruise_kph\n\n      if self.eco_target_speed != 0:  ## 크루즈 연비 제어모드 작동중일때: 연비제어 종료지점\n        if v_ego_kph > self.eco_target_speed: # 설정속도를 초과하면..\n          self.eco_target_speed = 0\n        else:\n          v_cruise_kph_apply = self.eco_target_speed + self.eco_over_speed  # + 설정 속도로 설정함.\n    else:\n      self.eco_target_speed = 0\n\n    return v_cruise_kph_apply\n\n  def add_event(self, event_name):\n    now = time.time()\n    if now - self.last_event_time > 5.0:\n      self.events.add(event_name)\n      self.last_event_time = now\n\n  def _update_driving_mode(self, sm):\n    self.drivingModeDetector.update_data(\n      sm['carState'], sm['radarState'].leadOne, valid=sm.all_checks(['carState', 'radarState']),\n    )\n    if self.myDrivingModeAuto > 0 and not self.myDrivingMode_disable_auto:\n      self.myDrivingMode = self.drivingModeDetector.get_mode(self.myDrivingModeAuto)\n\n  def update(self, sm, v_cruise_kph, mode, *, signal_observation=None, signal_context=None,\n             start_observation=None, start_context=None):\n    self._params_update()\n    self._update_driving_mode(sm)\n    self.leadAccelResponse = get_mode_lead_response(get_lead_response_for_gap(\n      self.leadAccelResponseBase, self.leadAccelResponseTF, sm['selfdriveState'].personality,\n    ), self.myDrivingMode)\n    self._update_model_desire(sm)\n\n    self.events = Events()\n    carstate = sm['carState']\n    vCluRatio = carstate.vCluRatio\n    #controlsState = sm['controlsState']\n    radarstate = sm['radarState']\n    model = sm['modelV2']\n\n    #self.soft_hold_active = sm['carControl'].hudControl.softHoldActive # carrot 1\n    self.soft_hold_active = sm['carState'].softHoldActive # carrot 2\n\n    mode_comfort_brake = self.comfortBrake * get_driving_mode_comfort_brake_factor(self.myDrivingMode)\n    self.comfort_brake = mode_comfort_brake\n\n    v_ego = carstate.vEgo\n    a_ego = carstate.aEgo\n    v_ego_kph = v_ego * CV.MS_TO_KPH\n    v_ego_cluster = carstate.vEgoCluster\n    v_ego_cluster_kph = v_ego_cluster * CV.MS_TO_KPH\n\n    self.mySafeFactor, self.myTFollowFactor = get_driving_mode_factors(\n      self.myDrivingMode, self.myEcoModeFactor, self.mySafeModeFactor,\n    )\n\n\n    v_cruise_kph = self.cruise_eco_control(v_ego_cluster_kph, v_cruise_kph)\n    v_cruise_kph, atc_active = self._update_carrot_man(sm, v_ego_kph, v_cruise_kph)\n    \n    #if atc_active and not self.atc_active and self.xState not in [XState.e2eStop, XState.e2eStopped, XState.lead]:\n    #  if self.atcType in [\"turn left\", \"turn right\", \"atc left\", \"atc right\"]:\n    #    self.xState = XState.e2ePrepare\n    self.atc_active = atc_active\n\n    v_cruise = v_cruise_kph * CV.KPH_TO_MS\n    if vCluRatio > 0.5:\n      v_cruise *= vCluRatio\n\n    x = model.position.x\n    y = model.position.y\n    v = model.velocity.x\n\n    self.fakeCruiseDistance = 0.0\n    lead_detected = radarstate.leadOne.status # & radarstate.leadOne.radar\n\n    self.xStop = self.update_stop_dist(x[31])\n    stop_model_x_raw = self.xStop\n    if self._stop_x_rl is None:\n      self._stop_x_rl = stop_model_x_raw\n    else:\n      max_close = v_ego * DT_MDL + 0.5\n      if stop_model_x_raw > self._stop_x_rl:\n        self._stop_x_rl = stop_model_x_raw\n      else:\n        self._stop_x_rl = max(self._stop_x_rl - max_close, stop_model_x_raw)\n\n    stop_model_x = self._stop_x_rl\n    stop_model_x_rl = self._stop_x_rl\n\n    trafficState_last = self.trafficState\n    #self.check_model_stopping(v, v_ego, self.xStop, y)\n    self.check_model_stopping(v_cruise, v, v_ego, a_ego, x[-1], y, radarstate.leadOne.dRel if lead_detected else 1000)\n\n    if self.myDrivingMode == DrivingMode.High or self.trafficLightDetectMode == 0:\n      self.trafficState = TrafficState.off\n\n    start_hold = False\n    if self.start_guard is not None:\n      if start_context is None and self._start_runtime is not None:\n        start_observation, start_context = self._start_runtime.read(sm)\n      context = start_context or {}\n      self.start_decision = self.start_guard.update(\n        context.get('now', time.monotonic()), start_observation,\n        enabled=bool(context.get('enabled', False)), valid=bool(context.get('valid', False)),\n        drive=bool(context.get('drive', False)), gas=carstate.gasPressed, speed=float(v_ego),\n        departure=self.trafficState == TrafficState.green or lead_detected or\n                  self.xState not in (XState.e2eStop, XState.e2eStopped))\n      start_hold = self.start_decision.hold\n      if self.start_decision.warn:\n        # Bypass unrelated navigation-event cooldown. refuse.wav plays once.\n        self.events.add(EventName.audioRefuse)\n      if self._start_runtime is not None:\n        self._start_runtime.record(self.start_decision, v_ego, stop_model_x_rl)\n\n    signal_hold = False\n    if self.signal_assist is not None:\n      if signal_context is None and self._signal_runtime is not None:\n        signal_observation, signal_context = self._signal_runtime.read(sm)\n      context = signal_context or {}\n      self.signal_decision = self.signal_assist.update(\n        context.get('now', time.monotonic()), signal_observation,\n        enabled=bool(context.get('enabled', False)) and self.myDrivingMode != DrivingMode.High and self.trafficLightDetectMode != 0,\n        valid=bool(context.get('valid', False)), drive=bool(context.get('drive', False)),\n        gas=carstate.gasPressed, speed=float(v_ego), model_distance=float(stop_model_x_rl),\n        model_y=float(y[-1]), comfort_brake=float(mode_comfort_brake), lead=lead_detected,\n        entry_allowed=is_traffic_stop_entry_allowed(carstate.steeringAngleDeg) and self.traffic_starting_count == 0,\n        turning=carstate.leftBlinker or carstate.rightBlinker)\n      signal_hold = self.signal_decision.hold\n      if self.signal_decision.red_sign:\n        self.trafficState = TrafficState.red\n      if self._signal_runtime is not None:\n        self._signal_runtime.record(self.signal_decision, v_ego, stop_model_x_rl)\n\n    #self.update_user_control()\n    if carstate.gasPressed or carstate.brakePressed:\n      self.user_stop_distance = -1\n\n    if signal_hold or start_hold:\n      # Keep the stop even if a lead appears/moves. Radar obstacles remain in MPC.\n      # Green only removes this override; it never manufactures a go request.\n      self.xState = XState.e2eStopped\n      self.actual_stop_distance = 0.0\n      stop_model_x = 0.0\n      self.stopping_count = max(self.stopping_count, 0.5 / DT_MDL)\n      v_cruise = 0.0\n      if start_hold:\n        self.trafficState = TrafficState.red\n    elif self.soft_hold_active > 0:\n      self.xState = XState.e2eStopped\n      if trafficState_last in [TrafficState.off, TrafficState.red] and self.trafficState == TrafficState.green:\n        self.add_event(EventName.trafficSignChanged)\n    elif self.xState == XState.e2eStopped:\n      if carstate.gasPressed:\n        self.xState = XState.e2eCruise #XState.e2ePrepare\n      elif lead_detected and (radarstate.leadOne.dRel - stop_model_x_raw) < 2.0:\n        self.xState = XState.lead\n      elif self.stopping_count == 0:\n        if self.trafficState == TrafficState.green and not self.carrot_stay_stop and not carstate.leftBlinker and self.trafficLightDetectMode != 1:\n          #self.xState = XState.e2ePrepare\n          self.xState = XState.e2eCruise  # 실험모드를 거치지 않고 바로 출발.\n          self.add_event(EventName.trafficSignGreen)\n      self.stopping_count = max(0, self.stopping_count - 1)\n      v_cruise = 0\n    elif self.xState == XState.e2eStop:\n      self.stopping_count = 0\n      if carstate.gasPressed:  # Stop detecting traffic signal for 10 seconds\n        #self.xState = XState.e2ePrepare\n        self.xState = XState.e2eCruise\n        self.traffic_starting_count = 10.0 / DT_MDL\n      elif lead_detected and (radarstate.leadOne.dRel - stop_model_x_raw) < 2.0:\n        self.xState = XState.lead\n      else:\n        if self.trafficState == TrafficState.green:\n          self.add_event(EventName.trafficSignGreen)\n          self.xState = XState.e2eCruise\n        else:\n          self.comfort_brake = min(mode_comfort_brake, self.comfortBrake * 0.9)\n          #self.comfort_brake = COMFORT_BRAKE\n          self.trafficStopAdjustRatio = np.interp(v_ego_kph, [0, 100], [1.0, 0.7])\n          # 속도가 높을수록 먼 정지거리 추정값을 줄여 보정함.\n          stop_dist = stop_model_x_rl * np.interp(stop_model_x_rl, [0, 50], [1.0, self.trafficStopAdjustRatio])\n          if stop_dist > 10.0:  # 10m 이상일 때만 실제 정지거리를 갱신함.\n            self.actual_stop_distance = stop_dist\n          stop_model_x = 0\n          self.fakeCruiseDistance = 0 if self.actual_stop_distance > 10.0 else 10.0\n          if v_ego < 0.3:\n            self.stopping_count = 0.5 / DT_MDL\n            self.xState = XState.e2eStopped\n    elif self.xState == XState.e2ePrepare:\n      if lead_detected:\n        self.xState = XState.lead\n      elif self.atc_active:\n        if carstate.gasPressed:\n          self.xState = XState.e2eCruise\n      elif v_ego_kph < 5.0 and self.trafficState != TrafficState.green:\n        self.xState = XState.e2eStop\n        self.actual_stop_distance = 5.0 #2.0\n      elif v_ego_kph > 5.0: # and stop_model_x > 30.0:\n        self.xState = XState.e2eCruise\n    else: #XState.lead, XState.cruise, XState.e2eCruise\n      self.traffic_starting_count = max(0, self.traffic_starting_count - 1)\n      if lead_detected:\n        self.xState = XState.lead\n      elif self.trafficState == TrafficState.red and is_traffic_stop_entry_allowed(carstate.steeringAngleDeg) and self.traffic_starting_count == 0:\n        self.add_event(EventName.trafficStopping)\n        self.xState = XState.e2eStop\n        self.actual_stop_distance = stop_model_x_rl\n      else:\n        self.xState = XState.e2eCruise\n\n    if self.trafficState in [TrafficState.off, TrafficState.green] or self.xState not in [XState.e2eStop, XState.e2eStopped]:\n      stop_model_x = 1000.0\n\n    if self.user_stop_distance >= 0 and not start_hold:\n      self.user_stop_distance = max(0, self.user_stop_distance - v_ego * DT_MDL)\n      self.actual_stop_distance = self.user_stop_distance\n      self.xState = XState.e2eStop if self.user_stop_distance > 0 else XState.e2eStopped\n\n    if start_hold:\n      mode = 'acc'  # The blended path otherwise ignores the traffic-stop obstacle.\n    elif mode == 'acc':\n      mode = 'blended' if self.xState in [XState.e2ePrepare] else 'acc'\n\n    # Drive modes shape transient response through lead preview and preserve\n    # steady-state spacing through tFollow.  Keep the MPC braking-distance model\n    # independent of mode so its v^2 term does not create a large high-speed gap\n    # jump (Safe/Eco max acceleration still uses mySafeFactor).\n    self.actual_stop_distance = max(0, self.actual_stop_distance - (v_ego * DT_MDL))\n\n    if stop_model_x == 1000.0:  # e2eCruise 또는 lead 상태\n      self.actual_stop_distance = 0.0\n    elif self.actual_stop_distance > 0:  # e2eStop 또는 e2eStopped 상태\n      stop_model_x = 0.0\n\n    stopping_active = self.xState not in [XState.e2eStop, XState.e2eStopped]\n    if not stopping_active:\n      self._stop_x_rl = stop_model_x_raw\n\n    # self.debugLongText = (\n    #   f\"XState({str(self.xState)}),\" +\n    #   f\"stop_x={stop_x:.1f},\" +\n    #   f\"stopDist={self.actual_stop_distance:.1f},\" +\n    #   f\"Traffic={str(self.trafficState)}\"\n    # )\n    stop_dist =  stop_model_x + self.actual_stop_distance\n    stop_dist = max(stop_dist, 0.0)\n\n    stopping_active = self.xState in [XState.e2eStop, XState.e2eStopped]\n    model_lead = model.leadsV3[0] if stopping_active and not lead_detected and len(model.leadsV3) > 0 else None\n    model_lead_x = float(model_lead.x[0]) - RADAR_TO_CAMERA if model_lead is not None and len(model_lead.x) > 0 else np.nan\n    model_lead_v = float(model_lead.v[0]) if model_lead is not None and len(model_lead.v) > 0 else np.nan\n    model_lead_x_std = float(model_lead.xStd[0]) if model_lead is not None and len(model_lead.xStd) > 0 else np.nan\n    model_lead_y_std = float(model_lead.yStd[0]) if model_lead is not None and len(model_lead.yStd) > 0 else np.nan\n    model_lead_v_std = float(model_lead.vStd[0]) if model_lead is not None and len(model_lead.vStd) > 0 else np.nan\n    self.trafficStopModelLeadOffset = self._traffic_stop_model_lead_matcher.update(\n      stop_active=stopping_active and stop_dist < 300.0,\n      allow_confirmation=self.trafficState == TrafficState.red and v_ego > 0.3,\n      active_lead=lead_detected,\n      stop_distance=stop_dist,\n      lead_probability=float(model_lead.prob) if model_lead is not None else np.nan,\n      lead_distance=model_lead_x,\n      lead_velocity=model_lead_v,\n      lead_x_std=model_lead_x_std,\n      lead_y_std=model_lead_y_std,\n      lead_v_std=model_lead_v_std,\n    )\n\n    if stopping_active and stop_dist < 300.0:\n      stop_dist_soft = max(stop_dist - 1.0, 0.0)\n      v_soft = float(np.sqrt(max(0.0, 2.0 * self.comfort_brake * stop_dist_soft)))\n      v_cruise = min(v_cruise, v_soft)\n\n    self.v_cruise = v_cruise\n    self.stop_dist = stop_dist\n    self.mode = mode\n    #return v_cruise, stop_dist, mode\n\n    return v_cruise_kph\n",
++      "source_sha256": "3a97beee2fe8e99b691ab4d564a6e5f6f42e72c06170e32a69afbe17cef9455d"
++    },
++    "opendbc_repo/opendbc/car/hyundai/radar_interface.py": {
++      "selected_names": [
++        "RadarInterface"
++      ],
++      "source": "class RadarInterface(RadarInterfaceBase):\n  def __init__(self, CP):\n    super().__init__(CP)\n    \n    self.canfd = True if CP.flags & HyundaiFlags.CANFD else False\n    self.radar_group1 = False\n    self.radar_group3 = False\n    self.radar_group4 = not self.canfd and bool(CP.extFlags & HyundaiExtFlags.RADAR_GROUP4.value)\n    if self.canfd:\n      if CP.extFlags & HyundaiExtFlags.RADAR_GROUP1.value:\n        self.radar_start_addr = RADAR_START_ADDR_CANFD1\n        self.radar_msg_count = RADAR_MSG_COUNT1\n        self.radar_group1 = True\n      elif CP.extFlags & HyundaiExtFlags.RADAR_GROUP3.value:\n        self.radar_start_addr = RADAR_START_ADDR_CANFD3\n        self.radar_msg_count = RADAR_MSG_COUNT3\n        self.radar_group3 = True\n      else:\n        self.radar_start_addr = RADAR_START_ADDR_CANFD2\n        self.radar_msg_count = RADAR_MSG_COUNT2\n    else:\n      self.radar_start_addr = RADAR_START_ADDR\n      self.radar_msg_count = RADAR_MSG_COUNT4 if self.radar_group4 else RADAR_MSG_COUNT\n    self.radar_required_msg_count = self.radar_msg_count\n    if not self.canfd and not self.radar_group4:\n      self.radar_required_msg_count = RADAR_REQUIRED_MSG_COUNT\n\n    self.params = Params()\n    self.radar_tracks = self.params.get_int(\"EnableRadarTracks\") >= 1\n    self.corner_object_tracks = bool(CP.extFlags & HyundaiExtFlags.CORNER_RADAR_OBJECTS_235.value) and self.params.get_int(\"EnableCornerRadar\") > 0\n    self.corner_object_180_tracks = bool(CP.extFlags & HyundaiExtFlags.CORNER_RADAR_OBJECTS_180.value) and self.params.get_int(\"EnableCornerRadar\") > 0\n    # The 0x430/0x440 DBC exposes unvalidated range-bin candidates rather than\n    # confirmed objects. Promoting them can create false side tracks and unsafe\n    # lead selection, so retain the decoder for offline analysis only.\n    self.corner_object_430_tracks = False\n    self.updated_tracks = set()\n    self.updated_scc = set()\n    self.updated_corner_objects = set()\n    self.updated_corner_objects_180 = set()\n    self.updated_corner_objects_430 = set()\n    self.corner_object_missed_updates = 0\n    self.corner_object_180_missed_updates = 0\n    self.corner_object_430_missed_updates = 0\n    self.corner_object_track_ids = CornerObjectTrackIdManager()\n    self.rcp_tracks = get_radar_can_parser(\n      CP, self.radar_tracks, self.radar_start_addr, self.radar_msg_count,\n      self.radar_required_msg_count, self.radar_group4,\n    )\n    self.rcp_corner_objects = get_corner_object_can_parser(CP, self.corner_object_tracks)\n    self.rcp_corner_objects_180 = get_corner_object_180_can_parser(CP, self.corner_object_180_tracks)\n    self.rcp_corner_objects_430 = get_corner_object_430_can_parser(CP, self.corner_object_430_tracks)\n    # Enabling raw radar tracks on legacy CAN disables the stock SCC11 stream on\n    # some Hyundai/Kia platforms. Camera-SCC cars may still use SCC11.\n    use_scc_parser = not (self.radar_tracks and not self.canfd and not (CP.flags & HyundaiFlags.CAMERA_SCC))\n    self.rcp_scc = get_radar_can_parser_scc(CP) if use_scc_parser else None\n    self.trigger_msg_scc = 416 if self.canfd else 0x420\n\n    self.trigger_msg_tracks = self.radar_start_addr + self.radar_required_msg_count - 1\n    self.trigger_msg_corner_objects = CORNER_OBJECT_235_START_ADDR + CORNER_OBJECT_235_MSG_COUNT - 1\n    self.trigger_msg_corner_objects_180 = CORNER_OBJECT_180_START_ADDR + CORNER_OBJECT_180_MSG_COUNT - 1\n    self.trigger_msg_corner_objects_430 = CORNER_OBJECT_430_RIGHT_START_ADDR + CORNER_OBJECT_430_MSG_COUNT_PER_SIDE - 1\n    self.track_id = 0\n\n    self.corner_objects_available = self.rcp_corner_objects is not None or self.rcp_corner_objects_180 is not None or self.rcp_corner_objects_430 is not None\n    self.radar_off_can = CP.radarUnavailable and not self.corner_objects_available\n    print(\n      \"RadarInterface: \"\n      f\"radarUnavailable={CP.radarUnavailable} radarTracks={self.radar_tracks} \"\n      f\"group4={self.radar_group4} \"\n      f\"corner235={self.rcp_corner_objects is not None} corner180={self.rcp_corner_objects_180 is not None} \"\n      f\"corner430={self.rcp_corner_objects_430 is not None} \"\n      f\"radarOffCan={self.radar_off_can}\"\n    )\n\n    self.vRel_last = 0\n    self.dRel_last = 0\n    self.corner_object_430_prev_d_rel = {}\n    self.corner_object_430_prev_v_rel = {}\n    self.corner_object_430_prev_y_rel = {}\n    self.corner_object_430_prev_yv_rel = {}\n    self.corner_object_430_prev_code = {}\n    self.corner_object_430_history = {}\n    self.corner_object_430_noncenter_inward_frames = {}\n\n    self.group3_track_ids = Group3TrackIds()\n\n    # Initialize pts\n    if self.rcp_tracks is not None:\n      total_tracks = self.radar_msg_count * (2 if self.radar_group1 else 1)\n      for track_id in range(total_tracks):\n        t_id = track_id + 32\n        self.pts[t_id] = structs.RadarData.RadarPoint()\n        self.pts[t_id].measured = False\n        self.pts[t_id].trackId = t_id\n\n    if self.rcp_scc is not None:\n      self.pts[SCC_TID] = structs.RadarData.RadarPoint()\n      self.pts[SCC_TID].trackId = SCC_TID\n      self.pts[SCC_TID].radarSource = \"scc\"\n    if self.rcp_corner_objects is not None:\n      for slot in range(CORNER_OBJECT_235_MSG_COUNT):\n        t_id = CORNER_OBJECT_235_TRACK_ID_OFFSET + slot\n        self.pts[t_id] = structs.RadarData.RadarPoint()\n        self.pts[t_id].measured = False\n        self.pts[t_id].trackId = t_id\n        self.pts[t_id].radarSource = \"corner235\"\n    if self.rcp_corner_objects_180 is not None:\n      for slot in range(CORNER_OBJECT_180_MSG_COUNT * CORNER_OBJECT_180_SLOTS_PER_MSG):\n        t_id = CORNER_OBJECT_180_TRACK_ID_OFFSET + slot\n        self.pts[t_id] = structs.RadarData.RadarPoint()\n        self.pts[t_id].measured = False\n        self.pts[t_id].trackId = t_id\n        self.pts[t_id].radarSource = \"corner180\"\n    if self.rcp_corner_objects_430 is not None:\n      for slot in range(CORNER_OBJECT_430_MSG_COUNT_PER_SIDE * 2 * CORNER_OBJECT_430_SLOTS_PER_MSG):\n        t_id = CORNER_OBJECT_430_TRACK_ID_OFFSET + slot\n        self.pts[t_id] = structs.RadarData.RadarPoint()\n        self.pts[t_id].measured = False\n        self.pts[t_id].trackId = t_id\n        self.pts[t_id].radarSource = \"corner430\"\n\n    self.frame = 0\n\n\n  def update(self, can_strings):\n    self.frame += 1\n    if self.radar_off_can or (self.rcp_tracks is None and self.rcp_scc is None and self.rcp_corner_objects is None and self.rcp_corner_objects_180 is None and self.rcp_corner_objects_430 is None):\n      return super().update(None)\n\n    if self.rcp_scc is not None:\n      vls_s = self.rcp_scc.update(can_strings)\n      self.updated_scc.update(vls_s)\n\n    track_ready = False\n    if self.radar_tracks and self.rcp_tracks is not None:\n      vls_t = self.rcp_tracks.update(can_strings)\n      self.updated_tracks.update(vls_t)\n      track_ready = self.trigger_msg_tracks in self.updated_tracks\n\n    corner_ready = False\n    if self.rcp_corner_objects is not None:\n      vls_c = self.rcp_corner_objects.update(can_strings)\n      self.updated_corner_objects.update(vls_c)\n      corner_ready = self.trigger_msg_corner_objects in self.updated_corner_objects\n\n    corner_180_ready = False\n    if self.rcp_corner_objects_180 is not None:\n      vls_180 = self.rcp_corner_objects_180.update(can_strings)\n      self.updated_corner_objects_180.update(vls_180)\n      corner_180_ready = self.trigger_msg_corner_objects_180 in self.updated_corner_objects_180\n\n    corner_430_ready = False\n    if self.rcp_corner_objects_430 is not None:\n      vls_430 = self.rcp_corner_objects_430.update(can_strings)\n      self.updated_corner_objects_430.update(vls_430)\n      corner_430_ready = self.trigger_msg_corner_objects_430 in self.updated_corner_objects_430\n\n    scc_ready = not self.radar_tracks and self.frame % 5 == 0 and self.rcp_scc is not None\n\n    if track_ready:\n      self._update(self.updated_tracks)\n      self.updated_tracks.clear()\n\n    if corner_ready:\n      self._update_corner_objects(self.updated_corner_objects)\n      self.corner_object_missed_updates = 0\n      self.updated_corner_objects.clear()\n\n    if corner_180_ready:\n      self._update_corner_objects_180(self.updated_corner_objects_180)\n      self.corner_object_180_missed_updates = 0\n      self.updated_corner_objects_180.clear()\n\n    if corner_430_ready:\n      self._update_corner_objects_430(self.updated_corner_objects_430)\n      self.corner_object_430_missed_updates = 0\n      self.updated_corner_objects_430.clear()\n\n    # Corner radar runs at its own cadence. Do not let corner-only frames publish\n    # RadarData, since liveTracks uses a fixed radarTimeStep for aLead/jLead.\n    publish_ready = track_ready or scc_ready\n    if not publish_ready:\n      return None\n\n    if self.rcp_scc is not None:\n      self._update_scc(self.updated_scc)\n    if self.rcp_corner_objects is not None:\n      if self.updated_corner_objects:\n        self._update_corner_objects(self.updated_corner_objects)\n        self.corner_object_missed_updates = 0\n      else:\n        self.corner_object_missed_updates += 1\n        if self.corner_object_missed_updates > 10:\n          self._clear_corner_objects()\n    if self.rcp_corner_objects_180 is not None:\n      if self.updated_corner_objects_180:\n        self._update_corner_objects_180(self.updated_corner_objects_180)\n        self.corner_object_180_missed_updates = 0\n      else:\n        self.corner_object_180_missed_updates += 1\n        if self.corner_object_180_missed_updates > 10:\n          self._clear_corner_objects_180()\n    if self.rcp_corner_objects_430 is not None:\n      if self.updated_corner_objects_430:\n        self._update_corner_objects_430(self.updated_corner_objects_430)\n        self.corner_object_430_missed_updates = 0\n      else:\n        self.corner_object_430_missed_updates += 1\n        if self.corner_object_430_missed_updates > 10:\n          self._clear_corner_objects_430()\n    self.updated_scc.clear()\n    self.updated_corner_objects.clear()\n    self.updated_corner_objects_180.clear()\n    self.updated_corner_objects_430.clear()\n\n    ret = structs.RadarData()\n    if ((self.rcp_tracks is not None and self.radar_tracks and not self.rcp_tracks.can_valid) or\n        (self.rcp_scc is not None and not self.corner_objects_available and not self.rcp_scc.can_valid) or\n        (self.rcp_corner_objects is not None and not self.rcp_corner_objects.can_valid) or\n        (self.rcp_corner_objects_180 is not None and not self.rcp_corner_objects_180.can_valid) or\n        (self.rcp_corner_objects_430 is not None and not self.rcp_corner_objects_430.can_valid)):\n      ret.errors.canError = True\n    ret.points = [point for point in self.pts.values() if point.measured]\n    return ret\n\n  def _update(self, updated_messages):\n    if self.radar_group3:\n      objects = {\n        addr: Group3Object.from_signals(self.rcp_tracks.vl[f\"RADAR_TRACK_{addr:x}\"])\n        for addr in range(self.radar_start_addr, self.radar_start_addr + self.radar_msg_count)\n        if addr in updated_messages\n      }\n      assignments = self.group3_track_ids.update(objects)\n      # Remove old slot entries, including migrated IDs. An unmeasured copy in\n      # the previous slot would otherwise reset the surviving object's filter.\n      for slot in range(32, 32 + self.radar_msg_count):\n        self.pts.pop(slot, None)\n      for addr, track_id in assignments.items():\n        obj = objects[addr]\n        point = structs.RadarData.RadarPoint()\n        point.trackId, point.radarSource, point.measured = track_id, \"frontRadar\", True\n        point.dRel, point.yRel, point.vRel = obj.d_rel, obj.y, obj.v\n        point.vLead, point.aRel, point.yvRel = self.v_ego + obj.v, float(\"nan\"), 0.0\n        self.pts[32 + addr - self.radar_start_addr] = point\n      return\n\n    t_id = 32\n    for addr in range(self.radar_start_addr, self.radar_start_addr + self.radar_msg_count):\n\n      msg = self.rcp_tracks.vl[f\"RADAR_TRACK_{addr:x}\"]\n      track_state = 0\n      optional_track_stale = (addr >= self.radar_start_addr + self.radar_required_msg_count and\n                              addr not in updated_messages)\n\n      if self.radar_group1:\n        valid = msg['VALID_CNT1'] > 10\n      elif self.canfd:\n        valid, track_state = canfd_group2_track_status(msg)\n      elif self.radar_group4:\n        # EN: DNMWR006 exposes eight stable tracked-object slots at 0x500-0x507.\n        #     Messages from 0x508 onward are distance-sorted raw detections without\n        #     stable IDs, so they are excluded. OBJECT_STATE 3 is a confirmed track;\n        #     empty slots use LONG_DIST raw 0xfff8 (409.55 m). Driving logs reached\n        #     317.80 m, so 325 m preserves every observed confirmed track while\n        #     retaining margin from the empty-slot sentinel. Keep the +/-6 m\n        #     ego/adjacent-lane envelope to suppress farther roadside reflections.\n        # KO: DNMWR006의 안정적인 추적 객체 슬롯은 0x500~0x507의 8개임.\n        #     0x508 이후 메시지는 고정 ID가 없는 거리순 raw detection이므로 제외함.\n        #     OBJECT_STATE 3은 확정 추적 객체이며, 빈 슬롯은 LONG_DIST raw\n        #     0xfff8(409.55m)을 사용함. 주행 로그의 최대값은 317.80m였으므로\n        #     325m 상한으로 관측된 확정 트랙을 모두 보존하면서 빈 슬롯 값과 충분한\n        #     여유를 확보함. 원거리 도로변 반사를 줄이기 위해 좌우 6m 범위를 유지함.\n        valid = (msg['OBJECT_STATE'] == 3 and 0.2 < msg['LONG_DIST'] < RADAR_GROUP4_MAX_LONG_DIST and\n                 abs(msg['LAT_DIST']) <= RADAR_GROUP4_MAX_YREL)\n      else:\n        valid = msg['STATE'] in (3, 4)\n\n      # Optional slots do not participate in CAN validity. Therefore explicitly\n      # require a fresh frame in each radar cycle instead of retaining a valid\n      # object from the last cycle if the upper bank stops transmitting.\n      valid = valid and not optional_track_stale\n\n      self.pts[t_id].measured = bool(valid)\n      if not valid:\n        self.pts[t_id].dRel = 0\n        self.pts[t_id].yRel = 0\n        self.pts[t_id].vRel = 0\n        self.pts[t_id].vLead = self.pts[t_id].vRel + self.v_ego\n        self.pts[t_id].aRel = float('nan')\n        self.pts[t_id].yvRel = 0\n      elif self.radar_group1:\n        self.pts[t_id].dRel = msg['LONG_DIST1']\n        self.pts[t_id].yRel = msg['LAT_DIST1']\n        self.pts[t_id].vRel = msg['REL_SPEED1']\n        self.pts[t_id].vLead = self.pts[t_id].vRel + self.v_ego\n        self.pts[t_id].aRel = msg['REL_ACCEL1']\n        self.pts[t_id].yvRel = msg['LAT_SPEED1']\n      elif self.canfd:\n        self.pts[t_id].dRel = msg['LONG_DIST']\n        self.pts[t_id].yRel = msg['LAT_DIST']\n        self.pts[t_id].vRel = msg['REL_SPEED']\n        self.pts[t_id].vLead = self.pts[t_id].vRel + self.v_ego\n        self.pts[t_id].aRel = msg['REL_ACCEL']\n        self.pts[t_id].yvRel = msg['LAT_SPEED']\n        self.pts[t_id].trackState = track_state\n      elif self.radar_group4:\n        self.pts[t_id].dRel = msg['LONG_DIST']\n        self.pts[t_id].yRel = -msg['LAT_DIST']\n        self.pts[t_id].vRel = msg['REL_SPEED']\n        self.pts[t_id].vLead = self.pts[t_id].vRel + self.v_ego\n        self.pts[t_id].aRel = float('nan')\n        self.pts[t_id].yvRel = 0.0\n      else:\n        azimuth = math.radians(msg['AZIMUTH'])\n        self.pts[t_id].dRel = math.cos(azimuth) * msg['LONG_DIST']\n        self.pts[t_id].yRel = 0.5 * -math.sin(azimuth) * msg['LONG_DIST']\n        self.pts[t_id].vRel = msg['REL_SPEED']\n        self.pts[t_id].vLead = self.pts[t_id].vRel + self.v_ego\n        self.pts[t_id].aRel = msg['REL_ACCEL']\n        self.pts[t_id].yvRel = 0.0\n\n      t_id += 1\n    # Radar group 1 carries two messages per object.\n    if self.radar_group1:\n      for addr in range(self.radar_start_addr, self.radar_start_addr + self.radar_msg_count):\n        msg = self.rcp_tracks.vl[f\"RADAR_TRACK_{addr:x}\"]\n\n        optional_track_stale = (addr >= self.radar_start_addr + self.radar_required_msg_count and\n                                addr not in updated_messages)\n        valid = msg['VALID_CNT2'] > 10 and not optional_track_stale\n        self.pts[t_id].measured = bool(valid)\n        if not valid:\n          self.pts[t_id].dRel = 0\n          self.pts[t_id].yRel = 0\n          self.pts[t_id].vRel = 0\n          self.pts[t_id].vLead = self.pts[t_id].vRel + self.v_ego\n          self.pts[t_id].aRel = float('nan')\n          self.pts[t_id].yvRel = 0\n        else:\n          self.pts[t_id].dRel = msg['LONG_DIST2']\n          self.pts[t_id].yRel = msg['LAT_DIST2']\n          self.pts[t_id].vRel = msg['REL_SPEED2']\n          self.pts[t_id].vLead = self.pts[t_id].vRel + self.v_ego\n          self.pts[t_id].aRel = msg['REL_ACCEL2']\n          self.pts[t_id].yvRel = msg['LAT_SPEED2']\n\n        t_id += 1\n\n  def _update_corner_objects(self, updated_messages):\n    if self.rcp_corner_objects is None:\n      return\n\n    if not updated_messages:\n      self._clear_corner_objects()\n      return\n\n    candidates = []\n    for slot, addr in enumerate(range(CORNER_OBJECT_235_START_ADDR, CORNER_OBJECT_235_START_ADDR + CORNER_OBJECT_235_MSG_COUNT)):\n      t_id = CORNER_OBJECT_235_TRACK_ID_OFFSET + slot\n      msg = self.rcp_corner_objects.vl[f\"CORNER_RADAR_235_OBJECTS_{addr:x}\"]\n\n      d_rel = msg[\"OBJ_REL_POS_X\"]\n      y_rel = msg[\"OBJ_REL_POS_Y\"]\n      v_rel = msg[\"OBJ_REL_VEL_X\"]\n      yv_rel = msg[\"OBJ_REL_VEL_Y\"]\n      a_rel = msg[\"OBJ_REL_ACCEL_X\"]\n      # Side objects are clipped to x=0 by the corner radar. Quality, identity,\n      # and lateral motion still describe a real object, so keep them for\n      # corner-confirmed front-radar association in radard.\n      valid = msg[\"OBJ_QUAL_LEVEL\"] > 0 and corner_object_position_valid(d_rel, y_rel) and v_rel > -99.0\n\n      if not valid:\n        continue\n      candidates.append((t_id, int(msg[\"OBJ_OBJECT_ID\"]), int(msg[\"OBJ_AGE\"]), int(msg[\"OBJ_QUAL_LEVEL\"]),\n                         d_rel, y_rel, v_rel, yv_rel, a_rel))\n\n    self._apply_corner_objects(\"corner235\", candidates,\n                               range(CORNER_OBJECT_235_TRACK_ID_OFFSET,\n                                     CORNER_OBJECT_235_TRACK_ID_OFFSET + CORNER_OBJECT_235_MSG_COUNT))\n\n  def _update_corner_objects_180(self, updated_messages):\n    if self.rcp_corner_objects_180 is None:\n      return\n\n    if not updated_messages:\n      self._clear_corner_objects_180()\n      return\n\n    candidates = []\n    for msg_index, addr in enumerate(range(CORNER_OBJECT_180_START_ADDR, CORNER_OBJECT_180_START_ADDR + CORNER_OBJECT_180_MSG_COUNT)):\n      msg = self.rcp_corner_objects_180.vl[f\"CORNER_RADAR_180_OBJECTS_{addr:x}\"]\n      for slot_index in range(CORNER_OBJECT_180_SLOTS_PER_MSG):\n        t_id = CORNER_OBJECT_180_TRACK_ID_OFFSET + msg_index * CORNER_OBJECT_180_SLOTS_PER_MSG + slot_index\n        prefix = f\"SLOT{slot_index + 1}_\"\n        d_rel = msg[f\"{prefix}REL_POS_X\"]\n        y_rel = msg[f\"{prefix}REL_POS_Y\"]\n        v_rel = msg[f\"{prefix}REL_VEL_X\"]\n        yv_rel = msg[f\"{prefix}REL_VEL_Y\"]\n        a_rel = msg[f\"{prefix}REL_ACCEL_X\"]\n        valid = msg[f\"{prefix}QUAL_LEVEL\"] > 0 and corner_object_position_valid(d_rel, y_rel) and v_rel > -99.0\n\n        if not valid:\n          continue\n        candidates.append((t_id, int(msg[f\"{prefix}OBJECT_ID\"]), int(msg[f\"{prefix}AGE\"]), int(msg[f\"{prefix}QUAL_LEVEL\"]),\n                           d_rel, y_rel, v_rel, yv_rel, a_rel))\n\n    self._apply_corner_objects(\"corner180\", candidates,\n                               range(CORNER_OBJECT_180_TRACK_ID_OFFSET,\n                                     CORNER_OBJECT_180_TRACK_ID_OFFSET + CORNER_OBJECT_180_MSG_COUNT * CORNER_OBJECT_180_SLOTS_PER_MSG))\n\n  def _apply_corner_objects(self, source, candidates, slot_ids):\n    for t_id in slot_ids:\n      self._clear_point(t_id)\n\n    # The same object can occupy two CAN slots for one cycle during a slot handoff.\n    # Only merge physically close copies. The radar can assign one object ID to\n    # two distant objects concurrently, so object ID alone is not an identity.\n    objects = deduplicate_corner_candidates(candidates)\n    track_ids = self.corner_object_track_ids.get_track_ids(source, objects)\n\n    for t_id, _, _, _, d_rel, y_rel, v_rel, yv_rel, a_rel in objects:\n      point = self.pts[t_id]\n      point.measured = True\n      point.trackId = track_ids[t_id]\n      point.radarSource = source\n      point.dRel = d_rel\n      point.yRel = y_rel\n      point.vRel = v_rel\n      point.vLead = v_rel + self.v_ego\n      point.aRel = a_rel\n      point.yvRel = yv_rel\n\n  def _update_corner_objects_430(self, updated_messages):\n    if self.rcp_corner_objects_430 is None:\n      return\n\n    if not updated_messages:\n      self._clear_corner_objects_430()\n      return\n\n    bank_defs = (\n      (CORNER_OBJECT_430_LEFT_START_ADDR, 1.0, 0),\n      (CORNER_OBJECT_430_RIGHT_START_ADDR, -1.0, CORNER_OBJECT_430_MSG_COUNT_PER_SIDE * CORNER_OBJECT_430_SLOTS_PER_MSG),\n    )\n    for start_addr, side_sign, track_base in bank_defs:\n      bins = []\n      for msg_index, addr in enumerate(range(start_addr, start_addr + CORNER_OBJECT_430_MSG_COUNT_PER_SIDE)):\n        msg = self.rcp_corner_objects_430.vl[f\"CORNER_RADAR_430_OBJECTS_{addr:x}\"]\n        for slot_index in range(CORNER_OBJECT_430_SLOTS_PER_MSG):\n          prefix = f\"SLOT{slot_index + 1}_\"\n          distance_raw = int(msg[f\"{prefix}DISTANCE_RAW\"])\n          raw = (\n            distance_raw |\n            (int(msg[f\"{prefix}META_13_15\"]) << 13) |\n            (int(msg[f\"{prefix}META_BYTE_2\"]) << 16) |\n            (int(msg[f\"{prefix}META_BYTE_3\"]) << 24)\n          )\n          code = (\n            int(msg[f\"{prefix}META_13_15\"]),\n            int(msg[f\"{prefix}META_BYTE_2\"]),\n            int(msg[f\"{prefix}META_BYTE_3\"]),\n          )\n          d_rel = distance_raw * 0.05\n          default_distance = CORNER_OBJECT_430_DEFAULT_DISTANCE_RAW_MIN <= distance_raw <= CORNER_OBJECT_430_DEFAULT_DISTANCE_RAW_MAX\n          base_valid = (\n            raw not in CORNER_OBJECT_430_EMPTY_RAW_VALUES and\n            distance_raw not in (0, 8000, 8191) and\n            not default_distance and\n            0.2 < d_rel < CORNER_OBJECT_430_MAX_DREL\n          )\n          candidate_valid = (\n            base_valid and\n            slot_index + 1 not in CORNER_OBJECT_430_CANDIDATE_EXCLUDED_SLOTS and\n            code[2] in CORNER_OBJECT_430_CANDIDATE_META_BYTE_3 and\n            code[1] in CORNER_OBJECT_430_STRONG_META_BYTE_2 + CORNER_OBJECT_430_WEAK_META_BYTE_2\n          )\n          bins.append({\n            \"msg_index\": msg_index,\n            \"slot_index\": slot_index,\n            \"distance_raw\": distance_raw,\n            \"d_rel\": d_rel,\n            \"code\": code,\n            \"candidate_valid\": candidate_valid,\n          })\n\n      supported_bins = []\n      candidates = [b for b in bins if b[\"candidate_valid\"]]\n      for b in candidates:\n        support = 1\n        for other in candidates:\n          if other is b:\n            continue\n          if abs(other[\"msg_index\"] - b[\"msg_index\"]) > 1:\n            continue\n          if abs(other[\"slot_index\"] - b[\"slot_index\"]) > 2:\n            continue\n          if abs(other[\"distance_raw\"] - b[\"distance_raw\"]) > CORNER_OBJECT_430_CANDIDATE_RAW_DELTA:\n            continue\n          support += 1\n        min_support = (CORNER_OBJECT_430_STRONG_MIN_SUPPORT if b[\"code\"][1] in CORNER_OBJECT_430_STRONG_META_BYTE_2\n                       else CORNER_OBJECT_430_WEAK_MIN_SUPPORT)\n        if support >= min_support:\n          supported_bins.append({**b, \"support\": support})\n\n      clusters = []\n      for b in sorted(supported_bins, key=lambda item: item[\"distance_raw\"]):\n        if not clusters or b[\"distance_raw\"] - clusters[-1][-1][\"distance_raw\"] > CORNER_OBJECT_430_CLUSTER_RAW_GAP:\n          clusters.append([b])\n        else:\n          clusters[-1].append(b)\n      clusters = sorted(clusters, key=lambda cluster: sum(b[\"distance_raw\"] for b in cluster) / len(cluster))[:CORNER_OBJECT_430_MAX_TRACKS_PER_SIDE]\n\n      cluster_objects = []\n      for cluster in clusters:\n        msg_index = sum(b[\"msg_index\"] for b in cluster) / len(cluster)\n        slot = sum(b[\"slot_index\"] + 1 for b in cluster) / len(cluster)\n        lateral_cell = (CORNER_OBJECT_430_LATERAL_CELL_MSG_WEIGHT * msg_index +\n                        CORNER_OBJECT_430_LATERAL_CELL_SLOT_WEIGHT * slot)\n        mapped_cell = lateral_cell if side_sign > 0.0 else CORNER_OBJECT_430_RIGHT_CELL_MIRROR - lateral_cell\n        y_abs = max(CORNER_OBJECT_430_MIN_ABS_YREL,\n                    min(CORNER_OBJECT_430_MAX_ABS_YREL,\n                        CORNER_OBJECT_430_YREL_OFFSET - CORNER_OBJECT_430_YREL_SCALE * mapped_cell))\n        cluster_objects.append({\n          \"d_rel\": sum(b[\"d_rel\"] for b in cluster) / len(cluster),\n          \"y_rel\": side_sign * y_abs,\n          \"code\": max((b[\"code\"] for b in cluster), key=lambda code: sum(1 for item in cluster if item[\"code\"] == code)),\n        })\n\n      active_t_ids = set()\n      side_track_ids = [\n        CORNER_OBJECT_430_TRACK_ID_OFFSET + track_base + slot\n        for slot in range(CORNER_OBJECT_430_MAX_TRACKS_PER_SIDE)\n      ]\n      unmatched_track_ids = {t_id for t_id in side_track_ids if t_id in self.corner_object_430_prev_d_rel}\n      unused_track_ids = [t_id for t_id in side_track_ids if t_id not in unmatched_track_ids]\n\n      for cluster in cluster_objects:\n        d_rel = cluster[\"d_rel\"]\n        code = cluster[\"code\"]\n        matched_t_id = None\n        if unmatched_track_ids:\n          nearest_t_id = min(unmatched_track_ids, key=lambda t_id: abs(d_rel - self.corner_object_430_prev_d_rel[t_id]))\n          if abs(d_rel - self.corner_object_430_prev_d_rel[nearest_t_id]) <= CORNER_OBJECT_430_TRACK_MATCH_MAX_DREL_DELTA:\n            matched_t_id = nearest_t_id\n            unmatched_track_ids.remove(matched_t_id)\n        if matched_t_id is None and unused_track_ids:\n          matched_t_id = unused_track_ids.pop(0)\n        if matched_t_id is None:\n          continue\n\n        t_id = matched_t_id\n        active_t_ids.add(t_id)\n        prev_d_rel = self.corner_object_430_prev_d_rel.get(t_id)\n        prev_code = self.corner_object_430_prev_code.get(t_id)\n        self.corner_object_430_prev_d_rel[t_id] = d_rel\n        self.corner_object_430_prev_y_rel[t_id] = cluster[\"y_rel\"]\n        self.corner_object_430_prev_code[t_id] = code\n        reset_track = prev_d_rel is None or code != prev_code or abs(d_rel - prev_d_rel) > CORNER_OBJECT_430_MAX_DREL_DELTA\n        if reset_track:\n          self.corner_object_430_prev_v_rel.pop(t_id, None)\n          self.corner_object_430_prev_yv_rel.pop(t_id, None)\n          self.corner_object_430_history.pop(t_id, None)\n          self.corner_object_430_noncenter_inward_frames.pop(t_id, None)\n\n        history = self.corner_object_430_history.setdefault(t_id, deque(maxlen=CORNER_OBJECT_430_HISTORY_SIZE))\n        history.append((d_rel, cluster[\"y_rel\"]))\n        if len(history) < CORNER_OBJECT_430_MIN_HISTORY:\n          self._clear_point(t_id)\n          continue\n\n        window_dt = CORNER_OBJECT_430_DT * (len(history) - 1)\n        first_d_rel, first_y_rel = history[0]\n        hist_v_rel = (d_rel - first_d_rel) / window_dt\n        if abs(hist_v_rel) > CORNER_OBJECT_430_MAX_ABS_VREL:\n          self.corner_object_430_prev_v_rel.pop(t_id, None)\n          self.corner_object_430_prev_yv_rel.pop(t_id, None)\n          self.corner_object_430_history.pop(t_id, None)\n          self.corner_object_430_noncenter_inward_frames.pop(t_id, None)\n          self._clear_point(t_id)\n          continue\n        prev_v_rel = self.corner_object_430_prev_v_rel.get(t_id, hist_v_rel)\n        v_rel = (1.0 - CORNER_OBJECT_430_VREL_ALPHA) * prev_v_rel + CORNER_OBJECT_430_VREL_ALPHA * hist_v_rel\n        self.corner_object_430_prev_v_rel[t_id] = v_rel\n\n        inward_steps = 0\n        usable_steps = 0\n        prev_abs_y = abs(history[0][1])\n        for _, y_rel in list(history)[1:]:\n          abs_y = abs(y_rel)\n          delta = prev_abs_y - abs_y\n          if abs(delta) > 1e-3:\n            usable_steps += 1\n            if delta > 0.0:\n              inward_steps += 1\n          prev_abs_y = abs_y\n        net_inward_y = abs(first_y_rel) - abs(cluster[\"y_rel\"])\n        inward_ratio = inward_steps / usable_steps if usable_steps > 0 else 0.0\n        hist_yv_rel = (cluster[\"y_rel\"] - first_y_rel) / window_dt\n        recent_inward_y = abs(history[-3][1]) - abs(cluster[\"y_rel\"]) if len(history) >= 3 else net_inward_y\n        if (net_inward_y < CORNER_OBJECT_430_MIN_INWARD_YREL_DELTA or\n            recent_inward_y < CORNER_OBJECT_430_MIN_RECENT_INWARD_YREL_DELTA or\n            inward_ratio < CORNER_OBJECT_430_MIN_INWARD_RATIO or\n            abs(hist_yv_rel) > CORNER_OBJECT_430_MAX_ABS_YVREL):\n          hist_yv_rel = 0.0\n        inward_motion_candidate = hist_yv_rel != 0.0 and abs(cluster[\"y_rel\"]) <= CORNER_OBJECT_430_INWARD_KEEP_YVREL_ABS_YREL\n        inward_center_candidate = inward_motion_candidate and abs(cluster[\"y_rel\"]) <= CORNER_OBJECT_430_INWARD_CENTER_ABS_YREL\n        y_rel = cluster[\"y_rel\"]\n        if inward_motion_candidate:\n          if inward_center_candidate:\n            self.corner_object_430_noncenter_inward_frames[t_id] = 0\n            prev_yv_rel = self.corner_object_430_prev_yv_rel.get(t_id, hist_yv_rel)\n            yv_rel = (1.0 - CORNER_OBJECT_430_YVREL_ALPHA) * prev_yv_rel + CORNER_OBJECT_430_YVREL_ALPHA * hist_yv_rel\n          else:\n            noncenter_frames = self.corner_object_430_noncenter_inward_frames.get(t_id, 0) + 1\n            self.corner_object_430_noncenter_inward_frames[t_id] = noncenter_frames\n            if noncenter_frames <= CORNER_OBJECT_430_EARLY_INWARD_NONCENTER_FRAMES:\n              prev_yv_rel = self.corner_object_430_prev_yv_rel.get(t_id, hist_yv_rel)\n              yv_rel = (1.0 - CORNER_OBJECT_430_YVREL_ALPHA) * prev_yv_rel + CORNER_OBJECT_430_YVREL_ALPHA * hist_yv_rel\n            else:\n              yv_rel = 0.0\n          if not inward_center_candidate and abs(y_rel) < CORNER_OBJECT_430_SIDE_KEEP_ABS_YREL:\n            y_rel = math.copysign(CORNER_OBJECT_430_SIDE_KEEP_ABS_YREL, y_rel)\n        else:\n          hist_yv_rel = 0.0\n          yv_rel = 0.0\n          self.corner_object_430_noncenter_inward_frames[t_id] = 0\n          if abs(y_rel) < CORNER_OBJECT_430_SIDE_KEEP_ABS_YREL:\n            y_rel = math.copysign(CORNER_OBJECT_430_SIDE_KEEP_ABS_YREL, y_rel)\n        self.corner_object_430_prev_yv_rel[t_id] = yv_rel\n\n        self.pts[t_id].measured = True\n        self.pts[t_id].trackId = t_id\n        self.pts[t_id].dRel = d_rel\n        self.pts[t_id].yRel = y_rel\n        self.pts[t_id].vRel = v_rel\n        self.pts[t_id].vLead = v_rel + self.v_ego\n        self.pts[t_id].aRel = float('nan')\n        self.pts[t_id].yvRel = yv_rel\n\n      side_track_count = CORNER_OBJECT_430_MSG_COUNT_PER_SIDE * CORNER_OBJECT_430_SLOTS_PER_MSG\n      for slot in range(side_track_count):\n        t_id = CORNER_OBJECT_430_TRACK_ID_OFFSET + track_base + slot\n        if t_id in active_t_ids:\n          continue\n        self.corner_object_430_prev_d_rel.pop(t_id, None)\n        self.corner_object_430_prev_v_rel.pop(t_id, None)\n        self.corner_object_430_prev_y_rel.pop(t_id, None)\n        self.corner_object_430_prev_yv_rel.pop(t_id, None)\n        self.corner_object_430_prev_code.pop(t_id, None)\n        self.corner_object_430_history.pop(t_id, None)\n        self.corner_object_430_noncenter_inward_frames.pop(t_id, None)\n        self._clear_point(t_id)\n\n\n  def _clear_point(self, t_id):\n    self.pts[t_id].measured = False\n    self.pts[t_id].dRel = 0\n    self.pts[t_id].yRel = 0\n    self.pts[t_id].vRel = 0\n    self.pts[t_id].vLead = self.v_ego\n    self.pts[t_id].aRel = float('nan')\n    self.pts[t_id].yvRel = 0\n\n  def _clear_corner_objects(self):\n    for slot in range(CORNER_OBJECT_235_MSG_COUNT):\n      self._clear_point(CORNER_OBJECT_235_TRACK_ID_OFFSET + slot)\n    self.corner_object_track_ids.clear_source(\"corner235\")\n\n  def _clear_corner_objects_180(self):\n    for slot in range(CORNER_OBJECT_180_MSG_COUNT * CORNER_OBJECT_180_SLOTS_PER_MSG):\n      self._clear_point(CORNER_OBJECT_180_TRACK_ID_OFFSET + slot)\n    self.corner_object_track_ids.clear_source(\"corner180\")\n\n  def _clear_corner_objects_430(self):\n    self.corner_object_430_prev_d_rel.clear()\n    self.corner_object_430_prev_v_rel.clear()\n    self.corner_object_430_prev_y_rel.clear()\n    self.corner_object_430_prev_yv_rel.clear()\n    self.corner_object_430_prev_code.clear()\n    self.corner_object_430_history.clear()\n    self.corner_object_430_noncenter_inward_frames.clear()\n    for slot in range(CORNER_OBJECT_430_MSG_COUNT_PER_SIDE * 2 * CORNER_OBJECT_430_SLOTS_PER_MSG):\n      self._clear_point(CORNER_OBJECT_430_TRACK_ID_OFFSET + slot)\n\n  def _update_scc(self, updated_messages):\n    cpt = self.rcp_scc.vl\n    t_id = SCC_TID\n    if self.canfd:\n      dRel = cpt[\"SCC_CONTROL\"]['ACC_ObjDist']\n      vRel = cpt[\"SCC_CONTROL\"]['ACC_ObjRelSpd']\n      new_pts = abs(dRel - self.dRel_last) > 3 or abs(vRel - self.vRel_last) > 1\n      vLead = vRel + self.v_ego\n      valid = 0 < dRel < 150 and not new_pts #cpt[\"SCC_CONTROL\"]['OBJ_STATUS'] and dRel < 150\n      self.pts[t_id].measured = bool(valid)\n      if not valid:\n        self.pts[t_id].dRel = 0\n        self.pts[t_id].yRel = 0\n        self.pts[t_id].vRel = 0\n        self.pts[t_id].vLead = self.pts[t_id].vRel + self.v_ego\n        self.pts[t_id].aRel = float('nan')\n        self.pts[t_id].yvRel = 0\n      else:\n        self.pts[t_id].dRel = dRel\n        self.pts[t_id].yRel = 0\n        self.pts[t_id].vRel = vRel\n        self.pts[t_id].vLead = vLead\n        self.pts[t_id].aRel = float('nan')\n        self.pts[t_id].yvRel = 0 #float('nan')\n    else:\n      dRel = cpt[\"SCC11\"]['ACC_ObjDist']\n      vRel = cpt[\"SCC11\"]['ACC_ObjRelSpd']\n      new_pts = abs(dRel - self.dRel_last) > 3 or abs(vRel - self.vRel_last) > 1\n      vLead = vRel + self.v_ego\n      valid = cpt[\"SCC11\"]['ACC_ObjStatus'] and dRel < 150 and not new_pts\n      self.pts[t_id].measured = bool(valid)\n      if not valid:\n        self.pts[t_id].dRel = 0\n        self.pts[t_id].yRel = 0\n        self.pts[t_id].vRel = 0\n        self.pts[t_id].vLead = self.pts[t_id].vRel + self.v_ego\n        self.pts[t_id].aRel = float('nan')\n        self.pts[t_id].yvRel = 0\n      else:\n        self.pts[t_id].dRel = dRel\n        self.pts[t_id].yRel = -cpt[\"SCC11\"]['ACC_ObjLatPos']  # in car frame's y axis, left is negative\n        self.pts[t_id].vRel = vRel\n        self.pts[t_id].vLead = vLead\n        self.pts[t_id].aRel = float('nan')\n        self.pts[t_id].yvRel = 0 #float('nan')\n\n    self.dRel_last = dRel\n    self.vRel_last = vRel\n",
++      "source_sha256": "b5481ffa57f67c4060124572a89e6a771d6c6fe947323ae46f51009c73cd9f57"
 +    }
 +  }
 +}
@@ -2022,6 +2132,254 @@ diff --git a/opendbc_repo/opendbc/car/hyundai/tests/test_jerk.py b/opendbc_repo/
  
  
  @pytest.mark.parametrize("brake_hold_active", [False, True])
+diff --git a/opendbc_repo/opendbc/car/hyundai/tests/test_signal_fms_integration.py b/opendbc_repo/opendbc/car/hyundai/tests/test_signal_fms_integration.py
+--- /dev/null
++++ b/opendbc_repo/opendbc/car/hyundai/tests/test_signal_fms_integration.py
+@@ -0,0 +1,244 @@
++"""FMS baseline and live signal-planner -> parser/CI/controller/DBC boundaries.
++
++Same-process host evidence only; no native transport, Panda or ECU claim.
++"""
++import ast
++import hashlib
++import json
++from pathlib import Path
++from types import SimpleNamespace as NS
++
++import pytest
++
++from opendbc.can import CANPacker
++from opendbc.car import structs
++from opendbc.car.hyundai import radar_interface as radar_module
++from opendbc.car.hyundai.values import CAR, HyundaiFlags
++from opendbc.car.hyundai.tests.test_paddle_mode4 import (chain, production_chain, controls_cancel_producer, decode)
++from openpilot.selfdrive.car.tests.test_paddle_gap import mode4
++from openpilot.selfdrive.carrot import signal_mode
++from openpilot.selfdrive.carrot.signal_assist_runtime import SignalAssistRuntime
++from openpilot.selfdrive.carrot.signal_stop_prepare import SignalStopPrepare
++from openpilot.selfdrive.carrot.signal_start_guard import SignalStartGuard
++from openpilot.selfdrive.carrot.tests.test_signal_stop_prepare import observation
++from tools.signal_analysis.replay_signal_assist import REPO, planner_class
++from tools.signal_analysis.test_signal_assist_planner import inputs
++
++BASELINE_PATH = Path(__file__).with_name('fixtures') / 'fms_signal_radar_3f86e7d3.json'
++BASELINE_SHA = '6e8b138fbd269d5c16075813c0f794047792dec34129f6bfa494660bd05d42d3'
++
++
++def baseline_sources(content):
++  assert hashlib.sha256(content.encode()).hexdigest() == BASELINE_SHA
++  data = json.loads(content)
++  assert data['format_version'] == 1
++  assert data['git_revision'] == '3f86e7d325c35f03bdfc6145463a1eea37389515'
++  expected = {'openpilot/selfdrive/carrot/carrot_functions.py': ['XState', 'get_driving_mode_factors', 'get_driving_mode_comfort_brake_factor', 'TrafficState', 'CarrotPlanner'],
++              'opendbc_repo/opendbc/car/hyundai/radar_interface.py': ['RadarInterface']}
++  assert set(data['sources']) == set(expected)
++  for path, names in expected.items():
++    entry = data['sources'][path]
++    assert entry['selected_names'] == names
++    assert hashlib.sha256(entry['source'].encode()).hexdigest() == entry['source_sha256']
++    assert [n.name for n in ast.parse(entry['source']).body] == names
++  return {p: entry['source'] for p, entry in data['sources'].items()}
++
++
++@pytest.mark.parametrize('mutation', ['source', 'revision', 'crlf'])
++def test_baseline_provenance_boundary(mutation, tmp_path):
++  content = BASELINE_PATH.read_text(encoding='utf-8')
++  if mutation == 'source': content = content.replace('class RadarInterface(', 'class WrongRadar(')
++  elif mutation == 'revision': content = content.replace('3f86e7d325c35f03bdfc6145463a1eea37389515', '0'*40)
++  else: content = content.replace('\n', '\r\n')
++  path = tmp_path/'baseline.json'; path.write_bytes(content.encode())
++  if mutation == 'crlf': baseline_sources(path.read_text())
++  else:
++    with pytest.raises(AssertionError): baseline_sources(path.read_text())
++
++
++@pytest.mark.parametrize('speed,distance,lead,hold,gas,brake', [
++  (15.,160.,False,0,False,False), (0.,3.,False,0,False,False),
++  (10.,40.,True,0,False,False), (0.,3.,False,2,False,False),
++  (15.,160.,False,0,True,False), (15.,160.,False,0,False,True),
++])
++def test_mode_zero_matches_frozen_fms_planner(monkeypatch, speed, distance, lead, hold, gas, brake):
++  monkeypatch.setattr(signal_mode, 'signal_mode', lambda: 0)
++  frozen = baseline_sources(BASELINE_PATH.read_text())
++  old, _ = planner_class(frozen['openpilot/selfdrive/carrot/carrot_functions.py'])
++  new, _ = planner_class((REPO/'openpilot/selfdrive/carrot/carrot_functions.py').read_text())
++  planners = [old(), new()]
++  sm = inputs(speed=speed, distance=distance, lead=lead)
++  sm['radarState'].leadTwo = NS(status=False)
++  sm['carState'].softHoldActive, sm['carState'].gasPressed, sm['carState'].brakePressed = hold, gas, brake
++  for _ in range(35):
++    outputs = [p.update(sm,80.,'acc') for p in planners]
++    assert outputs[0] == outputs[1]
++    for name in ('xState', 'v_cruise', 'stop_dist', 'comfort_brake', 'trafficState', 'soft_hold_active'):
++      values = [getattr(p,name) for p in planners]
++      if name in ('xState', 'trafficState'): values = [v.value for v in values]
++      assert values[0] == values[1], name
++    assert planners[0].events.events == planners[1].events.events
++  assert not planners[1].prepare_control_active
++
++
++@pytest.mark.parametrize('mode', [0,1,2,3])
++@pytest.mark.parametrize('canfd', [True,False])
++def test_non_bosch_radar_matches_frozen_fms_twenty_hz(monkeypatch,mode,canfd):
++  monkeypatch.setattr(radar_module,'Params',lambda:NS(get_int=lambda k:mode if k=='EnableRadarTracks' else 0))
++  frozen = baseline_sources(BASELINE_PATH.read_text())
++  ns = dict(vars(radar_module))
++  exec(compile(frozen['opendbc_repo/opendbc/car/hyundai/radar_interface.py'],'<frozen FMS radar>','exec'),ns)
++  cp = structs.CarParams(carFingerprint=CAR.KIA_SORENTO_HEV_4TH_GEN if canfd else CAR.HYUNDAI_SONATA,
++                        flags=int(HyundaiFlags.CANFD|HyundaiFlags.CAMERA_SCC) if canfd else int(HyundaiFlags.CAMERA_SCC),
++                        radarTimeStep=.05, radarUnavailable=False, extFlags=0, safetyConfigs=[{}])
++  old,new = ns['RadarInterface'](cp),radar_module.RadarInterface(cp)
++  assert new.bosch is None
++  packer = CANPacker('hyundai_canfd_generated' if canfd else 'hyundai_kia_generic')
++  radar_packer = CANPacker('hyundai_canfd_radar_generated' if canfd else 'hyundai_kia_mando_front_radar_generated')
++  publish_ticks = []
++  for i in range(50):
++    msg = packer.make_can_msg('SCC_CONTROL' if canfd else 'SCC11',2,
++      {'ACC_ObjDist':40.,'ACC_ObjRelSpd':-1.} if canfd else {'ACC_ObjDist':40.,'ACC_ObjRelSpd':-1.,'ObjValid':1})
++    packets = [msg]
++    if mode > 0 and (i+1) % 5 == 0:
++      for addr in range(new.radar_start_addr, new.radar_start_addr+new.radar_required_msg_count):
++        fields = {'VALID_CNT':255,'VALID':2,'LONG_DIST':40.} if canfd else {'STATE':3,'LONG_DIST':40.}
++        packets.append(radar_packer.make_can_msg(f'RADAR_TRACK_{addr:x}',1,fields))
++    batch = [(1_000_000_000+i*10_000_000,packets)]
++    a,b = old.update(batch),new.update(batch)
++    assert (None if a is None else a.to_bytes()) == (None if b is None else b.to_bytes())
++    assert (old.frame,old.trigger_msg_tracks,old.trigger_msg_scc) == (new.frame,new.trigger_msg_tracks,new.trigger_msg_scc)
++    if b is not None: publish_ticks.append(i+1)
++  assert publish_ticks == list(range(5,51,5))
++
++
++@pytest.fixture
++def signal_cap():
++  source=REPO/'openpilot/selfdrive/controls/lib/longitudinal_planner.py'
++  tree=ast.parse(source.read_text());cls=next(n for n in tree.body if isinstance(n,ast.ClassDef) and n.name=='LongitudinalPlanner')
++  node=next(n for n in cls.body if isinstance(n,ast.FunctionDef) and n.name=='apply_signal_stop_prepare')
++  ns={};exec(compile(ast.Module(body=[node],type_ignores=[]),str(source),'exec'),ns)
++  return ns['apply_signal_stop_prepare']
++
++
++@pytest.mark.parametrize('mode',[0,1,2])
++@pytest.mark.parametrize('fault',['none','cancel','off','soft_hold','gas','brake','lead_one','lead_two','turn',
++                                  'model_stop','stale','invalid','session','clock','speed_low','speed_high'])
++def test_signal_admission_to_real_can(production_chain,monkeypatch,tmp_path,signal_cap,mode,fault):
++  monkeypatch.setattr(signal_mode,'signal_mode',lambda:mode)
++  cls,_=planner_class((REPO/'openpilot/selfdrive/carrot/carrot_functions.py').read_text())
++  planner=cls(start_guard=SignalStartGuard(),stop_prepare=SignalStopPrepare())
++  driver,ci,helper,cc,_,_=production_chain
++  sm=inputs(speed=15.,distance=160.)
++  sm['radarState'].leadTwo=NS(status=False)
++  sm['carState'].canValid=True;sm['carState'].gearShifter='drive'
++  sm['selfdriveState'].enabled=True;sm['carControl']=cc
++  sm=type('State',(dict,),{})(sm)
++  services=('carState','modelV2','radarState','selfdriveState','carControl')
++  sm.seen=dict.fromkeys(services,True);sm.valid=dict.fromkeys(services,True);sm.alive=dict.fromkeys(services,True)
++  runtime=SignalAssistRuntime(signal_mode.DIRECTORY/'stop_prepare_enabled',tmp_path/'obs')
++  target=NS(output_a_target=.4,output_v_target_now=20.,output_j_target_now=1.,output_should_stop=False,
++            mpc=NS(mode='acc'),dt=.05,a_desired=.4,coasting_target=70.)
++  # Use live production context admission, planner state machine and final cap.
++  for i in range(60):
++    t=10.+i*.05;sm.recv_time=dict.fromkeys(services,t)
++    runtime.observation_path.write_text(json.dumps(observation(t)))
++    obs,ctx=runtime.read(sm,t);ctx.update(turning=False,geometry=lambda b:(30.,70.),actuate=mode==2)
++    planner.update(sm,80.,'acc',prepare_observation=obs,prepare_context=ctx)
++    target.output_a_target=.4;signal_cap(target,sm,planner,False,now=t)
++  assert planner.prepare_decision.active==(mode>0)
++  assert -.5 <= target.output_a_target <= .4
++  assert (target.output_a_target < 0)==(mode==2)
++  t=13.05;obs=observation(t);reset=False
++  if fault in ('cancel','off'): sm['selfdriveState'].enabled=False;cc.enabled=cc.longActive=False;reset=True
++  elif fault=='soft_hold': sm['carState'].softHoldActive=2;reset=True
++  elif fault in ('gas','brake'): setattr(sm['carState'],fault+'Pressed',True)
++  elif fault.startswith('lead_'): getattr(sm['radarState'],'leadOne' if fault=='lead_one' else 'leadTwo').status=True
++  elif fault=='turn': sm['carState'].leftBlinker=True
++  elif fault=='model_stop': target.output_should_stop=True
++  elif fault=='stale': obs=observation(10.)
++  elif fault=='invalid': sm.valid['carState']=False
++  elif fault=='session': obs['session']='new'
++  elif fault=='clock': t=12.9
++  elif fault=='speed_low': sm['carState'].vEgo=5/3.6
++  elif fault=='speed_high': sm['carState'].vEgo=82/3.6
++  sm.recv_time=dict.fromkeys(services,t);runtime.observation_path.write_text(json.dumps(obs))
++  obs,ctx=runtime.read(sm,t);ctx.update(turning=False,geometry=lambda b:(30.,70.),actuate=mode==2)
++  planner.update(sm,80.,'acc',prepare_observation=obs,prepare_context=ctx)
++  target.output_a_target=.4;signal_cap(target,sm,planner,reset,now=t)
++  active=mode==2 and fault=='none'
++  assert (target.output_a_target<0)==active
++  if not active: assert target.output_a_target==.4
++  cc.actuators.accel=target.output_a_target
++  # Preserve production cancel producer and real parser -> VCruise -> CI.apply
++  # -> controller -> DBC path. Driver/CANCEL disables normal ACC, no signal RES.
++  message=None
++  for _ in range(2):
++    message=driver.tick(0,buttons=(4,) if fault=='cancel' else (0,),
++                        acc_req=0 if fault in ('cancel','off') else 1,wheel_speed=54.) or message
++  values=decode(message)
++  if fault in ('cancel','off'):
++    assert values['ACCMode']==0 and values['aReqRaw']==values['aReqValue']==0
++  else:
++    assert values['ACCMode']==1
++    assert values['aReqRaw']==pytest.approx(target.output_a_target,abs=.006)
++  assert values['StopReq']==0
++  assert helper._activate_cruise<=0
++
++@pytest.mark.parametrize('mode',[0,1,2,3])
++def test_bosch_passive_init_never_writes_radar_ecu(monkeypatch,mode):
++  from opendbc.car.hyundai import interface
++  from opendbc.car.hyundai.values import HyundaiExtFlags
++  calls=[]
++  monkeypatch.setattr(interface,'Params',lambda:NS(get_int=lambda key:mode,put_int=lambda *args:None,
++                                                put_bool=lambda *args:calls.append(('result',args))))
++  monkeypatch.setattr(interface,'disable_ecu',lambda *args,**kwargs:calls.append(('disable',kwargs)))
++  monkeypatch.setattr(interface,'enable_radar_tracks',lambda *args:calls.append(('write',args)))
++  cp=structs.CarParams(flags=0,extFlags=int(HyundaiExtFlags.BOSCH_RADAR),openpilotLongitudinalControl=True)
++  interface.CarInterface.init(cp,None,None)
++  assert [kind for kind,_ in calls]==(['disable'] if mode==0 else [])
++
++
++@pytest.mark.parametrize('first,second',[(2,1),(2,0),(1,2),(0,2)])
++def test_live_mode_change_discards_confirmed_prepare(monkeypatch,first,second):
++  from openpilot.selfdrive.carrot.signal_stop_prepare_runtime import SignalPrepareRuntime
++  from openpilot.selfdrive.carrot.tests.test_signal_stop_prepare import confirmed
++  state=[first];monkeypatch.setattr(signal_mode,'signal_mode',lambda:state[0])
++  runtime=SignalPrepareRuntime();runtime.enabled=False
++  monkeypatch.setattr(SignalAssistRuntime,'read',lambda *args:(observation(20.),dict(now=20.,enabled=True,valid=True,drive=True)))
++  runtime.read({});runtime.prepare=confirmed()
++  assert runtime.prepare.active
++  state[0]=second
++  monkeypatch.setattr(SignalAssistRuntime,'read',lambda *args:(observation(20.),dict(now=20.1,enabled=True,valid=True,drive=True)))
++  obs,context=runtime.read({})
++  assert obs is None and not runtime.prepare.active and not runtime.prepare.histories
++  assert context['actuate']==(second==2)
++
++
++def test_reenable_needs_fresh_confirmation_not_old_packet(monkeypatch,tmp_path):
++  monkeypatch.setattr(signal_mode,'signal_mode',lambda:2)
++  cls,_=planner_class((REPO/'openpilot/selfdrive/carrot/carrot_functions.py').read_text())
++  p=cls(start_guard=SignalStartGuard(),stop_prepare=SignalStopPrepare())
++  sm=inputs(speed=15.,distance=160.);sm['radarState'].leadTwo=NS(status=False)
++  def tick(now,packet,enabled):
++    p.update(sm,80.,'acc',prepare_observation=packet,prepare_context=dict(now=now,enabled=enabled,
++      valid=True,drive=True,turning=False,geometry=lambda b:(30.,70.),actuate=True))
++    return p.prepare_control_active
++  for i in range(16): active=tick(20.+i*.05,observation(20.+i*.05),True)
++  assert active
++  assert not tick(20.8,observation(20.75),False)
++  assert not tick(20.85,observation(20.75),True)
++  for i in range(12): assert not tick(20.9+i*.05,observation(20.9+i*.05),True)
++  assert tick(21.5,observation(21.5),True)
++
++
++def test_prepare_state_does_not_expand_vcruise_auto_on_policy():
++  source=(REPO/'openpilot/selfdrive/car/cruise.py').read_text()
++  # Preserve the exact current policy boundary; prepare=6 is observation/cap,
++  # not a request for automatic cruise engagement.
++  tree=ast.parse(source)
++  comparisons=[n for n in ast.walk(tree) if isinstance(n,ast.Compare)
++               and any(isinstance(op,ast.In) for op in n.ops)
++               and any(isinstance(c,ast.List) and all(isinstance(v,ast.Constant) for v in c.elts)
++                       and [v.value for v in c.elts]==[3,5] for c in n.comparators)]
++  assert comparisons
 diff --git a/opendbc_repo/opendbc/car/hyundai/tests/test_steering_touch.py b/opendbc_repo/opendbc/car/hyundai/tests/test_steering_touch.py
 --- a/opendbc_repo/opendbc/car/hyundai/tests/test_steering_touch.py
 +++ /dev/null
@@ -2183,7 +2541,7 @@ diff --git a/opendbc_repo/opendbc/car/hyundai/tests/test_stopping.py b/opendbc_r
  
  import pytest
  
-@@ -29,71 +33,185 @@
+@@ -29,72 +33,185 @@
  
  
  def step(controller, **overrides):
@@ -2350,6 +2708,7 @@ diff --git a/opendbc_repo/opendbc/car/hyundai/tests/test_stopping.py b/opendbc_r
 -    assert cmd.stop_req == 0
 -    assert cmd.raw == -2.
 -    assert cmd.value == pytest.approx(previous - DT)
+-    assert cmd.lower == STOP_LOWER_BAND
 -    previous = cmd.value
 -  cmd = step(controller, speed=ENTRY_SPEED, accel=-2., previous_value=previous)
 -  assert (cmd.stop_req, cmd.raw, cmd.value) == (1, 0., 0.)
@@ -2424,7 +2783,7 @@ diff --git a/opendbc_repo/opendbc/car/hyundai/tests/test_stopping.py b/opendbc_r
    assert step(controller).stop_req == 1
  
  
-@@ -109,15 +227,15 @@
+@@ -110,15 +227,15 @@
  
  
  def send(camera, controller, CS, *, enabled=True, override=False, stopping=True, accel=-0.5,
@@ -2443,7 +2802,7 @@ diff --git a/opendbc_repo/opendbc/car/hyundai/tests/test_stopping.py b/opendbc_r
                                           controller, accel_value_last=previous_value)
    if msg is None:
      return None
-@@ -132,28 +250,51 @@
+@@ -133,62 +250,51 @@
      assert values["InfoDisplay"] == 0
    assert packed >> 74 & 7 == values["InfoDisplay"]
    assert packed >> 184 & 3 == values["StopReq"]
@@ -2453,6 +2812,40 @@ diff --git a/opendbc_repo/opendbc/car/hyundai/tests/test_stopping.py b/opendbc_r
  
  
  @pytest.mark.parametrize("camera", [True, False])
+-@pytest.mark.parametrize("stock_band", [0., .06, 1.26])
+-@pytest.mark.parametrize("approach", [False, True])
+-def test_lower_band_precedes_stop_and_survives_hold_and_departure(camera, stock_band, approach):
+-  cs = make_cs()
+-  cs.scc_control["AccelLimitBandLower"] = stock_band
+-  controller = CanfdStopping()
+-  # Include positive acceleration and ordinary deceleration before shouldStop,
+-  # plus direct low-speed entry where there is no requested approach phase.
+-  stages = [(False, 10., .4, 0), (False, 2., -.5, 0)]
+-  if approach:
+-    stages.append((True, 1., -.8, 0))
+-  stages += [(True, .3, -.5, 1), (True, 0., -.5, 1),
+-             (True, .3, -.5, 1), (False, .3, .4, 0)]
+-  for stopping, speed, accel, stop_req in stages:
+-    cs.out.vEgo = cs.out.vEgoRaw = speed
+-    cs.out.wheelSpeeds = SimpleNamespace(fl=speed, fr=speed, rl=speed, rr=speed)
+-    cs.canfdSccHoldActive = speed == 0.
+-    for _ in range(15):
+-      values = send(camera, controller, cs, stopping=stopping, accel=accel)
+-      assert values["ACCMode"] == 1
+-      assert values["AccelLimitBandLower"] == STOP_LOWER_BAND
+-      assert values["AccelLimitBandUpper"] == 0.
+-      assert values["StopReq"] == stop_req
+-      if stop_req:
+-        assert values["aReqRaw"] == values["aReqValue"] == 0.
+-  disabled = send(camera, controller, cs, enabled=False, stopping=False)
+-  assert disabled["AccelLimitBandLower"] == disabled["StopReq"] == 0.
+-  # Reengagement must not wait for a new stopping episode to restore the band.
+-  resumed = send(camera, controller, cs, stopping=False)
+-  assert resumed["AccelLimitBandLower"] == STOP_LOWER_BAND
+-  assert resumed["StopReq"] == 0
+-
+-
+-@pytest.mark.parametrize("camera", [True, False])
 -@pytest.mark.parametrize("initial", [-1., -.3, .3])
 +@pytest.mark.parametrize("initial", [-1., -.3])
  @pytest.mark.parametrize("target", [-.5, -.8, -1.])
@@ -2509,7 +2902,7 @@ diff --git a/opendbc_repo/opendbc/car/hyundai/tests/test_stopping.py b/opendbc_r
  
  
  @pytest.mark.parametrize("camera", [True, False])
-@@ -173,19 +314,19 @@
+@@ -208,19 +314,19 @@
  
  
  @pytest.mark.parametrize("camera", [True, False])
@@ -2532,7 +2925,7 @@ diff --git a/opendbc_repo/opendbc/car/hyundai/tests/test_stopping.py b/opendbc_r
  
  
  @pytest.mark.parametrize("camera", [True, False])
-@@ -194,15 +335,30 @@
+@@ -229,15 +335,30 @@
    values = send(camera, controller, make_cs())
    assert values["ACCMode"] == 1
    assert values["StopReq"] == 1
@@ -2566,10 +2959,11 @@ diff --git a/opendbc_repo/opendbc/car/hyundai/tests/test_stopping.py b/opendbc_r
    cs = make_cs()
    cs.out.aEgo = a_ego
    controller = CanfdStopping()
-@@ -213,14 +369,33 @@
+@@ -248,15 +369,33 @@
  
  
  @pytest.mark.parametrize("camera", [True, False])
+-@pytest.mark.parametrize("stopping", [False, True])
 +def test_packed_recovery_and_reentry(camera):
 +  controller = CanfdStopping()
 +  cs = make_cs()
@@ -2591,8 +2985,9 @@ diff --git a/opendbc_repo/opendbc/car/hyundai/tests/test_stopping.py b/opendbc_r
 +@pytest.mark.parametrize("camera", [True, False])
  @pytest.mark.parametrize("block", ["brakePressed", "gasPressed", "brakeHoldActive", "parkingBrake", "canValid", "gearShifter",
 -                                   "unavailable", "disabled", "override", "nan_speed"])
+-def test_interlocks_and_motion_sources(camera, stopping, block):
 +                                   "unavailable", "disabled", "override", "nan_speed", "wheel_motion"])
- def test_interlocks_and_motion_sources(camera, block):
++def test_interlocks_and_motion_sources(camera, block):
    controller = CanfdStopping()
    cs = make_cs()
    for _ in range(40):
@@ -2602,17 +2997,19 @@ diff --git a/opendbc_repo/opendbc/car/hyundai/tests/test_stopping.py b/opendbc_r
    if block in ("brakePressed", "gasPressed", "brakeHoldActive", "parkingBrake"):
      setattr(cs.out, block, True)
    elif block == "canValid":
-@@ -231,41 +406,17 @@
+@@ -267,43 +406,17 @@
      cs.out.cruiseState.available = False
    elif block == "nan_speed":
      cs.out.vEgo = float("nan")
+-  values = send(camera, controller, cs, enabled=block != "disabled", override=block == "override", stopping=stopping)
 +  elif block == "wheel_motion":
 +    cs.out.vEgo = cs.out.vEgoRaw = 0.0
 +    cs.canfdSccHoldActive = True
-   values = send(camera, controller, cs, enabled=block != "disabled", override=block == "override")
++  values = send(camera, controller, cs, enabled=block != "disabled", override=block == "override")
    assert values["StopReq"] == 0
 -  assert values["aReqRaw"] == pytest.approx(0)
 -  assert values["aReqValue"] == pytest.approx(0)
+-  assert values["AccelLimitBandLower"] == 0.
 -  assert controller.phase == StopPhase.idle
 -
 -
@@ -2643,6 +3040,7 @@ diff --git a/opendbc_repo/opendbc/car/hyundai/tests/test_stopping.py b/opendbc_r
 -  assert actual['aReqRaw'] == expected['aReqRaw'] == .5
 -  assert actual['aReqValue'] == expected['aReqValue']
 -  assert actual['aReqValue'] == pytest.approx(.04 if camera else .1)
+-  assert actual['AccelLimitBandLower'] == STOP_LOWER_BAND
 -  assert controller.phase == StopPhase.idle
 +  if block == "wheel_motion":
 +    assert controller.phase == StopPhase.release
@@ -2653,7 +3051,7 @@ diff --git a/opendbc_repo/opendbc/car/hyundai/tests/test_stopping.py b/opendbc_r
  
  
  def test_missing_stock_message_resets_camera_experiment():
-@@ -279,8 +430,46 @@
+@@ -317,8 +430,46 @@
  
  
  @pytest.mark.parametrize("camera", [True, False])
@@ -2701,7 +3099,7 @@ diff --git a/opendbc_repo/opendbc/car/hyundai/tests/test_stopping.py b/opendbc_r
    cs = make_cs()
    cs.softHoldActive = 1 if brake_pressed else 2
    cs.out.brakePressed = brake_pressed
-@@ -289,27 +478,31 @@
+@@ -327,27 +478,31 @@
    controller = CanfdStopping()
    previous = previous_target = 0.
    for _ in range(110):
@@ -2740,7 +3138,7 @@ diff --git a/opendbc_repo/opendbc/car/hyundai/tests/test_stopping.py b/opendbc_r
    if block == 'canValid':
      cs.out.canValid = False
    elif block == 'gearShifter':
-@@ -332,100 +525,164 @@
+@@ -370,100 +525,164 @@
  
  
  @pytest.mark.parametrize('camera', [True, False])
@@ -3028,7 +3426,7 @@ diff --git a/openpilot/cereal/log.capnp b/openpilot/cereal/log.capnp
 diff --git a/openpilot/common/params_keys.h b/openpilot/common/params_keys.h
 --- a/openpilot/common/params_keys.h
 +++ b/openpilot/common/params_keys.h
-@@ -378,11 +378,7 @@
+@@ -379,11 +379,7 @@
      {"MaxTimeOffroadMin", {PERSISTENT, INT, "60"}},
      {"TeslaWakeOnCAN", {PERSISTENT, BOOL, "1"}},
  
@@ -4940,6 +5338,107 @@ diff --git a/openpilot/selfdrive/carrot/server/tests/test_settings_schema.py b/o
  
  
  def test_vehicle_navi_can_control_exposes_route_filter_modes(settings, params):
+diff --git a/openpilot/selfdrive/carrot/tests/test_radarcan_process.py b/openpilot/selfdrive/carrot/tests/test_radarcan_process.py
+--- a/openpilot/selfdrive/carrot/tests/test_radarcan_process.py
++++ b/openpilot/selfdrive/carrot/tests/test_radarcan_process.py
+@@ -6,7 +6,19 @@
+ 
+ import pytest
+ 
+-from openpilot.selfdrive.carrot.radar.radarcan import _set_bosch_context
++# Context forwarding is pure logic; IPC lifecycle tests below still require
++# the actual built Linux runtime. Never import native transport at collection.
++import ast
++import hashlib
++from pathlib import Path
++
++_context_source = Path(__file__).resolve().parents[1] / 'radar/radarcan.py'
++_context_node = next(n for n in ast.parse(_context_source.read_text(encoding='utf-8')).body
++                     if isinstance(n, ast.FunctionDef) and n.name == '_set_bosch_context')
++assert hashlib.sha256(ast.dump(_context_node, include_attributes=False).encode()).hexdigest() == '5c88103f26586c6810608a554b8bf11700b101660500d0a249328c58b024abb1'
++_context_namespace = {}
++exec(compile(ast.Module(body=[_context_node], type_ignores=[]), str(_context_source), 'exec'), _context_namespace)
++_set_bosch_context = _context_namespace['_set_bosch_context']
+ 
+ 
+ def test_bosch_context_preserves_validity_and_timestamps():
+diff --git a/openpilot/selfdrive/carrot/tests/test_radard_dpath.py b/openpilot/selfdrive/carrot/tests/test_radard_dpath.py
+--- a/openpilot/selfdrive/carrot/tests/test_radard_dpath.py
++++ b/openpilot/selfdrive/carrot/tests/test_radard_dpath.py
+@@ -72,9 +72,71 @@
+ 
+ # --- Bosch RadarTracks liveTracks polling (candidate A') -------------------------
+ 
+-from openpilot.selfdrive.carrot.radar import radard_dpath
+-from openpilot.selfdrive.carrot.radar.radard_dpath import bosch_radar_tracks_active
++# These tests exercise the production subscription loop with fake transports.
++# Load only its real function ASTs: importing radard also requires native msgq,
++# which is outside this standalone polling test's contract.
++import ast
++import hashlib
++import time
++from pathlib import Path
+ from opendbc.car.hyundai.values import HyundaiExtFlags
++
++_POLL_SOURCE_HASHES = {'effective_radar_track_mode': '635173613ede02a26b8b1984ddce49feaa6dab5b2e73908cf03ccabb7ff08e6a', 'bosch_radar_tracks_active': '001a8982b8f9d738ee0d16080c88023f000dccb95bf8ad3bb570aaf9d715401e', 'main': 'a07ded065308e8de7a3e919fab645feb9f4d50f4bea3dde9110b3f05ca73e9da'}
++
++
++def _unexpected_runtime(*args, **kwargs):
++  raise AssertionError('Unexpected runtime operation in standalone polling test')
++
++
++class _PollDiagnostics:
++  def __init__(self, name, event):
++    assert name == 'radard'
++  def record(self, **fields):
++    assert set(fields) == {'context', 'work_ms', 'thread_cpu_ms', 'model_age_ms', 'tracks_age_ms'}
++    assert fields['context'] == {'motion_backend': 'standalone-poll-test'}
++
++
++def _production_poll_namespace():
++  root = Path(__file__).resolve().parents[3]
++  nodes = []
++  for relative, names in (
++    ('selfdrive/carrot/radar/__init__.py', {'effective_radar_track_mode'}),
++    ('selfdrive/carrot/radar/radard_dpath.py', {'bosch_radar_tracks_active', 'main'}),
++  ):
++    path = root / relative
++    selected = [n for n in ast.parse(path.read_text(encoding='utf-8')).body
++                if isinstance(n, ast.FunctionDef) and n.name in names]
++    assert {n.name for n in selected} == names
++    for node in selected:
++      digest = hashlib.sha256(ast.dump(node, include_attributes=False).encode()).hexdigest()
++      assert digest == _POLL_SOURCE_HASHES[node.name], f'Production polling contract changed: {node.name}'
++    nodes.extend(selected)
++  ns = dict(car=SimpleNamespace(CarParams=object), HyundaiExtFlags=HyundaiExtFlags,
++            time=time, Params=_unexpected_runtime,
++            Priority=SimpleNamespace(CTRL_LOW=0), config_realtime_process=_unexpected_runtime,
++            messaging=SimpleNamespace(SubMaster=_unexpected_runtime, PubMaster=_unexpected_runtime,
++                                      log_from_bytes=_unexpected_runtime),
++            DPathRadarD=_unexpected_runtime, RuntimeDiagnostics=_PollDiagnostics,
++            MOTION_BACKEND='standalone-poll-test',
++            cloudlog=SimpleNamespace(info=lambda text: None, event=_unexpected_runtime))
++  exec(compile(ast.Module(body=nodes, type_ignores=[]), str(root / 'selfdrive/carrot/radar/radard_dpath.py'), 'exec'), ns)
++  return ns
++
++
++class _PollModule:
++  def __init__(self):
++    object.__setattr__(self, '_namespace', _production_poll_namespace())
++  def __getattr__(self, name):
++    try:
++      return self._namespace[name]
++    except KeyError:
++      raise AttributeError(name) from None
++  def __setattr__(self, name, value):
++    self._namespace[name] = value
++
++
++radard_dpath = _PollModule()
++bosch_radar_tracks_active = radard_dpath.bosch_radar_tracks_active
+ 
+ BOSCH = int(HyundaiExtFlags.BOSCH_RADAR)
+ 
 diff --git a/openpilot/selfdrive/carrot/web/generated/asset-manifest.json b/openpilot/selfdrive/carrot/web/generated/asset-manifest.json
 --- a/openpilot/selfdrive/carrot/web/generated/asset-manifest.json
 +++ b/openpilot/selfdrive/carrot/web/generated/asset-manifest.json
@@ -5629,7 +6128,7 @@ diff --git a/openpilot/selfdrive/carrot/web/tests/vision_hud_availability.test.m
 diff --git a/openpilot/selfdrive/carrot_settings.json b/openpilot/selfdrive/carrot_settings.json
 --- a/openpilot/selfdrive/carrot_settings.json
 +++ b/openpilot/selfdrive/carrot_settings.json
-@@ -426,9 +426,7 @@
+@@ -427,9 +427,7 @@
            "en": "Driver Monitor",
            "zh": "驾驶员监控",
            "params": [
@@ -5640,7 +6139,7 @@ diff --git a/openpilot/selfdrive/carrot_settings.json b/openpilot/selfdrive/carr
              "MuteDoor",
              "MuteSeatbelt"
            ]
-@@ -1354,14 +1352,14 @@
+@@ -1355,14 +1353,14 @@
        "group": "주행튜닝",
        "name": "VEgoStopping",
        "title": "정지출발민감도(50)x0.01",
@@ -5659,7 +6158,7 @@ diff --git a/openpilot/selfdrive/carrot_settings.json b/openpilot/selfdrive/carr
        "max": 100,
        "default": 50,
        "unit": 5
-@@ -1682,16 +1680,16 @@
+@@ -1683,16 +1681,16 @@
      {
        "group": "버튼설정",
        "name": "PaddleMode",
@@ -5684,7 +6183,7 @@ diff --git a/openpilot/selfdrive/carrot_settings.json b/openpilot/selfdrive/carr
        "default": 1,
        "unit": 1
      },
-@@ -1910,85 +1908,19 @@
+@@ -1911,85 +1909,19 @@
      },
      {
        "group": "시작",
@@ -5781,7 +6280,7 @@ diff --git a/openpilot/selfdrive/carrot_settings.json b/openpilot/selfdrive/carr
      },
      {
        "group": "시작",
-@@ -2734,9 +2666,18 @@
+@@ -2735,9 +2667,18 @@
        "unit": 1,
        "control": "select",
        "options": {
@@ -5803,7 +6302,7 @@ diff --git a/openpilot/selfdrive/carrot_settings.json b/openpilot/selfdrive/carr
        },
        "risk": "high"
      },
-@@ -2853,9 +2794,21 @@
+@@ -2854,9 +2795,21 @@
        "unit": 1,
        "control": "select",
        "options": {
@@ -5828,6 +6327,23 @@ diff --git a/openpilot/selfdrive/carrot_settings.json b/openpilot/selfdrive/carr
        }
      },
      {
+@@ -3340,13 +3293,13 @@
+       "group": "감속제어",
+       "name": "SignalAssistMode",
+       "title": "신호보조 모드 (시험)",
+-      "descr": "0:신호보조 끔. 1:판정·표시·알림과 정차 중 적색 출발 제한. 2:1의 기능에 감속 준비 추가. 앞차 없이 유효한 적색을 확인하면 약 -0.5m/s²까지 점진적으로 감속을 요청합니다. 변경은 약 1초 내 반영되며 관측기 재시작은 더 걸릴 수 있습니다. 기본 모델의 신호감지와 별개입니다. 오감지·미감지가 가능한 시험 기능입니다.",
++      "descr": "0:신호보조 끔. 1:판정·표시·알림과 정차 중 적색 출발 제한. 감속 준비 판정·알림은 하지만 실제 감속 요청은 하지 않습니다. 2:1의 기능에 실제 감속 준비 요청 추가. 앞차 없이 유효한 적색을 확인하면 약 -0.5m/s²까지 점진적으로 감속을 요청합니다. 변경은 약 1초 내 반영되며 관측기 재시작은 더 걸릴 수 있습니다. 기본 모델의 신호감지와 별개입니다. 오감지·미감지가 가능한 시험 기능입니다.",
+       "egroup": "SPEED",
+       "etitle": "Signal Assistance Mode (Trial)",
+-      "edescr": "0: Assistance off. 1: Recognition, display, alerts and stopped-red departure veto. 2: Mode 1 plus red stop preparation, gradually requesting about -0.5m/s² with valid red evidence and no lead. Changes apply in about one second; observer restart may take longer. Separate from driving-model signal detection. Experimental: false and missed detections remain possible.",
++      "edescr": "0: Assistance off. 1: Recognition, display, alerts, stopped-red departure veto and preparation evaluation without deceleration requests. 2: Mode 1 plus actual red stop preparation, gradually requesting about -0.5m/s² with valid red evidence and no lead. Changes apply in about one second; observer restart may take longer. Separate from driving-model signal detection. Experimental: false and missed detections remain possible.",
+       "cgroup": "速度控制",
+       "ctitle": "信号辅助模式（试验）",
+-      "cdescr": "0:关闭辅助。1:识别、显示、提醒及停车时红灯起步限制。2:在1的基础上增加减速准备；无前车且确认有效红灯时逐渐请求约-0.5m/s²减速。修改约1秒内生效，观察进程重启可能更久。与主模型检测独立，试验功能仍可能误检或漏检。",
++      "cdescr": "0:关闭辅助。1:识别、显示、提醒及停车时红灯起步限制；评估减速准备但不请求实际减速。2:在1的基础上增加实际减速准备请求；无前车且确认有效红灯时逐渐请求约-0.5m/s²减速。修改约1秒内生效，观察进程重启可能更久。与主模型检测独立，试验功能仍可能误检或漏检。",
+       "min": 0,
+       "max": 2,
+       "default": 0,
 diff --git a/openpilot/selfdrive/controls/controlsd.py b/openpilot/selfdrive/controls/controlsd.py
 --- a/openpilot/selfdrive/controls/controlsd.py
 +++ b/openpilot/selfdrive/controls/controlsd.py
@@ -5941,7 +6457,7 @@ diff --git a/openpilot/selfdrive/modeld/dmonitoringmodeld.py b/openpilot/selfdri
 diff --git a/openpilot/selfdrive/modeld/signal_neural_shadow.py b/openpilot/selfdrive/modeld/signal_neural_shadow.py
 --- a/openpilot/selfdrive/modeld/signal_neural_shadow.py
 +++ b/openpilot/selfdrive/modeld/signal_neural_shadow.py
-@@ -40,8 +40,9 @@
+@@ -44,8 +44,9 @@
    # The DM model also runs on the internal GPU with an external driving model.
    # Parked A/B/A showed ~20 -> 10 Hz DM even at QCOM priority 15. Camera failure
    # must never grant GPU access: that would keep the overloaded DM in fallback.
@@ -5956,7 +6472,7 @@ diff --git a/openpilot/selfdrive/modeld/signal_neural_shadow.py b/openpilot/self
 diff --git a/openpilot/selfdrive/modeld/tests/test_signal_neural_shadow.py b/openpilot/selfdrive/modeld/tests/test_signal_neural_shadow.py
 --- a/openpilot/selfdrive/modeld/tests/test_signal_neural_shadow.py
 +++ b/openpilot/selfdrive/modeld/tests/test_signal_neural_shadow.py
-@@ -106,9 +106,9 @@
+@@ -106,9 +106,10 @@
      def close(self): self.closed = True
    def value(key):
      if key == 'UsbGpuActive': return True if change_dm else modes[position[0]]
@@ -5964,11 +6480,12 @@ diff --git a/openpilot/selfdrive/modeld/tests/test_signal_neural_shadow.py b/ope
      return False
 -  monkeypatch.setattr(params, 'Params', lambda: SimpleNamespace(get_bool=value))
 +  monkeypatch.setattr(params, 'Params', lambda: SimpleNamespace(
-+    get_bool=value, get_int=lambda key: int(modes[position[0]]) if change_dm else 1))
++    get_bool=value, get_int=lambda key: {'SignalAssistMode': 1,
++      'DisableDM': int(modes[position[0]]) if change_dm else 1}[key]))
    monkeypatch.setattr(worker, 'requested', lambda _: position[0] < len(modes))
    monkeypatch.setattr(worker, 'neural_requested', lambda _: True)
    monkeypatch.setattr(worker, 'backend_requested', lambda _: selection)
-@@ -131,12 +131,12 @@
+@@ -131,12 +132,106 @@
  
  
  @pytest.mark.parametrize('external', [False, True])
@@ -5980,10 +6497,104 @@ diff --git a/openpilot/selfdrive/modeld/tests/test_signal_neural_shadow.py b/ope
 -  assert selected == ('qcom' if external and not ((enabled and not session_off) or preview) else 'tracking_cpu')
 +@pytest.mark.parametrize('disable_dm', [0, 1, 2])
 +@pytest.mark.parametrize('preview', [False, True])
-+def test_gpu_selection_reserves_legacy_dm(external, disable_dm, preview):
-+  values = dict(UsbGpuActive=external, IsDriverViewEnabled=preview)
-+  selected = worker.automatic_backend(SimpleNamespace(get_bool=values.__getitem__, get_int=lambda key: disable_dm))
-+  assert selected == ('qcom' if external and disable_dm != 0 else 'tracking_cpu')
++@pytest.mark.parametrize('signal_mode', [0, 1, 2])
++def test_gpu_selection_reserves_legacy_dm(external, disable_dm, preview, signal_mode):
++  values = dict(UsbGpuActive=external, IsDriverViewEnabled=preview,
++                DisableDM=disable_dm, SignalAssistMode=signal_mode)
++  selected = worker.automatic_backend(SimpleNamespace(get_bool=values.__getitem__, get_int=values.__getitem__))
++  assert selected == ('qcom' if signal_mode != 2 and external and disable_dm != 0 else 'tracking_cpu')
++
++
++@pytest.mark.parametrize('modes,backends', [
++  ([1, 1, 2, 2, 1, 0], ['qcom', 'tracking_cpu', 'qcom']),
++  ([1, 2, 0], ['qcom', 'tracking_cpu']),
++])
++def test_mode_change_releases_previous_backend_before_starting_next(monkeypatch, tmp_path, modes, backends):
++  import multiprocessing
++  from openpilot.common import params
++  position = [0]
++  children = []
++  actions = []
++  class Child:
++    pid = 123
++    exitcode = None
++    def __init__(self, *, target, args, daemon):
++      self.args, self.alive = args, False
++      assert target == worker.run_selected and daemon
++      children.append(self)
++    def start(self):
++      assert all(not child.alive for child in children if child is not self)
++      self.alive = True
++      actions.append(('start', self.args[1]))
++    def is_alive(self): return self.alive
++    def terminate(self):
++      self.alive = False
++      actions.append(('stop', self.args[1]))
++    def join(self, timeout): pass
++    def close(self): actions.append(('close', self.args[1]))
++  def integers(key):
++    return {'DisableDM': 1, 'SignalAssistMode': modes[position[0]]}[key]
++  monkeypatch.setattr(params, 'Params', lambda: SimpleNamespace(get_bool=lambda key: key == 'UsbGpuActive', get_int=integers))
++  monkeypatch.setattr(worker, 'DIRECTORY', tmp_path)
++  monkeypatch.setattr(worker, 'requested', lambda _: modes[position[0]] != 0)
++  monkeypatch.setattr(worker, 'neural_requested', lambda _: True)
++  monkeypatch.setattr(worker, 'backend_requested', lambda _: 'auto')
++  monkeypatch.setattr(worker.time, 'sleep', lambda _: position.__setitem__(0, position[0]+1))
++  monkeypatch.setattr(multiprocessing, 'get_context', lambda _: SimpleNamespace(Process=Child))
++  monkeypatch.setitem(sys.modules, 'openpilot.common.swaglog', SimpleNamespace(cloudlog=SimpleNamespace(event=lambda *a, **k: None)))
++  worker.run_auto(tmp_path)
++  assert actions == [(action, backend) for backend in backends for action in ('start', 'stop', 'close')]
++
++
++def test_production_off_uses_real_bounded_enable_cache_and_closes_child(monkeypatch, tmp_path):
++  import multiprocessing
++  from openpilot.common import params
++  from openpilot.selfdrive.carrot import signal_mode
++  ticks = [0]
++  children, actions = [], []
++  def current_mode():
++    if ticks[0] < 2: return 1
++    if ticks[0] < 6: return 2
++    if ticks[0] < 8: return 1
++    return 0
++  param = SimpleNamespace(get_bool=lambda key: key == 'UsbGpuActive',
++                          get_int=lambda key: {'DisableDM': 1, 'SignalAssistMode': current_mode()}[key])
++  class Child:
++    pid = 123
++    exitcode = None
++    def __init__(self, *, target, args, daemon):
++      self.backend, self.alive = args[1], False
++      children.append(self)
++    def start(self):
++      assert all(not c.alive for c in children if c is not self)
++      self.alive = True
++      actions.append(('start', self.backend, ticks[0] / 10))
++    def is_alive(self): return self.alive
++    def terminate(self):
++      self.alive = False
++      actions.append(('stop', self.backend, ticks[0] / 10))
++    def join(self, timeout): pass
++    def close(self): actions.append(('close', self.backend, ticks[0] / 10))
++  monkeypatch.setattr(params, 'Params', lambda: param)
++  monkeypatch.setattr(worker, 'DIRECTORY', tmp_path)
++  monkeypatch.setattr(signal_mode, 'DIRECTORY', tmp_path)
++  monkeypatch.setattr(signal_mode, '_params', param)
++  monkeypatch.setattr(signal_mode, '_mode', 0)
++  monkeypatch.setattr(signal_mode, '_next_read', 0.)
++  monkeypatch.setattr(worker, 'neural_requested', lambda _: True)
++  monkeypatch.setattr(worker, 'backend_requested', lambda _: 'auto')
++  monkeypatch.setattr(worker.time, 'monotonic', lambda: ticks[0] / 10)
++  def advance(_):
++    ticks[0] += 1
++    assert ticks[0] <= 12, 'OFF must exit within the real enable-cache window'
++  monkeypatch.setattr(worker.time, 'sleep', advance)
++  monkeypatch.setattr(multiprocessing, 'get_context', lambda _: SimpleNamespace(Process=Child))
++  monkeypatch.setitem(sys.modules, 'openpilot.common.swaglog', SimpleNamespace(cloudlog=SimpleNamespace(event=lambda *a, **k: None)))
++  worker.run_auto(tmp_path)
++  assert [c.backend for c in children] == ['qcom', 'tracking_cpu', 'qcom']
++  assert all(not c.alive for c in children)
++  assert actions[-1] == ('close', 'qcom', 1.0)
++  assert actions[-1][2] - 0.8 <= 0.5
  
  
  def test_auto_cpu_is_comparison_only_and_gpu_requires_cache(monkeypatch, tmp_path):
@@ -10584,16 +11195,29 @@ diff --git a/openpilot/system/manager/test/test_manager.py b/openpilot/system/ma
      params.put_bool("CarrotVisionActive", True)
      params.put("ClusterHud", "2")
  
+diff --git a/tools/docs/wiki_settings/tests/test_ci_check.py b/tools/docs/wiki_settings/tests/test_ci_check.py
+--- a/tools/docs/wiki_settings/tests/test_ci_check.py
++++ b/tools/docs/wiki_settings/tests/test_ci_check.py
+@@ -47,7 +47,7 @@
+       self.assertTrue((output / "summary.md").is_file())
+       self.assertTrue((output / "pages.diff").is_file())
+       stored = json.loads((output / "summary.json").read_text(encoding="utf-8"))
+-      self.assertEqual(stored["result"]["settings"], 185)
++      self.assertEqual(stored["result"]["settings"], 183)
+       self.assertEqual(stored["validationIssues"], [])
+       self.assertIn("Settings-Catalog.md", (output / "pages.diff").read_text(encoding="utf-8"))
+ 
 diff --git a/tools/docs/wiki_settings/tests/test_generate.py b/tools/docs/wiki_settings/tests/test_generate.py
 --- a/tools/docs/wiki_settings/tests/test_generate.py
 +++ b/tools/docs/wiki_settings/tests/test_generate.py
-@@ -85,26 +85,24 @@
+@@ -85,27 +85,25 @@
        catalog_commit=COMMIT,
        generated_at=STAMP,
      )
--    self.assertEqual(len(result.generated_settings), 184)
-+    self.assertEqual(len(result.generated_settings), 182)
+-    self.assertEqual(len(result.generated_settings), 185)
++    self.assertEqual(len(result.generated_settings), 183)
      self.assertNotIn("SteerHandoverMode", result.index["settings"])
+     self.assertIn("SignalAssistMode", result.index["settings"])
      self.assertIn("CruiseCoastingPercent", result.index["settings"])
      self.assertIn("RadarTrackFlip", result.index["settings"])
 -    self.assertIn("DriverMonitoringEnabled", result.index["settings"])
@@ -10606,18 +11230,18 @@ diff --git a/tools/docs/wiki_settings/tests/test_generate.py b/tools/docs/wiki_s
 +                    "DriverMonitoringEnabled", "DriverMonitoringSessionDisabled", "DriverMonitoringMode", "CarrotVisionEnabled",
                      "CarrotYouTubeLive", "CarrotYouTubeQuality", "CarrotYouTubeTimestamp"):
        self.assertNotIn(retired, result.index["settings"])
--    self.assertEqual(result.index["review"], {"current": 0, "needs_review": 184})
-+    self.assertEqual(result.index["review"], {"current": 0, "needs_review": 182})
+-    self.assertEqual(result.index["review"], {"current": 0, "needs_review": 185})
++    self.assertEqual(result.index["review"], {"current": 0, "needs_review": 183})
      self.assertEqual(result.index["locales"], ["ko", "en", "zh"])
--    self.assertEqual(len(result.pages), (184 * 3) + 2)
-+    self.assertEqual(len(result.pages), (182 * 3) + 2)
+-    self.assertEqual(len(result.pages), (185 * 3) + 2)
++    self.assertEqual(len(result.pages), (183 * 3) + 2)
      setting_pages = {
        name: text
        for name, text in result.pages.items()
        if GENERATOR.GENERATED_PAGE_RE.fullmatch(name)
      }
--    self.assertEqual(len(setting_pages), 184 * 3)
-+    self.assertEqual(len(setting_pages), 182 * 3)
+-    self.assertEqual(len(setting_pages), 185 * 3)
++    self.assertEqual(len(setting_pages), 183 * 3)
      self.assertTrue(all(text.count("<!-- CARROT:SETTING:BEGIN ") == 1 for text in setting_pages.values()))
      for name, text in result.pages.items():
        if name.endswith(".md"):

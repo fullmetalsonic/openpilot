@@ -1,6 +1,6 @@
 --- a/openpilot/common/params_keys.h
 +++ b/openpilot/common/params_keys.h
-@@ -378,11 +378,7 @@
+@@ -379,11 +379,7 @@
      {"MaxTimeOffroadMin", {PERSISTENT, INT, "60"}},
      {"TeslaWakeOnCAN", {PERSISTENT, BOOL, "1"}},
  

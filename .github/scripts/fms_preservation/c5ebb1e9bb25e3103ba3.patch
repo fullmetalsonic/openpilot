@@ -1,0 +1,76 @@
+--- a/openpilot/selfdrive/carrot/tests/test_radard_dpath.py
++++ b/openpilot/selfdrive/carrot/tests/test_radard_dpath.py
+@@ -72,9 +72,71 @@
+ 
+ # --- Bosch RadarTracks liveTracks polling (candidate A') -------------------------
+ 
+-from openpilot.selfdrive.carrot.radar import radard_dpath
+-from openpilot.selfdrive.carrot.radar.radard_dpath import bosch_radar_tracks_active
++# These tests exercise the production subscription loop with fake transports.
++# Load only its real function ASTs: importing radard also requires native msgq,
++# which is outside this standalone polling test's contract.
++import ast
++import hashlib
++import time
++from pathlib import Path
+ from opendbc.car.hyundai.values import HyundaiExtFlags
++
++_POLL_SOURCE_HASHES = {'effective_radar_track_mode': '635173613ede02a26b8b1984ddce49feaa6dab5b2e73908cf03ccabb7ff08e6a', 'bosch_radar_tracks_active': '001a8982b8f9d738ee0d16080c88023f000dccb95bf8ad3bb570aaf9d715401e', 'main': 'a07ded065308e8de7a3e919fab645feb9f4d50f4bea3dde9110b3f05ca73e9da'}
++
++
++def _unexpected_runtime(*args, **kwargs):
++  raise AssertionError('Unexpected runtime operation in standalone polling test')
++
++
++class _PollDiagnostics:
++  def __init__(self, name, event):
++    assert name == 'radard'
++  def record(self, **fields):
++    assert set(fields) == {'context', 'work_ms', 'thread_cpu_ms', 'model_age_ms', 'tracks_age_ms'}
++    assert fields['context'] == {'motion_backend': 'standalone-poll-test'}
++
++
++def _production_poll_namespace():
++  root = Path(__file__).resolve().parents[3]
++  nodes = []
++  for relative, names in (
++    ('selfdrive/carrot/radar/__init__.py', {'effective_radar_track_mode'}),
++    ('selfdrive/carrot/radar/radard_dpath.py', {'bosch_radar_tracks_active', 'main'}),
++  ):
++    path = root / relative
++    selected = [n for n in ast.parse(path.read_text(encoding='utf-8')).body
++                if isinstance(n, ast.FunctionDef) and n.name in names]
++    assert {n.name for n in selected} == names
++    for node in selected:
++      digest = hashlib.sha256(ast.dump(node, include_attributes=False).encode()).hexdigest()
++      assert digest == _POLL_SOURCE_HASHES[node.name], f'Production polling contract changed: {node.name}'
++    nodes.extend(selected)
++  ns = dict(car=SimpleNamespace(CarParams=object), HyundaiExtFlags=HyundaiExtFlags,
++            time=time, Params=_unexpected_runtime,
++            Priority=SimpleNamespace(CTRL_LOW=0), config_realtime_process=_unexpected_runtime,
++            messaging=SimpleNamespace(SubMaster=_unexpected_runtime, PubMaster=_unexpected_runtime,
++                                      log_from_bytes=_unexpected_runtime),
++            DPathRadarD=_unexpected_runtime, RuntimeDiagnostics=_PollDiagnostics,
++            MOTION_BACKEND='standalone-poll-test',
++            cloudlog=SimpleNamespace(info=lambda text: None, event=_unexpected_runtime))
++  exec(compile(ast.Module(body=nodes, type_ignores=[]), str(root / 'selfdrive/carrot/radar/radard_dpath.py'), 'exec'), ns)
++  return ns
++
++
++class _PollModule:
++  def __init__(self):
++    object.__setattr__(self, '_namespace', _production_poll_namespace())
++  def __getattr__(self, name):
++    try:
++      return self._namespace[name]
++    except KeyError:
++      raise AttributeError(name) from None
++  def __setattr__(self, name, value):
++    self._namespace[name] = value
++
++
++radard_dpath = _PollModule()
++bosch_radar_tracks_active = radard_dpath.bosch_radar_tracks_active
+ 
+ BOSCH = int(HyundaiExtFlags.BOSCH_RADAR)
+ 

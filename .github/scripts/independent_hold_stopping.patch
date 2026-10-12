@@ -77,6 +77,15 @@ diff --git a/opendbc_repo/opendbc/car/hyundai/carcontroller.py b/opendbc_repo/op
 diff --git a/opendbc_repo/opendbc/car/hyundai/hyundaicanfd.py b/opendbc_repo/opendbc/car/hyundai/hyundaicanfd.py
 --- a/opendbc_repo/opendbc/car/hyundai/hyundaicanfd.py
 +++ b/opendbc_repo/opendbc/car/hyundai/hyundaicanfd.py
+@@ -5,7 +5,7 @@
+ from opendbc.car.carlog import carlog
+ from opendbc.car.crc import CRC16_XMODEM
+ from opendbc.car.hyundai.values import HyundaiFlags, HyundaiExtFlags
+-from opendbc.car.hyundai.stopping import MOVING_SPEED, STOP_LOWER_BAND
++from opendbc.car.hyundai.stopping import MOVING_SPEED
+ from openpilot.common.params import Params
+ from openpilot.common.filter_simple import FirstOrderFilter
+ from opendbc.car.common.conversions import Conversions as CV
 @@ -30,8 +30,8 @@
    return float(np.clip(a_raw, a_value_last - lower_step, a_value_last + upper_step))
  
@@ -88,7 +97,7 @@ diff --git a/opendbc_repo/opendbc/car/hyundai/hyundaicanfd.py b/opendbc_repo/ope
    if controller is None:
      return
  
-@@ -39,17 +39,18 @@
+@@ -39,39 +39,31 @@
    speeds = [CS.out.vEgo, CS.out.vEgoRaw, wheels.fl, wheels.fr, wheels.rl, wheels.rr]
    finite = all(math.isfinite(v) for v in (*speeds, CS.out.aEgo, accel, values["aReqValue"], previous_value, jerk_u, jerk_l))
    speed = max(abs(v) for v in speeds) if finite else 0.0
@@ -110,15 +119,23 @@ diff --git a/opendbc_repo/opendbc/car/hyundai/hyundaicanfd.py b/opendbc_repo/ope
 +    independent_hold=independent_hold,
    )
    if blocked or values["ACCMode"] != 1:
-     values.update(StopReq=0, aReqRaw=0.0, aReqValue=0.0)
-@@ -59,14 +60,10 @@
+-    values.update(StopReq=0, aReqRaw=0.0, aReqValue=0.0, AccelLimitBandLower=0.0)
++    values.update(StopReq=0, aReqRaw=0.0, aReqValue=0.0)
+     if not finite:
+       values.update(ACCMode=0, JerkUpperLimit=1.0, JerkLowerLimit=1.0)
+   elif command is not None:
      values.update(StopReq=command.stop_req, aReqRaw=command.raw, aReqValue=command.value,
                    AccelLimitBandUpper=0.0, AccelLimitBandLower=command.lower)
- 
+-  else:
+-    # Establish the fixed band during ordinary active ACC, before any stop
+-    # request. Approach/held packets retain it instead of adding a band edge
+-    # alongside StopReq. This is a timing trial, not an OEM hold guarantee.
+-    values["AccelLimitBandLower"] = STOP_LOWER_BAND
+-
 -  # Apply only to the final packet, after approach and interlocks select StopReq.
 -  # The first StopReq frame already carries zero Raw/Value; Upper may rise next.
 -  values["JerkUpperLimit"] = controller.limit_scc_jerk_upper(values["StopReq"], values["JerkUpperLimit"])
--
+ 
    if controller.phase != previous_phase:
      carlog.warning({"event": "carrot_stopping", "from": str(previous_phase), "phase": str(controller.phase),
                      "reason": controller.reason, "speed": speed, "aEgo": CS.out.aEgo,
@@ -127,7 +144,7 @@ diff --git a/opendbc_repo/opendbc/car/hyundai/hyundaicanfd.py b/opendbc_repo/ope
                      "soft_hold": soft_hold,
                      "StopReq": values["StopReq"], "aReqRaw": values["aReqRaw"], "aReqValue": values["aReqValue"]})
  
-@@ -341,7 +338,7 @@
+@@ -346,7 +338,7 @@
    })
    return packer.make_can_msg("SCC_CONTROL", CAN.ECAN, values)
  
@@ -136,7 +153,7 @@ diff --git a/opendbc_repo/opendbc/car/hyundai/hyundaicanfd.py b/opendbc_repo/ope
  
  
    if CS.lfahda_cluster is not None:
-@@ -369,26 +366,8 @@
+@@ -374,26 +366,8 @@
        and mdps is not None and mdps.get("LKA_FAULT") == 0 and mdps.get("LFA2_FAULT") == 0
        and scc is not None and scc.get("SysFailState") == 0):
      values["HDA_InfoPUDis"] = 0
@@ -163,7 +180,7 @@ diff --git a/opendbc_repo/opendbc/car/hyundai/hyundaicanfd.py b/opendbc_repo/ope
  
  
  def create_lfa_icon_non_camera_scc(packer, CS, CAN, CC):
-@@ -419,7 +398,6 @@
+@@ -424,7 +398,6 @@
      if values["ALERTS_5"] in [1, 2, 3, 4, 5]:
        values["ALERTS_5"] = 0
  
@@ -171,7 +188,7 @@ diff --git a/opendbc_repo/opendbc/car/hyundai/hyundaicanfd.py b/opendbc_repo/ope
      ret.append(packer.make_can_msg("ADRV_0x161", CAN.ECAN, values, rx_counter=rx_counter))
    return ret
  
-@@ -486,15 +464,24 @@
+@@ -491,15 +464,24 @@
  
  
  def create_acc_control_scc2(packer, CAN, enabled, accel_value_last, accel, stopping, gas_override, set_speed, hud_control, hyundai_jerk, CS,
@@ -199,7 +216,7 @@ diff --git a/opendbc_repo/opendbc/car/hyundai/hyundaicanfd.py b/opendbc_repo/ope
    enabled = acc_control_enabled
  
    acc_mode = 0 if not enabled else (2 if gas_override else 1)
-@@ -558,7 +545,8 @@
+@@ -563,7 +545,8 @@
    values["AccelLimitBandLower"] = 0.0
  
    values["ZEROS_7"] = 0 if stop_controller is not None else 1
@@ -209,7 +226,7 @@ diff --git a/opendbc_repo/opendbc/car/hyundai/hyundaicanfd.py b/opendbc_repo/ope
  
    return packer.make_can_msg("SCC_CONTROL", CAN.ECAN, values), values["aReqValue"]
  
-@@ -566,8 +554,13 @@
+@@ -571,8 +554,13 @@
                         stop_controller=None, accel_value_last=None):
  
    interlock_active = longitudinal_interlock_active(CS)
@@ -225,7 +242,7 @@ diff --git a/opendbc_repo/opendbc/car/hyundai/hyundaicanfd.py b/opendbc_repo/ope
    enabled = acc_control_enabled
    jerk = 5
    jn = jerk / 50
-@@ -606,7 +599,8 @@
+@@ -611,7 +599,8 @@
    # accel_last is the legacy raw target, not necessarily the previous SCC
    # output. Keep ordinary packet limiting; anchor recovery to the returned value.
    previous_value = accel_last if accel_value_last is None else accel_value_last
@@ -235,7 +252,7 @@ diff --git a/opendbc_repo/opendbc/car/hyundai/hyundaicanfd.py b/opendbc_repo/ope
    return packer.make_can_msg("SCC_CONTROL", CAN.ECAN, values), values["aReqValue"]
  
  
-@@ -1067,7 +1061,6 @@
+@@ -1072,7 +1061,6 @@
          values["LANE_LEFT"] = 0 if trailer_lane_change_blocked else 1 if desire in (1, 3) else 0
          values["LANE_RIGHT"] = 0 if trailer_lane_change_blocked else 1 if desire in (2, 4) else 0
  
@@ -243,7 +260,7 @@ diff --git a/opendbc_repo/opendbc/car/hyundai/hyundaicanfd.py b/opendbc_repo/ope
          ret.append(packer.make_can_msg("ADRV_0x161", CAN.ECAN, values, rx_counter = rx_counter))
  
        if CS.adrv_0x200 is not None:
-@@ -1079,9 +1072,11 @@
+@@ -1084,9 +1072,11 @@
        if CS.adrv_0x1ea is not None:
          values = copy.copy(CS.adrv_0x1ea)
          rx_counter = values.pop("COUNTER", None)
@@ -279,6 +296,7 @@ diff --git a/opendbc_repo/opendbc/car/hyundai/stopping.py b/opendbc_repo/opendbc
  MOVING_SPEED = 0.10
  STOP_CONFIRM_TIME = 0.2
 -APPROACH_ACCEL = -0.5
+-STOP_LOWER_BAND = 0.20  # fixed during active ACC, including before StopReq; never copied from stock
 +NO_PROGRESS_TIME = 0.6
 +PROGRESS_SPEED = 0.03
 +REQUEST_TIME_LIMIT = 3.0
@@ -290,7 +308,7 @@ diff --git a/opendbc_repo/opendbc/car/hyundai/stopping.py b/opendbc_repo/opendbc
 +REACCEL_CONFIRM_TIME = 0.2
 +RELEASE_TIME_LIMIT = 1.0
 +RECOVERY_ACCEL = -0.5
- STOP_LOWER_BAND = 0.20  # fixed experimental value; never copied from the stock SCC
++STOP_LOWER_BAND = 0.20  # fixed experimental value; never copied from the stock SCC
 +INDEPENDENT_HOLD_PREPARE_CYCLES = 2
 +DEFAULT_STOPPING_RATE = 0.8
 +
@@ -473,7 +491,7 @@ diff --git a/opendbc_repo/opendbc/car/hyundai/stopping.py b/opendbc_repo/opendbc
 -    # Preserve the existing approach deceleration until initial low-speed entry.
 -    raw = min(accel, APPROACH_ACCEL)
 -    value = min(0.0, max(previous_value - jerk_l * DT, min(raw, previous_value + jerk_u * DT)))
--    return StopCommand(0, raw, value, 0.0)
+-    return StopCommand(0, raw, value, STOP_LOWER_BAND)
 +    # StopReq is released while requesting ordinary deceleration. Retain a
 +    # stronger existing braking request; never send a positive recovery request.
 +    return self._decelerate(accel, jerk_u, jerk_l)

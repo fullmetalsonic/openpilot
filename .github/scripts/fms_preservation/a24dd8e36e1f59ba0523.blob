@@ -4,11 +4,12 @@
 
 2026-10-12 사용자 결정: FMS는 원본의 동작과 같아지는 것을 목표로 하는 자동 동기화 브랜치가 아니다. **현재 FMS의 동작 계약을 유지하며 필요한 원본 변경을 선별 이식하는 포크**로 관리한다. 설정 몇 개를 바꾸는 수준의 패치만으로 해석하지 않는다.
 
-현재 승인 범위는 최신 원본의 검토된 비DM 변경을 로컬에 통합하고 검증하는 것이다. 커밋·푸시, 기기 설치/설정 변경, 안정판/DDM 갱신, 예약 재개는 승인 범위에 없다. 통합 검증 뒤 Astra Extra High가 실제 코드와 검증 근거를 최종 검토한다.
+최신 원본의 검토된 비DM 변경을 통합·검증하며, 해당 작업에서 사용자가 승인한 경우에만 WIP에 커밋·푸시한다. 기기 설치/설정 변경, 안정판/DDM 갱신과 예약 재개는 별도 명시 요청이 필요하다. 중요한 통합은 검증 뒤 Astra Extra High가 실제 코드와 검증 근거를 최종 검토한다.
 
 - FMS 동작/DM/개인 패치 기준: `dca1f33137b8f24dfd23e35bc2bc3d9fd21c5d69`.
 - 원본 기반: `ef586a41637a00968e4521aeb99021fe609b5105`.
-- 이번 검토 대상: `3f537bc13fdc325f4ef3852f8ab5a762566cefc1`.
+- 직전 검증·게시 FMS: `3f86e7d325c35f03bdfc6145463a1eea37389515` (원본 `3f537bc1` 기반).
+- 이번 추가 검토 대상: `5e187ab9da726c524ca51aebacc6120802480415`.
 - 안정판 유지: `609cecef51011d893e252cf61079ba6b90faabc4`.
 - 원본 보관 DDM 유지: `ef586a41637a00968e4521aeb99021fe609b5105`.
 
@@ -40,11 +41,20 @@ Git 병합은 이력과 충돌을 추적하는 도구다. 원본의 모든 정�
 
 `2608792b`의 zero-aReq/복구 FSM 삭제와 `82290515`의 첫 StopReq jerkUpper 변경은 정지 범위만 분리해 제외한다. 원본이 ECU에서 실패한다는 판정이 아니라, 현행 FMS 출력 계약을 유지하기 위한 선택이다.
 
+후속 `0e4ee1bd`의 일반 ACC lower-band 선출력·접근 단계 lower=0.20·blocked lower 변경도 제외한다. `stopping.py`, `hyundaicanfd.py`와 현재 정지 시험을 직전 FMS 기준으로 유지하며 새 레이더/신호 기능은 별도 접점으로 통합한다.
+
 - `stopping.py`의 현행 prepare/request/release/retry/fallback/held 코어와 a_ego/value/previous_value/independent_hold 의미를 유지한다.
 - `hyundaicanfd.py`의 두 builder에서 원래 enabled 기준 일반/독립 분리와 인터록, 실제 aReq 반환/전달을 보존한다. gate 예외만 복구해서는 음수 준비/유지가 돌아오지 않는다.
 - `carcontroller.py`의 stopping 생성자/호출/실제 출력 feedback과 패들 문맥을 최신 비DM 코드에 접합한다. 직전 출력을0으로 초기화하지 않는다.
 - camera/non-camera 일반 제한식과 독립 실제 출력 feedback의 차이를 임의 통일하지 않는다. 삭제된 CanfdStopRetry 설정을 부활시키지 않는다.
 - 준비 횟수는 입력에 따라 달라진다. 기존 ECU held 표시가 있으면 첫 출력0 뒤 음수로 수렴할 수 있으므로, 첫 패킷을 무조건 -0.5로 강제하는 새 정책을 만들지 않는다.
+
+## 추가 비DM 기능의 경계
+
+- `SignalAssistMode`는 기본0이다. 0에서는 과거 production enable 파일도 제어를 켜지 못한다. 1은 표시·알림과 정차 적색 출발 제한, 2에서만 추가 감속 준비를 허용한다. 기존 파일을 새 설정으로 자동 이행하거나 설정을 임의로 켜지 않는다. 모드 변경은 캐시 주기를 거치며 저장 즉시 0ms 해제를 보장하지 않는다.
+- 새 `e2eStopPrepare=6`을 VCruise의 기존 정지 신호 `[3,5]`에 추가하지 않는다. 신호 준비가 SoftHold/자동 크루즈 ON·RES 권한을 만들지 않으며 OFF/CANCEL·페달·lead·회전·모델 정지·무효/스테일 관측에서는 기존 제어 경계를 유지한다.
+- Bosch passive 레이더는 허용된 비CANFD 차종·완전한 동일 버스 지문·EnableRadarTracks 조건에서만 선택한다. MQ4 CANFD는 제외되며 기존 공급자·20Hz 경로를 보존한다. 이 구성이 수신용이라는 설명과 특정 Bosch 구성에서 ECU disable/트랙 활성화 쓰기를 생략하는 변경을 함께 검증한다.
+- Mountain Dew 재학습 모델과 신구 runtime API 호환은 주행 모델 변경이다. 기존 DM 동결과 구분하며 패키지 무결성/선택 실패 시 내부 모델 fallback을 보존한다. URL 접근 검사나 host fixture를 실제 eGPU 추론·실차 성능 검증으로 확대하지 않는다.
 
 ## 검증·재현·완료 기준
 

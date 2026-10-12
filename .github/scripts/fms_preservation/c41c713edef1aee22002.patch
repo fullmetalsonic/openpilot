@@ -1,6 +1,6 @@
 --- a/openpilot/selfdrive/modeld/signal_neural_shadow.py
 +++ b/openpilot/selfdrive/modeld/signal_neural_shadow.py
-@@ -40,8 +40,9 @@
+@@ -44,8 +44,9 @@
    # The DM model also runs on the internal GPU with an external driving model.
    # Parked A/B/A showed ~20 -> 10 Hz DM even at QCOM priority 15. Camera failure
    # must never grant GPU access: that would keep the overloaded DM in fallback.

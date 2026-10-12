@@ -108,7 +108,8 @@ def test_auto_switch_releases_previous_process_and_final_child(monkeypatch, tmp_
     if key == 'UsbGpuActive': return True if change_dm else modes[position[0]]
     return False
   monkeypatch.setattr(params, 'Params', lambda: SimpleNamespace(
-    get_bool=value, get_int=lambda key: int(modes[position[0]]) if change_dm else 1))
+    get_bool=value, get_int=lambda key: {'SignalAssistMode': 1,
+      'DisableDM': int(modes[position[0]]) if change_dm else 1}[key]))
   monkeypatch.setattr(worker, 'requested', lambda _: position[0] < len(modes))
   monkeypatch.setattr(worker, 'neural_requested', lambda _: True)
   monkeypatch.setattr(worker, 'backend_requested', lambda _: selection)
@@ -133,10 +134,104 @@ def test_explicit_qcom_also_passes_through_dm_guard(monkeypatch, tmp_path, selec
 @pytest.mark.parametrize('external', [False, True])
 @pytest.mark.parametrize('disable_dm', [0, 1, 2])
 @pytest.mark.parametrize('preview', [False, True])
-def test_gpu_selection_reserves_legacy_dm(external, disable_dm, preview):
-  values = dict(UsbGpuActive=external, IsDriverViewEnabled=preview)
-  selected = worker.automatic_backend(SimpleNamespace(get_bool=values.__getitem__, get_int=lambda key: disable_dm))
-  assert selected == ('qcom' if external and disable_dm != 0 else 'tracking_cpu')
+@pytest.mark.parametrize('signal_mode', [0, 1, 2])
+def test_gpu_selection_reserves_legacy_dm(external, disable_dm, preview, signal_mode):
+  values = dict(UsbGpuActive=external, IsDriverViewEnabled=preview,
+                DisableDM=disable_dm, SignalAssistMode=signal_mode)
+  selected = worker.automatic_backend(SimpleNamespace(get_bool=values.__getitem__, get_int=values.__getitem__))
+  assert selected == ('qcom' if signal_mode != 2 and external and disable_dm != 0 else 'tracking_cpu')
+
+
+@pytest.mark.parametrize('modes,backends', [
+  ([1, 1, 2, 2, 1, 0], ['qcom', 'tracking_cpu', 'qcom']),
+  ([1, 2, 0], ['qcom', 'tracking_cpu']),
+])
+def test_mode_change_releases_previous_backend_before_starting_next(monkeypatch, tmp_path, modes, backends):
+  import multiprocessing
+  from openpilot.common import params
+  position = [0]
+  children = []
+  actions = []
+  class Child:
+    pid = 123
+    exitcode = None
+    def __init__(self, *, target, args, daemon):
+      self.args, self.alive = args, False
+      assert target == worker.run_selected and daemon
+      children.append(self)
+    def start(self):
+      assert all(not child.alive for child in children if child is not self)
+      self.alive = True
+      actions.append(('start', self.args[1]))
+    def is_alive(self): return self.alive
+    def terminate(self):
+      self.alive = False
+      actions.append(('stop', self.args[1]))
+    def join(self, timeout): pass
+    def close(self): actions.append(('close', self.args[1]))
+  def integers(key):
+    return {'DisableDM': 1, 'SignalAssistMode': modes[position[0]]}[key]
+  monkeypatch.setattr(params, 'Params', lambda: SimpleNamespace(get_bool=lambda key: key == 'UsbGpuActive', get_int=integers))
+  monkeypatch.setattr(worker, 'DIRECTORY', tmp_path)
+  monkeypatch.setattr(worker, 'requested', lambda _: modes[position[0]] != 0)
+  monkeypatch.setattr(worker, 'neural_requested', lambda _: True)
+  monkeypatch.setattr(worker, 'backend_requested', lambda _: 'auto')
+  monkeypatch.setattr(worker.time, 'sleep', lambda _: position.__setitem__(0, position[0]+1))
+  monkeypatch.setattr(multiprocessing, 'get_context', lambda _: SimpleNamespace(Process=Child))
+  monkeypatch.setitem(sys.modules, 'openpilot.common.swaglog', SimpleNamespace(cloudlog=SimpleNamespace(event=lambda *a, **k: None)))
+  worker.run_auto(tmp_path)
+  assert actions == [(action, backend) for backend in backends for action in ('start', 'stop', 'close')]
+
+
+def test_production_off_uses_real_bounded_enable_cache_and_closes_child(monkeypatch, tmp_path):
+  import multiprocessing
+  from openpilot.common import params
+  from openpilot.selfdrive.carrot import signal_mode
+  ticks = [0]
+  children, actions = [], []
+  def current_mode():
+    if ticks[0] < 2: return 1
+    if ticks[0] < 6: return 2
+    if ticks[0] < 8: return 1
+    return 0
+  param = SimpleNamespace(get_bool=lambda key: key == 'UsbGpuActive',
+                          get_int=lambda key: {'DisableDM': 1, 'SignalAssistMode': current_mode()}[key])
+  class Child:
+    pid = 123
+    exitcode = None
+    def __init__(self, *, target, args, daemon):
+      self.backend, self.alive = args[1], False
+      children.append(self)
+    def start(self):
+      assert all(not c.alive for c in children if c is not self)
+      self.alive = True
+      actions.append(('start', self.backend, ticks[0] / 10))
+    def is_alive(self): return self.alive
+    def terminate(self):
+      self.alive = False
+      actions.append(('stop', self.backend, ticks[0] / 10))
+    def join(self, timeout): pass
+    def close(self): actions.append(('close', self.backend, ticks[0] / 10))
+  monkeypatch.setattr(params, 'Params', lambda: param)
+  monkeypatch.setattr(worker, 'DIRECTORY', tmp_path)
+  monkeypatch.setattr(signal_mode, 'DIRECTORY', tmp_path)
+  monkeypatch.setattr(signal_mode, '_params', param)
+  monkeypatch.setattr(signal_mode, '_mode', 0)
+  monkeypatch.setattr(signal_mode, '_next_read', 0.)
+  monkeypatch.setattr(worker, 'neural_requested', lambda _: True)
+  monkeypatch.setattr(worker, 'backend_requested', lambda _: 'auto')
+  monkeypatch.setattr(worker.time, 'monotonic', lambda: ticks[0] / 10)
+  def advance(_):
+    ticks[0] += 1
+    assert ticks[0] <= 12, 'OFF must exit within the real enable-cache window'
+  monkeypatch.setattr(worker.time, 'sleep', advance)
+  monkeypatch.setattr(multiprocessing, 'get_context', lambda _: SimpleNamespace(Process=Child))
+  monkeypatch.setitem(sys.modules, 'openpilot.common.swaglog', SimpleNamespace(cloudlog=SimpleNamespace(event=lambda *a, **k: None)))
+  worker.run_auto(tmp_path)
+  assert [c.backend for c in children] == ['qcom', 'tracking_cpu', 'qcom']
+  assert all(not c.alive for c in children)
+  assert actions[-1] == ('close', 'qcom', 1.0)
+  assert actions[-1][2] - 0.8 <= 0.5
 
 
 def test_auto_cpu_is_comparison_only_and_gpu_requires_cache(monkeypatch, tmp_path):
