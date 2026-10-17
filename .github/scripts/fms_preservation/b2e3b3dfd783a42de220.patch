@@ -1,0 +1,45 @@
+--- a/docs/user/en/radar.md
++++ b/docs/user/en/radar.md
+@@ -78,12 +78,9 @@
+ 
+ Corner-radar objects are created only when the vehicle code recognizes a supported message group. The supported 0x430 message family is also classified as corner-radar input rather than front radar. The cut-in processing in mode `2` currently focuses on Hyundai-family implementations and must not be generalized to other manufacturers.
+ 
+-### Carrot Radar Mode
+-
+-| `CarrotRadarMode` | Meaning |
+-|---:|---|
+-| `0` | Keep the existing `radard` lead and cut-in processing (default) |
+-| `1` | Run the independent dPath RadarD, calculate front-first radar/vision leadOne first, then use only physical dPath CUT-INs as leadTwo |
++### Fixed Carrot Radar processing
++
++The FMS runtime uses the independent dPath RadarD. There is no user-selectable Carrot Radar mode.
+ 
+ SCC is used only when `EnableRadarTracks` allows it. Mode `-2` is vision-only; modes `-1` and `0` always use a valid SCC object, then vision if SCC is absent. Mode `1` matches front radar to vision; mode `2` also permits SCC with `vLead < 5.0 m/s`, using only range and speed for SCC association. Mode `3` uses SCC if front matching fails, except when the front and corner tracks matching its range and speed all sit beside the path (path and raw lateral at least 2.0 m, one at least 2.5 m from the path): that adjacent-lane body is refused, with a 1 s hold. Same-range central vision, an in-path track, or a body below 18 km/h during a lane change keeps SCC. The final vision fallback in modes `1`, `2`, and `3` requires probability at least `0.40` and `|dPath| <= 1.0 m`. SCC-only modes `-1` and `0` use the same probability threshold without the additional lateral/path gate.
+ 
+@@ -93,16 +90,7 @@
+ 
+ A confirmed stopped front can bridge brief visual-range noise while it remains measured and physically continuous, within `|dPath| <= 1.5 m` and 2 m of visual lateral position. Its farther-than-vision allowance is `max(8 m, min(25 m, 25% of vision distance, 2 × xStd))`. The allowance lasts at most 0.50 seconds after range agreement within 8 m or repeated position confirmation. Observation gaps over 0.15 seconds and position/speed jumps reset that history. An unconfirmed new object or a precise nearer visual estimate receives no such allowance. The lead continues to publish current radar distance and speed. These rules do not guarantee 100 m acquisition or zero false detections on every road.
+ 
+-| `CarrotRadarCutInSensitivity` | Meaning |
+-|---:|---|
+-| `0` | Disable new Carrot Radar CUT-IN leadTwo promotion |
+-| `1` | Insensitive |
+-| `2` | Slightly insensitive |
+-| `3` | Normal, current behavior (default) |
+-| `4` | Sensitive |
+-| `5` | Very sensitive |
+-
+-This setting applies only when `CarrotRadarMode=1`. It jointly adjusts the CUT-IN probability threshold, measured directional-consistency threshold, and measured-motion confirmation dwell. Levels `1` through `5` use confirmation dwells of `0.50`, `0.40`, `0.35`, `0.25`, and `0.20 s`; level `3` is Normal and keeps the corner/front probability thresholds at `0.30/0.67` and the front directional-consistency threshold at `0.75`. Higher levels accept lower probability and directional consistency with a shorter confirmation; lower levels do the reverse. A front-radar entry with at least 0.50 m of strongly one-way measured progress in the recent 0.8-second history may receive at most one 20 Hz radar-frame credit, preventing timestamp quantization alone from missing an otherwise completed dwell. Small adjacent drift receives no credit. Physical requirements such as sustained future corridor overlap, range limits, being closer than leadOne, and stationary-noise rejection remain active at every sensitivity. At `0`, leadOne and radar-state publication continue, but a new physical CUT-IN is not selected as leadTwo. This setting does not change conventional `radard` or `EnableCornerRadar`.
++CUT-IN sensitivity uses the fixed production Normal value (`3`): corner/front probability thresholds `0.30/0.67`, front directional consistency `0.75`, and measured-motion confirmation of `0.35 s`. There is no user sensitivity setting. The existing physical corridor, range, lead-distance and stationary-noise checks remain active.
+ 
+ Manager refreshes both settings while off-road and latches them for the whole drive when the next OnRoad session starts. After changing either setting, end the current drive and restart the vehicle or reboot the device. A live parameter write does not immediately replace the radar publisher or CUT-IN policy.
+ 
+@@ -133,7 +121,7 @@
+ 
+ ## Lead selection and validation
+ 
+-The manager never runs both radar implementations together. With `CarrotRadarMode=0`, only the conventional `openpilot.selfdrive.controls.radard` runs and its leadOne/leadTwo selection is unchanged. With `CarrotRadarMode=1`, that process is stopped and only the independent `openpilot.selfdrive.carrot.radar.radard_dpath` runs. It calculates leadOne first, then calculates leadTwo with the physical predictor and publishes `radarState` directly. With vision present, leadOne associates the front/SCC sources permitted by the selected track mode and can recover a corresponding raw point after a narrow probabilistic-match miss. If an allowed radar cannot correspond to central vision, vision remains the final safety fallback. The exceptions are mode `-1`, which uses SCC unconditionally from the start, and mode `3`, which uses SCC unconditionally after front-radar matching fails; these modes switch to vision only when SCC is absent. Front radar, SCC, and corner radar retain their source identity, and no learned radar-lead model is used.
++The manager runs the independent `openpilot.selfdrive.carrot.radar.radard_dpath`; it does not run the conventional `openpilot.selfdrive.controls.radard` alongside it. It calculates leadOne first, then calculates leadTwo with the physical predictor and publishes `radarState` directly. With vision present, leadOne associates the front/SCC sources permitted by the selected track mode and can recover a corresponding raw point after a narrow probabilistic-match miss. If an allowed radar cannot correspond to central vision, vision remains the final safety fallback. The exceptions are mode `-1`, which uses SCC unconditionally from the start, and mode `3`, which uses SCC unconditionally after front-radar matching fails; these modes switch to vision only when SCC is absent. Front radar, SCC, and corner radar retain their source identity, and no learned radar-lead model is used.
+ 
+ The headless validator can report existing radard and the experimental physical predictor separately. The visual replay runs only the new independent controller and physical predictor. Its leadOne/leadTwo are calculated again from the logged model and radar inputs; recorded conventional-radard lead roles and CUT-IN markers are never imported. The map always displays every measured corner-radar point in the current frame in purple, including stationary points that are not motion-prediction candidates; `F` toggles raw front-radar points. Replay does not change longitudinal control.
+ 

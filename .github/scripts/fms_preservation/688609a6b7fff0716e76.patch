@@ -1,0 +1,20 @@
+--- a/openpilot/selfdrive/car/tests/test_toyota_pcm_mode0.py
++++ b/openpilot/selfdrive/car/tests/test_toyota_pcm_mode0.py
+@@ -48,12 +48,16 @@
+     self.action = None
+     self.is_repeat = False
+ 
+-  def read(self, *, allowed):
++  def read(self, *, allowed, cancel_pending=False):
+     value, self.action = self.action, None
+     return value if allowed else None
+ 
+ 
+ class SubMaster(dict):
++  def all_checks(self, services):
++    assert services == ["carControl"]
++    return True
++
+   def __init__(self, cs, *, speed=250, source="road"):
+     event = log.Event.new_message()
+     event.init("carrotMan")

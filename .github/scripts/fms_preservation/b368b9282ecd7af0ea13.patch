@@ -1,6 +1,15 @@
 --- a/openpilot/common/params_keys.h
 +++ b/openpilot/common/params_keys.h
-@@ -379,11 +379,7 @@
+@@ -357,8 +357,6 @@
+     {"LaneChangeDelay", {PERSISTENT, INT, "0"}},
+     {"LaneChangeBsd", {PERSISTENT, INT, "0"}},
+     {"LaneLineCheck", {PERSISTENT, INT, "0"}},
+-    {"BlinkerLatchedTurn", {PERSISTENT, INT, "0"}},
+-    {"LaneChangeLeverWait", {PERSISTENT, BOOL, "0"}},
+     {"MaxAngleFrames", {PERSISTENT, INT, "89"}},
+ 
+     {"LatMpcPathCost", {PERSISTENT, INT, "200"}},
+@@ -389,11 +387,7 @@
      {"MaxTimeOffroadMin", {PERSISTENT, INT, "60"}},
      {"TeslaWakeOnCAN", {PERSISTENT, BOOL, "1"}},
  

@@ -25,15 +25,15 @@ diff --git a/openpilot/common/stopping_params.py b/openpilot/common/stopping_par
 diff --git a/openpilot/selfdrive/controls/lib/longitudinal_planner.py b/openpilot/selfdrive/controls/lib/longitudinal_planner.py
 --- a/openpilot/selfdrive/controls/lib/longitudinal_planner.py
 +++ b/openpilot/selfdrive/controls/lib/longitudinal_planner.py
-@@ -25,7 +25,6 @@
+@@ -26,7 +26,6 @@
  from openpilot.selfdrive.car.cruise import V_CRUISE_MAX, V_CRUISE_UNSET
  from openpilot.common.swaglog import cloudlog
  from openpilot.common.params import Params
 -from openpilot.common.stopping_params import get_stopping_speed
  from openpilot.selfdrive.carrot.carrot_man_input import get_carrot_man
+ from openpilot.selfdrive.carrot.signal_stop_prepare import PrepareAccel
  from openpilot.selfdrive.controls.lib.cruise_coasting import CruiseCoastingPlan, coasting_percent, no_coasting_lead
- 
-@@ -282,7 +281,7 @@
+@@ -287,7 +286,7 @@
      self.v_desired_filter.x = self.v_desired_filter.x + self.dt * (self.a_desired + a_prev) / 2.0
  
      longitudinalActuatorDelay = self.params.get_float("LongActuatorDelay")*0.01
@@ -162,29 +162,30 @@ diff --git a/openpilot/selfdrive/controls/tests/test_stopping_speed_param.py b/o
 diff --git a/openpilot/selfdrive/modeld/modeld.py b/openpilot/selfdrive/modeld/modeld.py
 --- a/openpilot/selfdrive/modeld/modeld.py
 +++ b/openpilot/selfdrive/modeld/modeld.py
-@@ -13,7 +13,6 @@
- from openpilot.common.swaglog import cloudlog
+@@ -15,5 +15,4 @@
  from openpilot.common.runtime_diagnostics import RuntimeDiagnostics
  from openpilot.common.params import Params
 -from openpilot.common.stopping_params import get_stopping_speed
  from openpilot.common.filter_simple import FirstOrderFilter
  from openpilot.common.realtime import config_realtime_process, DT_MDL
- from openpilot.common.transformations.camera import DEVICE_CAMERAS
-@@ -390,7 +389,7 @@
-   frame = 0
+@@ -412,5 +411,5 @@
    custom_lat_delay = 0.0
    lat_smooth_seconds = LAT_SMOOTH_SECONDS
 -  vEgoStopping = get_stopping_speed(params)
 +  vEgoStopping = params.get_float("VEgoStopping") * 0.01
    camera_yaw_trim_deg = params.get_float("CameraYawTrimDeg") * 0.01
    lat_delay_dynamic = lat_smooth_seconds
-   diagnostics = RuntimeDiagnostics('modeld', cloudlog.event)
-@@ -401,7 +400,7 @@
-       custom_lat_delay = params.get_float("SteerActuatorDelay") * 0.01
+@@ -423,5 +422,5 @@
        lat_smooth_seconds = params.get_float("LatSmoothSec") * 0.01
        long_delay = params.get_float("LongActuatorDelay")*0.01
 -      vEgoStopping = get_stopping_speed(params)
 +      vEgoStopping = params.get_float("VEgoStopping") * 0.01
        camera_yaw_trim_deg = params.get_float("CameraYawTrimDeg") * 0.01
        # eGPU power follows ignition on the vehicle. Keep UI state current when
-       # the shared USB hub is connected or removed after modeld starts.
+@@ -565,6 +564,4 @@
+       modelv2_send.modelV2.meta.laneChangeDirection = DH.lane_change_direction
+       modelv2_send.modelV2.meta.desireLog = DH.desireLog #carrot
+-      modelv2_send.modelV2.meta.laneChangeBlinkerHold = DH.blinker_hold_direction
+-      modelv2_send.modelV2.meta.leverTurn = DH.lever_turn
+       drivingdata_send.drivingModelData.meta.laneChangeState = DH.lane_change_state
+       drivingdata_send.drivingModelData.meta.laneChangeDirection = DH.lane_change_direction

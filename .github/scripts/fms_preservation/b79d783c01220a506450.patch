@@ -1,12 +1,13 @@
 --- a/openpilot/selfdrive/ui/mici/onroad/augmented_road_view.py
 +++ b/openpilot/selfdrive/ui/mici/onroad/augmented_road_view.py
-@@ -3,12 +3,12 @@
+@@ -3,13 +3,13 @@
  import pyray as rl
  from openpilot.cereal import messaging, car, log
  from msgq.visionipc import VisionStreamType
 -from openpilot.selfdrive.ui.ui_state import ui_state
 +from openpilot.selfdrive.ui.ui_state import ui_state, UIStatus
  from openpilot.selfdrive.ui.render_diagnostics import RenderDiagnostics
+ from openpilot.selfdrive.ui.overlay_state import OverlayState
  from openpilot.system.ui.lib import native_draw, native_geometry, native_text
  from openpilot.selfdrive.ui.mici.onroad import SIDE_PANEL_WIDTH
  from openpilot.selfdrive.ui.mici.onroad.alert_renderer import AlertRenderer
@@ -15,8 +16,8 @@
  from openpilot.selfdrive.ui.mici.onroad.hud_renderer import HudRenderer
  from openpilot.selfdrive.ui.mici.onroad.model_renderer import ModelRenderer
  from openpilot.selfdrive.ui.mici.onroad.vision_renderer import VisionRenderer
-@@ -165,7 +165,7 @@
-     self._hud_renderer = HudRenderer()
+@@ -170,7 +170,7 @@
+     self._hud_renderer._overlay_state = self._overlay_state
      self._vision_renderer = VisionRenderer()
      self._alert_renderer = AlertRenderer()
 -    self._driver_state_renderer = DriverPreview(compact=True)
@@ -24,7 +25,7 @@
      self._confidence_ball = ConfidenceBall()
      self._traffic_light = TrafficLight()
      self._offroad_label = UnifiedLabel("start the car to\nuse openpilot", 54, FontWeight.DISPLAY,
-@@ -272,6 +272,15 @@
+@@ -277,6 +277,15 @@
      alert_to_render, not_animating_out = self._alert_renderer.will_render()
      alert_ms += (time.monotonic() - _t) * 1000.0
  
@@ -40,7 +41,7 @@
      self._hud_renderer.set_can_draw_top_icons(alert_to_render is None)
      self._hud_renderer.set_wheel_critical_icon(alert_to_render is not None and not not_animating_out and
                                                 alert_to_render.visual_alert == car.CarControl.HUDControl.VisualAlert.steerRequired)
-@@ -295,9 +304,6 @@
+@@ -300,9 +309,6 @@
  
      # Custom UI extension point - add custom overlays here
      # Use self._content_rect for positioning within camera bounds
@@ -50,15 +51,12 @@
      _t = time.monotonic()
      self._traffic_light.render(self.rect)
      if not self._traffic_light.is_visible():
-@@ -334,11 +340,6 @@
-     timing.values['native_text'] = float(native_text.active())
-     timing.finish()
- 
--  def close(self):
+@@ -342,8 +348,6 @@
+   def close(self):
+     self._model_renderer._overlay.close()
+     self._hud_renderer._overlay.close()
 -    if preview := getattr(self, '_driver_state_renderer', None):
 -      preview.close()
--    super().close()
--
+     super().close()
+ 
    def _road_view_mode(self):
-     if not ui_state.started:
-       return 0

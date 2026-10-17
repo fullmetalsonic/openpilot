@@ -1098,6 +1098,8 @@ struct ModelDataV2 {
     modelTurnSpeed @17 :Float32;
     laneChangeAvailableLeft @18 :Bool;
     laneChangeAvailableRight @19 :Bool;
+    laneChangeBlinkerHoldDEPRECATED @20 :LaneChangeDirection; # inactive compatibility reservation
+    leverTurnDEPRECATED @21 :Bool; # inactive compatibility reservation
 
     deprecated :group {
       brakeDisengageProb @2 :Float32;
@@ -1251,6 +1253,9 @@ struct LongitudinalPlan @0xe00b5b3eba12876c {
   # Optional overspeed brake relief. Zero target/percent preserves legacy control.
   cruiseCoastingTarget @62 :Float32;  # fixed physical m/s reference; 0 when ineligible
   cruiseCoastingPercent @63 :UInt8;
+  signalDetectionSuspended @64 :Bool; # fresh vNavi motorway/urban expressway classification
+  signalObservationColor @65 :UInt8; # helper current evidence: 0 unknown, 1 red, 2 green, 3 mixed
+  signalAssistAction @66 :UInt8; # actual helper action: 0 none, 1 departure veto, 2 preparation, 3 confirmed green transition
 
   solverExecutionTime @35 :Float32;
 

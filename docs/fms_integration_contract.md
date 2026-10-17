@@ -8,8 +8,8 @@
 
 - FMS 동작/DM/개인 패치 기준: `dca1f33137b8f24dfd23e35bc2bc3d9fd21c5d69`.
 - 원본 기반: `ef586a41637a00968e4521aeb99021fe609b5105`.
-- 직전 검증·게시 FMS: `3f86e7d325c35f03bdfc6145463a1eea37389515` (원본 `3f537bc1` 기반).
-- 이번 추가 검토 대상: `5e187ab9da726c524ca51aebacc6120802480415`.
+- 이번 통합 출발 FMS: `d5713e672ead7061b686f1c273b4ce4705bc41ac` (직전 검토 원본 `5e187ab9da726c524ca51aebacc6120802480415`).
+- 이번 추가 검토 대상: `bd53684a4d2b5809ecd68f75986a76e548a61470`.
 - 안정판 유지: `609cecef51011d893e252cf61079ba6b90faabc4`.
 - 원본 보관 DDM 유지: `ef586a41637a00968e4521aeb99021fe609b5105`.
 
@@ -31,6 +31,10 @@ Git 병합은 이력과 충돌을 추적하는 도구다. 원본의 모든 정�
 | Change Branch | 원본+fullmetalsonic 목록·선택 브랜치만 다운로드·origin/체크아웃/설정 불변 |
 | 퇴역/운영 | 개인 205개 최초설정·first_install_defaults·marker 재도입 금지. 자동화 중지, stable/DDM 및 기기/Params 불변 |
 
+2026-10-17 CANCEL 보존 보강: 같은 수신 batch의 CANCEL press/release가 최종 buttonEvents에 남지 않아도 card가 전달한 raw 증거를 VCruise에서 소비한다. gas 준비 전에 취소를 latch하고 같은 batch의 RES/SET·이전 +/- release·원격 GO보다 우선한다. non-PCM은 기존 음수 취소 요청을 실제 buttonCancel·상태 해제·다음 제어 출력까지 연결한다. 미완료 버튼 decoder만 폐기하고 SoftHold 자체·기존 lateral CANCEL 정책·정상 ON gap 비동기 저장·새 명시적 재개는 보존한다. buttonEvents 합성, 정상 queue 전체 삭제, 새 PCM 정책과 CC.cancel 생산식 변경은 하지 않는다. 이 경계의 실제 검증 결과는 해당 통합 근거를 따르며 문서만으로 PASS를 선언하지 않는다.
+
+같은 CANCEL은 블루투스 cruise reader에도 전달한다. 취소 시각을 20ms throttle보다 먼저 메모리에 기록하고 그 시각 이전·동일 시각에 생성된 명령은 늦게 게시되어도 소비 후 거절한다. 취소 뒤 새로 생성한 명시적 명령은 기존 TTL·중복 방지·읽기 주기를 따라 접수한다. lane reader와 일반 allowed=False 정책, writer 및 저장 큐를 바꾸지 않는다.
+
 ## DM 동결의 접합 경계
 
 새 DM을 넣고 OFF로 쓰는 방식은 기존 DM 보존이 아니다. 새 Enabled/Mode/Vision 설정 이행, fallback/session OFF/CANCEL 3회/touch/preview/DM 경고 주입/전용 cadence·camera async 보호를 채택하지 않는다. 기존 DisableDM1/2에서는 DriverView도 DM model/daemon을 강제로 켜지 않는다. 현행 forceDecel은 DisableDM0에서 alert3 또는 softDisabling일 때 true이고, 1/2에서는 false다. 이를 모든 통신/프로세스 오류 무시로 확대하지 않는다.
@@ -51,6 +55,9 @@ Git 병합은 이력과 충돌을 추적하는 도구다. 원본의 모든 정�
 
 ## 추가 비DM 기능의 경계
 
+- 2026-10-17 새 레버 차선변경은 HOLD=1에 의존하고 설정0에서도 일부 큐/재진입 정책이 활성이라 보류한다. FMS는 기존 desire_helper와 HOLD0을 유지한다. 새 레버 helper/설정/메뉴/modeld publish는 넣지 않는다. car.capnp stalk@100..103 및 log ModelMeta@20/21은 같은 타입·번호의 DEPRECATED 비활성 호환 예약이며 생산자·소비자는 없다. 활성 레이더/신호 schema 필드는 별도로 유지한다.
+- 원본 e944a8c5의 lead에 의한 보조 적색 veto 우회는 보류한다. 적색 hold가 먼저 유지되고 hold가 없을 때만 기존 native stop→lead 재출발 조건을 적용하는 FMS 순서를 보존한다. 원본의 구체적인 무페달 적색 이동 기록 때문에 제외하는 것이며, 실제 ENABLE/RES를 만들지 않는다는 사실만으로 정지 제한 해제의 위험을 판단하지 않는다. lead 상태에 따른 알림 억제 5405f5a4는 출력·hold·최종 shouldStop이 불변인 독립 기능으로만 채택한다. 새 거리/시간/영구 latch 우회는 추가하지 않는다.
+- 원본 7dd3c11e의 정차 SoftHold 중 새 DM 평가 pause/disabled packet은 현행 DM 동결에 따라 채택하지 않는다. 비DM eGPU warm fallback·기동 복구·overlay 개선은 기존 DM/GPU 예약·DriverView·events/forceDecel 연결을 보존하여 접합한다.
 - `SignalAssistMode`는 기본0이다. 0에서는 과거 production enable 파일도 제어를 켜지 못한다. 1은 표시·알림과 정차 적색 출발 제한, 2에서만 추가 감속 준비를 허용한다. 기존 파일을 새 설정으로 자동 이행하거나 설정을 임의로 켜지 않는다. 모드 변경은 캐시 주기를 거치며 저장 즉시 0ms 해제를 보장하지 않는다.
 - 새 `e2eStopPrepare=6`을 VCruise의 기존 정지 신호 `[3,5]`에 추가하지 않는다. 신호 준비가 SoftHold/자동 크루즈 ON·RES 권한을 만들지 않으며 OFF/CANCEL·페달·lead·회전·모델 정지·무효/스테일 관측에서는 기존 제어 경계를 유지한다.
 - Bosch passive 레이더는 허용된 비CANFD 차종·완전한 동일 버스 지문·EnableRadarTracks 조건에서만 선택한다. MQ4 CANFD는 제외되며 기존 공급자·20Hz 경로를 보존한다. 이 구성이 수신용이라는 설명과 특정 Bosch 구성에서 ECU disable/트랙 활성화 쓰기를 생략하는 변경을 함께 검증한다.

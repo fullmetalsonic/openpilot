@@ -9,16 +9,16 @@
  from openpilot.selfdrive.ui.onroad.hud_renderer import HudRenderer
  from openpilot.selfdrive.ui.onroad.model_renderer import ModelRenderer
  from openpilot.selfdrive.ui.render_diagnostics import RenderDiagnostics
-@@ -52,7 +52,7 @@
-     self._render_diagnostics = RenderDiagnostics('ui')
-     self._hud_renderer = HudRenderer()
+@@ -56,7 +56,7 @@
+     self.model_renderer._overlay_state = self._overlay_state
+     self._hud_renderer._overlay_state = self._overlay_state
      self.alert_renderer = AlertRenderer()
 -    self.driver_state_renderer = DriverPreview()
 +    self.driver_state_renderer = DriverStateRenderer()
  
      # debug
      self._pm = messaging.PubMaster(['uiDebug'])
-@@ -132,8 +132,7 @@
+@@ -138,8 +138,7 @@
      timing.call('alert', self.alert_renderer.render, self._content_rect)
      alert_ms = (time.monotonic() - _t) * 1000.0
      _t = time.monotonic()
@@ -28,15 +28,12 @@
      ds_ms = (time.monotonic() - _t) * 1000.0
  
      # Custom UI extension point - add custom overlays here
-@@ -166,11 +165,6 @@
-     if not self._hud_renderer.user_interacting() and self._click_callback is not None:
-       self._click_callback()
- 
--  def close(self):
+@@ -175,8 +174,6 @@
+   def close(self):
+     self.model_renderer._overlay.close()
+     self._hud_renderer._overlay.close()
 -    if preview := getattr(self, 'driver_state_renderer', None):
 -      preview.close()
--    super().close()
--
+     super().close()
+ 
    def _handle_mouse_release(self, _):
-     # We only call click callback on press if not interacting with HUD
-     pass

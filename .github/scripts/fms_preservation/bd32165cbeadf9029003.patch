@@ -1,15 +1,23 @@
 --- a/opendbc_repo/opendbc/car/car.capnp
 +++ b/opendbc_repo/opendbc/car/car.capnp
-@@ -277,7 +277,7 @@
+@@ -277,11 +277,11 @@
    vehicleNaviSpeed @91 :Float32; # raw speed from the active stock-navigation CAN profile, kph
    vehicleNaviAvailable @92 :Bool; # stock-navigation 0x4BE has been observed during this drive
    radarInput @93 :RadarInput;
 -  steeringTouch @94 :SteeringTouch;
+-  leftBlinkerStalkCount @100 :UInt8;  # +1 (wrapping) on every left turn-signal lever press; the lamp-based leftBlinker cannot show a press while the lamp is already flashing
+-  rightBlinkerStalkCount @101 :UInt8; # +1 (wrapping) on every right turn-signal lever press
+-  blinkerLever @102 :UInt8;           # turn-signal lever position: 0 released, 1 one-touch (half) detent, 2 latched
+-  blinkerLamp @103 :UInt8;            # turn-signal lamp right now (no hold): 0 dark, 1 left lit, 2 right lit
 +  steeringTouchDEPRECATED @94 :SteeringTouch; # inactive compatibility reservation; no producer/consumer
++  leftBlinkerStalkCountDEPRECATED @100 :UInt8; # inactive compatibility reservation
++  rightBlinkerStalkCountDEPRECATED @101 :UInt8; # inactive compatibility reservation
++  blinkerLeverDEPRECATED @102 :UInt8; # inactive compatibility reservation
++  blinkerLampDEPRECATED @103 :UInt8; # inactive compatibility reservation
  
    # Optional original vehicle receive signal. Separate from torque/override.
    struct SteeringTouch {
-@@ -508,8 +508,6 @@
+@@ -514,8 +514,6 @@
      naviEventType @19: Int16;   # VW MEB cluster: 0=없음 1=커브 2=교차로 3=분기/출구 4=로터리 5=병목 8=도로제한제어중
      naviEventSpeed @20: Int16;  # VW MEB cluster: 목표속도 kph (커브는 부호=방향: +우/-좌) -> ACC_Event_Wunschgeschw
      leadLimiting @21: Bool;     # VW MEB cluster: 앞차가 속도를 제한 중(xState lead) -> 앞차 하이라이트 우선

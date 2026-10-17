@@ -1,6 +1,6 @@
 --- a/.github/workflows/tests.yaml
 +++ b/.github/workflows/tests.yaml
-@@ -41,20 +41,6 @@
+@@ -46,20 +46,6 @@
              openpilot/system/tests/test_model_build_cache.py \
              openpilot/system/tests/test_launch_order.py
  
@@ -21,7 +21,7 @@
    lane_model_speed:
      name: Lane-mode model speed fallback
      runs-on: ubuntu-24.04
-@@ -97,6 +83,14 @@
+@@ -102,6 +88,14 @@
        - run: ./tools/op.sh setup
        - name: Build openpilot
          run: scons
@@ -36,7 +36,26 @@
        - name: Bosch provider regression tests
          run: |
            python -m pytest -o addopts='' -q \
-@@ -127,12 +121,6 @@
+@@ -119,8 +113,7 @@
+           opendbc_repo/opendbc/car/hyundai/tests/test_navi_speedcam.py
+           opendbc_repo/opendbc/car/hyundai/tests/test_section_average.py
+           opendbc_repo/opendbc/car/hyundai/tests/test_speed_camera.py
+-          opendbc_repo/opendbc/car/hyundai/tests/test_blink_hold.py
+-          opendbc_repo/opendbc/car/hyundai/tests/test_blinker_stalks.py
++          opendbc_repo/opendbc/car/hyundai/tests/test_cluster_turn.py
+           opendbc_repo/opendbc/car/hyundai/tests/test_ccnc_cluster.py
+           opendbc_repo/opendbc/car/toyota/tests/test_ars510_carrot.py
+           opendbc_repo/opendbc/car/toyota/tests/test_ars510_display.py
+@@ -129,8 +122,6 @@
+           openpilot/selfdrive/carrot/tests/test_radar_display_flip.py
+           openpilot/selfdrive/carrot/tests/test_radarcan_process.py
+           openpilot/selfdrive/carrot/tests/test_rav4_radar_slowdown.py
+-          openpilot/selfdrive/controls/tests/test_desire_helper_stalk.py
+-          openpilot/selfdrive/controls/tests/test_lever_forced_turn.py
+           openpilot/selfdrive/ui/tests/test_radar_display.py
+       - name: Check coherent OS04C10 exposure updates
+         run: openpilot/system/camerad/test/test_os04c10_exposure
+@@ -151,12 +142,6 @@
            python -m pytest -o addopts='' -q \
              openpilot/common/tests/test_egpu_diagnostics.py \
              openpilot/selfdrive/monitoring/test_monitoring.py \

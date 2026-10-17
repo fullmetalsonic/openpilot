@@ -4,14 +4,14 @@
  
  ## Settings map
  
--The current `carrot_settings.json` contains **187 parameters**. One driver-monitoring exception is search only; the remaining entries appear in these menus:
-+The current `carrot_settings.json` contains **183 parameters**. Every entry appears in these menus:
+-The current `carrot_settings.json` contains **188 parameters**. The driver-monitoring exception and `NNFF` are search only; the remaining entries appear in these menus:
++The current `carrot_settings.json` contains **192 parameters**. `NNFF` appears only in search; the remaining entries appear in these menus:
  
  | Category | Count | Groups |
  |---|---:|---|
 -| Driving control | 123 | Startup and auto, buttons and presets, steering, speed and deceleration, cruise and following gap |
 -| Vehicle and hardware | 17 | Hyundai/Kia, CAN FD/HDA, radar, driver monitoring, vehicle assistance, device hardware |
-+| Driving control | 124 | Startup and auto, buttons and presets, steering, speed and deceleration, cruise and following gap |
++| Driving control | 133 | Startup and auto, buttons and presets, steering, speed and deceleration, cruise and following gap |
 +| Vehicle and hardware | 16 | Hyundai/Kia, CAN FD/HDA, radar, driver monitoring, vehicle assistance, device hardware |
  | Display | 34 | Information, path, brightness/on-road view, external HUD |
 -| System | 12 | Recording/power, network/map, sound, software |
@@ -20,7 +20,7 @@
  ## Driving control
  
 -These 123 settings can affect vehicle motion. Change one item at a time.
-+These 124 settings can affect vehicle motion. Change one item at a time.
++These 133 settings can affect vehicle motion. Change one item at a time.
  
  <a id="start-auto"></a>
  ### Startup and auto — 9 settings
@@ -33,16 +33,25 @@
  | [Speed units](buttons-presets.md#speed-units) | `CruiseSpeedUnit`, `CruiseSpeedUnitBasic`, `CruiseButtonLongDelay` | Short/long-press increments and long-press timing |
  | [Button-message tests](buttons-presets.md#button-spam) | `CruiseButtonTest1`, `CruiseButtonTest2`, `CruiseButtonTest3` | Values used to synchronize the stock SCC set speed |
  | [Speed presets](buttons-presets.md#speed-presets) | `CruiseSpeed1` through `CruiseSpeed5` | Speed table used by custom mode 3 |
-@@ -184,7 +184,7 @@
+@@ -155,7 +155,7 @@
+ | ONNX Lane and BSD | `ShareData`, `OnnxLaneThreshold`, `OnnxLaneIntervalMs`, `OnnxBsdThreshold`, `OnnxBsdSmoothingMs`, `OnnxBsdIntervalMs` | On-device lane-type and camera BSD detection, source display, and tuning |
+ | Centering | `PathOffset`, `CameraYawTrimDeg` | Path position and camera-yaw trim |
+ | Steering feel | `SteerActuatorDelay`, `LatSmoothSec`, `LatSuspendAngleDeg`, `CustomSR`, `SteerRatioRate` | Timing, smoothing, suspension angle, and steering ratio |
+-| [Lane change](lane-change.md) and automatic turn | `LaneChangeNeedTorque`, `LaneChangeDelay`, `LaneChangeBsd`, `LaneLineCheck`, `BlinkerLatchedTurn`, `LaneChangeLeverWait`, `AutoTurnControl`, `AutoTurnControlSpeedTurn`, `AutoTurnControlTurnEnd`, `AutoTurnMapChange` | Lane-change entry conditions and ATC behavior |
++| [Lane change](lane-change.md) and automatic turn | `LaneChangeNeedTorque`, `LaneChangeDelay`, `LaneChangeBsd`, `LaneLineCheck`, `AutoTurnControl`, `AutoTurnControlSpeedTurn`, `AutoTurnControlTurnEnd`, `AutoTurnMapChange` | Lane-change entry conditions and ATC behavior |
+ | Lane mode | `LatMpcPathCost`, `LatMpcMotionCost`, `LatMpcAccelCost`, `LatMpcJerkCost`, `LatMpcSteeringRateCost`, `LatMpcInputOffset`, `UseLaneLineSpeed`, `UseLaneLineCurveSpeed`, `AdjustLaneOffset` | Lane-mode MPC weights and lane-line conditions |
+ | Advanced torque | `LateralTorqueCustom`, `LateralTorqueAccelFactor`, `LateralTorqueFriction`, `LateralTorqueKpV`, `LateralTorqueKiV`, `LateralTorqueKf`, `LateralTorqueKd` | Custom torque-control gains |
+ | Advanced torque, search only | `NNFF` | Neural-network feedforward for torque steering |
+@@ -191,7 +191,7 @@
  
  Force-sensor trends do not establish loss of hand contact or driver consent to handover. Existing `steeringPressed` and driver monitoring remain unchanged. Making this behavior standard does not establish the same steering feel on every vehicle.
  
 -### Speed and deceleration — 23 settings
-+### Speed and deceleration — 24 settings
++### Speed and deceleration — 27 top-level + 5 detail settings
  
  | Section | Parameters | Purpose |
  |---|---|---|
-@@ -192,7 +192,7 @@
+@@ -199,7 +199,7 @@
  | [Road speed limit](speed-deceleration.md#road-speed-limit) | `AutoRoadSpeedLimitOffset`, `AutoRoadSpeedAdjust`, `AutoSpeedUptoRoadSpeedLimit` | Desired-speed adjustment from the road limit |
  | [Speed bumps](speed-deceleration.md#speed-bump) | `AutoNaviSpeedBumpTime`, `AutoNaviSpeedBumpSpeed`, `AutoNaviSpeedBumpEndDistance` | Completion time, crossing speed, and early-release distance |
  | [Curves and turns](speed-deceleration.md#curve-turn) | `AutoCurveSpeedFactor`, `AutoCurveSpeedLowerLimit`, `TurnSpeedControlMode`, `MapTurnSpeedFactor`, `ApplyModelSpeed` | Curve slowing from curvature and distance, prompt recovery after confirmed easing, and route-turn speed |
@@ -51,18 +60,20 @@
  
  `AutoNaviSpeedCtrlMode` is `0` off, `1` fixed speed cameras, `2` cameras plus speed bumps, or `3` those events plus mobile-camera events.
  
-@@ -203,6 +203,10 @@
- `AutoNaviSpeedDecelRate` defaults to `120` (1.20 m/s²); a lower value begins slowing farther away. Updating the software does not change an existing saved value. `AutoNaviSpeedSafetyFactor` applies a percentage of the event limit as the target. Before tuning either value, confirm that the event type, limit, and remaining distance are being received correctly.
+@@ -211,7 +211,11 @@
  
  `TrafficLightDetectMode` is `0` off, `1` stop detection, or `2` stop and go detection. This is model-based assistance; the driver must always verify the signal.
-+
+ 
+-### Cruise and following gap — 29 settings overall, 26 on Hyundai/Kia/Genesis
 +`SignalAssistMode` defaults to `0`: `0` disables auxiliary assistance; `1` provides recognition, display, alerts and a stopped-red departure veto; `2` adds actual stop-preparation deceleration requests. Mode `1` can evaluate and report preparation conditions but does not request deceleration from that result. Mode `2` gradually requests about -0.5m/s² when red evidence and driving conditions are valid and no lead is present; it does not guarantee a complete stop. This trial is independent of the driving model's `TrafficLightDetectMode`, and false or missed detections remain possible.
 +
 +Changes apply without reboot in about one second; observer restart may take longer. After updating, native Params must be rebuilt to use the new setting key. Legacy `enabled`, `tracking_enabled`, `display_enabled`, `start_guard_enabled` and `stop_prepare_enabled` files cannot bypass the production setting. The former moving-red `assist_enabled` override is retired and stays disabled in every mode.
++
++### Cruise and following gap — 34 settings overall, 31 on Hyundai/Kia/Genesis
  
- ### Cruise and following gap — 29 settings overall, 26 on Hyundai/Kia/Genesis
- 
-@@ -228,14 +232,13 @@
+ | Section | Parameters | Purpose |
+ |---|---|---|
+@@ -235,14 +239,13 @@
  
  `SpeedTFFactor` applies a linear speed multiplier to the selected base TF: 10 is unchanged; 20 doubles it at 100 km/h. `LeadAccelResponseTF1`–`TF4` use the common response at -1 and a gap-specific response at 0–5. Levels 4–5 retain speed TF. The driving-screen bar shows the dynamically adjusted following target in metres.
  
@@ -78,29 +89,48 @@
  
  For Hyundai/Kia CANFD openpilot longitudinal control, aReqRaw and aReqValue become zero in the first StopReq frame, so this setting does not change transmitted acceleration while StopReq remains active. Automatic release/retry is removed.
  
-@@ -251,18 +254,14 @@
+@@ -257,21 +260,17 @@
+ |---|---|---|
  | Hyundai/Kia | `HyundaiCameraSCC`, `IsLdwsCar`, `HapticFeedbackWhenSpeedCamera` | SCC connection, LDWS behavior, and speed-event haptics |
  | CAN FD/HDA | `CanfdHDA2`, `HyundaiCanfdClusterDirectTx`, `CanfdDebug`, `HDPuse` | HDA2 selection, cluster direct send, CAN FD diagnostics, and HDP |
- | Radar | `EnableRadarTracks`, `RadarTrackFlip`, `EnableCornerRadar`, `CarrotRadarMode`, `CarrotRadarCutInSensitivity` | SCC radar, front-track orientation, corner radar, and Carrot Radar processing and cut-in sensitivity |
+-| Radar | `EnableRadarTracks`, `RadarTrackFlip`, `EnableCornerRadar`, `CarrotRadarMode`, `CarrotRadarCutInSensitivity` | SCC radar, front-track orientation, corner radar, and Carrot Radar processing and cut-in sensitivity |
 -| Driver monitoring | `DriverMonitoringEnabled` (search only), `DriverMonitoringMode`, `CarrotVisionEnabled`, `MuteDoor`, `MuteSeatbelt` | Driver monitoring and selected vehicle alerts |
++| Radar | `EnableRadarTracks`, `RadarTrackFlip`, `EnableCornerRadar` | SCC radar, front-track orientation, corner radar, and fixed Carrot Radar processing |
 +| Driver monitoring | `DisableDM`, `MuteDoor`, `MuteSeatbelt` | Driver monitoring and selected vehicle alerts |
  | Vehicle assistance | `MaxAngleFrames`, `SpeedFromPCM` | Steering-angle frames and stock-SCC speed control |
  | Device hardware | `HardwareC3xLite` | Speakerless C3X Lite audio and process configuration |
  
  > [!CAUTION]
- > Incorrect `HyundaiCameraSCC`, `CanfdHDA2`, `EnableRadarTracks`, `CarrotRadarMode`, `CarrotRadarCutInSensitivity`, or `SpeedFromPCM` values can change vehicle identification, SCC, radar, or longitudinal behavior. Confirm the vehicle, model year, HDA generation, harness location, and whether stock ACC is retained.
- 
+-> Incorrect `HyundaiCameraSCC`, `CanfdHDA2`, `EnableRadarTracks`, `CarrotRadarMode`, `CarrotRadarCutInSensitivity`, or `SpeedFromPCM` values can change vehicle identification, SCC, radar, or longitudinal behavior. Confirm the vehicle, model year, HDA generation, harness location, and whether stock ACC is retained.
+-
 -`DriverMonitoringEnabled` defaults to ON and is available only through Carrot Web setting search. Search for the parameter name to find it. The OFF option is intended for an absent or failed DM camera; leaving the default ON unchanged is recommended. Turning it off stops normal-driving driver-monitoring alerts, monitoring-triggered force deceleration, and lockout, and may violate applicable laws or driving requirements depending on where and how the vehicle is used. Driver View keeps face preview with neutral enforcement. A Web OFF persists across drives and restarts until you manually turn the setting back ON. File and QR backups, restores and setting profiles exclude this value, so a backup from another device cannot turn monitoring off.
 -
 -Regardless of gear or speed, including at standstill, three distinct physical CANCEL presses, each separated by a release, within three seconds turn monitoring off for the current ignition session without changing `DriverMonitoringEnabled`. Gear and speed changes do not reset the count. Automatic-control CANCEL echoes and BT CANCEL do not count. Any received non-CANCEL vehicle-button event, whether a press or release, resets the sequence. Invalid or stale state, an input-stream gap, or timeout also resets it; an indistinguishable stock-ACC speed-button echo may reset progress too. The next ignition-on or manager/device restart clears only the temporary off state, so monitoring resumes only if the saved setting is ON. `DriverMonitoringMode` and `CarrotVisionEnabled` remain unchanged.
 -
 -`DriverMonitoringMode` applies while driver monitoring is on. It defaults to 0: stock comma camera monitoring criteria, or 15/30/45-second interaction monitoring when the camera is absent or failed. Mode 1 is for controlled experiments, with empty-road timing extensions and an interaction grace before camera warnings. A shared exception resets the usage restriction after one continuous second of valid Park, standstill and disengaged status. Mode changes apply live at roughly half-second intervals without rebooting. Switching preserves accumulated monitoring time, warning counts and lockout, and ends the previous interaction grace and forward-attention streak. See [driver monitoring and experimental-use conditions](driver-monitoring.md). `CarrotVisionEnabled` controls web road video independently. `DisableDM` remains migration-only; only its old value 2 video function is migrated once to `CarrotVisionEnabled`. Validated original `STEER_TOUCH_2AF` input on Hyundai/Kia/Genesis CAN-FD is supported without a vehicle-name whitelist, with held-contact and new-contact behavior depending on camera availability and mode.
+-
+-See [Radar tracks and corner radar](radar.md) before changing radar modes.
++> Incorrect `HyundaiCameraSCC`, `CanfdHDA2`, `EnableRadarTracks`, or `SpeedFromPCM` values can change vehicle identification, SCC, radar, or longitudinal behavior. Confirm the vehicle, model year, HDA generation, harness location, and whether stock ACC is retained.
++
 +`DisableDM` defaults to `0` (existing driver-camera monitoring); `1` disables monitoring, and `2` disables monitoring and permits web video. Reboot after changing it. File backups, QR and profiles preserve the setting. See [driver monitoring](driver-monitoring.md).
++
++Carrot Radar uses the fixed dPath runtime and production Normal sensitivity. See [Radar tracks and corner radar](radar.md) before changing track or corner-radar settings.
  
- See [Radar tracks and corner radar](radar.md) before changing radar modes.
+ **Cluster CAN Direct Send** (`HyundaiCanfdClusterDirectTx`) compares the original direct-send method on Hyundai/Kia/Genesis CAN-FD CameraSCC vehicles with intermittent cluster warnings. It defaults to OFF for every vehicle; enable it manually on an affected vehicle. Reboot the device after changing it. Updated Panda firmware supporting this setting is required. Resolution of vehicle warnings has not been validated.
  
-@@ -294,8 +293,6 @@
- `ClusterHud` (External HUD Display) switches a **HUD connected directly to the device USB port** on or off. A HUD connected to Jetson starts automatically even when this value is `0`, and normally turns its display off with ignition. Use the existing always-on `ClusterHudDebug` modes to keep it visible offroad. Brightness and layout settings also apply to the Jetson HUD.
+@@ -287,9 +286,7 @@
+ 
+ In modes `EnableRadarTracks=1`–`3`, a confirmed departing front lead can receive bounded future headway relief in ACC when outward radar motion and a visual switch to a farther vehicle agree. See [predicted CUT-OUT behavior](radar.md).
+ 
+-`CarrotRadarMode` continuously tracks vehicles with the front and corner radars to detect cut-ins, then matches camera and radar information in a new way to select the vehicle ahead. On vehicles with neither corner-radar nor radar-track support, it behaves the same as the existing mode. It can change acceleration and braking, so enable it only on the same vehicle after completing validation. The value is latched when the next OnRoad session starts, so end the current drive and restart the vehicle or reboot the device after changing it. The previous `RadarMotionMode` value is migrated to the new name once on the first startup after updating.
+-
+-`CarrotRadarCutInSensitivity` controls only Carrot Radar Mode CUT-IN detection: `0` disables it, `1` is insensitive, `3` is normal (default), and `5` is very sensitive; `2` and `4` are the intermediate levels. Levels `1` through `5` require `0.50`, `0.40`, `0.35`, `0.25`, and `0.20 s` of continuing measured motion evidence, while the physical future prediction remains fixed at 5.0 seconds. A front-radar track with at least 0.50 m of strongly one-way progress in its recent measured history may receive at most one 20 Hz radar-frame credit so timestamp quantization does not discard a completed dwell; small adjacent drift does not. It does not affect conventional radar mode or `EnableCornerRadar`. The value is read at the next OnRoad start, so restart the vehicle or reboot the device after changing it.
++
+ 
+ `HardwareC3xLite` must remain off on standard C3 and C3X hardware. Enable it only on a C3X Lite, then reboot the device. The setting skips the unavailable amplifier so startup is not delayed by I2C retries, uses the GPIO buzzer for alerts, disables `micd`, `soundd`, and `loggerd`, and turns off `RecordAudio`. Normal route logging is unavailable while this hardware mode is enabled.
+ 
+@@ -306,8 +303,6 @@
+ 
  
  The Jetson HUD shows the highest internal sensor temperature below `jetSON`, or in the upper-right corner in full-screen navigation/graph modes. If temperature data has not refreshed for three seconds, it shows `--°C`. A top-strip temperature warning starts 5°C below each sensor's configured thermal limit; reaching that limit shows an overheating warning. For example, a device configured to throttle at 99°C warns from 94°C. Check the fan and ventilation when warned. Vehicle driving alerts take precedence, and Jetson temperature remains separate from device temperature/memory statistics. This feature requires updated Jetson HUD software.
 -
@@ -108,7 +138,16 @@
  
  | Group | Parameters | Purpose |
  |---|---|---|
-@@ -374,10 +371,6 @@
+@@ -380,7 +375,7 @@
+ <a id="system"></a>
+ ## System
+ 
+-The 12 system settings cover recording, power, network, maps, sound, and software menus.
++The 9 system settings cover recording, power, network, maps, sound, and software menus.
+ 
+ | Group | Parameters | Purpose |
+ |---|---|---|
+@@ -391,15 +386,11 @@
  
  Check storage use for recording and network use, heat, and privacy before enabling live streaming.
  
@@ -116,6 +155,12 @@
 -
 -Experimental DM switches to standard monitoring for 20 seconds only when moving traffic first appears after an absence. Additional vehicles do not extend it; experimental monitoring then resumes, with no empty-road bonus while traffic remains.
 -
- ## Safe adjustment order
+ ## Signal Assistance Mode (Trial)
  
- 1. Record the current value in Carrot Web.
+ `SignalAssistMode` defaults to `0`. Mode `0` disables auxiliary signals; `1` enables recognition, display, alerts and the stopped-red departure veto; `2` also enables moving-red preparation.
+ 
+-Mode `2` gradually requests acceleration toward approximately −0.5m/s² after qualifying red evidence, with no lead, pedal input or turn and a speed above 5km/h and below 82km/h. At night, at least two persistent red lamps must have compatible placement and road-direction support; inferred housing size is not used as a stopping distance.
++Mode `2` gradually requests acceleration toward approximately −0.5m/s² after qualifying red evidence, with no tracked lead within 50m, pedal input or turn and a speed above 5km/h and below 82km/h. At night, at least two persistent red lamps must have compatible placement and road-direction support; inferred housing size is not used as a stopping distance.
+ 
+ Preparation releases when red evidence disappears or conflicts with green. The existing driving model still controls stopping toward the stop line; this trial does not guarantee deceleration or stopping at every red signal.
+ 

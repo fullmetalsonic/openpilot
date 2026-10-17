@@ -4,6 +4,7 @@ from functools import partial
 from numbers import Number
 from pathlib import Path
 from types import SimpleNamespace as NS
+from unittest.mock import patch
 
 import numpy as np
 import pytest
@@ -60,7 +61,11 @@ def control_fixture():
   settings = {'AlwaysLateral': True, 'SteerRatioRate': 88, 'CustomSR': 0, 'LatSmoothSec': 13}
   params = NS(get_float=lambda k: float(settings.get(k, 0)), get_int=lambda k: int(settings.get(k, 0)),
               get_bool=lambda k: bool(settings.get(k, False)))
-  control = NS(CP=cp, CI=ci, sm=sm, params=params, VM=VehicleModel(cp), LaC=LatControlTorque(cp, ci),
+  # Torque tuning is disabled in this fixture; unexpected settings reads fail.
+  torque_params = NS(get_int=lambda key: {'LateralTorqueCustom': 0}[key])
+  with patch('openpilot.selfdrive.controls.lib.latcontrol_torque.Params', return_value=torque_params):
+    lateral_control = LatControlTorque(cp, ci)
+  control = NS(CP=cp, CI=ci, sm=sm, params=params, VM=VehicleModel(cp), LaC=lateral_control,
                LoC=NS(reset=lambda: None, update=lambda *args: (0.0, 0.0, 0.0), long_control_state='off'),
                carrot_controls=NS(lat_suspend_control=lambda cs, active: active), is_vw_meb=False,
                desired_curvature=0.0, lateral_startup=LateralStartupGate(), lateral_started=False,
@@ -118,3 +123,29 @@ def test_normal_torque_reset_preserves_existing_integral_and_nn_history():
   lac.reset()
   assert lac.pid.i == 0.8
   assert len(lac.roll_deque) == len(lac.error_deque) == len(lac.lateral_accel_desired_deque) == 30
+
+
+@pytest.mark.parametrize('meb', [False, True])
+@pytest.mark.parametrize('active,lane,points', [(False, True, True), (True, False, True), (True, True, False), (True, True, True)])
+def test_lane_tuning_reads_only_when_used_and_remains_live(active, lane, points, meb):
+  control, step = control_fixture()
+  control.lateral_startup.ready = True
+  control.is_vw_meb = meb
+  control.calibrated_pose = None
+  control.meb_curvature_pid = NS(reset=lambda: None, update=lambda *a, **kw: 0.)
+  reads = []
+  original = control.params.get_float
+  control.params.get_float = lambda key: (reads.append(key), original(key))[1]
+  control.sm['carState'].latEnabled = active
+  plan = control.sm['lateralPlan']
+  plan.useLaneLines = lane
+  if points:
+    plan.psis = [0.] * 17
+    plan.curvatures = [0.001] * 17
+    plan.distances = list(range(17))
+  for _ in range(2):
+    reads.clear()
+    step()
+    for key in ('LatSmoothSec', 'SteerActuatorDelay'):
+      assert reads.count(key) == int(active and lane and points)
+    assert 'SteerRatioRate' in reads and 'CustomSR' in reads

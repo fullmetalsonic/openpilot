@@ -11,7 +11,413 @@ Stable and raw DDM branches and paused automation stay unchanged. The 2026-10-12
 follow-up also preserves the existing stopping output instead of adopting the
 upstream lower-band timing trial in 0e4ee1bd.
 
+The 2026-10-17 FMS integration starts at d5713e67 and reviews bd53684a.
+Preserve HOLD=0 and the current lane-change behavior: defer the upstream lever
+queue/HOLD policy, its new settings and model metadata producers. New schema
+ordinals remain inactive DEPRECATED compatibility reservations. Exclude the
+new DM SoftHold assessment pause. Also defer e944a8c5's lead exception to the
+red stop veto: existing red hold takes priority over native lead departure.
+The separate lead-aware notice mute may be adopted only without changing
+hold or control output. Upstream history below is evidence of its own policy
+and field observations, not permission to replace these FMS contracts.
+
 # Repository memory
+
+- On 2026-10-17, user reported >92% memory and clarified HUD power was cycled
+  before the observed88%; user authorizes vehicle-log transfer for diagnosis,
+  raw evidence stays private. Three routes/11,046 memory samples reach91%.
+  Old510 graphics leaks are absent; current4.75MiB orphans do not explain it.
+  Reproduce failed JPEG/H264 traceback retention until post-handler collection;
+  gc alone barely returns RSS, glibc trim returns~25-33MiB after close and~9-10MiB
+  after init. Collect/trim only at lifecycle boundaries, preflight authenticated
+  S3 discovery before graphics, preserve TCP-after-init and concise retries.
+  Twelve native injected failures reclaim all test-owned ION/weakrefs, but small
+  PSS growth remains; no long plateau/full-warning fix claim. Selective two-HUD-
+  file install on C4 2ef833b2, no model/control/reboot. Final model/DM60s1200/1201
+  valid consecutive at20.0049/20.0025Hz; S3 still disconnected. 114 desktop tests,
+  one skip. Both maintained branches single-parent. See
+  docs/hud_memory_retry_20261017.md for remaining limits and measurements.
+
+- On 2026-10-17, user requested muting signal notices with a lead and analysis
+  of today's creeping/stopping. Gate all planner signal notices on current
+  leadOne.status, any range, before navigation processing; preserve raw display,
+  control, unrelated warnings and unconsumed notice cooldown. 724 tests pass;
+  paired recorded-input replay20,384 updates changes no control outputs and
+  removes42 notices (default context, not native/MPC replay). Read-only vehicle
+  already runs2ef833b2/mode2. Collected/hash-verified99qlogs,17rlogs,3videos.
+  11:05:20 red stop: transient vision lead32.6m opens the new2m exception for
+  ~449ms; no pedal, peak0.627m/s and ~1.53m speed-integrated travel. Crossing
+  traffic is visible; exact object identity unproven. This is a remaining
+  regression in immediate lead bypass, NOT fixed by notice muting. 12:01 lead
+  fixed4.15m but filtered stop crosses2.15m:16 hold/exception transitions.
+  13:47 small0.141m/s/~0.20m movement follows actual gap opening with guard
+  continuously bypassed. Do not call all creeping signal flicker or relax red
+  further. Require separate validation of lead continuity/assignment and range
+  stability. Publish both branches single-parent; no vehicle install. See
+  docs/signal_drive_review_20261017.md; recordings remain private.
+
+- On 2026-10-17, user explicitly requested reusing the existing stop-to-lead
+  condition to bypass auxiliary red departure vetoes. Share finite positive
+  leadOne range and dRel - filtered model stop distance <2m with both stopped
+  handovers; 2m is relative to model stopping, not ego-to-lead spacing. Effective
+  start/legacy decisions suppress hold/warning/red injection while eligible,
+  including final longitudinal veto, without reporting green or granting accel.
+  Preserve red memory for immediate reapplication on lead loss/range exit and
+  preserve soft hold/user stop/MPC leads. Moving mode2 preparation is unchanged.
+  715 desktop tests pass with native Params lookup doubled. Publish both maintained
+  branches single-parent; no vehicle install or closed-loop road claim. See
+  docs/signal_lead_handover_20261017.md. This supersedes prior blanket red-veto
+  priority over an eligible lead, not signal recognition/green confirmation.
+
+- On 2026-10-16, user reported repeated blank S3 H.264 output after initial pass.
+  250ms queue-full shutdown magnified short stalls: retain three ordered slots,
+  apply HUD-encoder backpressure with close/error checks and a3s dead-sender cap.
+  This alone did NOT fix it: actual TCP timeouts and confirmed S3 idle-off remain.
+  C4->S3 loses14/30 packets, PC11/15; router0/30. PC cannot connect even with HUD
+  stopped. UART shows no association loss/reset/USB failures. Earlier successful
+  boot selected channel6/-48dBm; failing boot another AP channel1/-68dBm. Replace
+  first-match fast scan with all-channel RSSI-ranked connection; add BSSID status.
+  App-only flash preserves pairing and selects channel6/-50dBm; PC detailed601
+  frames/60.076s passes and user confirms restored actual C4 HUD stays normal.
+  No router changes, AP lock, ongoing-roaming or general radio root-cause claim.
+  Final180s UART has no close/off/USB failure;300s model/DM6000 consecutive valid
+  each at19.9999977/19.9998398Hz (approximately20, not strict>=20).115 tests pass,
+  one skip. See docs/s3_h264_release_20261016.md for observation/distribution.
+
+- On 2026-10-16, user requested implementing and deploying H.264 for S3 Wi-Fi.
+  Firmware1.2.0 authenticates capability discovery and keeps video chunks awake;
+  C4 targets1Mbps/GOP10, preserves reference order in bounded queues, and retains
+  legacy/auto-initialization JPEG fallback. PC physical simple601/60.06s and
+  detailed589/60.11s pass; user confirms smooth test and normal native C4 HUD.
+  AP channel/RSSI changed, so do not attribute every gain to codec. Two native
+  HUD stops reclaim all six owned buffers; TCP loss reconnects in20.205s.
+  Initial model/DM60s each1200 valid consecutive at20.007/20.008Hz. A separate
+  300s memory watch stays connected, same PID/104FDs, PSS184.95->185.66MiB;
+  synchronous smaps reads lose observer frames at exact30s boundaries and are
+  not a model-rate pass. See docs/s3_h264_release_20261016.md for final clean
+  frame observation, release checks and remaining Wi-Fi/long-duration limits.
+  Preserve pairing; public firmware never includes NVS. Both branches single-parent.
+
+- On 2026-10-16, user requested faster signals (20–50Hz target) and brake-lamp
+  ON/OFF. Camera is20fps; no sustained20Hz signal pass. Remove packed NV12 copy
+  with exact two-plane conversion; native conversion CPU drops~11–12%, wall
+  varies. Count preemption/I/O in50% CPU-duty sleep, preserving unique-frame,
+  freshness, detector/control and DM policies. Reject slower color prefilter
+  and core-reassignment trial. Add default-OFF LeadBrakeLights, mode0 dominates:
+  lazy context, bounded central lead crop, radar/vision match, turn rejection,
+  display/log only, candidate/unknown (never confirmed OFF or go). Signal-first
+  admission and overrun backoff; not a hard real-time deadline. Selected spatial
+  screen8/10 ON and0/16 OFF proposals is development evidence, not accuracy or
+  temporal validation.693 desktop tests with Params double pass. Native /tmp
+  diagnostics only; no vehicle installation. Publish both maintained branches,
+  single-parent. See docs/signal_speed_brake_lamps_20261016.md.
+
+- On 2026-10-16, user reported live low-memory warning after keeping ignition on.
+  Captured93.29%/241.89MiB available on the same14.5h boot; guarded HUD stop
+  recovers88.68%/408.40MiB and reclaims its current6 buffers, but old510 remain.
+  Comparable HUD-off snapshots2h44m apart lose24.29MiB, with no hundreds-of-MiB
+  growth in surviving process PSS. Save evidence, verify selective HUD hashes,
+  auto-pull off and no staged overlay, then authorized parked C4 reboot clears
+  historical buffers:74.75%/910.88MiB at173s, same e9b33329e4/eGPU active.
+  Recovery exceeds known GBM bytes; do not attribute all recovered memory to it.
+  Initial postboot1199/1200 valid consecutive model/DM frames at19.9836/19.9852Hz
+  is not a strict20Hz pass. Restore HUD with headroom guard:180s ends~82.3%/
+  639.38MiB, same PID/six current buffers, S3 connected at all40–180s samples.
+  HUD PSS188.00->191.19MiB is not a proven long plateau. Concurrent final60s
+  model/DM1202/1202 valid consecutive at20.0340/20.0323Hz, eGPU active. HUD stays1.
+  See docs/hud_low_memory_reboot_20261016.md for bounded
+  HUD-restoration observation and remaining long-duration/Wi-Fi limits.
+
+- On 2026-10-16, reproduced the remaining HUD native leak without S3: each
+  post98 raylib window close retains6 ION objects/1658880bytes plus DRM/socket
+  handles. Installed binary omits GBM surface/owned-FD and handoff-socket cleanup.
+  Add HUD-only hash-pinned adapter for post98/post103; preserve borrowed DRM_FD.
+  Native12-cycle minimal, actual renderer, post103 overlay and borrowed-FD tests
+  each reclaim all test-owned buffers with stable handles. Manager preimports
+  raylib: discard inherited graphics once by exec of only the HUD child before
+  binding the adapter. Actual managed stop exposed another cleanup gap: mark
+  context owned before asset loading and guarantee native close in finally,
+  before blocking display close.54 focused tests pass; unknown binaries fail before render.
+  Selective HUD-only install on vehicle e9b33329e4; no model/control/full pull.
+  Final3 actual managed HUD stops each reclaim all6 objects; S3 reconnects and
+  stays enabled at configured10fps (actual Wi-Fi refresh varies). Historical510 orphan objects/134.47MiB remain
+  until a clean restart; no total-memory clearance or original Wi-Fi-cause claim.
+  Recent S3 retries expose an older cleanup defect; introduction date unproven.
+  Final model/DM60s1200/1200 consecutive valid frames at20.000010/20.000090Hz;
+  S3 flag false at interval end, so Wi-Fi stability remains unresolved.
+  See docs/hud_native_cleanup_20261016.md for actual-cycle verification and limits.
+
+- On 2026-10-16, stop Wi-Fi HUD under fresh Park/inactive guard for memory/link
+  diagnosis; ClusterHud stays0, networking stays on. Available memory recovers
+  to501MiB, but510 orphan HUD ION objects/141004800bytes persist; not fixed.
+  Isolated raylib headless init segfaults: never enable as workaround. Small USB
+  commands and PC auth fail without rendering; channel6 temporarily refuses S3,
+  channel1 attaches at-72dBm. After approved reset/app flash channel6 at-38dBm
+  passes24 commands and150 JPEG frames/three10fps phases; later1200 frames in
+  120.029s with0 disconnects and idle internal heap restored182104bytes. AP changed: no
+  root-cause or long-duration fix claim. S3 firmware1.1.1 adds dim GPIO48 RGB
+  states and secret-free S3STATUS UART diagnostics; GPIO38 revisions configurable.
+  Pairing preserved, C policy tests/build pass; actual LED visual check pending.
+  No C4 model/control install. See docs/s3_wifi_memory_20261016.md.
+
+- On 2026-10-16, user clarified mode2 is moving gentle deceleration with no/remote
+  lead; after stopping it uses mode1 exactly. Near means fixed distance, with50m
+  used provisionally. Check both leads at entry/final cap; retain MPC leads and
+  reject low speed/soft hold. User explicitly corrected display scope: mode0
+  does NO auxiliary recognition/display/control; modes1/2 show raw recognition
+  even with ACC inactive. Separate HUD ring from planner action, dim previous
+  result at most2s from capture, gray unknown; never feed display memory to
+  control. Do not restart the CPU tracker solely for1<->2. Collected144qlogs,
+  20full segments/10,020 observer records. Evening green/lead departure is still
+  held by existing guard; no blanket lead release or solved-recognition claim.
+  Publish both maintained branches single-parent; no vehicle deployment. See
+  docs/signal_modes_display_20261016.md for checks and limits.
+
+- On 2026-10-15, user requested review/integration of Tesla PR551 c61d998ff8.
+  Reproduced inactive phase-lead CAN/feedback and saturation defects; Tesla's
+  encoded zero375 also regranted controls through the shared accel helper.
+  Port the nine PR files unchanged: measured inactive angle, final feedback,
+  cooperative torque blending only above25km/h with normal low-speed steering,
+  output-limit-aware saturation and Tesla-specific longitudinal permission.
+  Both maintained branches:199 focused tests/128 subtests pass. Three inherited
+  generic disabled-angle safety cases still fail identically before/after;
+  do not claim full safety suite success. Native C uses a desktop packet/forward
+  ABI bridge, not MCU/vehicle validation. Publish single-parent on both branches;
+  no vehicle installation. See docs/tesla_pr551_review_20261015.md.
+
+- On 2026-10-15, user requested historical attribution of memory >80%. Read925
+  retained local logs (916 own-device with memory) plus on-device qlogs. Earliest
+  observed >80% is Oct10/108e, but Oct11/1095 stays73--77% with HUD+signals;
+  not one proven regression date. Current DM warmup/plateau and logger sawtooth
+  match earlier runs. GC retry fix reduces Python retention, but native HUD ION
+  buffers persist after process death (89.6MB), and new PID accumulates again.
+  Do not call memory normal/fixed or recommend process cycling as its fix.
+  Expected S3 transport log cleanup published both branches; fresh-manager
+  reboot verifies concise timeout lines (HUD-only restart kept cached code).
+  Reboot clears old native buffers but four retries retain6.6MB again; current
+  81%/685MiB available is not leak clearance. Preboot model/DM1200 frames/60s,
+  postboot1199 valid consecutive each at19.974Hz, no missing IDs/fallback;
+  do not claim a strict >=20Hz postboot pass. S3 still times out. See
+  docs/hud_retry_memory_20261015.md; raw evidence private.
+
+- On 2026-10-15, user's C4 Git Pull was blocked by two untracked manually
+  installed eGPU helpers identical to incoming blobs; back up only those files,
+  preserve unrelated build/model artifacts. Old93160a93 HUD repeatedly lost S3
+  before renderer ready. Prior qlogs reach99%; same HUD PID grows168.62->528.55
+  MiB RSS, +181.89MiB PSS across segments5->27. Actual failed JPEG pipelines
+  remain frozen after close/collect; unfreeze releases them. Pair HUD session
+  freeze with finally unfreeze/threshold restore, retaining active-frame policy.
+  27 focused tests and native isolated12-cycle reclamation pass. This fixes a
+  demonstrated retention path, not every system/native allocation or reboot
+  cause. User authorizes parked system stop/update; verify fresh P/zero/inactive.
+  Publish both maintained branches, single-parent. See docs/hud_retry_memory_20261015.md.
+
+- On 2026-10-15, user requested public S3 firmware/install guide after confirming
+  the panel wakes and turns off. S3 1.1.0 confirms sync/brightness-off, retries
+  failed shutdown and reasserts idle-off; C4 offroad dimming includes registered
+  S3. N16R8 / powered hub / TURZX 1cbe:0092 only. Browser installer and NAS ZIP
+  preserve NVS; never distribute device flash backups or pairing keys. UART
+  --auto requires a unique bridge and verifies identity. Native three-phase
+  150-frame final test passes with preserved pairing; browser-native flashing
+  is distinct from UART validation. Publish both maintained branches, single-parent.
+  See docs/s3_release_20261015.md and tools/esp32s3_display/INSTALL_KO.md.
+
+- On 2026-10-15, user requested MD v3 PR39087 on carrot-wip ONLY unless already
+  installed. Prior selection was8d736683; new checkpoint1365126a/12864, AMDd4c7a3fc,
+  pinned tinygrad02e69816/runtimec7c58622. PR changes only the big PKL; no matching
+  ONNX, internal/DM and Jetson remain unchanged. Preserve retry/fallback policies;
+  source-verified new runtime retains USB no-op sleep and +/-1 link-error meanings,
+  so extend only the exact hash allowlist.411 focused tests/13 Web tests pass,
+  8 Windows skips; Linux CI403 plus3 native-runtime tests and HTTPS empty-cache
+  install/offline reuse pass on8864280c9c.
+  No vehicle install or native20Hz/driving claim. See docs/md_v3_20261015.md.
+
+- On 2026-10-15, user requested explicit tmux error/retry visibility after
+  repeated eGPU investigations. Add bounded stderr [eGPU] lifecycle events with
+  PID/monotonic time, saved failure cause/classification, attempt/limit/backoff,
+  waiting reason, probe-ready/handover, actual first live publication and stop
+  reason. Preserve all retry/validation/model policies; never write diagnostic
+  text to the worker stdout protocol.179 focused tests pass; no vehicle action.
+  See docs/egpu_persistent_rejection_20261015.md.
+
+- On 2026-10-15, identified the persistent Ioniq 5 PE block from actual NAS
+  diagnostics: pinned90970e01 reports AMD failed with +1 during input upload.
+  Its usb_reap latches LIBUSB_TRANSFER_ERROR=1; old classifier recognized only-1.
+  Both branches now classify exactly +/-1 only for that verified runtime, with
+  previous-boot/hash/artifact/smoke validation for old rejections.175 tests and
+  the exact recorded traceback probe pass. The failing734634 predates Oct15
+  timing changes. Device wall clock was stale; do not assert recorded21:05 as
+  incident time. Physical USB root cause remains unknown; no vehicle install.
+  This supersedes the earlier unknown reporter cause below; numerical migration
+  is a separate correction. See docs/egpu_persistent_rejection_20261015.md.
+
+- On 2026-10-15, a Mountain Dew report remained rejected after reboot. Current
+  wip lacked nav's previous-boot numerical-rejection migration; four positive
+  replay cases fail before the port and pass afterward. Port only that migration,
+  preserving branch model/runtime and per-frame policies. Keep identity, fresh
+  boot, artifact verification and new smoke checks; unknown/integrity failures
+  remain blocked. Both web branches deny ineffective compile-restart on rejection
+  and offer a bounded matching historical failure download. Original reporter
+  failure/commit is still unknown; no vehicle action or USB root-cause claim.
+  See docs/egpu_persistent_rejection_20261015.md.
+
+- On 2026-10-15, Carnival225-28 on0e647cd2 has a visible moving-to-stop corner
+  born in-lane, excluded from L1 and outside-history/45m CUT-IN L2. Prior Oct14
+  fallback is inactive, not a demonstrated regression. Add measured braking L2
+  only with current confident lanes/vision,350ms lane/braking/physical history,
+  actual speed decline and integrated range-rate agreement; preserve front/SCC
+  primary and ordinary CUT-IN. Broad cruising association was rejected. All
+  102 logs/502 labels: prior499 rows identical in modes1/2/3; failures11/10/13,
+  predecel0/0/1 and208 unverified remain. Three new cases pass. All122,090 mode1
+  frames have unchanged L1; only6 Carnival and7 reviewed Azera L2 samples differ.
+  Carnival first66.35m/video16.602s, only6 samples:1.45s before replay front or
+  about1.3s before recorded front. Tighter obstacle input is not MPC/closed-loop
+  braking validation; the later evidence gap remains.1230 Windows tests pass,
+  vault36 pass/4 skips. Publish both maintained branches, single-parent, verify
+  automatic NAS image/page/replay; no vehicle action. See
+  docs/carnival_in_lane_braking_20261015.md. Recordings remain private.
+
+- On 2026-10-15, the user requested allowing S3 Wi-Fi HUD up to10fps while eGPU
+  is active. Its live rate reader inherited the wired USB5fps cap. Give only the
+  Wi-Fi reader a10fps cap, preserve lower configured rates and direct USB policy.
+  Parked HUD-only restart reports9.8-10.0Hz; model/DM each1200 consecutive valid
+  frames in60s, no process restart or fallback.32 focused tests pass on both
+  branches. This is host refresh, not optical panel FPS. See
+  docs/s3_wifi_egpu_investigation_20261015.md.
+
+- On 2026-10-15, the user required normal model output at20Hz and requested
+  upstream NAV n16 afbf2e547e / AMD52205044 (checkpoint96244b1f/12800). It changes
+  only the PKL; runtime d3f09c9/90970e01 and old Jetson ONNX are unchanged. Pin
+  the separate NAS n16 package on carrot-nav; preserve wip's model selection.
+  Shared eGPU fixes yield200us after1ms in this exact runtime's previously no-op
+  USB sleep, retaining FIFO54/core7 after lower-priority/core trials failed20Hz.
+  Full-response deadline150ms, bounded failed-worker kill/reaping plus ownership
+  lock, fresh-frame fallback and startup-only internal inference warmup/reset
+  replace the ~3s stale fallback. Stopped-worker probe reaches internal output
+  in718ms with106ms capture age; this is not fault-time20Hz or root-cause proof.
+  Final native300s has6000/6000 consecutive valid model/DM frames at20.0002Hz;
+  no fallback, S3 connected. Later USB link counter remains1->1, not zero.
+  Nav298/wip257 focused tests pass. User authorized parked restarts/install. See
+  docs/egpu_n16_stability_20261015.md for final validation and remaining limits.
+
+- On 2026-10-15, deeper direct-eGPU analysis confirms all three fault snapshots
+  were USB4-1/5Gbps, active with autosuspend off. Outstanding output_read used
+  ~95–99% main-thread CPU; worker FIFO54 and DM FIFO5 share CPU7, with DM CPU
+  sharply reduced during stalls. Pinned90970e01 has no-op USB sleep and zero-time
+  libusb polling; older AMDSignal yield tests do not cover it. Polling/starvation
+  is a supported failure-path hypothesis, not the initial GPU/bridge root cause.
+  Parent close can add2s; no runtime/model change or eGPU restart performed.
+  Parked retry permission pending. S3-only TCP disconnect recovers in9.217s
+  without process restart, model/DM601/600 valid updates in30s. Offroad Wi-Fi
+  association differs from HUD output gating. See docs/s3_wifi_egpu_investigation_20261015.md.
+
+- On 2026-10-15, S3 home Wi-Fi delay improved after an approved single-AP
+  channel1->6/20MHz change: 35% loss/217ms mean to no loss/6.7ms after removing
+  the temporary AP lock. C4 had no pairing file; saved the existing key privately.
+  Defer S3 TCP open until renderer readiness to avoid its2s idle timeout; notice
+  new registration during USB wait.30 focused tests pass; native parked HUD runs
+  typically9-13Hz, model/DM600/601 valid updates in30s with original PIDs. Physical
+  panel/road validation is separate. Three new Oct14/15 NAV-RL eGPU output-read
+  timeouts cause~3s model gaps and~3s-old first fallback; underlying cause remains
+  unresolved. No eGPU/model/control change. Publish host fixes to both maintained
+  branches, single-parent. See docs/s3_wifi_egpu_investigation_20261015.md.
+
+- On 2026-10-14, the upper/lower signal-group trial fixes supplied qualified
+  observations but not actual departure: 43,090 historical planner inputs at
+  nominal/+20ms and 20 recent segments show no output changes; Santa Fe encoded
+  165-frame replay still has zero releases. Keep UpperSignalGroupTrial OFFLINE;
+  production guard/tracker remain unchanged. Fresh neural comparison gives
+  68/73 box-eligible images versus rules47, tiles70; tiny green cores10/37 or
+  tiles19/37 remain weak. Neural also fails identity/release at recorded timing.
+  No retraining or vehicle change. Next target is learned whole-housing/lamp
+  recognition with encounter-separated labels, not another live rule relaxation.
+  Publish offline tools/tests/findings to both maintained branches, single-parent.
+  See docs/signal_upper_group_trial_20261014.md; raw evidence stays private.
+
+- On 2026-10-14, Carnival 222-1 on 0245e76f shows late front arrival and a
+  stopping-path tail rejecting visible stationary corner 1193. Add missing-L1
+  measured L2 only with confident actual inner lanes, stopping context, stable
+  corner history and current visual agreement. Do not relax ordinary path/L1
+  gates. Replay selects 11 frames at 74.32m, about0.57s earlier, not closed-loop
+  stopping validation. User also requested screen + one short sound for an
+  unselected, vision-missing, stable front/corner stationary pair: TTC<=4.8s,
+  range<=120m, active longitudinal only, 500ms confirmation and encounter/cooldown
+  suppression. Existing100 logs/497 labels are identical in modes1/2/3; existing
+  failures11/10/13 and208 unverified remain. All119,689 prior mode1 outputs match;
+  no advisory fires, so real positive performance is unproven.1176 wip tests pass;
+  two new Carnival cases pass all modes. Publish both maintained branches and
+  verify automatic NAS replay deployment; no vehicle action. See
+  docs/carnival_stopped_car_20261014.md; recordings stay private.
+
+- On 2026-10-14, Elantra route311 segments3/10 confirms86->88% memory use.
+  DPathRadarD's lifetime Cap'n Proto builder leaks replaced list/error storage:
+  restore a fresh builder each update, preserving controller history and fields.
+  532 tests pass;2,399 recorded-input frames serialize identically.72,000 real-
+  payload updates grow old RSS23.02MiB, fixed0.086MiB then flat (accelerated PC,
+  not an hour of vehicle operation). Actual radar RSS grows3.31MiB across~8min;
+  loggerd grows36.86MiB and remains unexplained. Do not claim the overall88%
+  issue solved. Publish both maintained branches, single-parent; no vehicle action.
+  See docs/elantra_memory_20261014.md; recordings remain private.
+
+- On 2026-10-14, the user requested recovering uncommitted completed work and
+  an explanation before publication. The pending October 3 changes are NNFF
+  startup-notice retry, a default-OFF search-only NNFF setting, and a common
+  120 ms temporary-steering warning presentation delay. Publish separately to
+  carrot-nav and carrot-wip with single-parent commits after current checks.
+  The user explicitly requested deleting the failed parked-blinker experiment:
+  remove its uncommitted safety hooks, helper and tests; retain only historical
+  findings. Do not reinstall or revive that experiment. See
+  docs/uncommitted_work_recovery_20261014.md. No vehicle deployment is included.
+
+- On 2026-10-12, 10a5 on nav ac1da01591/mode2 reproduces a real green held by
+  a tiny sole red anchor and zero moving preparation after small night lamps
+  repeatedly lose IDs. Add a two-housing red-to-green release: each anchor needs
+  independent red history and fresh 700ms green, with no forward red conflict.
+  Night-only pending-red templates and unique >=0.9 image correspondence retain
+  small red identity through bounded motion; do not relax green/daytime rules.
+  512 tests pass; prior 43,090-frame guard summaries match at nominal/+20ms;
+  3,347 prior image comparisons have unchanged fresh colors/green boxes. New
+  replay releases the reviewed green hold; image replay requests preparation
+  5.60s earlier for only0.9s, cap about-0.19m/s2. Not sustained braking or a full
+  stop; no vehicle install/native timing/closed-loop claim. Publish to BOTH
+  carrot-nav and carrot-wip, single-parent only. See docs/signal_a5_followup_20261012.md.
+
+- On 2026-10-12, the user reaffirmed that corrections must be committed and
+  pushed to ALL maintained carrot-* branches unless explicitly excepted. This
+  supersedes the earlier wip-only signal scope. Current remote targets are
+  carrot-wip and carrot-nav; do not recreate retired branches or modify other
+  contributors' namespaced branches. Port both signal preparation cadence and
+  night red-group corrections to nav, preserving its navigation/model/runtime
+  choices. Keep every new commit single-parent, preserve unrelated local work,
+  and distinguish branch publication from vehicle installation and road validation.
+
+- On 2026-10-12, the user requested solving the failed night-red preparation.
+  A separate night contract now requires 2–4 persistent compact red lamps with
+  compatible road-direction support, NOT a bounded distance or stop-line target.
+  Same-ID current-red templates bridge a direct core <=500ms without renewing
+  it. Night capture freshness is350ms; missing pair evidence is inactive with
+  <=350ms confirmation retention, and fresh forward green cancels. Only night
+  geometry erodes road edges by0.3+2*std (std<=1m); measured housing policy stays.
+  Mode2 alone actuates; keep CPU/DM protection and original ONNX. 492 tests pass.
+  Nine-minute replay enters once6.10s before original stopping, for1.1s to target
+  -0.27m/s2; +20/+100ms still enter, +250ms rejects. Prior4329-input regression
+  adds no entries. Not closed-loop improvement or guaranteed stop: identity loss
+  and applicability remain limitations. No vehicle deployment; read-only vehicle
+  remains carrot-nav135020d1. Work remains carrot-wip, single-parent only. See
+  docs/signal_night_group_20261012.md and private2026-10-12-night-geometry archive.
+
+- On 2026-10-12, the latest 10a4 evening drive has 1,063 fresh-red observer
+  outputs but zero moving preparation: every confirmed red box is a night core
+  or template, not a measured housing. Preserve confirmation across repeated
+  accepted samples ageing beyond 200ms, for at most 450ms from capture; output
+  remains inactive, and fresh new evidence/context/gap/session checks still win.
+  448 focused tests pass. Recorded-input replay of 10,276 planner samples and
+  +20ms delay still gives zero entries, as does an offline night lamp-ray/height
+  experiment: road confidence and broad/truncated range remain blocking. Do not
+  connect the failed night candidate, pretend inferred width is metric housing
+  size, or claim better stopping. No vehicle deployment/model changes. Work only
+  on carrot-wip with single-parent commits; preserve the separate nav checkout.
+  See docs/signal_night_prepare_20261012.md and private evidence archives.
 
 - On 2026-10-12, SignalAssistMode adds the requested live0/1/2 selection on
   carrot-wip only:0 auxiliary OFF,1 display/alerts and stopped-red departure veto,
@@ -431,6 +837,15 @@ upstream lower-band timing trial in 0e4ee1bd.
   Closed-loop comfort and clearance remain unvalidated. Keep incident data local.
   See docs/longitudinal_gap_hold_band_20261005.md.
 
+- On 2026-10-03, the user explicitly approved adding core7 to C3/C3X main UI
+  onroad affinity: cores0,1,2,3,6,7 with SCHED_OTHER/nice19 for all UI threads.
+  This supersedes the earlier core7 exclusion for this UI. C4 stays core6;
+  offroad returns to cores0..3. Check each big core independently; preserve
+  model/DM, control/camera, IRQ and USB cluster policies. An allowed mask is
+  not a CPU quota or parallel rendering and may concentrate UI work on core7.
+  Device affinity/FPS and model/DM impact remain unvalidated. See
+  docs/camera_core5_trial.md.
+
 - On 2026-10-03, the user requested a manual compatibility option for intermittent
   cluster warnings: HyundaiCanfdClusterDirectTx defaults OFF on every vehicle,
   including EV6. In CAN-FD CAMERA_SCC only, enabling it at startup selects the
@@ -442,15 +857,6 @@ upstream lower-band timing trial in 0e4ee1bd.
   are required. 543 focused/settings/Wiki/firmware-identity tests and F4/H7
   builds pass; actual warning resolution and physical timing remain unvalidated.
   See docs/canfd_cluster_rx_forwarding.md. Keep incident data local.
-
-- On 2026-10-03, the user explicitly approved adding core7 to C3/C3X main UI
-  onroad affinity: cores0,1,2,3,6,7 with SCHED_OTHER/nice19 for all UI threads.
-  This supersedes the earlier core7 exclusion for this UI. C4 stays core6;
-  offroad returns to cores0..3. Check each big core independently; preserve
-  model/DM, control/camera, IRQ and USB cluster policies. An allowed mask is
-  not a CPU quota or parallel rendering and may concentrate UI work on core7.
-  Device affinity/FPS and model/DM impact remain unvalidated. See
-  docs/camera_core5_trial.md.
 
 - On 2026-10-03, Tucson `0000030c--adf522a321--4` showed unnecessary left
   steering while passing a transporter. Actual speed stayed near 104 km/h
@@ -478,6 +884,24 @@ upstream lower-band timing trial in 0e4ee1bd.
   pass on desktop with Windows Params storage substituted. This promotion is
   not a new retry fix or vehicle-response validation. See
   docs/steering_handover_20260930.md.
+
+- On 2026-10-01, Ioniq 5 PE `000005d3--54fb087f33--21` on eb58e6d7
+  confirmed live handover mode 3. The reporter clarified first-curve inside
+  positioning and insufficient turning at the street end after 35 s; this
+  supersedes interpreting the complaint as vibration/catching. First-curve
+  authority is full and angle tracking close; path/target and unwind timing
+  need investigation, without declaring the driving model at fault. First
+  0–10 s also has roughly 10 Hz original-MDPS
+  column-torque oscillation with ceiling 250 and no pressed detection. In the
+  tight left turn after 35 s, command reaches the existing 175-degree limit,
+  then repeated torque-based override drops authority to 25; at 39.125 s actual
+  wheel 51.7 versus target/command 147.1 gives 95.4 degrees error. Mode 3 stays
+  waiting during those drops. Exit capture/recover then hits the raw-force veto;
+  Panda TX echoes confirm 44-to-25 in 7.1 ms, followed by bounded return until
+  42.79 s. No CAN/steering/model fault or decoded warning-vibration request.
+  Torque/contact signals do not prove driver intent; the source of full-authority
+  oscillation and physical remedy remain unresolved. Analysis only; do not infer
+  that faster handover alone fixes it. See docs/ioniq5_5d3_steering_20261001.md.
 
 - On 2026-10-02, after the native CPU experiment and Ioniq 5 PE before/after
   logs, the user explicitly approved promotion to `carrot-wip` and deletion of
@@ -1160,6 +1584,12 @@ upstream lower-band timing trial in 0e4ee1bd.
   `docs/user/` or link it from the public Wiki.
 
 # Settings Wiki authoring
+
+- On 2026-10-08, the user explicitly gave standing approval to commit and push
+  task-related Wiki updates to `https://github.com/ajouatom/openpilot.wiki.git`,
+  including its default `master` branch. Do not ask for separate Wiki-push
+  confirmation again for requested work. Continue following the authoring and
+  validation rules below and preserve unrelated Wiki content.
 
 - Before editing generated settings Wiki content or its generator, read
   `tools/docs/wiki_settings/AUTHORING_GUIDE.md` completely.

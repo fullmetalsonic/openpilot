@@ -98,16 +98,18 @@ diff --git a/docs/paddle_mode4.md b/docs/paddle_mode4.md
 diff --git a/opendbc_repo/opendbc/car/hyundai/carstate.py b/opendbc_repo/opendbc/car/hyundai/carstate.py
 --- a/opendbc_repo/opendbc/car/hyundai/carstate.py
 +++ b/opendbc_repo/opendbc/car/hyundai/carstate.py
-@@ -9,7 +9,7 @@
+@@ -9,9 +9,9 @@
  from opendbc.car.common.conversions import Conversions as CV
  from opendbc.car.carlog import carlog
  from opendbc.car.hyundai.hyundaicanfd import CanBus
--from opendbc.car.hyundai.steering_touch import HyundaiSteeringTouch
 +from opendbc.car.hyundai.paddle_mode4 import read_paddle_input
+ from opendbc.car.hyundai.navi_speedcam import SpeedcamPolicy
+ from opendbc.car.hyundai.section_average import DISTANCE_SCALE as SECTION_DISTANCE_SCALE, SectionAverage
+-from opendbc.car.hyundai.steering_touch import HyundaiSteeringTouch
  from opendbc.car.hyundai.values import HyundaiFlags, CAR, DBC, Buttons, CarControllerParams, CAMERA_SCC_CAR, HyundaiExtFlags, \
                                         EV_MODE_ACTIVE_VALUES, EV_MODE_STATUS_ADDR, EV_MODE_STATUS_DLC, EV_MODE_STATUS_MSG, \
                                         EV_MODE_STATUS_SIGNAL
-@@ -207,7 +207,6 @@
+@@ -211,7 +211,6 @@
      self.tcs = None
      self.mdps = None
      self.steer_touch_2af = None
@@ -115,7 +117,17 @@ diff --git a/opendbc_repo/opendbc/car/hyundai/carstate.py b/opendbc_repo/opendbc
      self.cruise_buttons_msg = None
      self.cam_0x362 = None
      self.cam_0x2a4 = None
-@@ -263,6 +262,8 @@
+@@ -219,9 +218,6 @@
+     self.accelerator = None
+     self.blinkers = None
+     self.blinkers_alt = None
+-    self.blinker_stalks = None
+-    self.left_stalk_prev = self.right_stalk_prev = False
+-    self.left_blinker_stalk_count = self.right_blinker_stalk_count = 0
+     self.doors_seatbelts = None
+     self.cruise_buttons_alt2 = None
+ 
+@@ -284,6 +280,8 @@
      self.ACCMode = 0
      self.LFA_ICON = 0
      self.paddle_button_prev = 0
@@ -124,7 +136,39 @@ diff --git a/opendbc_repo/opendbc/car/hyundai/carstate.py b/opendbc_repo/opendbc
      self.canfdOemBrakeHoldLatched = False
      self.canfdAvhReleaseGraceFrames = 0
  
-@@ -1109,7 +1110,6 @@
+@@ -479,9 +477,6 @@
+             add_and_cache(self.cp, "ACCELERATOR", "accelerator", ignore_counter = True)
+           add_and_cache(self.cp, "BLINKERS", "blinkers")
+           add_and_cache(self.cp, "BLINKERS_ALT", "blinkers_alt")
+-          # Turn-signal lever pulses (0.04-0.2 s per press, ~5 Hz) on the PT bus only: the alt bus carries an
+-          # unrelated 24-byte frame with the same 0x3C1 id (Ioniq 5 PE, 2026-09-19 drive).
+-          add_and_cache(self.cp, "BLINKER_STALKS", "blinker_stalks", ignore_counter=True)
+           add_and_cache(self.cp, "DOORS_SEATBELTS", "doors_seatbelts")
+         elif self.controls_ready_count == 126:
+           add_and_cache(self.cp, "CRUISE_BUTTONS_ALT2", "cruise_buttons_alt2", ignore_counter = True)
+@@ -859,21 +854,6 @@
+         continue
+       kept.append(event)
+     return kept
+-
+-  def _update_blinker_stalks(self, ret):
+-    """Turn-signal lever (BLINKER_STALKS): presses (rising edges) into carState.*BlinkerStalkCount, position into blinkerLever."""
+-    if self.blinker_stalks is not None:
+-      left_stalk, right_stalk = bool(self.blinker_stalks["LEFT_BLINKER"]), bool(self.blinker_stalks["RIGHT_BLINKER"])
+-      if left_stalk and not self.left_stalk_prev:
+-        self.left_blinker_stalk_count = (self.left_blinker_stalk_count + 1) % 256
+-      if right_stalk and not self.right_stalk_prev:
+-        self.right_blinker_stalk_count = (self.right_blinker_stalk_count + 1) % 256
+-      self.left_stalk_prev, self.right_stalk_prev = left_stalk, right_stalk
+-      # *_TAP is set only in the one-touch detent; a latch passes through it for ~0.1 s (2026-10-04 lever test)
+-      tap = self.blinker_stalks["LEFT_BLINKER_TAP"] or self.blinker_stalks["RIGHT_BLINKER_TAP"]
+-      ret.blinkerLever = 1 if tap else 2 if (left_stalk or right_stalk) else 0
+-    ret.leftBlinkerStalkCount = self.left_blinker_stalk_count
+-    ret.rightBlinkerStalkCount = self.right_blinker_stalk_count
+ 
+   def _hold_speedcam_decel(self, button_events, decel_long_press):
+     """While a section is unlocked, cruise - goes to carstate only: a long press relocks the section
+@@ -1309,7 +1289,6 @@
      cp_alt = can_parsers[Bus.alt] if Bus.alt in can_parsers else None
  
      ret = structs.CarState()
@@ -132,7 +176,22 @@ diff --git a/opendbc_repo/opendbc/car/hyundai/carstate.py b/opendbc_repo/opendbc
  
      if self.CP.extFlags & HyundaiExtFlags.EV_MODE_STATUS_230:
        ret.evModeActive, ret.evModeValid = _get_ev_mode_state(cp)
-@@ -1397,7 +1397,15 @@
+@@ -1392,14 +1371,11 @@
+     ret.steerFaultTemporary = cp.vl["MDPS"]["LKA_FAULT"] != 0 or cp.vl["MDPS"]["LFA2_FAULT"] != 0
+     #ret.steerFaultTemporary = False
+ 
+-    self._update_blinker_stalks(ret)
+-
+     blinkers_info = self.blinkers if self.blinkers is not None else self.blinkers_alt if self.blinkers_alt is not None else None
+     if blinkers_info is not None:
+       left_blinker_lamp = blinkers_info["LEFT_LAMP"] or blinkers_info["LEFT_LAMP_ALT"]
+       right_blinker_lamp = blinkers_info["RIGHT_LAMP"] or blinkers_info["RIGHT_LAMP_ALT"]
+       ret.leftBlinker, ret.rightBlinker = self.update_blinker_from_lamp(50, left_blinker_lamp, right_blinker_lamp)
+-      ret.blinkerLamp = 1 if left_blinker_lamp else 2 if right_blinker_lamp else 0
+ 
+     if self.CP.enableBsm:
+       if self.cp_bsm is None:
+@@ -1611,7 +1587,15 @@
  
      self.paddle_button_prev = paddle_button
  
@@ -960,10 +1019,10 @@ diff --git a/openpilot/selfdrive/car/card.py b/openpilot/selfdrive/car/card.py
  from openpilot.selfdrive.car.car_specific import MockCarState
  from openpilot.selfdrive.car.openpilot_toggle import CruiseMainOpenpilotToggle
  from openpilot.selfdrive.controls.lib.lateral_readiness import LateralStartupGate
-@@ -259,7 +260,11 @@
-     #self.t2 = time.monotonic()
- 
+@@ -265,7 +266,11 @@
      #self.v_cruise_helper.update_v_cruise(CS, self.sm['carControl'].enabled, self.is_metric)
+     # A gas tap spent on a camera skip must not also raise the set speed by +10.
+     self.v_cruise_helper.speedcam_gas_tok_consumed = getattr(self.CI.CS, "speedcam_gas_tok_consumed", False)
 -    self.v_cruise_helper.update_v_cruise(CS, self.sm, self.is_metric)
 +    # Same-batch driver CANCEL can disappear from the final button transition.
 +    # Read current parser evidence, before publishing the next output context.
@@ -973,7 +1032,7 @@ diff --git a/openpilot/selfdrive/car/card.py b/openpilot/selfdrive/car/card.py
      #self.t3 = time.monotonic()
      if self.sm['carControl'].enabled and not self.CC_prev.enabled:
        # Use CarState w/ buttons from the step selfdrived enables on
-@@ -282,6 +287,10 @@
+@@ -288,6 +293,10 @@
      CS.carrotCruise = 1 if self.v_cruise_helper.carrot_cruise_active else 0
  
      self.CI.CS.softHoldActive = CS.softHoldActive
@@ -1005,7 +1064,7 @@ diff --git a/openpilot/selfdrive/car/paddle_context.py b/openpilot/selfdrive/car
 diff --git a/openpilot/selfdrive/car/tests/test_paddle_gap.py b/openpilot/selfdrive/car/tests/test_paddle_gap.py
 --- /dev/null
 +++ b/openpilot/selfdrive/car/tests/test_paddle_gap.py
-@@ -0,0 +1,456 @@
+@@ -0,0 +1,459 @@
 +"""Mode-4 input, delayed persistence, and unchanged downstream CAN contracts."""
 +from threading import Event
 +from types import SimpleNamespace as NS
@@ -1055,14 +1114,14 @@ diff --git a/openpilot/selfdrive/car/tests/test_paddle_gap.py b/openpilot/selfdr
 +@pytest.fixture
 +def mode4():
 +  helper, CS, CC = make_remote_helper(None, enabled=True)
-+  helper.CP = NS(openpilotLongitudinalControl=True)
++  helper.CP = NS(openpilotLongitudinalControl=True, pcmCruise=False)
 +  CC.longActive = True
 +  helper._paddle_mode = 4
 +  params = MemoryParams()
 +  helper.params = params
 +  writer = helper._paddle_gap_writer = PaddleGapWriter(lambda: params)
 +  calls = []
-+  helper._cruise_control = lambda *args: calls.append(args)
++  helper._cruise_control = lambda *args, **kwargs: calls.append(args)
 +  yield helper, CS, CC, params, calls
 +  params.release.set()
 +  writer.close()
@@ -1161,7 +1220,8 @@ diff --git a/openpilot/selfdrive/car/tests/test_paddle_gap.py b/openpilot/selfdr
 +  events = [(ButtonType.cancel, True), (ButtonType.paddleRight, True)]
 +  drive_events(mode4, *(events[::-1] if reverse else events))
 +  helper._paddle_gap_writer._queue.join()
-+  assert helper._cruise_cancel_state and not calls and not params.writes
++  assert helper._cruise_cancel_state and not params.writes
++  assert calls == [(-1, -1, 'Cruise off (driver CANCEL)')]
 +
 +
 +@pytest.mark.parametrize("invalid", ["can", "park", "stock_long", "three_levels"])
@@ -1398,7 +1458,7 @@ diff --git a/openpilot/selfdrive/car/tests/test_paddle_gap.py b/openpilot/selfdr
 +  """Host chain with real DBC packing/parsing and source-extracted CarState tail.
 +
 +  Full carstate update and process IPC require the Linux/device integration run.
-+  Extracting the unchanged block avoids duplicating its button conversion logic.
++  Extracting the production block avoids duplicating its button conversion logic.
 +  """
 +  import ast
 +  from pathlib import Path
@@ -1425,8 +1485,10 @@ diff --git a/openpilot/selfdrive/car/tests/test_paddle_gap.py b/openpilot/selfdr
 +  params.values["LongitudinalPersonality"] = 1
 +  packer = CANPacker("hyundai_canfd_generated")
 +  parser = CANParser("hyundai_canfd_generated", [(message, 50)], 0)
-+  state = NS(paddle_button_prev=0, cruise_btns_msg_canfd=message, gear_msg_canfd=message,
-+             cruise_buttons=[0], main_buttons=[0])
++  state = CarState.__new__(CarState)
++  state.__dict__.update(paddle_button_prev=0, cruise_btns_msg_canfd=message, gear_msg_canfd=message,
++                       cruise_buttons=[0], main_buttons=[0], speedcam_accel_swallow=False,
++                       speedcam_decel_hold=False, section_average=NS(unlocked=False))
 +  state._update_paddle_input = CarState._update_paddle_input.__get__(state)
 +  target = 2 if side == "LEFT_PADDLE" else 0
 +  for frame, pressed in enumerate([0, 1, 1, 0]):
@@ -1434,7 +1496,7 @@ diff --git a/openpilot/selfdrive/car/tests/test_paddle_gap.py b/openpilot/selfdr
 +    parser.update([1_000_000_000 + frame * 20_000_000, [frame_msg]])
 +    decoded = NS(buttonEvents=[])
 +    exec(decoder, {"self": state, "cp": parser, "ret": decoded, "prev_cruise_buttons": 0,
-+                   "prev_main_buttons": 0, "BUTTONS_DICT": BUTTONS_DICT,
++                   "prev_main_buttons": 0, "speedcam_decel_long_press": False, "BUTTONS_DICT": BUTTONS_DICT,
 +                   "ButtonType": structs.CarState.ButtonEvent.Type, "create_button_events": create_button_events,
 +                   "read_paddle_input": read_paddle_input})
 +    CS.buttonEvents = [{"type": b.type, "pressed": b.pressed} for b in decoded.buttonEvents]

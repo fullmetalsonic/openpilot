@@ -9,7 +9,18 @@
      systemReady @127;
      impactDetected @128;
      impactDashcamReboot @129;
-@@ -2235,16 +2235,6 @@
+@@ -1098,8 +1098,8 @@
+     modelTurnSpeed @17 :Float32;
+     laneChangeAvailableLeft @18 :Bool;
+     laneChangeAvailableRight @19 :Bool;
+-    laneChangeBlinkerHold @20 :LaneChangeDirection;  # carrot: hold this turn signal while a lever-requested change waits or is queued
+-    leverTurn @21 :Bool;  # carrot: the turn desire comes from a latched lever (BlinkerLatchedTurn)
++    laneChangeBlinkerHoldDEPRECATED @20 :LaneChangeDirection; # inactive compatibility reservation
++    leverTurnDEPRECATED @21 :Bool; # inactive compatibility reservation
+ 
+     deprecated :group {
+       brakeDisengageProb @2 :Float32;
+@@ -2240,16 +2240,6 @@
    alert3Count @12 :Int8;
    noResponseCount @13 :Int8;
    noResponseForceDecel @14 :Bool;

@@ -4,6 +4,7 @@ import pytest
 
 from openpilot.cereal import car
 from openpilot.selfdrive.car.cruise import ButtonType, VCruiseCarrot, is_hold_interlock_active
+from openpilot.selfdrive.car.toyota_pcm_speed import ToyotaPcmSetSpeedSync
 from openpilot.selfdrive.carrot.cruise_gap import cruise_gap_levels
 from openpilot.selfdrive.carrot.bluetooth.model import BLUETOOTH_CANCEL
 
@@ -11,6 +12,13 @@ from openpilot.selfdrive.carrot.bluetooth.model import BLUETOOTH_CANCEL
 def make_cruise_helper(button_kph, cruise_button_mode, carrot_cruise_active, cruise_enabled,
                        cruise_speed_initialized=True, cruise_speed_at_brake=0):
   helper = VCruiseCarrot.__new__(VCruiseCarrot)
+  helper.CP = SimpleNamespace(pcmCruise=False)
+  helper.toyota_pcm_speed_sync = ToyotaPcmSetSpeedSync()
+  helper.speed_from_pcm = 0
+  helper.speedcam_gas_tok_consumed = False
+  helper.carrot_cmd_index = helper.carrot_cmd_index_last = 0
+  helper.button_prev = ButtonType.unknown
+  helper.long_pressed = helper.button_big_step = False
   helper.bluetooth_commands = SimpleNamespace(read=lambda **kwargs: None)
   helper._prepare_buttons = lambda CS, v_cruise_kph, remote=None: (button_kph, ButtonType.accelCruise, False)
   helper._carrot_command = lambda v_cruise_kph, button_type, long_pressed: (v_cruise_kph, button_type, long_pressed)
@@ -109,7 +117,7 @@ def test_bluetooth_uses_cruise_button_steps(action, expected):
   helper._cruise_speed_unit_basic = 1
   helper._cruise_button_long_delay = 50
   helper.is_metric = True
-  helper.bluetooth_commands = SimpleNamespace(read=lambda allowed: action if allowed else None)
+  helper.bluetooth_commands = SimpleNamespace(read=lambda allowed, **kwargs: action if allowed else None)
   CS.canValid = True
   CS.cruiseState.available = True
   CS.gearShifter = 'drive'
@@ -129,7 +137,7 @@ def test_bluetooth_does_not_override_vehicle_button_or_gate(block):
   if block == 'button':
     CS.buttonEvents = [{'type': 'cancel', 'pressed': True}]
   allowed_values = []
-  helper.bluetooth_commands = SimpleNamespace(read=lambda allowed: allowed_values.append(allowed))
+  helper.bluetooth_commands = SimpleNamespace(read=lambda allowed, **kwargs: allowed_values.append(allowed))
   helper._update_cruise_buttons(CS, CC, 80)
   assert allowed_values == [False]
 
@@ -191,7 +199,7 @@ def make_remote_helper(action, enabled=False):
   helper._lfa_button_mode = 0
   helper.useLaneLineSpeed = 50
   helper.useLaneLineSpeedApply = 0
-  helper.bluetooth_commands = SimpleNamespace(read=lambda allowed: action if allowed else None)
+  helper.bluetooth_commands = SimpleNamespace(read=lambda allowed, **kwargs: action if allowed else None)
   CS.canValid = CS.cruiseState.available = True
   CS.gearShifter = 'drive'
   return helper, CS, CC
@@ -306,6 +314,35 @@ def test_physical_cancel_latches_before_release_decoder():
   helper._update_cruise_buttons(CS, CC, 80)
   assert helper._cruise_cancel_state
   assert helper._activate_cruise <= 0
+
+
+@pytest.mark.parametrize('mode',[0,1])
+@pytest.mark.parametrize('long_press',[False,True])
+def test_raw_cancel_keeps_existing_short_long_lateral_policy(mode,long_press):
+  helper,CS,CC=make_remote_helper(None,enabled=True)
+  helper._cancel_button_mode=mode
+  helper._lat_enabled=True
+  helper._soft_hold_active=2
+  helper.autoCruiseControl=0
+  helper.autoCruiseControl_cancel_timer=1000
+  for frame in range(83 if long_press else 1):
+    CS.buttonEvents=[{'type':'cancel','pressed':True}] if frame==0 else []
+    helper._update_cruise_buttons(CS,CC,80,paddle_cancel_seen=True)
+    assert helper._activate_cruise==-1 and helper._cruise_cancel_state
+    assert helper._soft_hold_active==2
+  CS.buttonEvents=[{'type':'cancel','pressed':False}]
+  helper._update_cruise_buttons(CS,CC,80)
+  assert helper._lat_enabled == (not long_press and mode==0)
+  assert helper._soft_hold_active==2
+
+
+def test_raw_batch_cancel_does_not_add_pcm_activation_policy():
+  helper,CS,CC=make_remote_helper(None,enabled=True)
+  helper.CP.pcmCruise=True
+  CS.buttonEvents=[]
+  helper._update_cruise_buttons(CS,CC,80,paddle_cancel_seen=True)
+  assert helper._cruise_cancel_state
+  assert helper._activate_cruise==0
 
 
 @pytest.mark.parametrize('physical,expected', [('setCruise', 70), ('resumeCruise', 95)])

@@ -15,15 +15,6 @@
  
  
  @pytest.mark.parametrize("maximum", (3, 4))
-@@ -214,7 +222,7 @@
-   assert hidden.isdisjoint(menu_names)
-   assert all(
-     group["count"] == sum(1 for item in filtered_groups[group["group"]]
--                          if not item.get("detail_parent") and not item.get("search_only"))
-+                          if not item.get("detail_parent"))
-     for group in filtered_groups_list
-   )
- 
 @@ -281,36 +289,22 @@
    assert '{"UseWideCamera", {PERSISTENT, BOOL, "1"}}' in params_keys
  
@@ -70,7 +61,27 @@
 +              for group in category["groups"] if group["id"] == "VEH_DM")
 +  assert view["count"] == 3
 +  assert dm in groups[dm["group"]]
-+  assert not any(p.get("search_only") for p in params)
++  assert [p["name"] for p in params if p.get("search_only")] == ["NNFF"]
  
  
  def test_vehicle_navi_can_control_exposes_route_filter_modes(settings, params):
+@@ -598,3 +592,19 @@
+   assert (by_name["ApplyModelSpeed"]["min"], by_name["ApplyModelSpeed"]["max"]) == (-120, 120)
+   assert by_name["ApplyModelSpeed"]["default"] == 0
+   assert by_name["TFollowDecelBoost"]["unit"] == 10
++
++
++def test_deferred_lever_settings_are_not_exposed(settings, params):
++  names = {p["name"] for p in params}
++  assert not names.intersection({"BlinkerLatchedTurn", "LaneChangeLeverWait"})
++
++
++def test_nnff_is_search_only_and_does_not_inflate_menu_counts(settings, params):
++  groups, by_name, group_list = group_index(settings)
++  assert by_name["NNFF"]["search_only"] is True
++  assert by_name["NNFF"]["default"] == 0
++  category_list = build_menu_categories(settings, by_name)
++  assert sum(group["count"] for cat in category_list for group in cat["groups"]) == sum(
++    not p.get("search_only") and not p.get("detail_parent") for p in params)
++  assert sum(group["count"] for group in group_list) == sum(
++    not p.get("search_only") and not p.get("detail_parent") for p in params)

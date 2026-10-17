@@ -7,6 +7,7 @@ from openpilot.selfdrive.carrot.carrot_man_input import get_carrot_man
 from openpilot.selfdrive.carrot.cruise_gap import cruise_gap_levels, next_gap_personality, supported_gap_levels
 from openpilot.selfdrive.carrot.paddle_gap import PaddleGapWriter, effective_paddle_mode
 from openpilot.selfdrive.carrot.bluetooth.model import BLUETOOTH_CANCEL, CommandReader, REMOTE_BUTTONS
+from openpilot.selfdrive.car.toyota_pcm_speed import ToyotaPcmSetSpeedSync
 
 from opendbc.car import structs
 GearShifter = structs.CarState.GearShifter
@@ -170,6 +171,7 @@ class VCruiseCarrot:
     self.v_cruise_cluster_kph = 20 #V_CRUISE_UNSET
     self.v_cruise_kph_last = 20
     self._cruise_speed_initialized = False
+    self.toyota_pcm_speed_sync = ToyotaPcmSetSpeedSync(V_CRUISE_MAX)
 
     self.enabled_last = False
 
@@ -195,6 +197,7 @@ class VCruiseCarrot:
     self._gas_pressed_value = 0
     self._gas_tok_timer = int(0.4 / 0.01) # 0.4 sec
     self._gas_tok = False
+    self.speedcam_gas_tok_consumed = False  # set by card when carstate spent this tap on a camera skip
     self._brake_pressed_count = 0
     self._soft_hold_count = 0
     self._soft_hold_active = 0
@@ -321,6 +324,7 @@ class VCruiseCarrot:
       self.carrot_arg = ""
 
   def update_v_cruise(self, CS, sm, is_metric, *, paddle_cancel_seen=False):
+    prior_cruise_kph = self.v_cruise_kph
     self._add_log("")
     self.update_params(is_metric)
     self.frame += 1
@@ -364,11 +368,20 @@ class VCruiseCarrot:
       self._cruise_ready = False
       self._paddle_decel_active = False
       self._soft_hold_active = 0
+    # Raw parser evidence retains a CANCEL press even when its release arrives
+    # in the same receive batch and buttonEvents ends at zero. Latch before
+    # pedal preparation so a simultaneous gas edge sees the cancelled hold.
+    if paddle_cancel_seen or any(b.type == ButtonType.cancel and b.pressed for b in CS.buttonEvents):
+      self._cruise_cancel_state = True
     self._prepare_brake_gas(CS, CC)
     if CC.enabled:
       self._cruise_ready = False
     v_cruise_kph = self._update_cruise_buttons(CS, CC, self.v_cruise_kph,
       controls_valid=sm.all_checks(['carControl']), paddle_cancel_seen=paddle_cancel_seen)
+    pcm_speed = self.toyota_pcm_speed_sync.update(
+      self.CP, self.speed_from_pcm, CS,
+      local_changed=abs(v_cruise_kph - prior_cruise_kph) > 1e-3,
+    )
 
     if self._activate_cruise > 0:
       #self.events.append(EventName.buttonEnable)
@@ -392,8 +405,12 @@ class VCruiseCarrot:
           self.v_cruise_kph = CS.cruiseState.speed * CV.MS_TO_KPH
           self.v_cruise_cluster_kph = CS.cruiseState.speedCluster * CV.MS_TO_KPH
         else:
+          if pcm_speed is not None:
+            v_cruise_kph = pcm_speed[0]
           self.v_cruise_kph = np.clip(v_cruise_kph, 30, self._cruise_speed_max)
-          self.v_cruise_cluster_kph = self.v_cruise_kph
+          self.v_cruise_cluster_kph = (
+            self.v_cruise_kph if pcm_speed is None else np.clip(pcm_speed[1], 30, self._cruise_speed_max)
+          )
     else:
       self.v_cruise_kph = np.clip(v_cruise_kph, self._cruise_speed_min, self._cruise_speed_max) #max(20, self.v_ego_kph_set) #V_CRUISE_UNSET
       self.v_cruise_cluster_kph = self.v_cruise_kph #V_CRUISE_UNSET
@@ -571,21 +588,49 @@ class VCruiseCarrot:
 
   def _update_cruise_buttons(self, CS, CC, v_cruise_kph, *, controls_valid=False, paddle_cancel_seen=False):
     paddle_gap_delta = None
-    if any(b.type == ButtonType.cancel and b.pressed for b in CS.buttonEvents):
-      # selfdrived cancels on the press edge; latch here too instead of waiting
-      # for the release/long-press decoder.
+    cancel_seen = paddle_cancel_seen or any(b.type == ButtonType.cancel and b.pressed for b in CS.buttonEvents)
+    if cancel_seen:
       self._cruise_cancel_state = True
-    remote = self.bluetooth_commands.read(allowed=(CS.canValid and CS.cruiseState.available and
-      CS.gearShifter == GearShifter.drive and not CS.buttonEvents and self.button_cnt == 0))
+      self._cruise_ready = False
+      self._paddle_decel_active = False
+      if (paddle_cancel_seen and self._cancel_button_mode == 1 and
+          not any(b.type == ButtonType.cancel for b in CS.buttonEvents)):
+        # A press/release collapsed out of buttonEvents still owns mode 1's
+        # existing lateral cancel. Mode 0 retains lateral until its long press.
+        self._lat_enabled = False
+      # Discard only the pending +/- decoder. A later release of that old
+      # gesture must not clear CANCEL or replay a speed/engagement request.
+      if self.button_prev in (ButtonType.accelCruise, ButtonType.decelCruise):
+        self.button_cnt = 0
+        self.button_prev = ButtonType.unknown
+        self.long_pressed = False
+        self.button_big_step = False
+    if cancel_seen:
+      remote = self.bluetooth_commands.read(allowed=False, cancel_pending=True)
+    else:
+      remote = self.bluetooth_commands.read(allowed=(CS.canValid and CS.cruiseState.available and
+        CS.gearShifter == GearShifter.drive and not CS.buttonEvents and self.button_cnt == 0))
     if getattr(self.bluetooth_commands, 'is_repeat', False) and not CC.enabled:
       remote = None  # Holding a remote must never re-engage after disengagement.
     button_kph, button_type, long_pressed = self._prepare_buttons(CS, v_cruise_kph, remote)
+    if cancel_seen:
+      # Keep CANCEL's own short/long decoder and lateral-setting policy. Other
+      # same-frame releases/commands cannot clear its latch or release hold.
+      if self.button_prev in (ButtonType.accelCruise, ButtonType.decelCruise):
+        self.button_cnt = 0
+        self.button_prev = ButtonType.unknown
+        self.long_pressed = False
+        self.button_big_step = False
+      if button_type != ButtonType.cancel:
+        button_kph, button_type, long_pressed = v_cruise_kph, 0, False
+      self.carrot_cmd_index_last = self.carrot_cmd_index
     remote_enable = remote in ('accelCruise', 'decelCruise', 'accelCruiseLong', 'decelCruiseLong') and not CC.enabled
     # SET during soft hold retains its existing cancel behavior.
     if remote == 'decelCruise' and self._soft_hold_active > 0:
       remote_enable = False
 
-    v_cruise_kph, button_type, long_pressed = self._carrot_command(v_cruise_kph, button_type, long_pressed)
+    if not cancel_seen:
+      v_cruise_kph, button_type, long_pressed = self._carrot_command(v_cruise_kph, button_type, long_pressed)
 
     if button_type in [ButtonType.accelCruise, ButtonType.decelCruise, ButtonType.setCruise, ButtonType.resumeCruise]:
       self._paddle_decel_active = False
@@ -754,7 +799,13 @@ class VCruiseCarrot:
     # own the speed selected on this frame (e.g. simultaneous pedal release).
     if button_type not in (ButtonType.setCruise, ButtonType.resumeCruise):
       v_cruise_kph = updated_speed
-    if remote in ('cancel', 'cancelLong'):
+    if cancel_seen and not self.CP.pcmCruise:
+      # Use the established explicit cancel path through card/common events
+      # and selfdrived; do not synthesize buttonEvents (park has side effects).
+      self._cruise_control(-1, -1, 'Cruise off (driver CANCEL)', allow_cancel_state=True, manual=True)
+      self._cruise_ready = False
+      self._paddle_decel_active = False
+    elif remote in ('cancel', 'cancelLong'):
       self._cruise_control(BLUETOOTH_CANCEL, -1, 'Cruise off (Bluetooth cancel)', allow_cancel_state=True, manual=True)
     elif remote_enable and not CS.brakePressed and not CS.gasPressed and self._activate_cruise >= 0:
       self._cruise_control(1, -1, 'Cruise on (Bluetooth button)', manual=True)
@@ -999,7 +1050,7 @@ class VCruiseCarrot:
         self.carrot_cruise_active = False
         self._cruise_control(-1, 0, "Cruise off (gas pressed)")
     else:
-      self._gas_tok = True if 0 < self._gas_pressed_count < self._gas_tok_timer else False
+      self._gas_tok = True if 0 < self._gas_pressed_count < self._gas_tok_timer and not self.speedcam_gas_tok_consumed else False
       self._gas_pressed_count = min(-1, self._gas_pressed_count - 1)
       if self._gas_pressed_count < -1:
         self._gas_pressed_count_last = 0

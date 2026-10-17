@@ -138,6 +138,9 @@ def test_safe_t_follow_does_not_compound_during_repeated_deceleration():
   planner.myTFollowFactor = 1.2
   planner._tf_decel_extra = 0.0
   planner._tf_applied = 0.72
+  planner._tf_decel_base = 0.72
+  planner._tf_mode_factor = None
+  planner._tf_base_last = 0.72
   planner.t_follow_last = 0.72
 
   values = [
@@ -160,6 +163,9 @@ def _speed_tf_planner(lead_accel_response: int, applied_t_follow: float) -> Carr
   planner.myTFollowFactor = 1.2
   planner._tf_decel_extra = 0.0
   planner._tf_applied = applied_t_follow
+  planner._tf_decel_base = applied_t_follow
+  planner._tf_mode_factor = None
+  planner._tf_base_last = applied_t_follow
   planner.t_follow_last = applied_t_follow
   return planner
 
@@ -226,10 +232,14 @@ def test_actual_update_resolves_response_after_refresh_on_every_gap_change(mode,
   planner_class = next(n for n in tree.body if isinstance(n, ast.ClassDef) and n.name == 'CarrotPlanner')
   update = next(n for n in planner_class.body if isinstance(n, ast.FunctionDef) and n.name == 'update')
   # Run the production refresh/selection prefix without hardware or navigation.
-  update.body = update.body[:3]
+  selection_index = next(i for i, node in enumerate(update.body) if isinstance(node, ast.Assign)
+                         and any(isinstance(target, ast.Attribute) and target.attr == 'leadAccelResponse'
+                                 for target in node.targets))
+  update.body = update.body[:selection_index + 1]
   namespace = {'get_lead_response_for_gap': get_lead_response_for_gap, 'get_mode_lead_response': get_mode_lead_response}
   exec(compile(ast.Module(body=[update], type_ignores=[]), str(source), 'exec'), namespace)
-  planner = SimpleNamespace(leadAccelResponseBase=0, leadAccelResponseTF=[5, 3, 0, -1], myDrivingMode=mode)
+  planner = SimpleNamespace(leadAccelResponseBase=0, leadAccelResponseTF=[5, 3, 0, -1], myDrivingMode=mode,
+                            signal_detection_suspended=False)
   planner._update_driving_mode = lambda sm: None
   planner._params_update = lambda: setattr(planner, 'leadAccelResponseBase', 4)
   event = log.Event.new_message()

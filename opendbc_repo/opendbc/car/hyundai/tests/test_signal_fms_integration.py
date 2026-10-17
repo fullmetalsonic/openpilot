@@ -5,6 +5,7 @@ Same-process host evidence only; no native transport, Panda or ECU claim.
 import ast
 import hashlib
 import json
+import time
 from pathlib import Path
 from types import SimpleNamespace as NS
 
@@ -18,7 +19,7 @@ from opendbc.car.hyundai.tests.test_paddle_mode4 import (chain, production_chain
 from openpilot.selfdrive.car.tests.test_paddle_gap import mode4
 from openpilot.selfdrive.carrot import signal_mode
 from openpilot.selfdrive.carrot.signal_assist_runtime import SignalAssistRuntime
-from openpilot.selfdrive.carrot.signal_stop_prepare import SignalStopPrepare
+from openpilot.selfdrive.carrot.signal_stop_prepare import PrepareAccel, SignalStopPrepare
 from openpilot.selfdrive.carrot.signal_start_guard import SignalStartGuard
 from openpilot.selfdrive.carrot.tests.test_signal_stop_prepare import observation
 from tools.signal_analysis.replay_signal_assist import REPO, planner_class
@@ -117,7 +118,7 @@ def signal_cap():
   source=REPO/'openpilot/selfdrive/controls/lib/longitudinal_planner.py'
   tree=ast.parse(source.read_text());cls=next(n for n in tree.body if isinstance(n,ast.ClassDef) and n.name=='LongitudinalPlanner')
   node=next(n for n in cls.body if isinstance(n,ast.FunctionDef) and n.name=='apply_signal_stop_prepare')
-  ns={};exec(compile(ast.Module(body=[node],type_ignores=[]),str(source),'exec'),ns)
+  ns={'time':time};exec(compile(ast.Module(body=[node],type_ignores=[]),str(source),'exec'),ns)
   return ns['apply_signal_stop_prepare']
 
 
@@ -130,7 +131,7 @@ def test_signal_admission_to_real_can(production_chain,monkeypatch,tmp_path,sign
   planner=cls(start_guard=SignalStartGuard(),stop_prepare=SignalStopPrepare())
   driver,ci,helper,cc,_,_=production_chain
   sm=inputs(speed=15.,distance=160.)
-  sm['radarState'].leadTwo=NS(status=False)
+  sm['radarState'].leadTwo=NS(status=False,dRel=10.)
   sm['carState'].canValid=True;sm['carState'].gearShifter='drive'
   sm['selfdriveState'].enabled=True;sm['carControl']=cc
   sm=type('State',(dict,),{})(sm)
@@ -138,7 +139,8 @@ def test_signal_admission_to_real_can(production_chain,monkeypatch,tmp_path,sign
   sm.seen=dict.fromkeys(services,True);sm.valid=dict.fromkeys(services,True);sm.alive=dict.fromkeys(services,True)
   runtime=SignalAssistRuntime(signal_mode.DIRECTORY/'stop_prepare_enabled',tmp_path/'obs')
   target=NS(output_a_target=.4,output_v_target_now=20.,output_j_target_now=1.,output_should_stop=False,
-            mpc=NS(mode='acc'),dt=.05,a_desired=.4,coasting_target=70.)
+            mpc=NS(mode='acc'),dt=.05,a_desired=.4,coasting_target=70.,
+            _signal_prepare_accel=PrepareAccel(),_signal_prepare_time=None,_signal_prepare_previous=None)
   # Use live production context admission, planner state machine and final cap.
   for i in range(60):
     t=10.+i*.05;sm.recv_time=dict.fromkeys(services,t)

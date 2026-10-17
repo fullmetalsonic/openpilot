@@ -1,6 +1,6 @@
 --- a/openpilot/selfdrive/carrot/server/features/tools/dispatcher.py
 +++ b/openpilot/selfdrive/carrot/server/features/tools/dispatcher.py
-@@ -30,6 +30,7 @@
+@@ -31,6 +31,7 @@
  
  from ...config import PARAMS_BACKUP_PATH
  from ...services.auto_update import clear_recovered_git_ref_error
@@ -8,7 +8,7 @@
  from ...services.git_config import prepare_git_pull, repair_git_config
  from ...services.git_state import did_git_pull_update, write_git_pull_time
  from ...services.git_status import clear_git_status_cache
-@@ -264,7 +265,7 @@
+@@ -265,7 +266,7 @@
  
  
  def _needs_repo_lock(action: str, body: dict) -> bool:
@@ -17,7 +17,7 @@
      action == "shell_cmd" and str(body.get("cmd") or "").strip().startswith("git ")
    )
  
-@@ -325,20 +326,10 @@
+@@ -326,20 +327,10 @@
        return
  
      if action == "git_sync":
@@ -42,7 +42,7 @@
        return
  
      if action == "git_reset":
-@@ -363,75 +354,10 @@
+@@ -364,75 +355,10 @@
        return
  
      if action == "git_checkout":
@@ -122,7 +122,7 @@
        return
  
      if action == "git_remote_set":
-@@ -452,63 +378,11 @@
+@@ -453,63 +379,11 @@
        return
  
      if action == "git_branch_list":
@@ -191,7 +191,7 @@
        return
  
      if action == "git_remote_add":
-@@ -917,13 +791,8 @@
+@@ -925,13 +799,8 @@
        return web.json_response(payload)
  
      if action == "git_sync":
@@ -207,7 +207,7 @@
  
      if action == "git_reset":
        mode = (body.get("mode") or "hard").strip()
-@@ -940,110 +809,13 @@
+@@ -948,110 +817,13 @@
        return web.json_response({"ok": rc == 0, "rc": rc, "out": out, "summary_key": "git_result_reset_done", "summary_vars": {"mode": mode, "target": target}, "empty_output": not out})
  
      if action == "git_checkout":

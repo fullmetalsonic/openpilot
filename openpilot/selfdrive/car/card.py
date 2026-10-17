@@ -214,6 +214,10 @@ class Car:
     decode_done_ns = time.monotonic_ns()
 
     # Update carState from CAN
+    # joongyu01/speedcam: camera skips and section unlock (+ / gas tap) apply only while engaged,
+    # and a section unlocks only when the set speed is above its cap.
+    self.CI.CS.speedcam_engaged = self.sm['carControl'].enabled
+    self.CI.CS.speedcam_v_cruise = self.v_cruise_helper.v_cruise_kph
     CS = self.CI.update(can_list)
     if self.CP.brand == 'mock':
       CS = self.mock_carstate.update(CS)
@@ -260,6 +264,8 @@ class Car:
     #self.t2 = time.monotonic()
 
     #self.v_cruise_helper.update_v_cruise(CS, self.sm['carControl'].enabled, self.is_metric)
+    # A gas tap spent on a camera skip must not also raise the set speed by +10.
+    self.v_cruise_helper.speedcam_gas_tok_consumed = getattr(self.CI.CS, "speedcam_gas_tok_consumed", False)
     # Same-batch driver CANCEL can disappear from the final button transition.
     # Read current parser evidence, before publishing the next output context.
     paddle_input = getattr(self.CI.CS, 'paddle_input', None)

@@ -1,6 +1,6 @@
 --- a/openpilot/selfdrive/selfdrived/events.py
 +++ b/openpilot/selfdrive/selfdrived/events.py
-@@ -556,9 +556,6 @@
+@@ -578,9 +578,6 @@
        AlertStatus.userPrompt, AlertSize.small,
        Priority.LOW, VisualAlert.steerRequired, AudibleAlert.none, 1.8),
    },

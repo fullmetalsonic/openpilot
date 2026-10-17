@@ -1,6 +1,6 @@
 --- a/opendbc_repo/opendbc/car/hyundai/carcontroller.py
 +++ b/opendbc_repo/opendbc/car/hyundai/carcontroller.py
-@@ -7,6 +7,7 @@
+@@ -8,6 +8,7 @@
  from opendbc.car.hyundai import hyundaicanfd, hyundaican
  from opendbc.car.hyundai.carstate import CarState
  from opendbc.car.hyundai.stopping import CanfdStopping
@@ -8,7 +8,7 @@
  from opendbc.car.hyundai.steering_handover import SteeringHandover
  from opendbc.car.carlog import carlog
  from opendbc.car.hyundai.hyundaicanfd import CanBus
-@@ -186,7 +187,7 @@
+@@ -187,7 +188,7 @@
      self.accel_last = 0
      self.accel_value_last = 0.0
      self.display_lead_lateral = hyundaicanfd.DisplayLeadLateralFilter()
@@ -17,7 +17,7 @@
                             if CP.flags & HyundaiFlags.CANFD and CP.openpilotLongitudinalControl else None)
      self.apply_torque_last = 0
      self.car_fingerprint = CP.carFingerprint
-@@ -239,9 +240,20 @@
+@@ -240,9 +241,20 @@
      self.is_ldws_car = Params().get_bool("IsLdwsCar")
      self.enable_corner_radar = 0
      self.paddle_mode = Params().get_int("PaddleMode")

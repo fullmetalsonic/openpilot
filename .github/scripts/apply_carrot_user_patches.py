@@ -104,7 +104,7 @@ def apply_exact_hunks(source: bytes, patch: bytes, name: str) -> bytes:
 
 def apply_integration(root: Path = ROOT, manifest_path: Path = MANIFEST) -> dict[str, int]:
   manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
-  if manifest.get("format") != 1 or manifest.get("upstream") != "5e187ab9da726c524ca51aebacc6120802480415":
+  if manifest.get("format") != 1 or manifest.get("upstream") != "bd53684a4d2b5809ecd68f75986a76e548a61470":
     raise RuntimeError("Unsupported integration manifest/base")
   prepared: list[tuple[Path, bytes | None]] = []
   visited: set[str] = set()

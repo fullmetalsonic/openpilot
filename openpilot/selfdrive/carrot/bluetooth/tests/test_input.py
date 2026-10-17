@@ -296,6 +296,42 @@ def test_disallowed_drains_all_devices_and_channels_remain_separate(tmp_path):
   assert lane.read(now=11.08) == 'laneLeft'
 
 
+def test_cancel_cutoff_does_not_change_default_throttle_or_lane_consumption(tmp_path):
+  writer=CommandWriter(tmp_path)
+  cruise=CommandReader('cruise',tmp_path)
+  lane=CommandReader('lane',tmp_path)
+  cruise.started=lane.started=10.
+  assert cruise.read(now=11.) is None
+  assert lane.read(now=11.) is None
+  writer.send('A','accelCruise',11.01)
+  writer.send('A','laneLeft',11.01)
+  # Ordinary invalid/disallowed callers keep their original throttling.
+  assert cruise.read(allowed=False,now=11.01) is None
+  assert lane.read(allowed=False,now=11.01) is None
+  assert cruise.cancel_cutoff==lane.cancel_cutoff==float('-inf')
+  assert cruise.read(now=11.03)=='accelCruise'
+  assert lane.read(now=11.03)=='laneLeft'
+
+
+def test_explicit_cancel_cutoff_blocks_late_old_publish_and_accepts_fresh_once(tmp_path):
+  writer=CommandWriter(tmp_path)
+  reader=CommandReader('cruise',tmp_path)
+  reader.started=10.
+  assert reader.read(now=11.) is None
+  assert reader.read(allowed=False,now=11.01,cancel_pending=True) is None
+  assert reader.last_check==11. and reader.cancel_cutoff==11.01
+  writer.send('A','accelCruise',11.005)  # published after cancellation, created before it
+  writer.send('A','decelCruise',11.01)  # the exact cutoff time is cancelled too
+  assert reader.read(now=11.03) is None
+  assert len(reader.seen)==2
+  writer.publish('cruise')
+  assert reader.read(now=11.06) is None
+  writer.send('A','accelCruise',11.07)
+  assert reader.read(now=11.09)=='accelCruise'
+  assert reader.read(now=11.12) is None
+  assert len(reader.seen)==3
+
+
 def test_command_queue_is_bounded_and_expires(tmp_path):
   writer = CommandWriter(tmp_path)
   reader = CommandReader('cruise', tmp_path)

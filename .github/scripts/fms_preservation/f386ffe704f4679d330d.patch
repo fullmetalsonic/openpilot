@@ -1,0 +1,7 @@
+--- a/openpilot/selfdrive/carrot/cluster/gbm_cleanup.c
++++ b/openpilot/selfdrive/carrot/cluster/gbm_cleanup.c
+@@ -198,4 +198,3 @@
+   // A DRM_FD explicitly supplied by the caller is borrowed and is never closed.
+   if (owned_fd >= 0) close(owned_fd);
+ }
+-

@@ -1,0 +1,21 @@
+--- a/openpilot/selfdrive/carrot/tests/test_signal_prepare_lead_distance.py
++++ b/openpilot/selfdrive/carrot/tests/test_signal_prepare_lead_distance.py
+@@ -12,7 +12,7 @@
+ 
+ 
+ @pytest.mark.parametrize('index', [0, 1])
+-@pytest.mark.parametrize('distance,blocked', [(4., True), (50., True), (50.01, False), (80., False),
++@pytest.mark.parametrize('distance,blocked', [(4., True), (49.9, True), (50., True), (50.1, False), (80., False),
+                                            (-1., True), (float('nan'), True), (float('inf'), True)])
+ def test_both_leads_use_fixed_boundary(index, distance, blocked):
+   leads = [NS(status=False), NS(status=False)]
+@@ -72,8 +72,4 @@
+       trace.append((p.xState,p.start_decision,p.stop_dist,p.v_cruise))
+     traces.append(trace)
+   assert traces[0] == traces[1]
+-  if lead:
+-    assert not any(row[1].hold for row in traces[0])
+-    assert all(row[0].name == 'lead' for row in traces[0])
+-  else:
+-    assert any(row[1].hold for row in traces[0]) and any(row[1].released for row in traces[0])
++  assert any(row[1].hold for row in traces[0]) and any(row[1].released for row in traces[0])

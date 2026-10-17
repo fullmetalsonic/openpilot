@@ -1,0 +1,11 @@
+--- a/tools/esp32s3_display/installer/tests/install_flow.test.mjs
++++ b/tools/esp32s3_display/installer/tests/install_flow.test.mjs
+@@ -5,7 +5,7 @@
+ import vm from 'node:vm';
+ import {validateManifest,verifyBytes,binaryString} from '../manifest.mjs';
+ 
+-const code=(await readFile(new URL('../installer.js',import.meta.url),'utf8')).replace(/^import .*;\n/gm,'');
++const code=(await readFile(new URL('../installer.js',import.meta.url),'utf8')).replace(/^import .*;\r?\n/gm,'');
+ async function run({mode='update',fault=''}={}) {
+   const nodes=new Map();
+   const events=[];

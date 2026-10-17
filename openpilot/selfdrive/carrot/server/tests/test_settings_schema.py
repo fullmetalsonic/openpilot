@@ -222,7 +222,7 @@ def test_fixed_tuning_catalog_hides_longitudinal_pid_settings(settings, brand):
   assert hidden.isdisjoint(menu_names)
   assert all(
     group["count"] == sum(1 for item in filtered_groups[group["group"]]
-                          if not item.get("detail_parent"))
+                          if not item.get("detail_parent") and not item.get("search_only"))
     for group in filtered_groups_list
   )
 
@@ -304,7 +304,7 @@ def test_legacy_driver_monitoring_is_restart_setting_in_menu(settings, params):
               for group in category["groups"] if group["id"] == "VEH_DM")
   assert view["count"] == 3
   assert dm in groups[dm["group"]]
-  assert not any(p.get("search_only") for p in params)
+  assert [p["name"] for p in params if p.get("search_only")] == ["NNFF"]
 
 
 def test_vehicle_navi_can_control_exposes_route_filter_modes(settings, params):
@@ -358,6 +358,36 @@ def test_vehicle_navi_school_zone_control_is_opt_in(settings, params):
 
   params_keys = PARAMS_KEYS_PATH.read_text(encoding="utf-8")
   assert '{"VehicleNaviSchoolZoneControl", {PERSISTENT, BOOL, "0"}}' in params_keys
+
+
+def test_speedcam_decel_cancel_and_section_average_settings_are_opt_in(settings, params):
+  by_name = {p["name"]: p for p in params}
+  master, children = "VehicleNaviDecelCancel", ("VehicleNaviDecelCancelBox", "VehicleNaviDecelCancelMobileZone",
+                                                 "VehicleNaviDecelCancelBump")
+  defaults = {master: 0, "VehicleNaviSectionAvgControl": 0, **{name: 1 for name in children},
+              "VehicleNaviDecelCancelUnknown": 0,  # experimental: kind unknown, opt-in
+              "VehicleNaviDecelCancelEarlyWarning": 0}  # experimental: wider lead window, opt-in
+  for name, default in defaults.items():
+    control = by_name[name]
+    assert (control["min"], control["max"], control["default"]) == (0, 1, default)
+    assert control["control"] == "toggle"
+    assert control["risk"] == "high"
+  # Per-kind toggles live in the master's detail screen; only the master is opt-in.
+  assert not by_name[master].get("detail_parent")
+  assert all(by_name[name]["detail_parent"] == master and by_name[name]["group"] == by_name[master]["group"]
+             for name in (*children, "VehicleNaviDecelCancelUnknown",
+                          "VehicleNaviDecelCancelEarlyWarning"))
+
+  driving = next(category for category in settings["menu"] if category["id"] == "DRIVING")
+  speed = next(group for group in driving["groups"] if group["id"] == "SPEED")
+  camera = next(group for group in speed["groups"] if group["id"] == "SPEED_CAMERA")
+  params_keys = PARAMS_KEYS_PATH.read_text(encoding="utf-8")
+  for name, default in defaults.items():
+    assert name in camera["params"]
+    assert f'{{"{name}", {{PERSISTENT, BOOL, "{default}"}}}}' in params_keys
+  for removed in ("VehicleNaviSkipBoxCamera", "VehicleNaviSkipMobileZone", "VehicleNaviSectionAvgMargin"):
+    assert removed not in by_name
+    assert removed not in params_keys
 
 
 def test_vehicle_navi_curve_control_settings_are_removed(settings):
@@ -562,3 +592,19 @@ def test_declared_numeric_bounds_stay_intact(params):
   assert (by_name["ApplyModelSpeed"]["min"], by_name["ApplyModelSpeed"]["max"]) == (-120, 120)
   assert by_name["ApplyModelSpeed"]["default"] == 0
   assert by_name["TFollowDecelBoost"]["unit"] == 10
+
+
+def test_deferred_lever_settings_are_not_exposed(settings, params):
+  names = {p["name"] for p in params}
+  assert not names.intersection({"BlinkerLatchedTurn", "LaneChangeLeverWait"})
+
+
+def test_nnff_is_search_only_and_does_not_inflate_menu_counts(settings, params):
+  groups, by_name, group_list = group_index(settings)
+  assert by_name["NNFF"]["search_only"] is True
+  assert by_name["NNFF"]["default"] == 0
+  category_list = build_menu_categories(settings, by_name)
+  assert sum(group["count"] for cat in category_list for group in cat["groups"]) == sum(
+    not p.get("search_only") and not p.get("detail_parent") for p in params)
+  assert sum(group["count"] for group in group_list) == sum(
+    not p.get("search_only") and not p.get("detail_parent") for p in params)

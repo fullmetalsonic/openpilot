@@ -1,6 +1,6 @@
 --- a/openpilot/selfdrive/selfdrived/selfdrived.py
 +++ b/openpilot/selfdrive/selfdrived/selfdrived.py
-@@ -81,8 +81,9 @@
+@@ -83,8 +83,9 @@
      self.gps_location_service = get_gps_location_service(self.params)
      self.gps_packets = [self.gps_location_service]
      self.sensor_packets = ["accelerometer", "gyroscope"]
@@ -11,8 +11,8 @@
  
      # TODO: de-couple selfdrived with card/conflate on carState without introducing controls mismatches
      self.car_state_sock = messaging.sub_sock('carState', timeout=20)
-@@ -90,8 +91,7 @@
-     ignore = self.sensor_packets + self.gps_packets + ['alertDebug']
+@@ -93,8 +94,7 @@
+     ignore = self.sensor_packets + self.gps_packets + ['alertDebug', 'liveTracks']
      if SIMULATION:
        ignore += ['driverCameraState', 'managerState']
 -    if self.CP.notCar or SIMULATION:
@@ -21,19 +21,21 @@
  
      if REPLAY:
        # no vipc in replay will make them ignored anyways
-@@ -137,10 +137,9 @@
+@@ -142,12 +142,11 @@
      self.experimental_mode = False
      self.personality = self.read_personality_param()
      self.recalibrating_seen = False
 -    self.dm_lockout_set = self.params.get_bool("DriverTooDistracted")
 +    self.dm_lockout_set = False
      self.cutin_audio_tracker = CutinAlertTracker()
+     self.radar_only_warning = RadarOnlyWarning(front_radar_distance_delay_s(self.CP))
+     self.car_state_time_s = 0.0
      self.dm_uncertain_alerted = False
 -    self.dm_disabled_prev = False
      self.update_reboot_alerted = False
      self.system_ready_alerted = False
      self.system_ready_since = None
-@@ -256,15 +255,11 @@
+@@ -270,15 +269,11 @@
        self.events.add(EventName.resumeBlocked)
  
      # Handle DM
@@ -54,7 +56,7 @@
        # No entry conditions
        if self.sm['driverMonitoringState'].lockout or self.sm['driverMonitoringState'].alwaysOnLockout:
          self.events.add(EventName.tooDistracted)
-@@ -408,10 +403,7 @@
+@@ -425,10 +420,7 @@
        if not_running != self.not_running_prev:
          cloudlog.event("process_not_running", not_running=not_running, error=True)
        self.not_running_prev = not_running
@@ -66,7 +68,7 @@
        self.events.add(EventName.processNotRunning)
      else:
        if not SIMULATION and not self.rk.lagging:
-@@ -552,19 +544,6 @@
+@@ -567,19 +559,6 @@
      #    self.params.put_nonblocking('LongitudinalPersonality', str(self.personality))
      #    self.events.add(EventName.personalityChanged)
  

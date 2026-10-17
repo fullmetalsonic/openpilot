@@ -15,9 +15,9 @@
      "time": SimpleNamespace(monotonic=lambda: 100.0),
      "gui_app": SimpleNamespace(is_recording=lambda: False), "messaging": Mock(),
      "native_draw": SimpleNamespace(active=lambda: False),
-@@ -40,9 +43,11 @@
-                "_traffic_light", "_confidence_ball", "_bookmark_icon", "_offroad_label", "_pm"):
+@@ -41,9 +44,11 @@
      setattr(view, name, Mock())
+   view.stream_type = 0
    view.rect = SimpleNamespace(x=0, y=0, width=540, height=960)
 +  view._rect = view.rect
    view._fade_texture = object()
@@ -27,7 +27,7 @@
    view._render_diagnostics = Mock()
    view._render_diagnostics.values = {}
    view._render_diagnostics.call.side_effect = lambda label, callback, *args: callback(*args)
-@@ -96,4 +101,22 @@
+@@ -97,4 +102,22 @@
    assert rl.draw_rectangle_rec.call_count == int(suppressed or not camera)
    view._hud_renderer.render.assert_called_once()
    view._alert_renderer.render.assert_called_once()

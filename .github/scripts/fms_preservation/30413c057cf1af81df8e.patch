@@ -1,6 +1,6 @@
 --- a/openpilot/selfdrive/carrot/web/js/translations/ko.js
 +++ b/openpilot/selfdrive/carrot/web/js/translations/ko.js
-@@ -542,7 +542,7 @@
+@@ -549,7 +549,7 @@
      git_update_output: "Git 출력",
      git_update_up_to_date: "이미 최신 상태입니다",
      git_result_pull_done: "업데이트 확인 완료",
@@ -9,7 +9,7 @@
      git_result_reset_done: "리셋 완료: {mode} {target}",
      git_result_checkout_done: "브랜치 변경 완료: {branch}",
      git_result_remote_set_done: "저장소 변경 완료 · 브랜치 목록 준비됨",
-@@ -587,7 +587,7 @@
+@@ -594,7 +594,7 @@
      confirm_reboot: "지금 재부팅할까요?",
      reboot_later: "선택되었습니다. 적용하려면 나중에 재부팅하세요.",
      rebooting: "재부팅 중...",
@@ -18,7 +18,7 @@
      git_reset_confirm: "원격 저장소에 연결해 브랜치 연결 설정을 점검하고, 끊어진 연결을 자동 복구합니다. 연결 확인에 실패하면 리셋하지 않습니다.\n이후 코드 변경사항을 되돌립니다. 수정 내용이 사라질 수 있습니다. 계속할까요?",
      git_reset_mode_prompt: "리셋 방식을 선택하세요\n\n• hard: 모든 변경 삭제\n• soft: 커밋만 취소\n• mixed: 스테이지만 취소",
      git_reset_target_prompt: "리셋 대상을 입력하세요\n예: HEAD (현재), origin/master (원본)",
-@@ -797,10 +797,11 @@
+@@ -804,10 +804,11 @@
      video_track_lost_reconnecting: "영상 재연결 중",
      video_stalled_reconnecting: "영상 재연결 중",
      no_initial_frame_reconnecting: "첫 화면 대기 중",
@@ -33,7 +33,7 @@
      vision_step_unavailable: "설정을 확인해 주세요.",
      vision_step_inactive: "시작 대기 중",
      vision_step_starting: "카메라 준비 중",
-@@ -1383,8 +1384,6 @@
+@@ -1390,8 +1391,6 @@
      update_ago_seconds: "{s}초 전",
      update_ago_now: "방금 전",
      git_reset_head_prompt: "HEAD 기준 리셋 방식을 선택하세요.",

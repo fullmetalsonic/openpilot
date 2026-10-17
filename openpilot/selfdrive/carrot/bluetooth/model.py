@@ -296,10 +296,15 @@ class CommandReader:
     self.seen = deque(maxlen=128)
     self.last_check = 0.0
     self.is_repeat = False
+    self.cancel_cutoff = float('-inf')
 
-  def read(self, allowed=True, now=None):
+  def read(self, allowed=True, now=None, *, cancel_pending=False):
     self.is_repeat = False
     now = time.monotonic() if now is None else now
+    if cancel_pending:
+      # Record cancellation even inside the ordinary read throttle. A writer
+      # may atomically publish an older command after this call returns.
+      self.cancel_cutoff = max(self.cancel_cutoff, now)
     if now - self.last_check < 0.02:
       return None
     self.last_check = now
@@ -318,6 +323,8 @@ class CommandReader:
       self.last_id = message['id']
       created = message.get('time', 0)
       if not isinstance(created, (int, float)) or not self.started <= created <= now or now - created > COMMAND_TTL:
+        continue
+      if created <= self.cancel_cutoff:
         continue
       cutoff = cancelled.get(message.get('address'), 0) if isinstance(cancelled, dict) else 0
       if isinstance(cutoff, (int, float)) and created <= cutoff:

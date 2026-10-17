@@ -1,6 +1,6 @@
 --- a/AGENTS.md
 +++ b/AGENTS.md
-@@ -1,3 +1,16 @@
+@@ -1,3 +1,26 @@
 +# FMS fork integration contract
 +
 +This fork preserves its own behavior contracts and selectively integrates
@@ -14,6 +14,16 @@
 +follow-up also preserves the existing stopping output instead of adopting the
 +upstream lower-band timing trial in 0e4ee1bd.
 +
++The 2026-10-17 FMS integration starts at d5713e67 and reviews bd53684a.
++Preserve HOLD=0 and the current lane-change behavior: defer the upstream lever
++queue/HOLD policy, its new settings and model metadata producers. New schema
++ordinals remain inactive DEPRECATED compatibility reservations. Exclude the
++new DM SoftHold assessment pause. Also defer e944a8c5's lead exception to the
++red stop veto: existing red hold takes priority over native lead departure.
++The separate lead-aware notice mute may be adopted only without changing
++hold or control output. Upstream history below is evidence of its own policy
++and field observations, not permission to replace these FMS contracts.
++
  # Repository memory
  
- - On 2026-10-12, SignalAssistMode adds the requested live0/1/2 selection on
+ - On 2026-10-17, user reported >92% memory and clarified HUD power was cycled

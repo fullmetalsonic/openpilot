@@ -278,6 +278,10 @@ struct CarState {
   vehicleNaviAvailable @92 :Bool; # stock-navigation 0x4BE has been observed during this drive
   radarInput @93 :RadarInput;
   steeringTouchDEPRECATED @94 :SteeringTouch; # inactive compatibility reservation; no producer/consumer
+  leftBlinkerStalkCountDEPRECATED @100 :UInt8; # inactive compatibility reservation
+  rightBlinkerStalkCountDEPRECATED @101 :UInt8; # inactive compatibility reservation
+  blinkerLeverDEPRECATED @102 :UInt8; # inactive compatibility reservation
+  blinkerLampDEPRECATED @103 :UInt8; # inactive compatibility reservation
 
   # Optional original vehicle receive signal. Separate from torque/override.
   struct SteeringTouch {
@@ -377,6 +381,8 @@ struct RadarData @0x888ad6581cf0aacb {
   errors @3 :Error;
   points @1 :List(RadarPoint);
   radarTrackFlipped @4 :Bool; # frontRadar yRel/yvRel already inverted by RadarTrackFlip
+  displayPoints @5 :List(RadarPoint); # 제어 points와 분리한 전체 표시용 객체
+  hasDisplayData @6 :Bool; # 표시 스트림 지원 표지: 빈 목록·시작·오류에도 유지
 
   struct Error {
     canError @0 :Bool;
