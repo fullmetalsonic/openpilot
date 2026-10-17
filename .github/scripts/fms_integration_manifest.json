@@ -1,6 +1,6 @@
 {
   "format": 1,
-  "upstream": "bd53684a4d2b5809ecd68f75986a76e548a61470",
+  "upstream": "0389e7a59be576aefdc8ad390728a32656c1dbc2",
   "policy": "latest non-DM plus existing FMS personal contracts and dca1f331 legacy DM/stopping behavior",
   "normalization": "UTF-8 text with LF for comparison; a second application preserves existing bytes",
   "bootstrap": [
@@ -38,11 +38,11 @@
     },
     {
       "path": "AGENTS.md",
-      "before_sha256": "a3d388c2f6bffa1cbf02c7353bac73680390bf6aaa0aa945d4dc2e488576cbe7",
-      "after_sha256": "68a60f6b59bd5e9a477c5d680d283d1b4733e3895010eb57ab15bd37ed34a888",
+      "before_sha256": "4c888f417436d0e47c103e7a314ea73752452e6509408503a03865d29ba35018",
+      "after_sha256": "0103ec2bb61456f04a1e6014fcb8dde5c1f7634e9162c74666faabdd283fa026",
       "kind": "hunks",
       "asset": "fms_preservation/a54ff182c7e8acf56acf.patch",
-      "asset_sha256": "7732deb8c14fbd50f08b7390e0a7446cedae0a6e52eb5b87a0a267104960d1c3",
+      "asset_sha256": "4b109f1d2cdb318b14f5d588c6904e302cd7e474a015e2af25a0711b1326ba5b",
       "review_bundle": "fms_dm_shared_preservation.patch"
     },
     {
@@ -92,10 +92,10 @@
     {
       "path": "docs/fms_integration_contract.md",
       "before_sha256": null,
-      "after_sha256": "e5b200fd29718a66b5efd830fc706ebca38bceb275c90edfffef7933e6a41ed6",
+      "after_sha256": "1091e791fe8a185a0ab58df1b69602bb92552754040137242a7e0fe751032d38",
       "kind": "blob",
       "asset": "fms_preservation/a24dd8e36e1f59ba0523.blob",
-      "asset_sha256": "e5b200fd29718a66b5efd830fc706ebca38bceb275c90edfffef7933e6a41ed6",
+      "asset_sha256": "1091e791fe8a185a0ab58df1b69602bb92552754040137242a7e0fe751032d38",
       "review_bundle": "fms_dm_shared_preservation.patch"
     },
     {

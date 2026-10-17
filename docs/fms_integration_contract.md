@@ -8,8 +8,8 @@
 
 - FMS 동작/DM/개인 패치 기준: `dca1f33137b8f24dfd23e35bc2bc3d9fd21c5d69`.
 - 원본 기반: `ef586a41637a00968e4521aeb99021fe609b5105`.
-- 이번 통합 출발 FMS: `d5713e672ead7061b686f1c273b4ce4705bc41ac` (직전 검토 원본 `5e187ab9da726c524ca51aebacc6120802480415`).
-- 이번 추가 검토 대상: `bd53684a4d2b5809ecd68f75986a76e548a61470`.
+- 이번 통합 출발 FMS: `12e39f8a93ed1e0c787008dba86e0344d4b099c7` (직전 검토 원본 `bd53684a4d2b5809ecd68f75986a76e548a61470`).
+- 이번 추가 검토 대상: `0389e7a59be576aefdc8ad390728a32656c1dbc2`.
 - 안정판 유지: `609cecef51011d893e252cf61079ba6b90faabc4`.
 - 원본 보관 DDM 유지: `ef586a41637a00968e4521aeb99021fe609b5105`.
 
@@ -55,6 +55,7 @@ Git 병합은 이력과 충돌을 추적하는 도구다. 원본의 모든 정�
 
 ## 추가 비DM 기능의 경계
 
+- 2026-10-17 후속 bd53684a→0389e7a5는 조사 기록과 중앙 신호 선택의 오프라인 도구만 추가한다. selector/replay를 observer·표시·출발 guard·moving preparation에 연결하지 않는다. 전색상 제거 비교기는 명시적 오프라인 실험일 뿐 채택한 차량 정책이 아니다. 원본의 개발 표본·멈춤 guard 대조·메모리 관찰을 FMS 차량의 정확도·누수 해결·장기 안정성 증거로 옮겨 적지 않는다. 이번 갱신의 기존 제어 검증은 생산 코드·의존 해시 불변을 확인해 재사용한다.
 - 2026-10-17 새 레버 차선변경은 HOLD=1에 의존하고 설정0에서도 일부 큐/재진입 정책이 활성이라 보류한다. FMS는 기존 desire_helper와 HOLD0을 유지한다. 새 레버 helper/설정/메뉴/modeld publish는 넣지 않는다. car.capnp stalk@100..103 및 log ModelMeta@20/21은 같은 타입·번호의 DEPRECATED 비활성 호환 예약이며 생산자·소비자는 없다. 활성 레이더/신호 schema 필드는 별도로 유지한다.
 - 원본 e944a8c5의 lead에 의한 보조 적색 veto 우회는 보류한다. 적색 hold가 먼저 유지되고 hold가 없을 때만 기존 native stop→lead 재출발 조건을 적용하는 FMS 순서를 보존한다. 원본의 구체적인 무페달 적색 이동 기록 때문에 제외하는 것이며, 실제 ENABLE/RES를 만들지 않는다는 사실만으로 정지 제한 해제의 위험을 판단하지 않는다. lead 상태에 따른 알림 억제 5405f5a4는 출력·hold·최종 shouldStop이 불변인 독립 기능으로만 채택한다. 새 거리/시간/영구 latch 우회는 추가하지 않는다.
 - 원본 7dd3c11e의 정차 SoftHold 중 새 DM 평가 pause/disabled packet은 현행 DM 동결에 따라 채택하지 않는다. 비DM eGPU warm fallback·기동 복구·overlay 개선은 기존 DM/GPU 예약·DriverView·events/forceDecel 연결을 보존하여 접합한다.
