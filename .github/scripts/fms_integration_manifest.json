@@ -1,7 +1,14 @@
 {
   "format": 1,
   "upstream": "0389e7a59be576aefdc8ad390728a32656c1dbc2",
-  "policy": "latest non-DM plus existing FMS personal contracts and dca1f331 legacy DM/stopping behavior",
+  "policy": "fixed 0389e7a reconstruction baseline plus only selected 163c000 proclog and 2c479ea Wi-Fi HUD fixes; existing FMS contracts and legacy DM/stopping preserved; GPS excluded",
+  "selected_upstream_commits": [
+    "163c000e05641adea88e9221094d45c90c3e186d",
+    "2c479eaedf4227e96f76a0a4896a41c1c4a1c4ef"
+  ],
+  "excluded_upstream_features": [
+    "2332775/7ce2644 GPS priority and CAN position integration"
+  ],
   "normalization": "UTF-8 text with LF for comparison; a second application preserves existing bytes",
   "bootstrap": [
     "apply_carrot_user_patches.py",
@@ -39,10 +46,10 @@
     {
       "path": "AGENTS.md",
       "before_sha256": "4c888f417436d0e47c103e7a314ea73752452e6509408503a03865d29ba35018",
-      "after_sha256": "0103ec2bb61456f04a1e6014fcb8dde5c1f7634e9162c74666faabdd283fa026",
+      "after_sha256": "8632c175c359a22e03eff85b582e246199b27f80a2f40ed80ef5f27e6cf4ebaf",
       "kind": "hunks",
       "asset": "fms_preservation/a54ff182c7e8acf56acf.patch",
-      "asset_sha256": "4b109f1d2cdb318b14f5d588c6904e302cd7e474a015e2af25a0711b1326ba5b",
+      "asset_sha256": "006d3094e66d2f16e5d06334d2e69c0f1a215b7353ae58b7557644c5cff0b69c",
       "review_bundle": "fms_dm_shared_preservation.patch"
     },
     {
@@ -92,10 +99,10 @@
     {
       "path": "docs/fms_integration_contract.md",
       "before_sha256": null,
-      "after_sha256": "1091e791fe8a185a0ab58df1b69602bb92552754040137242a7e0fe751032d38",
+      "after_sha256": "adc03ce9ceb9b1821bc67d330c839f6372154a18e81136a035a6664f744d887d",
       "kind": "blob",
       "asset": "fms_preservation/a24dd8e36e1f59ba0523.blob",
-      "asset_sha256": "1091e791fe8a185a0ab58df1b69602bb92552754040137242a7e0fe751032d38",
+      "asset_sha256": "adc03ce9ceb9b1821bc67d330c839f6372154a18e81136a035a6664f744d887d",
       "review_bundle": "fms_dm_shared_preservation.patch"
     },
     {
@@ -582,6 +589,15 @@
       "review_bundle": "fms_dm_shared_preservation.patch"
     },
     {
+      "path": "openpilot/selfdrive/carrot/cluster_autorun.py",
+      "before_sha256": "93165333c03d98a58b03c9ecef87527c1504d5bab437490d4b40c922d90ba11f",
+      "after_sha256": "c1531ce98bb919775565cfb2116ba9fb74bb3f179e4b8cd562605c0d919f63e2",
+      "kind": "hunks",
+      "asset": "fms_preservation/976b5e74672302fc67c9.patch",
+      "asset_sha256": "bf473896e90cf2c69a1cf2fd572f21503c3532ac12f0e11fa4de739cd10567e4",
+      "review_bundle": "fms_dm_shared_preservation.patch"
+    },
+    {
       "path": "openpilot/selfdrive/carrot/paddle_gap.py",
       "before_sha256": null,
       "after_sha256": "95b93083e78ed060c1334112ecbf8e6ae216dc132c416768e6891dc964301b51",
@@ -705,6 +721,15 @@
       "kind": "hunks",
       "asset": "fms_preservation/dacde753d630b3108b5f.patch",
       "asset_sha256": "aff73d65ff009d2e77ba7bd5865632a5263ee3e2e30d101c1bb3a93e7a92c522",
+      "review_bundle": "fms_dm_shared_preservation.patch"
+    },
+    {
+      "path": "openpilot/selfdrive/carrot/tests/test_cluster_autorun.py",
+      "before_sha256": "4c17bf37d1576e7f567d8522f63256687e26f9fbf589046b039285630c75b2f2",
+      "after_sha256": "94bbde7837cd92eb46b6341546304edc7ff9353625e6bdd69d119e912c25780a",
+      "kind": "hunks",
+      "asset": "fms_preservation/d77af2a9cbd2789d3efc.patch",
+      "asset_sha256": "1ab11291e419b9a22cc5ff2d52c1dca47cdaa08feccfebeb23fefdfb360e0227",
       "review_bundle": "fms_dm_shared_preservation.patch"
     },
     {
@@ -1366,6 +1391,24 @@
       "kind": "hunks",
       "asset": "fms_preservation/6dadd53df6802b9d8f69.patch",
       "asset_sha256": "177e82b053db1dc0478a044af3b09f2f7bd174aec385ce00f97db77aa05c6b44",
+      "review_bundle": "fms_dm_shared_preservation.patch"
+    },
+    {
+      "path": "openpilot/system/proclogd.py",
+      "before_sha256": "9ac21a1b2ebe124ca6c912b18a22a1c325946378506c6ca41f84f2356c344129",
+      "after_sha256": "3e6372b8ee632358ce7386db60cdec221939f6058aa955b4119c34d12816a27e",
+      "kind": "hunks",
+      "asset": "fms_preservation/3f79e4f03c18bf2e97eb.patch",
+      "asset_sha256": "1f3bc36a48fe607b95bf38dc472b50f4826b18e3586aa862700ed74ecebb6c92",
+      "review_bundle": "fms_dm_shared_preservation.patch"
+    },
+    {
+      "path": "openpilot/system/tests/test_proclog_smaps.py",
+      "before_sha256": "6ea0689ac6d8a7a920349a410ff6968b9b090cdfa15cde13ed0ddba76dd85601",
+      "after_sha256": "4f4019a81bf34e4079ddb3fb8ab2aa0e5fe46cefc79f5fe80e956849bf29ae7d",
+      "kind": "hunks",
+      "asset": "fms_preservation/9f77355f4745c3d1abcc.patch",
+      "asset_sha256": "414f40594ced23ee9ce5f6f0d525c472c562ca085fd5f438648452a93576aaab",
       "review_bundle": "fms_dm_shared_preservation.patch"
     },
     {

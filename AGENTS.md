@@ -1,3 +1,13 @@
+# FMS selective maintenance — 2026-10-18 local candidate
+
+Start at published FMS 7eba4cb. Adopt only proclog cache/GC changes from
+163c000 and Wi-Fi HUD startup waiting from 2c479ea. Reviewed-through upstream
+163c000 is not the reconstruction baseline: the pinned helper still starts
+at 0389e7a. Preserve every existing FMS behavior below. GPS changes remain
+deferred due to unknown-heading consumer handling; do not import diagnostics
+or upstream operational instructions. This is a local, uncommitted candidate;
+publication, device changes and automation resumption are not authorized here.
+
 # FMS fork integration contract
 
 This fork preserves its own behavior contracts and selectively integrates
