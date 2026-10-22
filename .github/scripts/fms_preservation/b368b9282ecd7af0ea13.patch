@@ -22,3 +22,11 @@
      {"MuteDoor", {PERSISTENT, INT, "0"}},
      {"MuteSeatbelt", {PERSISTENT, INT, "0"}},
  
+@@ -420,6 +414,7 @@
+ 
+     {"HardwareC3xLite", {PERSISTENT, INT, "0"}},
+     {"ShareData", {PERSISTENT, INT, "0"}},
++    {"OnnxBsdEnabled", {PERSISTENT, INT, "0"}},
+     {"OnnxLaneThreshold", {PERSISTENT, INT, "25"}},
+     {"OnnxLaneIntervalMs", {PERSISTENT, INT, "400"}},
+     {"OnnxBsdThreshold", {PERSISTENT, INT, "94"}},

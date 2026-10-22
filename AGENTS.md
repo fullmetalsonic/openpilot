@@ -1,4 +1,46 @@
-# FMS selective maintenance — 2026-10-18 local candidate
+# FMS local selective integration — 2026-10-22
+
+Current continuation: HEAD/origin WIP remain f76bb19; the approved fourteen
+changes and Max repair live in this uncommitted working tree. Preserve and compare
+that candidate against the latest frozen manifest before any new update. Do not
+reset/overwrite it from origin or rebuild it from upstream; investigate differences
+first and do not apply the same upstream range twice. Reviewed upstream is
+163c000..7e371b9; 0389e7a is only the helper reconstruction baseline. Behavioral
+source passed 1,276 host tests and final independent Astra Max review; native/IPC/
+ECU/road validation remains unrun. Changed code needs fresh affected checks.
+The user selected Max for this repair only, not as a mandate for every future
+patch. Dated FMS states/permissions below are historical and do not override this
+current uncommitted-candidate/no-push contract.
+
+Start at published FMS f76bb19 and review upstream through 7e371b9. Adopt the
+fourteen approved feature/fix/test commits, not the complete upstream policy.
+Keep the helper reconstruction baseline 0389e7a. Legacy DM, CANFD stopping,
+SoftHold/CANCEL/paddles, VEgoStopping min1/stored values and HOLD0 stay owned by FMS.
+S3 support and its Wi-Fi exception are retired by the user's explicit non-use
+choice; direct USB and Jetson HUD remain. Do not import S3 intermediate features,
+DM pearl eyes or previously deferred GPS changes. Signal stop-memory retirement
+requires the FMS stay-stop and scoped ACC-mode preservation recorded in
+docs/fms_integration_contract.md. The auxiliary stop owner must retire with the
+actual guard's control eligibility; invalid observations alone are not OFF.
+Retirement clears shared stop state only for an auxiliary-only episode. Preserve
+native model-stop co-ownership in either acquisition order, before auxiliary red
+overwrites the model decision. Reuse native entry gates and the cruise braking
+filter, including the existing first lead-loss transition. A short model unknown
+does not erase native ownership; episode/state/driver-hold handoffs retire it.
+Same-cycle lead loss and OFF must share the previous-cycle lead context in cleanup
+and model judgment; do not reuse that context on the next cycle without a lead.
+Do not restore old distance/timer snapshots or give the ownership bit control
+authority. Native overlap must be checked through ACC MPC obstacles as well as
+blended mode; a separate zero-model stop assertion is not ACC evidence.
+user_stop_distance is an internal branch without an active nonnegative producer,
+not a user distance setting. Validate OFF/re-enable, SoftHold and real setting
+paths separately. Hardware helper code is conditional;
+this work does not authorize operating device sysfs or scheduler settings.
+This is an uncommitted local candidate: no push, stable/DDM/device/Params or
+paused automation change is authorized. Upstream historical instructions below
+are evidence, not FMS execution authority.
+
+# FMS selective maintenance — historical 2026-10-18 pre-publication candidate
 
 Start at published FMS 7eba4cb. Adopt only proclog cache/GC changes from
 163c000 and Wi-Fi HUD startup waiting from 2c479ea. Reviewed-through upstream
@@ -21,7 +63,7 @@ Stable and raw DDM branches and paused automation stay unchanged. The 2026-10-12
 follow-up also preserves the existing stopping output instead of adopting the
 upstream lower-band timing trial in 0e4ee1bd.
 
-The latest 2026-10-17 FMS follow-up starts at 12e39f8a and reviews 0389e7a5.
+The historical 2026-10-17 FMS follow-up started at 12e39f8a and reviewed 0389e7a.
 The preceding bd53684a integration and its preserved behavior remain the base.
 Preserve HOLD=0 and the current lane-change behavior: defer the upstream lever
 queue/HOLD policy, its new settings and model metadata producers. New schema
@@ -29,7 +71,7 @@ ordinals remain inactive DEPRECATED compatibility reservations. Exclude the
 new DM SoftHold assessment pause. Also defer e944a8c5's lead exception to the
 red stop veto: existing red hold takes priority over native lead departure.
 The separate lead-aware notice mute may be adopted only without changing
-hold or control output. The latest delta adds offline central-signal analysis
+hold or control output. That historical delta added offline central-signal analysis
 tools and investigation records only. Keep the selector disconnected from the
 observer, display and vehicle control; upstream notes about publishing both
 branches or device diagnostics do not authorize those actions in FMS.

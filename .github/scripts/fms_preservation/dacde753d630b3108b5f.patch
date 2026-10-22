@@ -15,7 +15,24 @@
  
  
  @pytest.mark.parametrize("maximum", (3, 4))
-@@ -281,36 +289,22 @@
+@@ -103,6 +111,7 @@
+   lane_change = next(group for group in steering["groups"] if group["id"] == "STEER_LANECHANGE")
+   assert onnx["id"] == "STEER_ONNX"
+   detail_names = [
++    "OnnxBsdEnabled",
+     "OnnxLaneThreshold", "OnnxLaneIntervalMs", "OnnxBsdThreshold",
+     "OnnxBsdSmoothingMs", "OnnxBsdIntervalMs",
+   ]
+@@ -112,6 +121,8 @@
+     assert by_name[name]["detail_parent"] == "ShareData"
+     assert by_name[name]["detail_section"] in ("lane", "bsd")
+     assert f'{{"{name}", {{PERSISTENT, INT,' in PARAMS_KEYS_PATH.read_text(encoding="utf-8")
++  bsd_enabled = by_name["OnnxBsdEnabled"]
++  assert (bsd_enabled["control"], bsd_enabled["min"], bsd_enabled["max"], bsd_enabled["default"]) == ("toggle", 0, 1, 0)
+   for title in ("title", "etitle", "ctitle"):
+     assert "ONNX" in vision[title]
+ 
+@@ -281,36 +292,22 @@
    assert '{"UseWideCamera", {PERSISTENT, BOOL, "1"}}' in params_keys
  
  
@@ -65,7 +82,7 @@
  
  
  def test_vehicle_navi_can_control_exposes_route_filter_modes(settings, params):
-@@ -598,3 +592,19 @@
+@@ -598,3 +595,19 @@
    assert (by_name["ApplyModelSpeed"]["min"], by_name["ApplyModelSpeed"]["max"]) == (-120, 120)
    assert by_name["ApplyModelSpeed"]["default"] == 0
    assert by_name["TFollowDecelBoost"]["unit"] == 10

@@ -1,6 +1,14 @@
 --- a/openpilot/selfdrive/carrot/web/js/translations/en.js
 +++ b/openpilot/selfdrive/carrot/web/js/translations/en.js
-@@ -549,7 +549,7 @@
+@@ -226,6 +226,7 @@
+     onnx_vision_summary_starting: "Waiting for the ONNX service to start.",
+     onnx_vision_summary_unavailable: "The ONNX service is not responding.",
+     onnx_vision_summary_waiting: "Models are ready; waiting for road cameras.",
++    onnx_vision_summary_lane_only: "Lane detection is ready; vision BSD is off.",
+     onnx_vision_summary_ready: "Lane and blindspot detection are ready.",
+     onnx_vision_summary_attention: "Check the ONNX model or its configuration.",
+     onnx_vision_open_diagnostics: "Open diagnostics",
+@@ -549,7 +550,7 @@
      git_update_output: "Git output",
      git_update_up_to_date: "Already up to date",
      git_result_pull_done: "Update check complete",
@@ -9,7 +17,7 @@
      git_result_reset_done: "Reset complete: {mode} {target}",
      git_result_checkout_done: "Branch changed: {branch}",
      git_result_remote_set_done: "Repository changed. Branch list is ready.",
-@@ -594,7 +594,7 @@
+@@ -594,7 +595,7 @@
      confirm_reboot: "Reboot now?",
      reboot_later: "Selected. Reboot later to apply.",
      rebooting: "Rebooting...",
@@ -18,7 +26,7 @@
      git_reset_confirm: "Connect to the remote repository to check branch tracking and repair broken links. Reset will stop if verification fails.\nThen revert code changes. Your modifications may be lost. Continue?",
      git_reset_mode_prompt: "Select reset mode\n\n• hard: discard all changes\n• soft: undo commit only\n• mixed: unstage only",
      git_reset_target_prompt: "Enter reset target\ne.g. HEAD (current), origin/master (remote)",
-@@ -806,10 +806,11 @@
+@@ -806,10 +807,11 @@
      video_track_lost_reconnecting: "Reconnecting video",
      video_stalled_reconnecting: "Reconnecting video",
      no_initial_frame_reconnecting: "Waiting for first frame",
@@ -33,7 +41,7 @@
      vision_step_unavailable: "Check the setting.",
      vision_step_inactive: "Waiting to start",
      vision_step_starting: "Preparing camera",
-@@ -1392,8 +1393,6 @@
+@@ -1392,8 +1394,6 @@
      update_ago_seconds: "{s}s ago",
      update_ago_now: "just now",
      git_reset_head_prompt: "Select reset mode based on HEAD.",

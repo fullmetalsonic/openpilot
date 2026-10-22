@@ -1,0 +1,11 @@
+--- a/.github/workflows/jetlink-checks.yaml
++++ b/.github/workflows/jetlink-checks.yaml
+@@ -36,6 +36,8 @@
+           python -m compileall -q tools/jetlink openpilot/selfdrive/modeld/jetlink
+           python -m pytest -c /dev/null --rootdir=. --confcutdir=tools/jetlink -q \
+             tools/jetlink openpilot/selfdrive/modeld/tests/test_jetlink.py \
++            openpilot/selfdrive/modeld/tests/test_camera_sync.py \
++            openpilot/selfdrive/modeld/tests/test_camera_gap.py \
+             openpilot/selfdrive/modeld/tests/test_jetlink_phase.py \
+             openpilot/selfdrive/modeld/tests/test_jetlink_mac.py
+           python -m pytest -c /dev/null --rootdir=. --confcutdir=openpilot/selfdrive/carrot/tests -q \
