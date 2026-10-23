@@ -3,7 +3,7 @@
   "upstream": "0389e7a59be576aefdc8ad390728a32656c1dbc2",
   "policy": "fixed 0389e7a reconstruction baseline; selective 14-commit Oct22 integration atop f76bb19 preserving legacy DM, FMS SoftHold/paddles/stopping/CANCEL and VEgoStopping; user-approved S3 retirement supersedes prior Wi-Fi exception; GPS and new DM eyes excluded",
   "reviewed_through_upstream": "7e371b92fd877c2cd160c92b4cf6fc62fe6d8805",
-  "fms_followup_adaptation": "Follow-up native stop authority repair; source reconstruction alone is not behavioral approval; final Max behavioral judgment is separate",
+  "fms_followup_adaptation": "2026-10-23 user-selected active ACC lead priority using upstream finite relative-distance condition with actual control/driver gates; effective auxiliary decisions and added owned-stay force only, underlying red/native/SoftHold preserved. Source reconstruction is not behavioral or road approval.",
   "before_fms": "f76bb193aa6f3063507857134fe37bb4a42bb9b2",
   "current_selected_upstream_commits": [
     "988b4623c8efe885071f8794ca13f2ba0a7d30c6",
@@ -94,10 +94,10 @@
     {
       "path": "AGENTS.md",
       "before_sha256": "4c888f417436d0e47c103e7a314ea73752452e6509408503a03865d29ba35018",
-      "after_sha256": "96413eadaf2307a3500f01501d987b0a99ea6a10f853740f27d05f620e401ab8",
+      "after_sha256": "80f6396b7b8efd4bf33b51f3b99009b915ad2abbdf3f43918eb67b837507260d",
       "kind": "hunks",
       "asset": "fms_preservation/a54ff182c7e8acf56acf.patch",
-      "asset_sha256": "972bf2793212829beadd3aaaaa2df7aa1d2d659ec1c6b4cf0af7a34da5fc5f0b",
+      "asset_sha256": "d4bcb4b7f4c34868c84d0da2155b0bc8032089627362972aaafc235d71d9c1d3",
       "review_bundle": "fms_dm_shared_preservation.patch"
     },
     {
@@ -147,10 +147,10 @@
     {
       "path": "docs/fms_integration_contract.md",
       "before_sha256": null,
-      "after_sha256": "b91c9fdd5e46fe181f5a8c86a0ff2893e6752a6f715c8ddebe1acf2fa309026c",
+      "after_sha256": "53ae56487897d2721300505e23c57f54a4230624f04f9c20089bf52906b8530f",
       "kind": "blob",
       "asset": "fms_preservation/a24dd8e36e1f59ba0523.blob",
-      "asset_sha256": "b91c9fdd5e46fe181f5a8c86a0ff2893e6752a6f715c8ddebe1acf2fa309026c",
+      "asset_sha256": "53ae56487897d2721300505e23c57f54a4230624f04f9c20089bf52906b8530f",
       "review_bundle": "fms_dm_shared_preservation.patch"
     },
     {
@@ -168,6 +168,15 @@
       "asset": "fms_preservation/fa3f0fa7227ab7d8c307.blob",
       "asset_sha256": "bdae7e8d8867a61f2763a543f9362dbba1c61256efc1a295205f1be9f3915be8",
       "review_bundle": "paddle_regen_isolation.patch"
+    },
+    {
+      "path": "docs/signal_lead_handover_20261017.md",
+      "before_sha256": "ef3c8c6f2712b7fd3f1cb0a9f63505cf1f0a5f1732694bbb02cd4ff19af448d0",
+      "after_sha256": "5e5d115d1367734d6c84c18498748d41de95266ef34486937f3a3484da4533c3",
+      "kind": "hunks",
+      "asset": "fms_preservation/ab3c5cebf3e6ca56c0a6.patch",
+      "asset_sha256": "cde3ae10e2a9aa27964ca477b812280bd86390ab2bfafe82e136d0f80b5826da",
+      "review_bundle": "fms_dm_shared_preservation.patch"
     },
     {
       "path": "docs/user/docs_map.json",
@@ -630,10 +639,10 @@
     {
       "path": "openpilot/selfdrive/carrot/carrot_functions.py",
       "before_sha256": "5749343a30b44a2a9cad8ba8c82c95e8183e3702e32d11e2e4c6e32c1473cbd1",
-      "after_sha256": "04ca42a40d6f337425c22c0ea8ab27a35b18c7db290330d263e836169d7135b7",
+      "after_sha256": "02314170ee3c574162a1b348afd7ad7f62c7de9d009e00d90c1129b9b044efcb",
       "kind": "hunks",
       "asset": "fms_preservation/d02b38a2ac23d5e17a8a.patch",
-      "asset_sha256": "f744808e8d81a9800f1fb843b09de458e8db15b835558644e62cfbe368a7b084",
+      "asset_sha256": "3e7f51a8297f2f3e344eb6769a9745316388d15793b64c7e920086505903fb05",
       "review_bundle": "fms_dm_shared_preservation.patch"
     },
     {
@@ -937,10 +946,10 @@
     {
       "path": "openpilot/selfdrive/carrot/tests/test_signal_lead_handover.py",
       "before_sha256": "1171fed0b356f3708c59f595e47975ae5630292a59be3e004ba879a74f815321",
-      "after_sha256": "2088a560c4a06971c6f5d5a0beea6e676afee42617715d305dcbff61280066b4",
+      "after_sha256": "45aec324133ee91950fb0e29e46174e728b6e8335ce9ac4e22e172d799269fce",
       "kind": "hunks",
       "asset": "fms_preservation/19f55b1636c864c71593.patch",
-      "asset_sha256": "bb6dae80286328fdb65e023a1e5d5ecd818a2ebcc67c88a5c45761f240739df9",
+      "asset_sha256": "0996615a2296e089b3980a57a97f1a3303c5f4ebc2e3f97219c8729a1b1018bf",
       "review_bundle": "fms_dm_shared_preservation.patch"
     },
     {
@@ -2101,5 +2110,7 @@
       "asset_sha256": "f02aa78d1e0f9796d1dd85ac367953a9eb49c3475b2511b69693fbc6014ddee9",
       "review_bundle": "fms_dm_shared_preservation.patch"
     }
-  ]
+  ],
+  "followup_base_fms": "647f9c926017d2cd9de05bb1cc559d13a3b49c4c",
+  "followup_upstream_policy": "e944a8c5 lead-relative handover adapted, no whole upstream replacement"
 }

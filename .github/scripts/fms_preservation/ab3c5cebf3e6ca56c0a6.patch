@@ -1,0 +1,32 @@
+--- a/docs/signal_lead_handover_20261017.md
++++ b/docs/signal_lead_handover_20261017.md
+@@ -1,4 +1,29 @@
+ # Auxiliary red veto and existing lead handover — 2026-10-17
++
++## FMS policy follow-up — 2026-10-23
++
++The FMS user now explicitly selects lead priority in normal active ACC even
++with red/unknown observations; its earlier deferral of this upstream policy is
++superseded. Require current real enabled/longActive control, drive/valid inputs,
++no driver cancel/negative request, pedal/override, independent SoftHold, parking
++hold or explicit stop. Non-PCM OEM CC.cancel is not driver CANCEL. Missing proof
++is not permission. Only effective auxiliary decisions and the FMS added
++owned-stay force yield; raw recognition, guard red memory, real navigation stay
++and native FSM survive. Qualifying lead loss restores retained red next cycle.
++No radar-only, persistent identity episode or motion delay is introduced.
++
++This is an intentional policy choice, not proof of ego-lane signal assignment.
++The previously recorded transient vision lead opening the exception for about
++449ms and roughly1.53m movement under red remains a known limitation. The
++relative model-distance boundary may toggle. Neither is claimed fixed here.
++Local source/host checks do not establish native solver, IPC, ECU or road
++behavior. No commit, push, device or Params change is authorized by this note.
++Local checks: 1,233 affected host cases plus four separate native/auxiliary
++acquisition-order and same-cycle lead-loss/OFF cases pass. The actual saved
++settings reader/runtime/MPC obstacle and final-veto paths are included; native
++optimization and physical restart remain unrun. The initial 62-case lead suite
++is a subset of the1,233, not an additional independent count.
++The original upstream implementation/validation history follows below.
+ 
+ The user requested that a lead satisfying the existing stop-to-lead range
+ condition take priority over the auxiliary red departure veto. Previously the

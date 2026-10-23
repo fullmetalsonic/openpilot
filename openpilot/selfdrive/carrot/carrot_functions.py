@@ -476,8 +476,29 @@ class CarrotPlanner:
     if self.myDrivingModeAuto > 0 and not self.myDrivingMode_disable_auto:
       self.myDrivingMode = self.drivingModeDetector.get_mode(self.myDrivingModeAuto)
 
+  def _lead_follow_eligible(self, sm, model_stop_distance):
+    """Current normal ACC may use the existing model-relative lead handover.
+
+    This is not green evidence or a new engagement request. Missing production
+    fields cannot open the exception; raw OEM CC.cancel is deliberately absent
+    because normal non-PCM control uses it while openpilot ACC remains enabled.
+    """
+    try:
+      cs, cc, sd = sm['carState'], sm['carControl'], sm['selfdriveState']
+      lead = sm['radarState'].leadOne
+      return bool(sd.enabled and cc.enabled and cc.longActive and cs.canValid
+                  and str(cs.gearShifter) == 'drive' and cs.cruiseState.available
+                  and cs.activateCruise >= 0 and self.soft_hold_active == 0 and self.user_stop_distance < 0
+                  and not (cs.gasPressed or cs.brakePressed or cs.brakeHoldActive or cs.parkingBrake
+                           or cc.cruiseControl.override or any(str(b.type) == 'cancel' for b in cs.buttonEvents))
+                  and lead.status and np.isfinite(lead.dRel) and lead.dRel > 0
+                  and np.isfinite(model_stop_distance) and lead.dRel - model_stop_distance < 2.0)
+    except (AttributeError, KeyError, TypeError, ValueError):
+      return False
+
   def update(self, sm, v_cruise_kph, mode, *, signal_observation=None, signal_context=None,
              start_observation=None, start_context=None, prepare_observation=None, prepare_context=None):
+    from dataclasses import replace
     from openpilot.selfdrive.carrot.signal_road_policy import signal_detection_suspended
     from openpilot.selfdrive.carrot.signal_assist import departed_signal_stop
     suspended = signal_detection_suspended(sm)
@@ -617,6 +638,13 @@ class CarrotPlanner:
                           and max(0, self.traffic_starting_count - 1) == 0)
     native_stop_entry = self.trafficState == TrafficState.red and not lead_detected and stop_entry_allowed
 
+    # Share the upstream lead-relative condition with both effective vetoes and
+    # our added stay-stop force. Keep the actual red latches/navigation/native
+    # state: loss of current permission must restore a retained veto next cycle.
+    lead_follow = (not suspended and self._lead_follow_eligible(sm, stop_model_x_raw)
+                   and any(c and c['enabled'] and c['valid'] and c['drive']
+                           for c in (start_context, signal_context)))
+
     start_hold = False
     self.signal_observation_color = 0
     self.signal_green_active = False
@@ -632,6 +660,11 @@ class CarrotPlanner:
         drive=context['drive'], gas=carstate.gasPressed, speed=v_ego,
         departure=self.trafficState == TrafficState.green or lead_detected or
                   self.xState not in (XState.e2eStop, XState.e2eStopped))
+      if lead_follow and start_stop_qualified and context['valid']:
+        if self.start_decision.warn:
+          self.start_guard.warned = False  # suppressed notice must remain available after lead loss
+        self.start_decision = replace(self.start_decision, hold=False, warn=False, released=False,
+                                      green_confirmed=False, reason='lead_follow')
       start_hold = self.start_decision.hold
       # A fresh transition from the same previously red signal supplies the
       # normal green input. It does not set acceleration or bypass driver holds.
@@ -664,6 +697,9 @@ class CarrotPlanner:
         model_y=y[-1], comfort_brake=mode_comfort_brake, lead=lead_detected,
         entry_allowed=is_traffic_stop_entry_allowed(carstate.steeringAngleDeg) and self.traffic_starting_count == 0,
         turning=carstate.leftBlinker or carstate.rightBlinker)
+      if lead_follow and signal_stop_qualified and context['valid']:
+        self.signal_decision = replace(self.signal_decision, hold=False, red_sign=False,
+                                       released=False, reason='lead_follow')
       signal_hold = self.signal_decision.hold
       if self.signal_decision.red_sign:
         self.trafficState = TrafficState.red
@@ -677,7 +713,7 @@ class CarrotPlanner:
     # A current explicit navigation stay request must retain an already-owned
     # auxiliary stop while its red latch retires. This is not a new stay latch:
     # real start transitions and driver pedals retain their existing priority.
-    owned_stay_stop = (stop_qualified and self._signal_stop_owned and self.carrot_stay_stop
+    owned_stay_stop = (stop_qualified and not lead_follow and self._signal_stop_owned and self.carrot_stay_stop
                        and self.xState == XState.e2eStopped
                        and not (carstate.gasPressed or carstate.brakePressed))
 
@@ -689,9 +725,8 @@ class CarrotPlanner:
 
     if signal_hold or start_hold:
       self._signal_stop_owned = True
-      # During stop/creep, a lead cannot bypass the acquired red veto. Unknown
-      # keeps it latched; leaving that speed scope retires it without granting green.
-      # Radar obstacles remain in MPC.
+      # Without a currently qualified normal-ACC lead exception, retain the
+      # acquired red veto during stop/creep. Radar obstacles remain in MPC.
       self.xState = XState.e2eStopped
       self.actual_stop_distance = 0.0
       stop_model_x = 0.0

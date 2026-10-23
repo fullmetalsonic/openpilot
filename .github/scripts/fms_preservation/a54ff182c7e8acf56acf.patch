@@ -1,7 +1,30 @@
 --- a/AGENTS.md
 +++ b/AGENTS.md
-@@ -1,3 +1,83 @@
-+# FMS local selective integration — 2026-10-22
+@@ -1,3 +1,106 @@
++# FMS active-ACC lead priority — 2026-10-23 local follow-up
++
++Published WIP is 647f9c9. The current user explicitly changed the previous
++blanket auxiliary-red priority: a qualifying lead takes priority in normal
++enabled/longActive ACC, even with red or unknown signal evidence, because the
++observed signal may belong to another lane. Adopt the upstream finite positive
++lead range and dRel-minus-filtered-model-stop <2m boundary, with current actual
++control/driver/validity gates. Do not add radar-only, same-ID, a new episode or
++multi-frame motion conditions that silently block normal departure again.
++Only effective auxiliary decisions and FMS's added owned-stay force may yield;
++retain raw signal observations, internal red memory, real navigation/native FSM,
++independent SoftHold and explicit driver stop. CANCEL/negative activation,
++pedals/override, OFF/unavailable/invalid must never gain this exception. Internal
++non-PCM carControl.cruiseControl.cancel is not driver CANCEL. Lead loss or range
++exit immediately restores retained red; no green, acceleration or ENABLE/RES is
++created. Native ownership/retirement and all DM/CAN/paddle/VEgo contracts remain.
++The upstream transient-vision-lead and model-relative boundary toggling risks
++are known limits of this selected policy, not resolved by notice muting.
++This follow-up permits local implementation and host verification only. No
++stage/commit/push, device/Params, stable/DDM or paused automation change.
++Older uncommitted-state and blanket-red instructions below are historical;
++this current user policy supersedes them. Read docs/fms_integration_contract.md.
++
++# FMS local selective integration — 2026-10-22 historical verification
 +
 +Current continuation: HEAD/origin WIP remain f76bb19; the approved fourteen
 +changes and Max repair live in this uncommitted working tree. Preserve and compare

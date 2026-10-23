@@ -134,8 +134,31 @@ diff --git a/.github/workflows/tests.yaml b/.github/workflows/tests.yaml
 diff --git a/AGENTS.md b/AGENTS.md
 --- a/AGENTS.md
 +++ b/AGENTS.md
-@@ -1,3 +1,83 @@
-+# FMS local selective integration — 2026-10-22
+@@ -1,3 +1,106 @@
++# FMS active-ACC lead priority — 2026-10-23 local follow-up
++
++Published WIP is 647f9c9. The current user explicitly changed the previous
++blanket auxiliary-red priority: a qualifying lead takes priority in normal
++enabled/longActive ACC, even with red or unknown signal evidence, because the
++observed signal may belong to another lane. Adopt the upstream finite positive
++lead range and dRel-minus-filtered-model-stop <2m boundary, with current actual
++control/driver/validity gates. Do not add radar-only, same-ID, a new episode or
++multi-frame motion conditions that silently block normal departure again.
++Only effective auxiliary decisions and FMS's added owned-stay force may yield;
++retain raw signal observations, internal red memory, real navigation/native FSM,
++independent SoftHold and explicit driver stop. CANCEL/negative activation,
++pedals/override, OFF/unavailable/invalid must never gain this exception. Internal
++non-PCM carControl.cruiseControl.cancel is not driver CANCEL. Lead loss or range
++exit immediately restores retained red; no green, acceleration or ENABLE/RES is
++created. Native ownership/retirement and all DM/CAN/paddle/VEgo contracts remain.
++The upstream transient-vision-lead and model-relative boundary toggling risks
++are known limits of this selected policy, not resolved by notice muting.
++This follow-up permits local implementation and host verification only. No
++stage/commit/push, device/Params, stable/DDM or paused automation change.
++Older uncommitted-state and blanket-red instructions below are historical;
++this current user policy supersedes them. Read docs/fms_integration_contract.md.
++
++# FMS local selective integration — 2026-10-22 historical verification
 +
 +Current continuation: HEAD/origin WIP remain f76bb19; the approved fourteen
 +changes and Max repair live in this uncommitted working tree. Preserve and compare
@@ -874,10 +897,20 @@ diff --git a/docs/driver_monitoring_dm2.md b/docs/driver_monitoring_dm2.md
 diff --git a/docs/fms_integration_contract.md b/docs/fms_integration_contract.md
 --- /dev/null
 +++ b/docs/fms_integration_contract.md
-@@ -0,0 +1,103 @@
+@@ -0,0 +1,113 @@
 +# FMS 선별 통합 운영 계약
 +
 +## 상태와 방향
++
++**2026-10-23 현재 로컬 후속 작업:** 게시 기준은 `647f9c9`다. 사용자는 다른 차로 신호·적색 오인 가능성 때문에 정상 ON/활성 종방향 크루즈에서는 원본의 앞차 추종을 우선하도록 명시했다. 이전의 보조 적색 절대 우선/앞차 예외 보류는 이 요청으로 변경한다. 실제 사건 원인은 당시 로그가 없어 미확정이며, f76/647의 동일 동작만으로 원본과의 정책 차이를 배제하지 않는다.
++
++- 예외는 현재 실제 제어·입력 자격이 있을 때만 허용한다. 앞차 status, 유한한 양수 dRel, 기존 필터 모델 정지거리와의 차이 `<2m`를 사용한다. 별도 radar-only/같은 ID episode/연속 움직임 대기 조건은 추가하지 않는다. 이 2m는 앞차까지 절대 거리가 아니다.
++- 정상 ON/longActive·drive·유효 입력·사용자/차량 hold 없음·CANCEL/음수 요청/페달 override 없음이 필수다. 내부 OEM 취소 `carControl.cruiseControl.cancel`을 운전자 CANCEL로 오인하지 않는다. card의 음수 activateCruise와 raw buttonEvents, 기존 controls OFF 경로는 보존한다. planner에 별도의 과거 CANCEL latch를 새로 만들지 않는다.
++- 유효 출력 결정만 hold/released/green-confirmed/red 주입을 억제한다. 내부 적색 기억·원시 신호 표시와 실제 CarrotMan stay/native 상태는 지우지 않는다. 같은 자격으로 FMS가 추가한 `owned_stay_stop`의 강제 정차만 양보한다. 앞차 소실/거리 이탈/입력 무효에는 남은 적색 veto가 즉시 복귀하며, 앞차 없음·독립 SoftHold/CANCEL·명시 stop·페달 보호는 그대로다.
++- 과거 기록의 일시적 vision lead 약449ms 예외와 적색 중 약1.53m 이동, 모델 경계 반복 전환 가능성은 알려진 한계로 남긴다. 이 정책 선택은 차로별 신호 판별이나 잘못된 lead 식별을 해결한 것이 아니다. 기존 MPC/LongControl/CAN 출력 수식은 바꾸지 않는다.
++- 단계는 로컬 수정·관련 검증이다. 커밋/푸시·기기/Params·안정판/DDM·예약은 변경하지 않는다. 아래 10/22·10/18의 미게시 상태와 앞차 예외 보류는 당시 기록이다. 최종 검사 결과와 미실행 범위는 운영 인수인계를 따른다.
++
++로컬 검증: 변경 전 정상 ACC·적색·유효 앞차 입력은 기존 hold로 새 요구를 실패했고, 수정 후 같은 검사를 포함한 영향 묶음 1,233개 및 추가 native-first/auxiliary-first의 앞차 인계→동일 주기 소실/OFF 4개가 통과했다. 실제 백업 초기화·10/20/30/40주기 reader·주행/신호 모드·정지거리5.2m/보정0/VEgoStopping0.01·정지/출발 lead·CarrotMan stay를 Python MPC 장애물과 최종 veto까지 확인했다. 정지 lead의 장애물은 유지되며, recordingsolver나 진단 진행궤적을 실제 가속·실차 출발의 증거로 확대하지 않는다. 두 CANFD/SoftHold/CANCEL/패들 관련 검사도 포함하며, 생산 MPC/LongControl/CAN/DM 경로는 변경하지 않았다. native/acados/IPC·ECU·실차 검증은 미실행이다.
 +
 +2026-10-12 사용자 결정: FMS는 원본의 동작과 같아지는 것을 목표로 하는 자동 동기화 브랜치가 아니다. **현재 FMS의 동작 계약을 유지하며 필요한 원본 변경을 선별 이식하는 포크**로 관리한다. 설정 몇 개를 바꾸는 수준의 패치만으로 해석하지 않는다.
 +
@@ -1139,6 +1172,39 @@ diff --git a/docs/id4_dm_enable_cadence_20261003.md b/docs/id4_dm_enable_cadence
 -
 -Correction scripts and comparison results are retained separately under
 -`.analysis/archive/2026-10-03/dm-cadence-fix/`.
+diff --git a/docs/signal_lead_handover_20261017.md b/docs/signal_lead_handover_20261017.md
+--- a/docs/signal_lead_handover_20261017.md
++++ b/docs/signal_lead_handover_20261017.md
+@@ -1,4 +1,29 @@
+ # Auxiliary red veto and existing lead handover — 2026-10-17
++
++## FMS policy follow-up — 2026-10-23
++
++The FMS user now explicitly selects lead priority in normal active ACC even
++with red/unknown observations; its earlier deferral of this upstream policy is
++superseded. Require current real enabled/longActive control, drive/valid inputs,
++no driver cancel/negative request, pedal/override, independent SoftHold, parking
++hold or explicit stop. Non-PCM OEM CC.cancel is not driver CANCEL. Missing proof
++is not permission. Only effective auxiliary decisions and the FMS added
++owned-stay force yield; raw recognition, guard red memory, real navigation stay
++and native FSM survive. Qualifying lead loss restores retained red next cycle.
++No radar-only, persistent identity episode or motion delay is introduced.
++
++This is an intentional policy choice, not proof of ego-lane signal assignment.
++The previously recorded transient vision lead opening the exception for about
++449ms and roughly1.53m movement under red remains a known limitation. The
++relative model-distance boundary may toggle. Neither is claimed fixed here.
++Local source/host checks do not establish native solver, IPC, ECU or road
++behavior. No commit, push, device or Params change is authorized by this note.
++Local checks: 1,233 affected host cases plus four separate native/auxiliary
++acquisition-order and same-cycle lead-loss/OFF cases pass. The actual saved
++settings reader/runtime/MPC obstacle and final-veto paths are included; native
++optimization and physical restart remain unrun. The initial 62-case lead suite
++is a subset of the1,233, not an additional independent count.
++The original upstream implementation/validation history follows below.
+ 
+ The user requested that a lead satisfying the existing stop-to-lead range
+ condition take priority over the auxiliary red departure veto. Previously the
 diff --git a/docs/user/docs_map.json b/docs/user/docs_map.json
 --- a/docs/user/docs_map.json
 +++ b/docs/user/docs_map.json
@@ -5131,15 +5197,39 @@ diff --git a/openpilot/selfdrive/carrot/carrot_functions.py b/openpilot/selfdriv
          stopSign = False
      else:
        stopSign = False
-@@ -474,6 +479,7 @@
+@@ -471,9 +476,31 @@
+     if self.myDrivingModeAuto > 0 and not self.myDrivingMode_disable_auto:
+       self.myDrivingMode = self.drivingModeDetector.get_mode(self.myDrivingModeAuto)
+ 
++  def _lead_follow_eligible(self, sm, model_stop_distance):
++    """Current normal ACC may use the existing model-relative lead handover.
++
++    This is not green evidence or a new engagement request. Missing production
++    fields cannot open the exception; raw OEM CC.cancel is deliberately absent
++    because normal non-PCM control uses it while openpilot ACC remains enabled.
++    """
++    try:
++      cs, cc, sd = sm['carState'], sm['carControl'], sm['selfdriveState']
++      lead = sm['radarState'].leadOne
++      return bool(sd.enabled and cc.enabled and cc.longActive and cs.canValid
++                  and str(cs.gearShifter) == 'drive' and cs.cruiseState.available
++                  and cs.activateCruise >= 0 and self.soft_hold_active == 0 and self.user_stop_distance < 0
++                  and not (cs.gasPressed or cs.brakePressed or cs.brakeHoldActive or cs.parkingBrake
++                           or cc.cruiseControl.override or any(str(b.type) == 'cancel' for b in cs.buttonEvents))
++                  and lead.status and np.isfinite(lead.dRel) and lead.dRel > 0
++                  and np.isfinite(model_stop_distance) and lead.dRel - model_stop_distance < 2.0)
++    except (AttributeError, KeyError, TypeError, ValueError):
++      return False
++
    def update(self, sm, v_cruise_kph, mode, *, signal_observation=None, signal_context=None,
               start_observation=None, start_context=None, prepare_observation=None, prepare_context=None):
++    from dataclasses import replace
      from openpilot.selfdrive.carrot.signal_road_policy import signal_detection_suspended
 +    from openpilot.selfdrive.carrot.signal_assist import departed_signal_stop
      suspended = signal_detection_suspended(sm)
      if suspended != self.signal_detection_suspended:
        self.vFilter = MyMovingAverage(10)
-@@ -496,6 +502,7 @@
+@@ -496,6 +523,7 @@
      vCluRatio = carstate.vCluRatio
      #controlsState = sm['controlsState']
      radarstate = sm['radarState']
@@ -5147,7 +5237,7 @@ diff --git a/openpilot/selfdrive/carrot/carrot_functions.py b/openpilot/selfdriv
      self.signal_lead_present = bool(radarstate.leadOne.status)
      model = sm['modelV2']
  
-@@ -523,6 +530,43 @@
+@@ -523,6 +551,43 @@
      #  if self.atcType in ["turn left", "turn right", "atc left", "atc right"]:
      #    self.xState = XState.e2ePrepare
      self.atc_active = atc_active
@@ -5191,7 +5281,7 @@ diff --git a/openpilot/selfdrive/carrot/carrot_functions.py b/openpilot/selfdriv
  
      v_cruise = v_cruise_kph * CV.KPH_TO_MS
      if vCluRatio > 0.5:
-@@ -548,11 +592,6 @@
+@@ -548,11 +613,6 @@
  
      stop_model_x = self._stop_x_rl
      stop_model_x_rl = self._stop_x_rl
@@ -5203,7 +5293,7 @@ diff --git a/openpilot/selfdrive/carrot/carrot_functions.py b/openpilot/selfdriv
  
      trafficState_last = self.trafficState
      #self.check_model_stopping(v, v_ego, self.xStop, y)
-@@ -560,17 +599,28 @@
+@@ -560,17 +620,35 @@
        self.trafficState = TrafficState.off
        self.stopSignCount = self.startSignCount = 0
      else:
@@ -5225,6 +5315,13 @@ diff --git a/openpilot/selfdrive/carrot/carrot_functions.py b/openpilot/selfdriv
 +    stop_entry_allowed = (is_traffic_stop_entry_allowed(carstate.steeringAngleDeg)
 +                          and max(0, self.traffic_starting_count - 1) == 0)
 +    native_stop_entry = self.trafficState == TrafficState.red and not lead_detected and stop_entry_allowed
++
++    # Share the upstream lead-relative condition with both effective vetoes and
++    # our added stay-stop force. Keep the actual red latches/navigation/native
++    # state: loss of current permission must restore a retained veto next cycle.
++    lead_follow = (not suspended and self._lead_follow_eligible(sm, stop_model_x_raw)
++                   and any(c and c['enabled'] and c['valid'] and c['drive']
++                           for c in (start_context, signal_context)))
  
      start_hold = False
      self.signal_observation_color = 0
@@ -5235,7 +5332,7 @@ diff --git a/openpilot/selfdrive/carrot/carrot_functions.py b/openpilot/selfdriv
        context = start_context or {'now': time.monotonic(), 'enabled': False, 'valid': False, 'drive': False}
        from openpilot.selfdrive.carrot.signal_start_guard import observation_color
        self.signal_observation_color = observation_color(
-@@ -582,13 +632,6 @@
+@@ -582,13 +660,11 @@
          drive=context['drive'], gas=carstate.gasPressed, speed=v_ego,
          departure=self.trafficState == TrafficState.green or lead_detected or
                    self.xState not in (XState.e2eStop, XState.e2eStopped))
@@ -5246,10 +5343,15 @@ diff --git a/openpilot/selfdrive/carrot/carrot_functions.py b/openpilot/selfdriv
 -        # effective decision so the final longitudinal veto agrees this cycle.
 -        self.start_decision = replace(self.start_decision, hold=False, warn=False,
 -                                      released=False, green_confirmed=False, reason='lead_follow')
++      if lead_follow and start_stop_qualified and context['valid']:
++        if self.start_decision.warn:
++          self.start_guard.warned = False  # suppressed notice must remain available after lead loss
++        self.start_decision = replace(self.start_decision, hold=False, warn=False, released=False,
++                                      green_confirmed=False, reason='lead_follow')
        start_hold = self.start_decision.hold
        # A fresh transition from the same previously red signal supplies the
        # normal green input. It does not set acceleration or bypass driver holds.
-@@ -612,8 +655,6 @@
+@@ -612,8 +688,6 @@
  
      signal_hold = False
      if self.signal_assist is not None:
@@ -5258,25 +5360,24 @@ diff --git a/openpilot/selfdrive/carrot/carrot_functions.py b/openpilot/selfdriv
        context = signal_context or {'now': time.monotonic(), 'enabled': False, 'valid': False, 'drive': False}
        self.signal_decision = self.signal_assist.update(
          context['now'], signal_observation,
-@@ -623,10 +664,6 @@
+@@ -623,8 +697,7 @@
          model_y=y[-1], comfort_brake=mode_comfort_brake, lead=lead_detected,
          entry_allowed=is_traffic_stop_entry_allowed(carstate.steeringAngleDeg) and self.traffic_starting_count == 0,
          turning=carstate.leftBlinker or carstate.rightBlinker)
 -      if lead_in_stop_range:
 -        from dataclasses import replace
--        self.signal_decision = replace(self.signal_decision, hold=False, red_sign=False,
--                                       released=False, reason='lead_follow')
++      if lead_follow and signal_stop_qualified and context['valid']:
+         self.signal_decision = replace(self.signal_decision, hold=False, red_sign=False,
+                                        released=False, reason='lead_follow')
        signal_hold = self.signal_decision.hold
-       if self.signal_decision.red_sign:
-         self.trafficState = TrafficState.red
-@@ -637,9 +674,24 @@
+@@ -637,9 +710,23 @@
      if carstate.gasPressed or carstate.brakePressed:
        self.user_stop_distance = -1
  
 +    # A current explicit navigation stay request must retain an already-owned
 +    # auxiliary stop while its red latch retires. This is not a new stay latch:
 +    # real start transitions and driver pedals retain their existing priority.
-+    owned_stay_stop = (stop_qualified and self._signal_stop_owned and self.carrot_stay_stop
++    owned_stay_stop = (stop_qualified and not lead_follow and self._signal_stop_owned and self.carrot_stay_stop
 +                       and self.xState == XState.e2eStopped
 +                       and not (carstate.gasPressed or carstate.brakePressed))
 +
@@ -5290,13 +5391,12 @@ diff --git a/openpilot/selfdrive/carrot/carrot_functions.py b/openpilot/selfdriv
 -      # Outside the existing lead-follow boundary, unknown retains the veto.
 -      # Radar obstacles remain in MPC, including during the lead exception.
 +      self._signal_stop_owned = True
-+      # During stop/creep, a lead cannot bypass the acquired red veto. Unknown
-+      # keeps it latched; leaving that speed scope retires it without granting green.
-+      # Radar obstacles remain in MPC.
++      # Without a currently qualified normal-ACC lead exception, retain the
++      # acquired red veto during stop/creep. Radar obstacles remain in MPC.
        self.xState = XState.e2eStopped
        self.actual_stop_distance = 0.0
        stop_model_x = 0.0
-@@ -647,14 +699,20 @@
+@@ -647,14 +734,20 @@
        v_cruise = 0.0
        if start_hold:
          self.trafficState = TrafficState.red
@@ -5318,7 +5418,7 @@ diff --git a/openpilot/selfdrive/carrot/carrot_functions.py b/openpilot/selfdriv
          self.xState = XState.lead
        elif self.stopping_count == 0:
          if self.trafficState == TrafficState.green and not self.carrot_stay_stop and not carstate.leftBlinker and self.trafficLightDetectMode != 1:
-@@ -669,7 +727,7 @@
+@@ -669,7 +762,7 @@
          #self.xState = XState.e2ePrepare
          self.xState = XState.e2eCruise
          self.traffic_starting_count = 10.0 / DT_MDL
@@ -5327,7 +5427,7 @@ diff --git a/openpilot/selfdrive/carrot/carrot_functions.py b/openpilot/selfdriv
          self.xState = XState.lead
        else:
          if self.trafficState == TrafficState.green:
-@@ -703,25 +761,33 @@
+@@ -703,25 +796,33 @@
        self.traffic_starting_count = max(0, self.traffic_starting_count - 1)
        if lead_detected:
          self.xState = XState.lead
@@ -8623,17 +8723,18 @@ diff --git a/openpilot/selfdrive/carrot/tests/test_signal_lead_alerts.py b/openp
 diff --git a/openpilot/selfdrive/carrot/tests/test_signal_lead_handover.py b/openpilot/selfdrive/carrot/tests/test_signal_lead_handover.py
 --- a/openpilot/selfdrive/carrot/tests/test_signal_lead_handover.py
 +++ b/openpilot/selfdrive/carrot/tests/test_signal_lead_handover.py
-@@ -1,4 +1,8 @@
+@@ -1,4 +1,9 @@
 -"""Exercise the production planner and its final veto, not a replacement policy."""
-+"""FMS defers e944a8c5: a lead must not bypass an acquired auxiliary red veto.
++"""Normal active ACC follows the upstream lead-relative stop handover policy.
 +
-+The upstream field report records motion without pedals during a transient lead
-+exception. These are host state/output regressions, not a vehicle repair claim.
++The user explicitly chose lead priority over possibly misassigned signal reds.
++Transient vision leads can consequently open this exception; these host tests
++record that known limitation, not a lane-association or vehicle-safety claim.
 +"""
  import ast
  from types import SimpleNamespace as NS
  
-@@ -29,46 +33,48 @@
+@@ -29,55 +34,366 @@
             signal_observation=old, signal_context=ctx)
  
  
@@ -8657,11 +8758,37 @@ diff --git a/openpilot/selfdrive/carrot/tests/test_signal_lead_handover.py b/ope
 +  assert output.output_should_stop and output.output_v_target_now == 0 and output.output_a_target <= 0
 +
 +
++def active_acc(sm):
++  # Supply the actual production fields; missing fields never prove permission.
++  sm['selfdriveState'].enabled = True
++  sm['carControl'] = NS(enabled=True, longActive=True, cruiseControl=NS(override=False, cancel=True))
++  cs = sm['carState']
++  cs.canValid = True
++  cs.gearShifter = 'drive'
++  cs.cruiseState = NS(available=True)
++  cs.activateCruise = 0
++  cs.buttonEvents = []
++  cs.brakeHoldActive = cs.parkingBrake = False
++  return sm
++
++
++def assert_lead_priority(p):
++  assert not p.start_decision.hold and not p.signal_decision.hold
++  assert p.start_decision.reason == p.signal_decision.reason == 'lead_follow'
++  assert not p.start_decision.green_confirmed and not p.start_decision.released
++  assert not p.signal_decision.red_sign and not p.signal_decision.released
++  assert p.start_guard.hold and p.signal_assist.hold  # effective output, not red-memory deletion
++  assert p.xState.name == 'lead' and p.stop_dist == 1000.
++  assert not final_output(p).output_should_stop
++
++
 +@pytest.mark.parametrize('distance', [4., 11.99, 12., 12.01, 100., 0., -1., float('nan'), float('inf')])
  @pytest.mark.parametrize('mode', ['acc', 'blended'])
 -def test_exact_existing_boundary_controls_both_auxiliary_vetoes(distance, allowed, mode):
-+def test_lead_range_cannot_remove_either_acquired_red_veto(distance, mode):
-   p, sm = setup()
+-  p, sm = setup()
++def test_qualified_lead_range_and_finite_boundary(distance, mode):
++  p, sm = setup()
++  active_acc(sm)
    sm['radarState'].leadOne = NS(status=True, dRel=distance, vLead=1.)
    update(p, sm, 1., mode=mode)
 -  assert p.start_decision.hold is (not allowed)
@@ -8680,21 +8807,26 @@ diff --git a/openpilot/selfdrive/carrot/tests/test_signal_lead_handover.py b/ope
 -    output = NS(output_should_stop=False, output_v_target_now=1., output_a_target=.2)
 -    ns['apply_signal_start_guard'](output, p)
 -    assert not output.output_should_stop and output.output_v_target_now == 1.
-+  assert_red_veto(p)
++  if 0 < distance < 12.:
++    assert_lead_priority(p)
++  else:
++    assert_red_veto(p)
 +  assert 'audioRefuse' not in p.events.events  # notice muting has no control permission
 +  assert p.signal_observation_color == 1
  
  
  @pytest.mark.parametrize('loss', ['missing', 'outside'])
 -def test_lead_exception_is_continuous_and_unknown_red_hold_returns_on_loss(loss):
-+def test_red_veto_stays_continuous_through_lead_entry_unknown_and_loss(loss):
-   p, sm = setup()
+-  p, sm = setup()
++def test_lead_priority_keeps_red_memory_for_immediate_loss(loss):
++  p, sm = setup()
++  active_acc(sm)
    sm['radarState'].leadOne = NS(status=True, dRel=4., vLead=0.)
    for i in range(20, 40):
      update(p, sm, i*.05, 'unknown')
 -    assert p.xState.name == 'lead' and not p.start_decision.hold
 -  assert p.v_cruise > 0  # following target only; MPC still sees the stationary lead
-+    assert_red_veto(p)
++    assert_lead_priority(p)
    if loss == 'missing':
      sm['radarState'].leadOne.status = False
    else:
@@ -8706,7 +8838,12 @@ diff --git a/openpilot/selfdrive/carrot/tests/test_signal_lead_handover.py b/ope
  
  
  @pytest.mark.parametrize('inhibit', ['soft_hold', 'user_stop'])
-@@ -80,4 +86,63 @@
+ def test_driver_holds_survive_qualifying_lead(inhibit):
+   p, sm = setup()
++  active_acc(sm)
+   sm['radarState'].leadOne = NS(status=True, dRel=4.)
+   if inhibit == 'soft_hold':
+     sm['carState'].softHoldActive = 1
    else:
      p.user_stop_distance = 0.
    update(p, sm, 1.)
@@ -8718,8 +8855,9 @@ diff --git a/openpilot/selfdrive/carrot/tests/test_signal_lead_handover.py b/ope
 +  sm['modelV2'].position.x = [distance*i/31. for i in range(33)]
 +
 +
-+def test_recorded_transient_lead_does_not_open_red_departure_for_450ms():
++def test_known_transient_lead_can_open_user_selected_exception_for_450ms():
 +  p, sm = setup()
++  active_acc(sm)
 +  set_model_stop(sm, 32.216)
 +  for i in range(20, 45):
 +    update(p, sm, i*.05, 'unknown')
@@ -8728,15 +8866,16 @@ diff --git a/openpilot/selfdrive/carrot/tests/test_signal_lead_handover.py b/ope
 +  for i in range(45, 54):
 +    update(p, sm, i*.05, 'unknown')
 +    assert sm['radarState'].leadOne.dRel - p.xStop < 2.
-+    assert_red_veto(p)
++    assert_lead_priority(p)
 +  sm['radarState'].leadOne.status = False
 +  for i in range(54, 65):
 +    update(p, sm, i*.05, 'unknown')
 +    assert_red_veto(p)
 +
 +
-+def test_recorded_fixed_lead_and_model_boundary_crossings_never_toggle_red_veto():
++def test_known_model_relative_boundary_can_toggle_effective_red_veto():
 +  p, sm = setup()
++  active_acc(sm)
 +  sm['radarState'].leadOne = NS(status=True, dRel=4.15, vLead=0.)
 +  sides = set()
 +  frame = 20
@@ -8745,8 +8884,9 @@ diff --git a/openpilot/selfdrive/carrot/tests/test_signal_lead_handover.py b/ope
 +    for _ in range(25):
 +      update(p, sm, frame*.05, 'unknown')
 +      frame += 1
-+      sides.add(sm['radarState'].leadOne.dRel - p.xStop < 2.)
-+      assert_red_veto(p)
++      eligible = sm['radarState'].leadOne.dRel - p.xStop < 2.
++      sides.add(eligible)
++      assert_lead_priority(p) if eligible else assert_red_veto(p)
 +  assert sides == {True, False}  # actual production filters crossed the old exception
 +
 +
@@ -8771,6 +8911,223 @@ diff --git a/openpilot/selfdrive/carrot/tests/test_signal_lead_handover.py b/ope
 +    update(p, sm, 3., 'green' if condition == 'confirmed_green' else 'unknown')
 +  assert p.xState.name == 'lead' and not p.start_decision.hold and not p.signal_decision.hold
 +  assert not final_output(p).output_should_stop
++
++
++@pytest.mark.parametrize('fault', ['no_control', 'no_enabled', 'disabled', 'long_inactive', 'override',
++    'sd_off', 'can_invalid', 'park', 'unavailable', 'negative_request', 'cancel_press', 'cancel_release',
++    'soft_one', 'soft_two', 'brake_hold', 'parking_brake', 'explicit_stop', 'invalid_context'])
++def test_qualifying_range_never_opens_driver_or_control_inhibits(fault):
++  p, sm = setup()
++  active_acc(sm)
++  sm['radarState'].leadOne = NS(status=True, dRel=4.)
++  cs, cc = sm['carState'], sm['carControl']
++  if fault == 'no_control': del sm['carControl']
++  elif fault == 'no_enabled': del cc.enabled
++  elif fault == 'disabled': cc.enabled = False
++  elif fault == 'long_inactive': cc.longActive = False
++  elif fault == 'override': cc.cruiseControl.override = True
++  elif fault == 'sd_off': sm['selfdriveState'].enabled = False
++  elif fault == 'can_invalid': cs.canValid = False
++  elif fault == 'park': cs.gearShifter = 'park'
++  elif fault == 'unavailable': cs.cruiseState.available = False
++  elif fault == 'negative_request': cs.activateCruise = -1
++  elif fault in ('cancel_press', 'cancel_release'):
++    cs.buttonEvents = [NS(type='cancel', pressed=fault == 'cancel_press')]
++  elif fault == 'soft_one': cs.softHoldActive = 1
++  elif fault == 'soft_two': cs.softHoldActive = 2
++  elif fault == 'brake_hold': cs.brakeHoldActive = True
++  elif fault == 'parking_brake': cs.parkingBrake = True
++  elif fault == 'explicit_stop': p.user_stop_distance = 0.
++  ctx = dict(now=1., enabled=True, valid=fault != 'invalid_context', drive=True)
++  p.update(sm, 80., 'acc', start_observation=observation(1., 'unknown'), start_context=ctx,
++           signal_context=ctx)
++  assert p.start_decision.reason != 'lead_follow'
++  assert p.start_decision.hold and p.start_guard.hold
++  assert final_output(p).output_should_stop
++
++
++@pytest.mark.parametrize('pedal', ['gasPressed', 'brakePressed'])
++def test_pedal_override_is_not_lead_permission(pedal):
++  p, sm = setup(); active_acc(sm)
++  sm['radarState'].leadOne = NS(status=True, dRel=4.)
++  setattr(sm['carState'], pedal, True)
++  update(p, sm, 1., 'unknown')
++  assert p.start_decision.reason != 'lead_follow'
++  assert p.signal_decision.reason != 'lead_follow'
++
++
++@pytest.mark.parametrize('model_stop', [float('nan'), float('inf'), -float('inf')])
++def test_nonfinite_filtered_model_cannot_qualify_a_lead(model_stop):
++  p, sm = setup(); active_acc(sm)
++  sm['radarState'].leadOne = NS(status=True, dRel=4.)
++  p.update_stop_dist = lambda value: model_stop
++  update(p, sm, 1., 'unknown')
++  assert p.start_decision.reason != 'lead_follow'
++  assert p.start_guard.hold and final_output(p).output_should_stop
++
++
++def restore_saved_readers(run, monkeypatch):
++  """Exercise the production mode poll and 10/20/30/40-cycle parameter reader."""
++  from openpilot.selfdrive.carrot import signal_mode
++  source = (REPO/'openpilot/selfdrive/carrot/carrot_functions.py').read_text(encoding='utf8')
++  node = next(n for n in ast.parse(source).body if isinstance(n, ast.ClassDef) and n.name == 'CarrotPlanner')
++  method = next(n for n in node.body if isinstance(n, ast.FunctionDef) and n.name == '_params_update')
++  namespace = run.p.update.__func__.__globals__
++  exec(compile(ast.Module([method], type_ignores=[]), 'actual_params_reader', 'exec'), namespace)
++  type(run.p)._params_update = namespace['_params_update']
++  values = dict(MyDrivingMode=3, MyDrivingModeAuto=0, TrafficLightDetectMode=2,
++                SignalAssistMode=2, StopDistanceCarrot=520, TrafficStopDistanceAdjust=0,
++                TFollowGap1=50, TFollowGap2=100, TFollowGap3=150, TFollowGap4=200,
++                LeadAccelResponse=3, LeadAccelResponseTF1=4, LeadAccelResponseTF2=3,
++                LeadAccelResponseTF3=2, LeadAccelResponseTF4=1, DynamicTFollowLC=80,
++                SpeedTFFactor=10, TFollowDecelBoost=0, AutoNaviSpeedDecelRate=120,
++                AChangeCostStarting=10, VEgoStopping=1)
++  class SavedParams:
++    def get_int(self, name): return int(values.get(name, 0))
++    def get_float(self, name): return float(values.get(name, 0))
++  run.p.params = SavedParams()
++  for _ in range(40):
++    run.p._params_update()
++  assert run.p.myDrivingMode.value == 3 and run.p.trafficLightDetectMode == 2
++  assert run.p.stop_distance == 5.2 and run.p.trafficStopDistanceAdjust == 0
++  assert run.p.tFollowGap1 == .5 and run.p.leadAccelResponseTF[0] == 4
++  # RunningPlanner normally replaces the mode lookup for withdrawal scenarios;
++  # restore its real function and fake only the native Params storage boundary.
++  import importlib
++  namespace_mode = {}
++  exec(compile((REPO/'openpilot/selfdrive/carrot/signal_mode.py').read_text(encoding='utf8'),
++               'actual_signal_mode_reader', 'exec'), namespace_mode)
++  namespace_mode['_params'] = run.p.params
++  monkeypatch.setattr(signal_mode, 'signal_mode', namespace_mode['signal_mode'])
++  return values
++
++
++@pytest.mark.parametrize('color', ['red', 'unknown', 'green'])
++@pytest.mark.parametrize('stay', [False, True])
++def test_real_mode_saved_settings_transport_to_mpc_and_final_guard(monkeypatch, tmp_path, color, stay):
++  from openpilot.selfdrive.carrot.tests.test_signal_off_release import RunningPlanner
++  from openpilot.selfdrive.carrot.tests.test_signal_departure import current_mpc
++  run = RunningPlanner(monkeypatch, tmp_path, mode=2, stay=stay, lead=False,
++                       speed=0., planner_mode='acc', acquire=False)
++  active_acc(run.sm)
++  saved = restore_saved_readers(run, monkeypatch)
++  run.sm['selfdriveState'].personality = 0
++  for _ in range(15):
++    run.tick(color='red', elapsed=.05)
++  assert run.runtime.guard.hold and run.p.start_decision.hold
++  run.sm['radarState'].leadOne = NS(status=True, dRel=4., vLead=2., radar=False)
++  for cycle in range(20):
++    mpc = run.tick(color=color, elapsed=.05)
++    assert not run.p.start_decision.hold and run.p.start_decision.reason == 'lead_follow'
++    assert not run.p.start_decision.green_confirmed and not run.p.start_decision.released
++    assert not final_output(run.p).output_should_stop
++    assert run.p.xState.name == 'lead' and run.p.stop_dist == 1000.
++    assert mpc.source != 'e2e' and mpc.params[0, 2] > 0.
++    assert mpc.params[0, 7] == pytest.approx(5.2)
++    assert run.p.carrot_stay_stop is stay  # no deletion of the real navigation state
++    if cycle > 0:
++      assert run.p.v_cruise > 0
++  assert saved['VEgoStopping'] * .01 == .01 and saved['StopDistanceCarrot'] == 520
++  # Current red reacquires during a bypass; unknown retains existing red. A
++  # real confirmed green may legitimately retire the guard's internal latch.
++  if color != 'green':
++    run.sm['radarState'].leadOne.status = False
++    run.tick(color='unknown', elapsed=.05)
++    assert run.p.start_decision.hold and final_output(run.p).output_should_stop
++    assert current_mpc(run.p, run.sm).source == 'e2e'
++
++
++@pytest.mark.parametrize('fault', ['stale_control', 'stale_radar', 'stale_model', 'invalid_can'])
++def test_actual_runtime_health_withdraws_lead_exception(monkeypatch, tmp_path, fault):
++  from openpilot.selfdrive.carrot.tests.test_signal_off_release import RunningPlanner
++  run = RunningPlanner(monkeypatch, tmp_path, stay=False, lead=False, speed=0.)
++  active_acc(run.sm)
++  run.sm['radarState'].leadOne = NS(status=True, dRel=4., vLead=2.)
++  run.tick()
++  assert not run.p.start_decision.hold and run.runtime.guard.hold
++  if fault == 'invalid_can':
++    run.sm['carState'].canValid = False
++  else:
++    run.sm.valid[{'stale_control': 'carControl', 'stale_radar': 'radarState',
++                  'stale_model': 'modelV2'}[fault]] = False
++  run.tick()
++  assert run.p.start_decision.hold and final_output(run.p).output_should_stop
++
++
++def test_same_batch_cancel_negative_request_reaches_planner_then_existing_controls_off():
++  from openpilot.cereal import car, log
++  from openpilot.selfdrive.car.tests.test_carrot_cruise_buttons import make_remote_helper
++  from openpilot.selfdrive.car.car_specific import CarSpecificEvents
++  from openpilot.selfdrive.selfdrived.state import StateMachine
++  helper, cs, cc = make_remote_helper(None, enabled=True)
++  # The parser's same-batch press/release evidence survives even when the
++  # public final transition list is empty. Exercise its real VCruise consumer.
++  cs.buttonEvents = []
++  helper._update_cruise_buttons(cs, cc, 80., paddle_cancel_seen=True)
++  assert helper._cruise_cancel_state and helper._activate_cruise == -1
++  cs.activateCruise = helper._activate_cruise  # actual card publication field
++  p, sm = setup(); active_acc(sm)
++  sm['carState'].activateCruise = cs.activateCruise
++  sm['radarState'].leadOne = NS(status=True, dRel=4.)
++  update(p, sm, 1., 'unknown')
++  assert p.start_decision.hold and p.start_decision.reason != 'lead_follow'
++  # CarControl still reflects the previous enabled frame here. The existing
++  # common-events path consumes that negative request and disables controls.
++  events = CarSpecificEvents(NS(pcmCruise=False, openpilotLongitudinalControl=True))
++  state = StateMachine(); state.state = log.SelfdriveState.OpenpilotState.enabled
++  enabled, _ = state.update(events.create_common_events(cs, car.CarState(), pcm_enable=False))
++  assert not enabled
++  # The next card cycle resets the request to zero; it is not a planner latch.
++  # Current enabled/longActive context now removes permission independently.
++  sm['carState'].activateCruise = 0
++  sm['selfdriveState'].enabled = sm['carControl'].enabled = sm['carControl'].longActive = enabled
++  ctx = dict(now=1.05, enabled=enabled, valid=True, drive=True)
++  p.update(sm, 80., 'acc', start_context=ctx, signal_context=ctx)
++  assert p.start_decision.reason != 'lead_follow'
++  assert not sm['carControl'].enabled and not sm['carControl'].longActive
++
++
++def test_suppressed_lead_warning_does_not_consume_later_red_refusal():
++  p, sm = setup(); active_acc(sm)
++  p.start_guard.warned = False
++  sm['radarState'].leadOne = NS(status=True, dRel=4.)
++  update(p, sm, 1., 'unknown')
++  assert p.start_decision.reason == 'lead_follow' and not p.start_decision.warn
++  assert not p.start_guard.warned
++  sm['radarState'].leadOne.status = False
++  update(p, sm, 1.05, 'unknown')
++  assert p.start_decision.hold and p.start_decision.warn
++  assert p.start_guard.warned
++
++
++@pytest.mark.parametrize('order', ['native_first', 'auxiliary_first'])
++@pytest.mark.parametrize('planner_mode', ['acc', 'blended'])
++def test_native_episode_lead_handover_then_same_cycle_loss_and_off(monkeypatch, tmp_path, order, planner_mode):
++  from openpilot.selfdrive.carrot.tests.test_signal_off_release import native_episode, published_source, stop_output
++  # Once normal ACC follows the lead, both native/aux provenance belongs to
++  # the old stop episode. After lead loss+OFF, the real native FSM must match
++  # the same ordinary lead-to-model transition with the auxiliary mode OFF.
++  traces = []
++  for source in (published_source(), None):
++    with monkeypatch.context() as patch:
++      run = native_episode(patch, tmp_path, order, planner_mode, source)
++      active_acc(run.sm)
++      run.sm['radarState'].leadOne = NS(status=True, dRel=4., vLead=2.)
++      if source is not None:
++        run.selection[0] = 0  # baseline normal native lead handover, no auxiliary veto
++      run.tick(elapsed=.6)
++      assert run.p.xState.name == 'lead' and run.p.stop_dist == 1000.
++      if source is None:
++        assert run.runtime.guard.hold and not run.p.start_decision.hold
++        assert not run.p._signal_stop_owned and not run.p._signal_stop_native
++      run.sm['radarState'].leadOne.status = False
++      run.selection[0] = 0
++      trace = []
++      for _ in range(3):
++        trace.append(stop_output(run, run.tick(elapsed=.6)))
++        assert not run.runtime.guard.hold
++      traces.append(trace)
++  assert traces[0] == traces[1]
 diff --git a/openpilot/selfdrive/carrot/tests/test_signal_off_release.py b/openpilot/selfdrive/carrot/tests/test_signal_off_release.py
 --- /dev/null
 +++ b/openpilot/selfdrive/carrot/tests/test_signal_off_release.py
