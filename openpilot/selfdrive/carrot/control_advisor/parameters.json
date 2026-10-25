@@ -1,0 +1,2535 @@
+{
+  "metadata": {
+    "schema_version": 1,
+    "base_commit": "1b1e019ee6bf5778be751373f269ed4f5d874cf2",
+    "source_schema": "openpilot/selfdrive/carrot_settings.json",
+    "source_schema_sha256": "9efa93d450144ee8a6c0b2c48aa24e76f0a0ceecd13f74449147c5a68507948d",
+    "ui_ranges_are_safe_change_limits": false,
+    "single_change_limits": null,
+    "cumulative_change_limits": null,
+    "validation_profiles": [],
+    "notes": "Source-backed Stage 0 inventory. Initial per-item implementation states are historical; current offline calculation capabilities are supplied by candidates.candidate_capabilities and registry.readiness. No application eligibility or vehicle validation is implemented. UI step is not a tested change amount. Stored values do not prove effective consumer values."
+  },
+  "items": [
+    {
+      "key": "LateralTorqueAccelFactor",
+      "axis": "lateral",
+      "family": "torque",
+      "classification": "numeric_parameter",
+      "raw_scale": 0.001,
+      "physical_unit": "m/s^2 per normalized_torque",
+      "special_values": {},
+      "ui": {
+        "min": 1000,
+        "max": 6000,
+        "step": 100
+      },
+      "consumers": [
+        {
+          "path": "openpilot/selfdrive/controls/lib/latcontrol_torque.py",
+          "symbol": "LatControlTorque.update"
+        },
+        {
+          "path": "openpilot/selfdrive/controls/lib/latcontrol_torque.py",
+          "symbol": "LatControlTorque.update_live_torque_params"
+        }
+      ],
+      "requires": [
+        "torque lateral controller active",
+        "LateralTorqueCustom > 0",
+        "effective FF path identified"
+      ],
+      "dependencies": [
+        "LateralTorqueCustom",
+        "NNFF",
+        "NNFFLite",
+        "LateralTorqueAccelFactor",
+        "LateralTorqueFriction",
+        "LateralTorqueKf"
+      ],
+      "required_signals": [
+        "carState.vEgo",
+        "carState.steeringPressed",
+        "carControl.latActive",
+        "carControl.actuators.torque",
+        "carOutput.actuatorsOutput.torque",
+        "controlsState.lateralControlState.torqueState",
+        "livePose",
+        "liveCalibration",
+        "liveParameters",
+        "liveDelay",
+        "liveTorqueParameters"
+      ],
+      "implementation_status": "not_implemented",
+      "validation_status": "not_validated",
+      "path_notes": "Custom > 0 activates all stored torque gains and resets the acceleration offset; live torque updates are ignored while Custom is active. Resolve actual linear/NNFF/NNFFLite/comma FF implementation before using a fitting formula. The linear interface divides lateral acceleration by this factor; normalized commands are not measured motor torque in N*m.",
+      "structural_blocker": null
+    },
+    {
+      "key": "LateralTorqueFriction",
+      "axis": "lateral",
+      "family": "torque",
+      "classification": "numeric_parameter",
+      "raw_scale": 0.001,
+      "physical_unit": "normalized_torque",
+      "special_values": {},
+      "ui": {
+        "min": 0,
+        "max": 1000,
+        "step": 10
+      },
+      "consumers": [
+        {
+          "path": "openpilot/selfdrive/controls/lib/latcontrol_torque.py",
+          "symbol": "LatControlTorque.update"
+        },
+        {
+          "path": "openpilot/selfdrive/controls/lib/latcontrol_torque.py",
+          "symbol": "LatControlTorque.update_live_torque_params"
+        }
+      ],
+      "requires": [
+        "torque lateral controller active",
+        "LateralTorqueCustom > 0",
+        "effective FF path identified"
+      ],
+      "dependencies": [
+        "LateralTorqueCustom",
+        "NNFF",
+        "NNFFLite",
+        "LateralTorqueAccelFactor",
+        "LateralTorqueFriction",
+        "LateralTorqueKf"
+      ],
+      "required_signals": [
+        "carState.vEgo",
+        "carState.steeringPressed",
+        "carControl.latActive",
+        "carControl.actuators.torque",
+        "carOutput.actuatorsOutput.torque",
+        "controlsState.lateralControlState.torqueState",
+        "livePose",
+        "liveCalibration",
+        "liveParameters",
+        "liveDelay",
+        "liveTorqueParameters"
+      ],
+      "implementation_status": "not_implemented",
+      "validation_status": "not_validated",
+      "path_notes": "Custom > 0 activates all stored torque gains and resets the acceleration offset; live torque updates are ignored while Custom is active. Resolve actual linear/NNFF/NNFFLite/comma FF implementation before using a fitting formula.",
+      "structural_blocker": null
+    },
+    {
+      "key": "LateralTorqueKpV",
+      "axis": "lateral",
+      "family": "torque",
+      "classification": "numeric_parameter",
+      "raw_scale": 0.01,
+      "physical_unit": null,
+      "special_values": {},
+      "ui": {
+        "min": 0,
+        "max": 200,
+        "step": 1
+      },
+      "consumers": [
+        {
+          "path": "openpilot/selfdrive/controls/lib/latcontrol_torque.py",
+          "symbol": "LatControlTorque.update"
+        },
+        {
+          "path": "openpilot/selfdrive/controls/lib/latcontrol_torque.py",
+          "symbol": "LatControlTorque.update_live_torque_params"
+        }
+      ],
+      "requires": [
+        "torque lateral controller active",
+        "LateralTorqueCustom > 0",
+        "effective FF path identified"
+      ],
+      "dependencies": [
+        "LateralTorqueCustom",
+        "NNFF",
+        "NNFFLite",
+        "LateralTorqueAccelFactor",
+        "LateralTorqueFriction",
+        "LateralTorqueKf"
+      ],
+      "required_signals": [
+        "carState.vEgo",
+        "carState.steeringPressed",
+        "carControl.latActive",
+        "carControl.actuators.torque",
+        "carOutput.actuatorsOutput.torque",
+        "controlsState.lateralControlState.torqueState",
+        "livePose",
+        "liveCalibration",
+        "liveParameters",
+        "liveDelay",
+        "liveTorqueParameters"
+      ],
+      "implementation_status": "not_implemented",
+      "validation_status": "not_validated",
+      "path_notes": "Custom > 0 activates all stored torque gains and resets the acceleration offset; live torque updates are ignored while Custom is active. Resolve actual linear/NNFF/NNFFLite/comma FF implementation before using a fitting formula. Raw-to-scalar gain conversion is source-confirmed; a physical dimensional unit is intentionally unset because it depends on the selected error and controller path.",
+      "structural_blocker": null
+    },
+    {
+      "key": "LateralTorqueKiV",
+      "axis": "lateral",
+      "family": "torque",
+      "classification": "numeric_parameter",
+      "raw_scale": 0.01,
+      "physical_unit": null,
+      "special_values": {},
+      "ui": {
+        "min": 0,
+        "max": 200,
+        "step": 1
+      },
+      "consumers": [
+        {
+          "path": "openpilot/selfdrive/controls/lib/latcontrol_torque.py",
+          "symbol": "LatControlTorque.update"
+        },
+        {
+          "path": "openpilot/selfdrive/controls/lib/latcontrol_torque.py",
+          "symbol": "LatControlTorque.update_live_torque_params"
+        }
+      ],
+      "requires": [
+        "torque lateral controller active",
+        "LateralTorqueCustom > 0",
+        "effective FF path identified"
+      ],
+      "dependencies": [
+        "LateralTorqueCustom",
+        "NNFF",
+        "NNFFLite",
+        "LateralTorqueAccelFactor",
+        "LateralTorqueFriction",
+        "LateralTorqueKf"
+      ],
+      "required_signals": [
+        "carState.vEgo",
+        "carState.steeringPressed",
+        "carControl.latActive",
+        "carControl.actuators.torque",
+        "carOutput.actuatorsOutput.torque",
+        "controlsState.lateralControlState.torqueState",
+        "livePose",
+        "liveCalibration",
+        "liveParameters",
+        "liveDelay",
+        "liveTorqueParameters"
+      ],
+      "implementation_status": "not_implemented",
+      "validation_status": "not_validated",
+      "path_notes": "Custom > 0 activates all stored torque gains and resets the acceleration offset; live torque updates are ignored while Custom is active. Resolve actual linear/NNFF/NNFFLite/comma FF implementation before using a fitting formula. Raw-to-scalar gain conversion is source-confirmed; a physical dimensional unit is intentionally unset because it depends on the selected error and controller path.",
+      "structural_blocker": null
+    },
+    {
+      "key": "LateralTorqueKf",
+      "axis": "lateral",
+      "family": "torque",
+      "classification": "numeric_parameter",
+      "raw_scale": 0.01,
+      "physical_unit": "1",
+      "special_values": {},
+      "ui": {
+        "min": 0,
+        "max": 200,
+        "step": 1
+      },
+      "consumers": [
+        {
+          "path": "openpilot/selfdrive/controls/lib/latcontrol_torque.py",
+          "symbol": "LatControlTorque.update"
+        },
+        {
+          "path": "openpilot/selfdrive/controls/lib/latcontrol_torque.py",
+          "symbol": "LatControlTorque.update_live_torque_params"
+        }
+      ],
+      "requires": [
+        "torque lateral controller active",
+        "LateralTorqueCustom > 0",
+        "effective FF path identified"
+      ],
+      "dependencies": [
+        "LateralTorqueCustom",
+        "NNFF",
+        "NNFFLite",
+        "LateralTorqueAccelFactor",
+        "LateralTorqueFriction",
+        "LateralTorqueKf"
+      ],
+      "required_signals": [
+        "carState.vEgo",
+        "carState.steeringPressed",
+        "carControl.latActive",
+        "carControl.actuators.torque",
+        "carOutput.actuatorsOutput.torque",
+        "controlsState.lateralControlState.torqueState",
+        "livePose",
+        "liveCalibration",
+        "liveParameters",
+        "liveDelay",
+        "liveTorqueParameters"
+      ],
+      "implementation_status": "not_implemented",
+      "validation_status": "not_validated",
+      "path_notes": "Custom > 0 activates all stored torque gains and resets the acceleration offset; live torque updates are ignored while Custom is active. Resolve actual linear/NNFF/NNFFLite/comma FF implementation before using a fitting formula. Consumer multiplies by 0.01 despite the English menu title showing 0.001; source is authoritative. Factor/Kf must not be assumed independently identifiable.",
+      "structural_blocker": null
+    },
+    {
+      "key": "LateralTorqueKd",
+      "axis": "lateral",
+      "family": "torque",
+      "classification": "numeric_parameter",
+      "raw_scale": 0.01,
+      "physical_unit": null,
+      "special_values": {},
+      "ui": {
+        "min": 0,
+        "max": 10000,
+        "step": 10
+      },
+      "consumers": [
+        {
+          "path": "openpilot/selfdrive/controls/lib/latcontrol_torque.py",
+          "symbol": "LatControlTorque.update"
+        },
+        {
+          "path": "openpilot/selfdrive/controls/lib/latcontrol_torque.py",
+          "symbol": "LatControlTorque.update_live_torque_params"
+        },
+        {
+          "path": "openpilot/common/pid.py",
+          "symbol": "PIDController.update"
+        }
+      ],
+      "requires": [
+        "torque lateral controller active",
+        "LateralTorqueCustom > 0",
+        "effective FF path identified"
+      ],
+      "dependencies": [
+        "LateralTorqueCustom",
+        "NNFF",
+        "NNFFLite",
+        "LateralTorqueAccelFactor",
+        "LateralTorqueFriction",
+        "LateralTorqueKf"
+      ],
+      "required_signals": [
+        "carState.vEgo",
+        "carState.steeringPressed",
+        "carControl.latActive",
+        "carControl.actuators.torque",
+        "carOutput.actuatorsOutput.torque",
+        "controlsState.lateralControlState.torqueState",
+        "livePose",
+        "liveCalibration",
+        "liveParameters",
+        "liveDelay",
+        "liveTorqueParameters"
+      ],
+      "implementation_status": "not_implemented",
+      "validation_status": "not_validated",
+      "path_notes": "Custom > 0 activates all stored torque gains and resets the acceleration offset; live torque updates are ignored while Custom is active. Resolve actual linear/NNFF/NNFFLite/comma FF implementation before using a fitting formula. Raw-to-scalar gain conversion is source-confirmed; a physical dimensional unit is intentionally unset because it depends on the selected error and controller path.",
+      "structural_blocker": "Current torque update does not pass error_rate to PIDController.update; its default is 0.0 and D output is zero. Enabling a D path is a controller change outside the advisor."
+    },
+    {
+      "key": "LateralTorqueCustom",
+      "axis": "lateral",
+      "family": "control_mode",
+      "classification": "context_only",
+      "raw_scale": 1,
+      "physical_unit": "mode",
+      "special_values": {
+        "0": "Manual torque overrides disabled; eligible live torque updates may be used.",
+        "1": "Activate the complete stored manual torque parameter set."
+      },
+      "ui": {
+        "min": 0,
+        "max": 1,
+        "step": 1
+      },
+      "consumers": [
+        {
+          "path": "openpilot/selfdrive/controls/lib/latcontrol_torque.py",
+          "symbol": "LatControlTorque.update"
+        },
+        {
+          "path": "openpilot/selfdrive/controls/lib/latcontrol_torque.py",
+          "symbol": "LatControlTorque.update_live_torque_params"
+        }
+      ],
+      "requires": [],
+      "dependencies": [],
+      "required_signals": [
+        "carState.vEgo",
+        "carState.steeringPressed",
+        "carControl.latActive",
+        "carControl.actuators.torque",
+        "carOutput.actuatorsOutput.torque",
+        "controlsState.lateralControlState.torqueState",
+        "livePose",
+        "liveCalibration",
+        "liveParameters",
+        "liveDelay",
+        "liveTorqueParameters"
+      ],
+      "implementation_status": "not_implemented",
+      "validation_status": "not_validated",
+      "path_notes": "Context only. Never turn this on implicitly to make one numeric candidate effective; all manual gains and offset handling change together.",
+      "structural_blocker": null
+    },
+    {
+      "key": "NNFF",
+      "axis": "lateral",
+      "family": "control_mode",
+      "classification": "context_only",
+      "raw_scale": 1,
+      "physical_unit": "mode",
+      "special_values": {
+        "0": "Option off; does not prove that all other neural or vehicle-specific feedforward is off.",
+        "1": "Request option; actual vehicle/model support and precedence still determine the active path."
+      },
+      "ui": {
+        "min": 0,
+        "max": 1,
+        "step": 1
+      },
+      "consumers": [
+        {
+          "path": "opendbc_repo/opendbc/car/interfaces.py",
+          "symbol": "CarInterfaceBase.__init__"
+        },
+        {
+          "path": "openpilot/selfdrive/controls/lib/latcontrol_torque.py",
+          "symbol": "LatControlTorque.__init__"
+        }
+      ],
+      "requires": [],
+      "dependencies": [
+        "LateralTorqueCustom"
+      ],
+      "required_signals": [
+        "carParams",
+        "initData.params",
+        "controlsState.lateralControlState.torqueState"
+      ],
+      "implementation_status": "not_implemented",
+      "validation_status": "not_validated",
+      "path_notes": "Context only. CarInterfaceBase selects NNFF only when comma NNFF is unsupported and the optional model is supported; NNFFLite is considered only when use_nnff is false. Changing these can require controller recreation. NNFFLite has no entry in the settings JSON.",
+      "structural_blocker": null
+    },
+    {
+      "key": "NNFFLite",
+      "axis": "lateral",
+      "family": "control_mode",
+      "classification": "context_only",
+      "raw_scale": 1,
+      "physical_unit": "mode",
+      "special_values": {
+        "0": "Option off; does not prove that all other neural or vehicle-specific feedforward is off.",
+        "1": "Request option; actual vehicle/model support and precedence still determine the active path."
+      },
+      "ui": null,
+      "consumers": [
+        {
+          "path": "opendbc_repo/opendbc/car/interfaces.py",
+          "symbol": "CarInterfaceBase.__init__"
+        },
+        {
+          "path": "openpilot/selfdrive/controls/lib/latcontrol_torque.py",
+          "symbol": "LatControlTorque.__init__"
+        }
+      ],
+      "requires": [],
+      "dependencies": [
+        "LateralTorqueCustom"
+      ],
+      "required_signals": [
+        "carParams",
+        "initData.params",
+        "controlsState.lateralControlState.torqueState"
+      ],
+      "implementation_status": "not_implemented",
+      "validation_status": "not_validated",
+      "path_notes": "Context only. CarInterfaceBase selects NNFF only when comma NNFF is unsupported and the optional model is supported; NNFFLite is considered only when use_nnff is false. Changing these can require controller recreation. NNFFLite has no entry in the settings JSON.",
+      "structural_blocker": null
+    },
+    {
+      "key": "SteerActuatorDelay",
+      "axis": "lateral",
+      "family": "delay",
+      "classification": "numeric_parameter",
+      "raw_scale": 0.01,
+      "physical_unit": "s",
+      "special_values": {
+        "0": "Select liveDelay.lateralDelay rather than a fixed zero-second delay."
+      },
+      "ui": {
+        "min": 0,
+        "max": 300,
+        "step": 1
+      },
+      "consumers": [
+        {
+          "path": "openpilot/selfdrive/controls/controlsd.py",
+          "symbol": "Controls.state_control"
+        },
+        {
+          "path": "openpilot/selfdrive/modeld/modeld.py",
+          "symbol": "main"
+        },
+        {
+          "path": "openpilot/selfdrive/controls/lib/latcontrol_torque.py",
+          "symbol": "LatControlTorque.__init__"
+        }
+      ],
+      "requires": [],
+      "dependencies": [
+        "LatSmoothSec",
+        "NNFF",
+        "NNFFLite"
+      ],
+      "required_signals": [
+        "carState.vEgo",
+        "carState.steeringPressed",
+        "carControl.latActive",
+        "carControl.actuators.torque",
+        "carOutput.actuatorsOutput.torque",
+        "controlsState.lateralControlState.torqueState",
+        "livePose",
+        "liveCalibration",
+        "liveParameters",
+        "liveDelay",
+        "liveTorqueParameters",
+        "modelV2.action.desiredCurvature",
+        "controlsState.desiredCurvature",
+        "controlsState.activeLaneLine"
+      ],
+      "implementation_status": "not_implemented",
+      "validation_status": "not_validated",
+      "path_notes": "Used in modeld action timing even in lane-free control, lane-based lag compensation, and NNFF-related initialization. All consumer boundaries must be observed; 0 to fixed is a mode transition, not an additive delta.",
+      "structural_blocker": null
+    },
+    {
+      "key": "LatSmoothSec",
+      "axis": "lateral",
+      "family": "smoothing",
+      "classification": "numeric_parameter",
+      "raw_scale": 0.01,
+      "physical_unit": "s",
+      "special_values": {},
+      "ui": {
+        "min": 1,
+        "max": 30,
+        "step": 1
+      },
+      "consumers": [
+        {
+          "path": "openpilot/selfdrive/controls/controlsd.py",
+          "symbol": "Controls.state_control"
+        },
+        {
+          "path": "openpilot/selfdrive/modeld/modeld.py",
+          "symbol": "main"
+        },
+        {
+          "path": "openpilot/selfdrive/modeld/modeld.py",
+          "symbol": "get_lat_smooth_seconds_dynamic"
+        }
+      ],
+      "requires": [],
+      "dependencies": [
+        "SteerActuatorDelay"
+      ],
+      "required_signals": [
+        "carState.vEgo",
+        "carState.steeringPressed",
+        "carControl.latActive",
+        "carControl.actuators.torque",
+        "carOutput.actuatorsOutput.torque",
+        "controlsState.lateralControlState.torqueState",
+        "livePose",
+        "liveCalibration",
+        "liveParameters",
+        "liveDelay",
+        "liveTorqueParameters",
+        "modelV2",
+        "controlsState.desiredCurvature",
+        "controlsState.activeLaneLine"
+      ],
+      "implementation_status": "not_implemented",
+      "validation_status": "not_validated",
+      "path_notes": "Configured base combines with modeld dynamic smoothing. Effective smooth time is not established by the stored value alone; lane-free model output is also affected.",
+      "structural_blocker": null
+    },
+    {
+      "key": "LatMpcPathCost",
+      "axis": "lateral",
+      "family": "lane_mpc_cost",
+      "classification": "numeric_parameter",
+      "raw_scale": 0.01,
+      "physical_unit": "cost_weight",
+      "special_values": {},
+      "ui": {
+        "min": 0,
+        "max": 500,
+        "step": 10
+      },
+      "consumers": [
+        {
+          "path": "openpilot/selfdrive/controls/lib/lateral_planner.py",
+          "symbol": "LateralPlanner.update"
+        },
+        {
+          "path": "openpilot/selfdrive/controls/controlsd.py",
+          "symbol": "Controls.state_control"
+        }
+      ],
+      "requires": [
+        "lane-MPC-derived target actually selected by controlsd",
+        "solver and downstream vehicle response evidence available"
+      ],
+      "dependencies": [
+        "LatMpcInputOffset",
+        "PathOffset",
+        "SteerActuatorDelay",
+        "LatSmoothSec"
+      ],
+      "required_signals": [
+        "carState.vEgo",
+        "modelV2",
+        "lateralPlan",
+        "controlsState.activeLaneLine",
+        "controlsState.desiredCurvature",
+        "carControl.latActive",
+        "livePose"
+      ],
+      "implementation_status": "not_implemented",
+      "validation_status": "not_validated",
+      "path_notes": "lane-free steering normally uses modelV2.action.desiredCurvature instead of this MPC output; cost effects are conditional on actual target selection. Common rescaling of all costs is not evidence of independently identified tuning.",
+      "structural_blocker": null
+    },
+    {
+      "key": "LatMpcMotionCost",
+      "axis": "lateral",
+      "family": "lane_mpc_cost",
+      "classification": "numeric_parameter",
+      "raw_scale": 0.01,
+      "physical_unit": "cost_weight",
+      "special_values": {},
+      "ui": {
+        "min": 0,
+        "max": 500,
+        "step": 1
+      },
+      "consumers": [
+        {
+          "path": "openpilot/selfdrive/controls/lib/lateral_planner.py",
+          "symbol": "LateralPlanner.update"
+        },
+        {
+          "path": "openpilot/selfdrive/controls/controlsd.py",
+          "symbol": "Controls.state_control"
+        }
+      ],
+      "requires": [
+        "lane-MPC-derived target actually selected by controlsd",
+        "solver and downstream vehicle response evidence available"
+      ],
+      "dependencies": [
+        "LatMpcInputOffset",
+        "PathOffset",
+        "SteerActuatorDelay",
+        "LatSmoothSec"
+      ],
+      "required_signals": [
+        "carState.vEgo",
+        "modelV2",
+        "lateralPlan",
+        "controlsState.activeLaneLine",
+        "controlsState.desiredCurvature",
+        "carControl.latActive",
+        "livePose"
+      ],
+      "implementation_status": "not_implemented",
+      "validation_status": "not_validated",
+      "path_notes": "lane-free steering normally uses modelV2.action.desiredCurvature instead of this MPC output; cost effects are conditional on actual target selection. Common rescaling of all costs is not evidence of independently identified tuning.",
+      "structural_blocker": null
+    },
+    {
+      "key": "LatMpcAccelCost",
+      "axis": "lateral",
+      "family": "lane_mpc_cost",
+      "classification": "numeric_parameter",
+      "raw_scale": 0.01,
+      "physical_unit": "cost_weight",
+      "special_values": {},
+      "ui": {
+        "min": 0,
+        "max": 500,
+        "step": 10
+      },
+      "consumers": [
+        {
+          "path": "openpilot/selfdrive/controls/lib/lateral_planner.py",
+          "symbol": "LateralPlanner.update"
+        },
+        {
+          "path": "openpilot/selfdrive/controls/controlsd.py",
+          "symbol": "Controls.state_control"
+        }
+      ],
+      "requires": [
+        "lane-MPC-derived target actually selected by controlsd",
+        "solver and downstream vehicle response evidence available"
+      ],
+      "dependencies": [
+        "LatMpcInputOffset",
+        "PathOffset",
+        "SteerActuatorDelay",
+        "LatSmoothSec"
+      ],
+      "required_signals": [
+        "carState.vEgo",
+        "modelV2",
+        "lateralPlan",
+        "controlsState.activeLaneLine",
+        "controlsState.desiredCurvature",
+        "carControl.latActive",
+        "livePose"
+      ],
+      "implementation_status": "not_implemented",
+      "validation_status": "not_validated",
+      "path_notes": "lane-free steering normally uses modelV2.action.desiredCurvature instead of this MPC output; cost effects are conditional on actual target selection. Common rescaling of all costs is not evidence of independently identified tuning.",
+      "structural_blocker": null
+    },
+    {
+      "key": "LatMpcJerkCost",
+      "axis": "lateral",
+      "family": "lane_mpc_cost",
+      "classification": "numeric_parameter",
+      "raw_scale": 0.01,
+      "physical_unit": "cost_weight",
+      "special_values": {},
+      "ui": {
+        "min": 0,
+        "max": 200,
+        "step": 1
+      },
+      "consumers": [
+        {
+          "path": "openpilot/selfdrive/controls/lib/lateral_planner.py",
+          "symbol": "LateralPlanner.update"
+        },
+        {
+          "path": "openpilot/selfdrive/controls/controlsd.py",
+          "symbol": "Controls.state_control"
+        }
+      ],
+      "requires": [
+        "lane-MPC-derived target actually selected by controlsd",
+        "solver and downstream vehicle response evidence available"
+      ],
+      "dependencies": [
+        "LatMpcInputOffset",
+        "PathOffset",
+        "SteerActuatorDelay",
+        "LatSmoothSec"
+      ],
+      "required_signals": [
+        "carState.vEgo",
+        "modelV2",
+        "lateralPlan",
+        "controlsState.activeLaneLine",
+        "controlsState.desiredCurvature",
+        "carControl.latActive",
+        "livePose"
+      ],
+      "implementation_status": "not_implemented",
+      "validation_status": "not_validated",
+      "path_notes": "lane-free steering normally uses modelV2.action.desiredCurvature instead of this MPC output; cost effects are conditional on actual target selection. Common rescaling of all costs is not evidence of independently identified tuning.",
+      "structural_blocker": null
+    },
+    {
+      "key": "LatMpcSteeringRateCost",
+      "axis": "lateral",
+      "family": "lane_mpc_cost",
+      "classification": "numeric_parameter",
+      "raw_scale": 1,
+      "physical_unit": "cost_weight",
+      "special_values": {},
+      "ui": {
+        "min": 0,
+        "max": 1000,
+        "step": 100
+      },
+      "consumers": [
+        {
+          "path": "openpilot/selfdrive/controls/lib/lateral_planner.py",
+          "symbol": "LateralPlanner.update"
+        },
+        {
+          "path": "openpilot/selfdrive/controls/controlsd.py",
+          "symbol": "Controls.state_control"
+        }
+      ],
+      "requires": [
+        "lane-MPC-derived target actually selected by controlsd",
+        "solver and downstream vehicle response evidence available"
+      ],
+      "dependencies": [
+        "LatMpcInputOffset",
+        "PathOffset",
+        "SteerActuatorDelay",
+        "LatSmoothSec"
+      ],
+      "required_signals": [
+        "carState.vEgo",
+        "modelV2",
+        "lateralPlan",
+        "controlsState.activeLaneLine",
+        "controlsState.desiredCurvature",
+        "carControl.latActive",
+        "livePose"
+      ],
+      "implementation_status": "not_implemented",
+      "validation_status": "not_validated",
+      "path_notes": "lane-free steering normally uses modelV2.action.desiredCurvature instead of this MPC output; cost effects are conditional on actual target selection. Common rescaling of all costs is not evidence of independently identified tuning.",
+      "structural_blocker": null
+    },
+    {
+      "key": "LatMpcInputOffset",
+      "axis": "lateral",
+      "family": "lane_geometry_context",
+      "classification": "context_only",
+      "raw_scale": 0.01,
+      "physical_unit": "1",
+      "special_values": {},
+      "ui": {
+        "min": 0,
+        "max": 20,
+        "step": 1
+      },
+      "consumers": [
+        {
+          "path": "openpilot/selfdrive/controls/lib/lane_planner_2.py",
+          "symbol": "LanePlanner.get_d_path"
+        }
+      ],
+      "requires": [
+        "lane path selected"
+      ],
+      "dependencies": [
+        "LatMpcPathCost"
+      ],
+      "required_signals": [
+        "lateralPlan",
+        "modelV2",
+        "controlsState.activeLaneLine"
+      ],
+      "implementation_status": "not_implemented",
+      "validation_status": "not_validated",
+      "path_notes": "Context dependency outside the planned numeric recommendation scope. Active branch interpolates lane y at path_t * (1 + raw*0.01), so the effective value is a time-axis scale, not a fixed offset in seconds; the distance-shift branch is disabled.",
+      "structural_blocker": null
+    },
+    {
+      "key": "LongTuningKpV",
+      "axis": "longitudinal",
+      "family": "long_pid",
+      "classification": "numeric_parameter",
+      "raw_scale": 0.01,
+      "physical_unit": null,
+      "special_values": {},
+      "ui": {
+        "min": 0,
+        "max": 200,
+        "step": 5
+      },
+      "consumers": [
+        {
+          "path": "openpilot/selfdrive/controls/lib/longcontrol.py",
+          "symbol": "LongControl._refresh_longitudinal_tuning"
+        },
+        {
+          "path": "openpilot/selfdrive/controls/lib/longcontrol.py",
+          "symbol": "LongControl.update"
+        }
+      ],
+      "requires": [
+        "brand is neither hyundai (including Kia/Genesis) nor toyota",
+        "single-breakpoint variable longitudinal tuning path selected",
+        "openpilot longitudinal controller active"
+      ],
+      "dependencies": [
+        "LongActuatorDelay"
+      ],
+      "required_signals": [
+        "carState.vEgo",
+        "carState.aEgo",
+        "carState.gasPressed",
+        "carState.brakePressed",
+        "carControl.longActive",
+        "longitudinalPlan.aTarget",
+        "longitudinalPlan.vTargetNow",
+        "longitudinalPlan.jTargetNow",
+        "carControl.actuators.accel",
+        "carOutput.actuatorsOutput.accel",
+        "controlsState.longControlState",
+        "radarState",
+        "sendcan",
+        "controlsState.upAccelCmd",
+        "controlsState.uiAccelCmd",
+        "controlsState.ufAccelCmd"
+      ],
+      "implementation_status": "not_implemented",
+      "validation_status": "not_validated",
+      "path_notes": "Conditional path blocker: Hyundai/Kia/Genesis uses fixed Kp/Ki/Kf = 1/0/1; Toyota uses fixed 0/0/1 because its car controller closes another acceleration loop. Those brands ignore these Params. Other multi-breakpoint paths also bypass them. carOutput acceleration is not proof of final Hyundai SCC aReqValue; decode sendcan with the matching DBC or require final-output diagnostic evidence. Raw-to-scalar gain conversion is source-confirmed; a physical dimensional unit is intentionally unset because it depends on the selected error and controller path.",
+      "structural_blocker": null
+    },
+    {
+      "key": "LongTuningKiV",
+      "axis": "longitudinal",
+      "family": "long_pid",
+      "classification": "numeric_parameter",
+      "raw_scale": 0.001,
+      "physical_unit": null,
+      "special_values": {},
+      "ui": {
+        "min": 0,
+        "max": 2000,
+        "step": 1
+      },
+      "consumers": [
+        {
+          "path": "openpilot/selfdrive/controls/lib/longcontrol.py",
+          "symbol": "LongControl._refresh_longitudinal_tuning"
+        },
+        {
+          "path": "openpilot/selfdrive/controls/lib/longcontrol.py",
+          "symbol": "LongControl.update"
+        }
+      ],
+      "requires": [
+        "brand is neither hyundai (including Kia/Genesis) nor toyota",
+        "single-breakpoint variable longitudinal tuning path selected",
+        "openpilot longitudinal controller active"
+      ],
+      "dependencies": [
+        "LongActuatorDelay"
+      ],
+      "required_signals": [
+        "carState.vEgo",
+        "carState.aEgo",
+        "carState.gasPressed",
+        "carState.brakePressed",
+        "carControl.longActive",
+        "longitudinalPlan.aTarget",
+        "longitudinalPlan.vTargetNow",
+        "longitudinalPlan.jTargetNow",
+        "carControl.actuators.accel",
+        "carOutput.actuatorsOutput.accel",
+        "controlsState.longControlState",
+        "radarState",
+        "sendcan",
+        "controlsState.upAccelCmd",
+        "controlsState.uiAccelCmd",
+        "controlsState.ufAccelCmd"
+      ],
+      "implementation_status": "not_implemented",
+      "validation_status": "not_validated",
+      "path_notes": "Conditional path blocker: Hyundai/Kia/Genesis uses fixed Kp/Ki/Kf = 1/0/1; Toyota uses fixed 0/0/1 because its car controller closes another acceleration loop. Those brands ignore these Params. Other multi-breakpoint paths also bypass them. carOutput acceleration is not proof of final Hyundai SCC aReqValue; decode sendcan with the matching DBC or require final-output diagnostic evidence. Raw-to-scalar gain conversion is source-confirmed; a physical dimensional unit is intentionally unset because it depends on the selected error and controller path.",
+      "structural_blocker": null
+    },
+    {
+      "key": "LongTuningKf",
+      "axis": "longitudinal",
+      "family": "long_pid",
+      "classification": "numeric_parameter",
+      "raw_scale": 0.01,
+      "physical_unit": "1",
+      "special_values": {},
+      "ui": {
+        "min": 0,
+        "max": 200,
+        "step": 5
+      },
+      "consumers": [
+        {
+          "path": "openpilot/selfdrive/controls/lib/longcontrol.py",
+          "symbol": "LongControl._refresh_longitudinal_tuning"
+        },
+        {
+          "path": "openpilot/selfdrive/controls/lib/longcontrol.py",
+          "symbol": "LongControl.update"
+        }
+      ],
+      "requires": [
+        "brand is neither hyundai (including Kia/Genesis) nor toyota",
+        "single-breakpoint variable longitudinal tuning path selected",
+        "openpilot longitudinal controller active"
+      ],
+      "dependencies": [
+        "LongActuatorDelay"
+      ],
+      "required_signals": [
+        "carState.vEgo",
+        "carState.aEgo",
+        "carState.gasPressed",
+        "carState.brakePressed",
+        "carControl.longActive",
+        "longitudinalPlan.aTarget",
+        "longitudinalPlan.vTargetNow",
+        "longitudinalPlan.jTargetNow",
+        "carControl.actuators.accel",
+        "carOutput.actuatorsOutput.accel",
+        "controlsState.longControlState",
+        "radarState",
+        "sendcan",
+        "controlsState.upAccelCmd",
+        "controlsState.uiAccelCmd",
+        "controlsState.ufAccelCmd"
+      ],
+      "implementation_status": "not_implemented",
+      "validation_status": "not_validated",
+      "path_notes": "Conditional path blocker: Hyundai/Kia/Genesis uses fixed Kp/Ki/Kf = 1/0/1; Toyota uses fixed 0/0/1 because its car controller closes another acceleration loop. Those brands ignore these Params. Other multi-breakpoint paths also bypass them. carOutput acceleration is not proof of final Hyundai SCC aReqValue; decode sendcan with the matching DBC or require final-output diagnostic evidence.",
+      "structural_blocker": null
+    },
+    {
+      "key": "LongActuatorDelay",
+      "axis": "longitudinal",
+      "family": "delay",
+      "classification": "numeric_parameter",
+      "raw_scale": 0.01,
+      "physical_unit": "s",
+      "special_values": {},
+      "ui": {
+        "min": 0,
+        "max": 200,
+        "step": 5
+      },
+      "consumers": [
+        {
+          "path": "openpilot/selfdrive/controls/lib/longitudinal_planner.py",
+          "symbol": "LongitudinalPlanner.update"
+        },
+        {
+          "path": "openpilot/selfdrive/modeld/modeld.py",
+          "symbol": "main"
+        }
+      ],
+      "requires": [
+        "effective longitudinal path identified",
+        "planner and modeld transition timing observable"
+      ],
+      "dependencies": [
+        "LeadAccelResponse"
+      ],
+      "required_signals": [
+        "carState.vEgo",
+        "carState.aEgo",
+        "carState.gasPressed",
+        "carState.brakePressed",
+        "carControl.longActive",
+        "longitudinalPlan.aTarget",
+        "longitudinalPlan.vTargetNow",
+        "longitudinalPlan.jTargetNow",
+        "carControl.actuators.accel",
+        "carOutput.actuatorsOutput.accel",
+        "controlsState.longControlState",
+        "radarState",
+        "sendcan",
+        "longitudinalPlan.aTargetBase",
+        "longitudinalPlan.leadPreviewSeconds",
+        "longitudinalPlan.leadPreviewActionTime",
+        "longitudinalPlan.cruiseCoastingPercent",
+        "modelV2.action.desiredAcceleration"
+      ],
+      "implementation_status": "not_implemented",
+      "validation_status": "not_validated",
+      "path_notes": "Affects planner interpolation action time and modeld action horizon; a measured plant lag is not automatically the best stored horizon. Zero is an ordinary configured zero contribution, not live-delay mode. carOutput acceleration is not proof of final Hyundai SCC aReqValue; decode sendcan with the matching DBC or require final-output diagnostic evidence.",
+      "structural_blocker": null
+    },
+    {
+      "key": "CruiseMaxVals0",
+      "axis": "longitudinal",
+      "family": "acceleration_limit",
+      "classification": "numeric_parameter",
+      "raw_scale": 0.01,
+      "physical_unit": "m/s^2",
+      "special_values": {},
+      "ui": {
+        "min": 1,
+        "max": 250,
+        "step": 5
+      },
+      "consumers": [
+        {
+          "path": "openpilot/selfdrive/carrot/carrot_functions.py",
+          "symbol": "CarrotPlanner._params_update"
+        },
+        {
+          "path": "openpilot/selfdrive/carrot/carrot_functions.py",
+          "symbol": "CarrotPlanner.get_carrot_accel"
+        }
+      ],
+      "requires": [
+        "speed-band interpolation and driving-mode factor resolved",
+        "higher-priority lead/curve/vehicle limits distinguished"
+      ],
+      "dependencies": [
+        "CruiseMaxVals1",
+        "CruiseMaxVals2",
+        "CruiseMaxVals3",
+        "CruiseMaxVals4",
+        "CruiseMaxVals5",
+        "CruiseMaxVals6"
+      ],
+      "required_signals": [
+        "carState.vEgo",
+        "carState.aEgo",
+        "carState.gasPressed",
+        "carState.brakePressed",
+        "carControl.longActive",
+        "longitudinalPlan.aTarget",
+        "longitudinalPlan.vTargetNow",
+        "longitudinalPlan.jTargetNow",
+        "carControl.actuators.accel",
+        "carOutput.actuatorsOutput.accel",
+        "controlsState.longControlState",
+        "radarState",
+        "sendcan",
+        "selfdriveState.personality",
+        "longitudinalPlan.cruiseTarget",
+        "carrotMan"
+      ],
+      "implementation_status": "not_implemented",
+      "validation_status": "not_validated",
+      "path_notes": "Interpolation knot 0 in [0,10,40,60,80,110,140] km/h; raw/100 is the pre-mode acceleration limit. Changes affect adjacent speed interpolation and do not directly change PID tracking accuracy. carOutput acceleration is not proof of final Hyundai SCC aReqValue; decode sendcan with the matching DBC or require final-output diagnostic evidence.",
+      "structural_blocker": null
+    },
+    {
+      "key": "CruiseMaxVals1",
+      "axis": "longitudinal",
+      "family": "acceleration_limit",
+      "classification": "numeric_parameter",
+      "raw_scale": 0.01,
+      "physical_unit": "m/s^2",
+      "special_values": {},
+      "ui": {
+        "min": 1,
+        "max": 250,
+        "step": 5
+      },
+      "consumers": [
+        {
+          "path": "openpilot/selfdrive/carrot/carrot_functions.py",
+          "symbol": "CarrotPlanner._params_update"
+        },
+        {
+          "path": "openpilot/selfdrive/carrot/carrot_functions.py",
+          "symbol": "CarrotPlanner.get_carrot_accel"
+        }
+      ],
+      "requires": [
+        "speed-band interpolation and driving-mode factor resolved",
+        "higher-priority lead/curve/vehicle limits distinguished"
+      ],
+      "dependencies": [
+        "CruiseMaxVals0",
+        "CruiseMaxVals2",
+        "CruiseMaxVals3",
+        "CruiseMaxVals4",
+        "CruiseMaxVals5",
+        "CruiseMaxVals6"
+      ],
+      "required_signals": [
+        "carState.vEgo",
+        "carState.aEgo",
+        "carState.gasPressed",
+        "carState.brakePressed",
+        "carControl.longActive",
+        "longitudinalPlan.aTarget",
+        "longitudinalPlan.vTargetNow",
+        "longitudinalPlan.jTargetNow",
+        "carControl.actuators.accel",
+        "carOutput.actuatorsOutput.accel",
+        "controlsState.longControlState",
+        "radarState",
+        "sendcan",
+        "selfdriveState.personality",
+        "longitudinalPlan.cruiseTarget",
+        "carrotMan"
+      ],
+      "implementation_status": "not_implemented",
+      "validation_status": "not_validated",
+      "path_notes": "Interpolation knot 1 in [0,10,40,60,80,110,140] km/h; raw/100 is the pre-mode acceleration limit. Changes affect adjacent speed interpolation and do not directly change PID tracking accuracy. carOutput acceleration is not proof of final Hyundai SCC aReqValue; decode sendcan with the matching DBC or require final-output diagnostic evidence.",
+      "structural_blocker": null
+    },
+    {
+      "key": "CruiseMaxVals2",
+      "axis": "longitudinal",
+      "family": "acceleration_limit",
+      "classification": "numeric_parameter",
+      "raw_scale": 0.01,
+      "physical_unit": "m/s^2",
+      "special_values": {},
+      "ui": {
+        "min": 1,
+        "max": 250,
+        "step": 5
+      },
+      "consumers": [
+        {
+          "path": "openpilot/selfdrive/carrot/carrot_functions.py",
+          "symbol": "CarrotPlanner._params_update"
+        },
+        {
+          "path": "openpilot/selfdrive/carrot/carrot_functions.py",
+          "symbol": "CarrotPlanner.get_carrot_accel"
+        }
+      ],
+      "requires": [
+        "speed-band interpolation and driving-mode factor resolved",
+        "higher-priority lead/curve/vehicle limits distinguished"
+      ],
+      "dependencies": [
+        "CruiseMaxVals0",
+        "CruiseMaxVals1",
+        "CruiseMaxVals3",
+        "CruiseMaxVals4",
+        "CruiseMaxVals5",
+        "CruiseMaxVals6"
+      ],
+      "required_signals": [
+        "carState.vEgo",
+        "carState.aEgo",
+        "carState.gasPressed",
+        "carState.brakePressed",
+        "carControl.longActive",
+        "longitudinalPlan.aTarget",
+        "longitudinalPlan.vTargetNow",
+        "longitudinalPlan.jTargetNow",
+        "carControl.actuators.accel",
+        "carOutput.actuatorsOutput.accel",
+        "controlsState.longControlState",
+        "radarState",
+        "sendcan",
+        "selfdriveState.personality",
+        "longitudinalPlan.cruiseTarget",
+        "carrotMan"
+      ],
+      "implementation_status": "not_implemented",
+      "validation_status": "not_validated",
+      "path_notes": "Interpolation knot 2 in [0,10,40,60,80,110,140] km/h; raw/100 is the pre-mode acceleration limit. Changes affect adjacent speed interpolation and do not directly change PID tracking accuracy. carOutput acceleration is not proof of final Hyundai SCC aReqValue; decode sendcan with the matching DBC or require final-output diagnostic evidence.",
+      "structural_blocker": null
+    },
+    {
+      "key": "CruiseMaxVals3",
+      "axis": "longitudinal",
+      "family": "acceleration_limit",
+      "classification": "numeric_parameter",
+      "raw_scale": 0.01,
+      "physical_unit": "m/s^2",
+      "special_values": {},
+      "ui": {
+        "min": 1,
+        "max": 250,
+        "step": 5
+      },
+      "consumers": [
+        {
+          "path": "openpilot/selfdrive/carrot/carrot_functions.py",
+          "symbol": "CarrotPlanner._params_update"
+        },
+        {
+          "path": "openpilot/selfdrive/carrot/carrot_functions.py",
+          "symbol": "CarrotPlanner.get_carrot_accel"
+        }
+      ],
+      "requires": [
+        "speed-band interpolation and driving-mode factor resolved",
+        "higher-priority lead/curve/vehicle limits distinguished"
+      ],
+      "dependencies": [
+        "CruiseMaxVals0",
+        "CruiseMaxVals1",
+        "CruiseMaxVals2",
+        "CruiseMaxVals4",
+        "CruiseMaxVals5",
+        "CruiseMaxVals6"
+      ],
+      "required_signals": [
+        "carState.vEgo",
+        "carState.aEgo",
+        "carState.gasPressed",
+        "carState.brakePressed",
+        "carControl.longActive",
+        "longitudinalPlan.aTarget",
+        "longitudinalPlan.vTargetNow",
+        "longitudinalPlan.jTargetNow",
+        "carControl.actuators.accel",
+        "carOutput.actuatorsOutput.accel",
+        "controlsState.longControlState",
+        "radarState",
+        "sendcan",
+        "selfdriveState.personality",
+        "longitudinalPlan.cruiseTarget",
+        "carrotMan"
+      ],
+      "implementation_status": "not_implemented",
+      "validation_status": "not_validated",
+      "path_notes": "Interpolation knot 3 in [0,10,40,60,80,110,140] km/h; raw/100 is the pre-mode acceleration limit. Changes affect adjacent speed interpolation and do not directly change PID tracking accuracy. carOutput acceleration is not proof of final Hyundai SCC aReqValue; decode sendcan with the matching DBC or require final-output diagnostic evidence.",
+      "structural_blocker": null
+    },
+    {
+      "key": "CruiseMaxVals4",
+      "axis": "longitudinal",
+      "family": "acceleration_limit",
+      "classification": "numeric_parameter",
+      "raw_scale": 0.01,
+      "physical_unit": "m/s^2",
+      "special_values": {},
+      "ui": {
+        "min": 1,
+        "max": 250,
+        "step": 5
+      },
+      "consumers": [
+        {
+          "path": "openpilot/selfdrive/carrot/carrot_functions.py",
+          "symbol": "CarrotPlanner._params_update"
+        },
+        {
+          "path": "openpilot/selfdrive/carrot/carrot_functions.py",
+          "symbol": "CarrotPlanner.get_carrot_accel"
+        }
+      ],
+      "requires": [
+        "speed-band interpolation and driving-mode factor resolved",
+        "higher-priority lead/curve/vehicle limits distinguished"
+      ],
+      "dependencies": [
+        "CruiseMaxVals0",
+        "CruiseMaxVals1",
+        "CruiseMaxVals2",
+        "CruiseMaxVals3",
+        "CruiseMaxVals5",
+        "CruiseMaxVals6"
+      ],
+      "required_signals": [
+        "carState.vEgo",
+        "carState.aEgo",
+        "carState.gasPressed",
+        "carState.brakePressed",
+        "carControl.longActive",
+        "longitudinalPlan.aTarget",
+        "longitudinalPlan.vTargetNow",
+        "longitudinalPlan.jTargetNow",
+        "carControl.actuators.accel",
+        "carOutput.actuatorsOutput.accel",
+        "controlsState.longControlState",
+        "radarState",
+        "sendcan",
+        "selfdriveState.personality",
+        "longitudinalPlan.cruiseTarget",
+        "carrotMan"
+      ],
+      "implementation_status": "not_implemented",
+      "validation_status": "not_validated",
+      "path_notes": "Interpolation knot 4 in [0,10,40,60,80,110,140] km/h; raw/100 is the pre-mode acceleration limit. Changes affect adjacent speed interpolation and do not directly change PID tracking accuracy. carOutput acceleration is not proof of final Hyundai SCC aReqValue; decode sendcan with the matching DBC or require final-output diagnostic evidence.",
+      "structural_blocker": null
+    },
+    {
+      "key": "CruiseMaxVals5",
+      "axis": "longitudinal",
+      "family": "acceleration_limit",
+      "classification": "numeric_parameter",
+      "raw_scale": 0.01,
+      "physical_unit": "m/s^2",
+      "special_values": {},
+      "ui": {
+        "min": 1,
+        "max": 250,
+        "step": 5
+      },
+      "consumers": [
+        {
+          "path": "openpilot/selfdrive/carrot/carrot_functions.py",
+          "symbol": "CarrotPlanner._params_update"
+        },
+        {
+          "path": "openpilot/selfdrive/carrot/carrot_functions.py",
+          "symbol": "CarrotPlanner.get_carrot_accel"
+        }
+      ],
+      "requires": [
+        "speed-band interpolation and driving-mode factor resolved",
+        "higher-priority lead/curve/vehicle limits distinguished"
+      ],
+      "dependencies": [
+        "CruiseMaxVals0",
+        "CruiseMaxVals1",
+        "CruiseMaxVals2",
+        "CruiseMaxVals3",
+        "CruiseMaxVals4",
+        "CruiseMaxVals6"
+      ],
+      "required_signals": [
+        "carState.vEgo",
+        "carState.aEgo",
+        "carState.gasPressed",
+        "carState.brakePressed",
+        "carControl.longActive",
+        "longitudinalPlan.aTarget",
+        "longitudinalPlan.vTargetNow",
+        "longitudinalPlan.jTargetNow",
+        "carControl.actuators.accel",
+        "carOutput.actuatorsOutput.accel",
+        "controlsState.longControlState",
+        "radarState",
+        "sendcan",
+        "selfdriveState.personality",
+        "longitudinalPlan.cruiseTarget",
+        "carrotMan"
+      ],
+      "implementation_status": "not_implemented",
+      "validation_status": "not_validated",
+      "path_notes": "Interpolation knot 5 in [0,10,40,60,80,110,140] km/h; raw/100 is the pre-mode acceleration limit. Changes affect adjacent speed interpolation and do not directly change PID tracking accuracy. carOutput acceleration is not proof of final Hyundai SCC aReqValue; decode sendcan with the matching DBC or require final-output diagnostic evidence.",
+      "structural_blocker": null
+    },
+    {
+      "key": "CruiseMaxVals6",
+      "axis": "longitudinal",
+      "family": "acceleration_limit",
+      "classification": "numeric_parameter",
+      "raw_scale": 0.01,
+      "physical_unit": "m/s^2",
+      "special_values": {},
+      "ui": {
+        "min": 1,
+        "max": 250,
+        "step": 5
+      },
+      "consumers": [
+        {
+          "path": "openpilot/selfdrive/carrot/carrot_functions.py",
+          "symbol": "CarrotPlanner._params_update"
+        },
+        {
+          "path": "openpilot/selfdrive/carrot/carrot_functions.py",
+          "symbol": "CarrotPlanner.get_carrot_accel"
+        }
+      ],
+      "requires": [
+        "speed-band interpolation and driving-mode factor resolved",
+        "higher-priority lead/curve/vehicle limits distinguished"
+      ],
+      "dependencies": [
+        "CruiseMaxVals0",
+        "CruiseMaxVals1",
+        "CruiseMaxVals2",
+        "CruiseMaxVals3",
+        "CruiseMaxVals4",
+        "CruiseMaxVals5"
+      ],
+      "required_signals": [
+        "carState.vEgo",
+        "carState.aEgo",
+        "carState.gasPressed",
+        "carState.brakePressed",
+        "carControl.longActive",
+        "longitudinalPlan.aTarget",
+        "longitudinalPlan.vTargetNow",
+        "longitudinalPlan.jTargetNow",
+        "carControl.actuators.accel",
+        "carOutput.actuatorsOutput.accel",
+        "controlsState.longControlState",
+        "radarState",
+        "sendcan",
+        "selfdriveState.personality",
+        "longitudinalPlan.cruiseTarget",
+        "carrotMan"
+      ],
+      "implementation_status": "not_implemented",
+      "validation_status": "not_validated",
+      "path_notes": "Interpolation knot 6 in [0,10,40,60,80,110,140] km/h; raw/100 is the pre-mode acceleration limit. Changes affect adjacent speed interpolation and do not directly change PID tracking accuracy. carOutput acceleration is not proof of final Hyundai SCC aReqValue; decode sendcan with the matching DBC or require final-output diagnostic evidence.",
+      "structural_blocker": null
+    },
+    {
+      "key": "TFollowGap1",
+      "axis": "longitudinal",
+      "family": "following_time",
+      "classification": "numeric_parameter",
+      "raw_scale": 0.01,
+      "physical_unit": "s",
+      "special_values": {},
+      "ui": {
+        "min": 40,
+        "max": 300,
+        "step": 5
+      },
+      "consumers": [
+        {
+          "path": "openpilot/selfdrive/carrot/carrot_functions.py",
+          "symbol": "CarrotPlanner._params_update"
+        },
+        {
+          "path": "openpilot/selfdrive/carrot/carrot_functions.py",
+          "symbol": "CarrotPlanner._get_base_t_follow"
+        }
+      ],
+      "requires": [
+        "selected personality/gap known",
+        "valid lead and actual target following policy identified"
+      ],
+      "dependencies": [
+        "SpeedTFFactor",
+        "DynamicTFollowLC",
+        "TFollowDecelBoost",
+        "TFollowGap2",
+        "TFollowGap3",
+        "TFollowGap4"
+      ],
+      "required_signals": [
+        "carState.vEgo",
+        "carState.aEgo",
+        "carState.gasPressed",
+        "carState.brakePressed",
+        "carControl.longActive",
+        "longitudinalPlan.aTarget",
+        "longitudinalPlan.vTargetNow",
+        "longitudinalPlan.jTargetNow",
+        "carControl.actuators.accel",
+        "carOutput.actuatorsOutput.accel",
+        "controlsState.longControlState",
+        "radarState",
+        "sendcan",
+        "selfdriveState.personality",
+        "longitudinalPlan.tFollow",
+        "longitudinalPlan.desiredDistance"
+      ],
+      "implementation_status": "not_implemented",
+      "validation_status": "not_validated",
+      "path_notes": "Base time gap is modified by speed, driving mode, lane-change policy, deceleration hold and ramping; physical spacing is not simply this value multiplied by current speed in every situation.",
+      "structural_blocker": null
+    },
+    {
+      "key": "TFollowGap2",
+      "axis": "longitudinal",
+      "family": "following_time",
+      "classification": "numeric_parameter",
+      "raw_scale": 0.01,
+      "physical_unit": "s",
+      "special_values": {},
+      "ui": {
+        "min": 40,
+        "max": 300,
+        "step": 5
+      },
+      "consumers": [
+        {
+          "path": "openpilot/selfdrive/carrot/carrot_functions.py",
+          "symbol": "CarrotPlanner._params_update"
+        },
+        {
+          "path": "openpilot/selfdrive/carrot/carrot_functions.py",
+          "symbol": "CarrotPlanner._get_base_t_follow"
+        }
+      ],
+      "requires": [
+        "selected personality/gap known",
+        "valid lead and actual target following policy identified"
+      ],
+      "dependencies": [
+        "SpeedTFFactor",
+        "DynamicTFollowLC",
+        "TFollowDecelBoost",
+        "TFollowGap1",
+        "TFollowGap3",
+        "TFollowGap4"
+      ],
+      "required_signals": [
+        "carState.vEgo",
+        "carState.aEgo",
+        "carState.gasPressed",
+        "carState.brakePressed",
+        "carControl.longActive",
+        "longitudinalPlan.aTarget",
+        "longitudinalPlan.vTargetNow",
+        "longitudinalPlan.jTargetNow",
+        "carControl.actuators.accel",
+        "carOutput.actuatorsOutput.accel",
+        "controlsState.longControlState",
+        "radarState",
+        "sendcan",
+        "selfdriveState.personality",
+        "longitudinalPlan.tFollow",
+        "longitudinalPlan.desiredDistance"
+      ],
+      "implementation_status": "not_implemented",
+      "validation_status": "not_validated",
+      "path_notes": "Base time gap is modified by speed, driving mode, lane-change policy, deceleration hold and ramping; physical spacing is not simply this value multiplied by current speed in every situation.",
+      "structural_blocker": null
+    },
+    {
+      "key": "TFollowGap3",
+      "axis": "longitudinal",
+      "family": "following_time",
+      "classification": "numeric_parameter",
+      "raw_scale": 0.01,
+      "physical_unit": "s",
+      "special_values": {},
+      "ui": {
+        "min": 40,
+        "max": 300,
+        "step": 5
+      },
+      "consumers": [
+        {
+          "path": "openpilot/selfdrive/carrot/carrot_functions.py",
+          "symbol": "CarrotPlanner._params_update"
+        },
+        {
+          "path": "openpilot/selfdrive/carrot/carrot_functions.py",
+          "symbol": "CarrotPlanner._get_base_t_follow"
+        }
+      ],
+      "requires": [
+        "selected personality/gap known",
+        "valid lead and actual target following policy identified"
+      ],
+      "dependencies": [
+        "SpeedTFFactor",
+        "DynamicTFollowLC",
+        "TFollowDecelBoost",
+        "TFollowGap1",
+        "TFollowGap2",
+        "TFollowGap4"
+      ],
+      "required_signals": [
+        "carState.vEgo",
+        "carState.aEgo",
+        "carState.gasPressed",
+        "carState.brakePressed",
+        "carControl.longActive",
+        "longitudinalPlan.aTarget",
+        "longitudinalPlan.vTargetNow",
+        "longitudinalPlan.jTargetNow",
+        "carControl.actuators.accel",
+        "carOutput.actuatorsOutput.accel",
+        "controlsState.longControlState",
+        "radarState",
+        "sendcan",
+        "selfdriveState.personality",
+        "longitudinalPlan.tFollow",
+        "longitudinalPlan.desiredDistance"
+      ],
+      "implementation_status": "not_implemented",
+      "validation_status": "not_validated",
+      "path_notes": "Base time gap is modified by speed, driving mode, lane-change policy, deceleration hold and ramping; physical spacing is not simply this value multiplied by current speed in every situation.",
+      "structural_blocker": null
+    },
+    {
+      "key": "TFollowGap4",
+      "axis": "longitudinal",
+      "family": "following_time",
+      "classification": "numeric_parameter",
+      "raw_scale": 0.01,
+      "physical_unit": "s",
+      "special_values": {},
+      "ui": {
+        "min": 40,
+        "max": 300,
+        "step": 5
+      },
+      "consumers": [
+        {
+          "path": "openpilot/selfdrive/carrot/carrot_functions.py",
+          "symbol": "CarrotPlanner._params_update"
+        },
+        {
+          "path": "openpilot/selfdrive/carrot/carrot_functions.py",
+          "symbol": "CarrotPlanner._get_base_t_follow"
+        }
+      ],
+      "requires": [
+        "selected personality/gap known",
+        "valid lead and actual target following policy identified"
+      ],
+      "dependencies": [
+        "SpeedTFFactor",
+        "DynamicTFollowLC",
+        "TFollowDecelBoost",
+        "TFollowGap1",
+        "TFollowGap2",
+        "TFollowGap3"
+      ],
+      "required_signals": [
+        "carState.vEgo",
+        "carState.aEgo",
+        "carState.gasPressed",
+        "carState.brakePressed",
+        "carControl.longActive",
+        "longitudinalPlan.aTarget",
+        "longitudinalPlan.vTargetNow",
+        "longitudinalPlan.jTargetNow",
+        "carControl.actuators.accel",
+        "carOutput.actuatorsOutput.accel",
+        "controlsState.longControlState",
+        "radarState",
+        "sendcan",
+        "selfdriveState.personality",
+        "longitudinalPlan.tFollow",
+        "longitudinalPlan.desiredDistance"
+      ],
+      "implementation_status": "not_implemented",
+      "validation_status": "not_validated",
+      "path_notes": "Base time gap is modified by speed, driving mode, lane-change policy, deceleration hold and ramping; physical spacing is not simply this value multiplied by current speed in every situation.",
+      "structural_blocker": null
+    },
+    {
+      "key": "DynamicTFollowLC",
+      "axis": "longitudinal",
+      "family": "lane_change_gap",
+      "classification": "numeric_parameter",
+      "raw_scale": 0.01,
+      "physical_unit": "1",
+      "special_values": {},
+      "ui": {
+        "min": 20,
+        "max": 100,
+        "step": 5
+      },
+      "consumers": [
+        {
+          "path": "openpilot/selfdrive/carrot/carrot_functions.py",
+          "symbol": "CarrotPlanner._params_update"
+        },
+        {
+          "path": "openpilot/selfdrive/controls/lib/longitudinal_mpc_lib/long_mpc.py",
+          "symbol": "LongitudinalMpc.update"
+        }
+      ],
+      "requires": [
+        "valid lane-change gap policy and candidate lane/lead evidence"
+      ],
+      "dependencies": [
+        "TFollowGap1",
+        "TFollowGap2",
+        "TFollowGap3",
+        "TFollowGap4"
+      ],
+      "required_signals": [
+        "carState.vEgo",
+        "carState.aEgo",
+        "carState.gasPressed",
+        "carState.brakePressed",
+        "carControl.longActive",
+        "longitudinalPlan.aTarget",
+        "longitudinalPlan.vTargetNow",
+        "longitudinalPlan.jTargetNow",
+        "carControl.actuators.accel",
+        "carOutput.actuatorsOutput.accel",
+        "controlsState.longControlState",
+        "radarState",
+        "sendcan",
+        "modelV2.meta.laneChangeState",
+        "modelV2.meta.laneChangeDirection",
+        "longitudinalPlan.tFollow"
+      ],
+      "implementation_status": "not_implemented",
+      "validation_status": "not_validated",
+      "path_notes": "Lane-change-specific factor, not an alias for the removed DynamicTFollow option; requires lane-change guard/path evidence.",
+      "structural_blocker": null
+    },
+    {
+      "key": "SpeedTFFactor",
+      "axis": "longitudinal",
+      "family": "following_speed_scale",
+      "classification": "numeric_parameter",
+      "raw_scale": 0.1,
+      "physical_unit": "time_gap_multiplier_at_100_km/h",
+      "special_values": {},
+      "ui": {
+        "min": 10,
+        "max": 30,
+        "step": 1
+      },
+      "consumers": [
+        {
+          "path": "openpilot/selfdrive/carrot/carrot_functions.py",
+          "symbol": "CarrotPlanner._params_update"
+        },
+        {
+          "path": "openpilot/selfdrive/carrot/t_follow.py",
+          "symbol": "get_speed_t_follow_factor"
+        }
+      ],
+      "requires": [],
+      "dependencies": [
+        "TFollowGap1",
+        "TFollowGap2",
+        "TFollowGap3",
+        "TFollowGap4"
+      ],
+      "required_signals": [
+        "carState.vEgo",
+        "carState.aEgo",
+        "carState.gasPressed",
+        "carState.brakePressed",
+        "carControl.longActive",
+        "longitudinalPlan.aTarget",
+        "longitudinalPlan.vTargetNow",
+        "longitudinalPlan.jTargetNow",
+        "carControl.actuators.accel",
+        "carOutput.actuatorsOutput.accel",
+        "controlsState.longControlState",
+        "radarState",
+        "sendcan",
+        "longitudinalPlan.tFollow"
+      ],
+      "implementation_status": "not_implemented",
+      "validation_status": "not_validated",
+      "path_notes": "Setting 10 means multiplier 1.0 at 100 km/h, 20 means 2.0; actual multiplier is 1 + (raw*0.1 - 1)*max(speed_kph,0)/100. This is not a percent delta or a renamed TFollowSpeedFactor.",
+      "structural_blocker": null
+    },
+    {
+      "key": "TFollowDecelBoost",
+      "axis": "longitudinal",
+      "family": "following_deceleration",
+      "classification": "numeric_parameter",
+      "raw_scale": 0.01,
+      "physical_unit": "1",
+      "special_values": {
+        "0": "No extra deceleration boost requested by this factor; baseline deceleration hold still exists."
+      },
+      "ui": {
+        "min": 0,
+        "max": 100,
+        "step": 10
+      },
+      "consumers": [
+        {
+          "path": "openpilot/selfdrive/carrot/carrot_functions.py",
+          "symbol": "CarrotPlanner._params_update"
+        },
+        {
+          "path": "openpilot/selfdrive/carrot/carrot_functions.py",
+          "symbol": "CarrotPlanner._apply_decel_hold_and_boost_t_follow"
+        }
+      ],
+      "requires": [],
+      "dependencies": [
+        "TFollowGap1",
+        "TFollowGap2",
+        "TFollowGap3",
+        "TFollowGap4",
+        "SpeedTFFactor"
+      ],
+      "required_signals": [
+        "carState.vEgo",
+        "carState.aEgo",
+        "carState.gasPressed",
+        "carState.brakePressed",
+        "carControl.longActive",
+        "longitudinalPlan.aTarget",
+        "longitudinalPlan.vTargetNow",
+        "longitudinalPlan.jTargetNow",
+        "carControl.actuators.accel",
+        "carOutput.actuatorsOutput.accel",
+        "controlsState.longControlState",
+        "radarState",
+        "sendcan",
+        "longitudinalPlan.tFollow"
+      ],
+      "implementation_status": "not_implemented",
+      "validation_status": "not_validated",
+      "path_notes": "Dimensionless raw/100 scales an acceleration-dependent extra time gap (up to 0.50 s before multiplication) with release ramp; raw+5 does not mean final gap+0.05 s.",
+      "structural_blocker": null
+    },
+    {
+      "key": "LeadAccelResponse",
+      "axis": "longitudinal",
+      "family": "lead_response_profile",
+      "classification": "numeric_parameter",
+      "raw_scale": 1,
+      "physical_unit": "profile_level",
+      "special_values": {},
+      "ui": {
+        "min": 0,
+        "max": 5,
+        "step": 1
+      },
+      "consumers": [
+        {
+          "path": "openpilot/selfdrive/carrot/carrot_functions.py",
+          "symbol": "CarrotPlanner._params_update"
+        },
+        {
+          "path": "openpilot/selfdrive/carrot/t_follow.py",
+          "symbol": "get_lead_response_for_gap"
+        },
+        {
+          "path": "openpilot/selfdrive/carrot/driving_mode.py",
+          "symbol": "get_mode_lead_response"
+        },
+        {
+          "path": "openpilot/selfdrive/controls/lib/longitudinal_preview.py",
+          "symbol": "get_lead_accel_mpc_request"
+        }
+      ],
+      "requires": [
+        "discrete profile evaluated in actual driving mode and selected gap",
+        "valid stable lead and MPC-source qualification"
+      ],
+      "dependencies": [
+        "LeadAccelResponseTF1",
+        "LeadAccelResponseTF2",
+        "LeadAccelResponseTF3",
+        "LeadAccelResponseTF4"
+      ],
+      "required_signals": [
+        "carState.vEgo",
+        "carState.aEgo",
+        "carState.gasPressed",
+        "carState.brakePressed",
+        "carControl.longActive",
+        "longitudinalPlan.aTarget",
+        "longitudinalPlan.vTargetNow",
+        "longitudinalPlan.jTargetNow",
+        "carControl.actuators.accel",
+        "carOutput.actuatorsOutput.accel",
+        "controlsState.longControlState",
+        "radarState",
+        "sendcan",
+        "selfdriveState.personality",
+        "longitudinalPlan.leadPreviewSeconds",
+        "longitudinalPlan.leadPreviewAccel",
+        "longitudinalPlan.tFollow"
+      ],
+      "implementation_status": "not_implemented",
+      "validation_status": "not_validated",
+      "path_notes": "Discrete 0..5 profile, not a continuous percent or gain; TF override -1 is inheritance. Eco/Safe can cap the resolved level. Level 0 remains a real profile and must not be assumed to disable all preview behavior.",
+      "structural_blocker": null
+    },
+    {
+      "key": "LeadAccelResponseTF1",
+      "axis": "longitudinal",
+      "family": "lead_response_profile",
+      "classification": "numeric_parameter",
+      "raw_scale": 1,
+      "physical_unit": "profile_level",
+      "special_values": {
+        "-1": "Inherit the common LeadAccelResponse value before driving-mode clipping."
+      },
+      "ui": {
+        "min": -1,
+        "max": 5,
+        "step": 1
+      },
+      "consumers": [
+        {
+          "path": "openpilot/selfdrive/carrot/carrot_functions.py",
+          "symbol": "CarrotPlanner._params_update"
+        },
+        {
+          "path": "openpilot/selfdrive/carrot/t_follow.py",
+          "symbol": "get_lead_response_for_gap"
+        },
+        {
+          "path": "openpilot/selfdrive/carrot/driving_mode.py",
+          "symbol": "get_mode_lead_response"
+        },
+        {
+          "path": "openpilot/selfdrive/controls/lib/longitudinal_preview.py",
+          "symbol": "get_lead_accel_mpc_request"
+        }
+      ],
+      "requires": [
+        "discrete profile evaluated in actual driving mode and selected gap",
+        "valid stable lead and MPC-source qualification"
+      ],
+      "dependencies": [
+        "LeadAccelResponse"
+      ],
+      "required_signals": [
+        "carState.vEgo",
+        "carState.aEgo",
+        "carState.gasPressed",
+        "carState.brakePressed",
+        "carControl.longActive",
+        "longitudinalPlan.aTarget",
+        "longitudinalPlan.vTargetNow",
+        "longitudinalPlan.jTargetNow",
+        "carControl.actuators.accel",
+        "carOutput.actuatorsOutput.accel",
+        "controlsState.longControlState",
+        "radarState",
+        "sendcan",
+        "selfdriveState.personality",
+        "longitudinalPlan.leadPreviewSeconds",
+        "longitudinalPlan.leadPreviewAccel",
+        "longitudinalPlan.tFollow"
+      ],
+      "implementation_status": "not_implemented",
+      "validation_status": "not_validated",
+      "path_notes": "Discrete 0..5 profile, not a continuous percent or gain; TF override -1 is inheritance. Eco/Safe can cap the resolved level. Level 0 remains a real profile and must not be assumed to disable all preview behavior.",
+      "structural_blocker": null
+    },
+    {
+      "key": "LeadAccelResponseTF2",
+      "axis": "longitudinal",
+      "family": "lead_response_profile",
+      "classification": "numeric_parameter",
+      "raw_scale": 1,
+      "physical_unit": "profile_level",
+      "special_values": {
+        "-1": "Inherit the common LeadAccelResponse value before driving-mode clipping."
+      },
+      "ui": {
+        "min": -1,
+        "max": 5,
+        "step": 1
+      },
+      "consumers": [
+        {
+          "path": "openpilot/selfdrive/carrot/carrot_functions.py",
+          "symbol": "CarrotPlanner._params_update"
+        },
+        {
+          "path": "openpilot/selfdrive/carrot/t_follow.py",
+          "symbol": "get_lead_response_for_gap"
+        },
+        {
+          "path": "openpilot/selfdrive/carrot/driving_mode.py",
+          "symbol": "get_mode_lead_response"
+        },
+        {
+          "path": "openpilot/selfdrive/controls/lib/longitudinal_preview.py",
+          "symbol": "get_lead_accel_mpc_request"
+        }
+      ],
+      "requires": [
+        "discrete profile evaluated in actual driving mode and selected gap",
+        "valid stable lead and MPC-source qualification"
+      ],
+      "dependencies": [
+        "LeadAccelResponse"
+      ],
+      "required_signals": [
+        "carState.vEgo",
+        "carState.aEgo",
+        "carState.gasPressed",
+        "carState.brakePressed",
+        "carControl.longActive",
+        "longitudinalPlan.aTarget",
+        "longitudinalPlan.vTargetNow",
+        "longitudinalPlan.jTargetNow",
+        "carControl.actuators.accel",
+        "carOutput.actuatorsOutput.accel",
+        "controlsState.longControlState",
+        "radarState",
+        "sendcan",
+        "selfdriveState.personality",
+        "longitudinalPlan.leadPreviewSeconds",
+        "longitudinalPlan.leadPreviewAccel",
+        "longitudinalPlan.tFollow"
+      ],
+      "implementation_status": "not_implemented",
+      "validation_status": "not_validated",
+      "path_notes": "Discrete 0..5 profile, not a continuous percent or gain; TF override -1 is inheritance. Eco/Safe can cap the resolved level. Level 0 remains a real profile and must not be assumed to disable all preview behavior.",
+      "structural_blocker": null
+    },
+    {
+      "key": "LeadAccelResponseTF3",
+      "axis": "longitudinal",
+      "family": "lead_response_profile",
+      "classification": "numeric_parameter",
+      "raw_scale": 1,
+      "physical_unit": "profile_level",
+      "special_values": {
+        "-1": "Inherit the common LeadAccelResponse value before driving-mode clipping."
+      },
+      "ui": {
+        "min": -1,
+        "max": 5,
+        "step": 1
+      },
+      "consumers": [
+        {
+          "path": "openpilot/selfdrive/carrot/carrot_functions.py",
+          "symbol": "CarrotPlanner._params_update"
+        },
+        {
+          "path": "openpilot/selfdrive/carrot/t_follow.py",
+          "symbol": "get_lead_response_for_gap"
+        },
+        {
+          "path": "openpilot/selfdrive/carrot/driving_mode.py",
+          "symbol": "get_mode_lead_response"
+        },
+        {
+          "path": "openpilot/selfdrive/controls/lib/longitudinal_preview.py",
+          "symbol": "get_lead_accel_mpc_request"
+        }
+      ],
+      "requires": [
+        "discrete profile evaluated in actual driving mode and selected gap",
+        "valid stable lead and MPC-source qualification"
+      ],
+      "dependencies": [
+        "LeadAccelResponse"
+      ],
+      "required_signals": [
+        "carState.vEgo",
+        "carState.aEgo",
+        "carState.gasPressed",
+        "carState.brakePressed",
+        "carControl.longActive",
+        "longitudinalPlan.aTarget",
+        "longitudinalPlan.vTargetNow",
+        "longitudinalPlan.jTargetNow",
+        "carControl.actuators.accel",
+        "carOutput.actuatorsOutput.accel",
+        "controlsState.longControlState",
+        "radarState",
+        "sendcan",
+        "selfdriveState.personality",
+        "longitudinalPlan.leadPreviewSeconds",
+        "longitudinalPlan.leadPreviewAccel",
+        "longitudinalPlan.tFollow"
+      ],
+      "implementation_status": "not_implemented",
+      "validation_status": "not_validated",
+      "path_notes": "Discrete 0..5 profile, not a continuous percent or gain; TF override -1 is inheritance. Eco/Safe can cap the resolved level. Level 0 remains a real profile and must not be assumed to disable all preview behavior.",
+      "structural_blocker": null
+    },
+    {
+      "key": "LeadAccelResponseTF4",
+      "axis": "longitudinal",
+      "family": "lead_response_profile",
+      "classification": "numeric_parameter",
+      "raw_scale": 1,
+      "physical_unit": "profile_level",
+      "special_values": {
+        "-1": "Inherit the common LeadAccelResponse value before driving-mode clipping."
+      },
+      "ui": {
+        "min": -1,
+        "max": 5,
+        "step": 1
+      },
+      "consumers": [
+        {
+          "path": "openpilot/selfdrive/carrot/carrot_functions.py",
+          "symbol": "CarrotPlanner._params_update"
+        },
+        {
+          "path": "openpilot/selfdrive/carrot/t_follow.py",
+          "symbol": "get_lead_response_for_gap"
+        },
+        {
+          "path": "openpilot/selfdrive/carrot/driving_mode.py",
+          "symbol": "get_mode_lead_response"
+        },
+        {
+          "path": "openpilot/selfdrive/controls/lib/longitudinal_preview.py",
+          "symbol": "get_lead_accel_mpc_request"
+        }
+      ],
+      "requires": [
+        "discrete profile evaluated in actual driving mode and selected gap",
+        "valid stable lead and MPC-source qualification"
+      ],
+      "dependencies": [
+        "LeadAccelResponse"
+      ],
+      "required_signals": [
+        "carState.vEgo",
+        "carState.aEgo",
+        "carState.gasPressed",
+        "carState.brakePressed",
+        "carControl.longActive",
+        "longitudinalPlan.aTarget",
+        "longitudinalPlan.vTargetNow",
+        "longitudinalPlan.jTargetNow",
+        "carControl.actuators.accel",
+        "carOutput.actuatorsOutput.accel",
+        "controlsState.longControlState",
+        "radarState",
+        "sendcan",
+        "selfdriveState.personality",
+        "longitudinalPlan.leadPreviewSeconds",
+        "longitudinalPlan.leadPreviewAccel",
+        "longitudinalPlan.tFollow"
+      ],
+      "implementation_status": "not_implemented",
+      "validation_status": "not_validated",
+      "path_notes": "Discrete 0..5 profile, not a continuous percent or gain; TF override -1 is inheritance. Eco/Safe can cap the resolved level. Level 0 remains a real profile and must not be assumed to disable all preview behavior.",
+      "structural_blocker": null
+    },
+    {
+      "key": "StoppingAccel",
+      "axis": "longitudinal",
+      "family": "stopping",
+      "classification": "numeric_parameter",
+      "raw_scale": 0.01,
+      "physical_unit": "m/s^2",
+      "special_values": {},
+      "ui": {
+        "min": -100,
+        "max": -50,
+        "step": 10
+      },
+      "consumers": [
+        {
+          "path": "openpilot/selfdrive/controls/lib/longcontrol.py",
+          "symbol": "LongControl._refresh_stopping_accel"
+        },
+        {
+          "path": "openpilot/selfdrive/controls/lib/longcontrol.py",
+          "symbol": "LongControl.update"
+        }
+      ],
+      "requires": [
+        "normal ACC separated from independent SoftHold and vehicle hold",
+        "repeated stopping/departure and final output evidence"
+      ],
+      "dependencies": [
+        "StoppingAccel",
+        "VEgoStopping",
+        "StopDistanceCarrot",
+        "TrafficStopDistanceAdjust"
+      ],
+      "required_signals": [
+        "carState.vEgo",
+        "carState.aEgo",
+        "carState.gasPressed",
+        "carState.brakePressed",
+        "carControl.longActive",
+        "longitudinalPlan.aTarget",
+        "longitudinalPlan.vTargetNow",
+        "longitudinalPlan.jTargetNow",
+        "carControl.actuators.accel",
+        "carOutput.actuatorsOutput.accel",
+        "controlsState.longControlState",
+        "radarState",
+        "sendcan",
+        "carState.softHoldActive",
+        "carState.cruiseState.standstill",
+        "longitudinalPlan.shouldStop",
+        "longitudinalPlan.desiredDistance"
+      ],
+      "implementation_status": "not_implemented",
+      "validation_status": "not_validated",
+      "path_notes": "Hundredths of m/s^2, negative only; consumer clamps raw -100..-50. Normal stopping and independent SoftHold paths differ; preserve CP.stopAccel and hold transitions. Do not change during stopping/hold transition. carOutput acceleration is not proof of final Hyundai SCC aReqValue; decode sendcan with the matching DBC or require final-output diagnostic evidence.",
+      "structural_blocker": null
+    },
+    {
+      "key": "VEgoStopping",
+      "axis": "longitudinal",
+      "family": "stopping",
+      "classification": "numeric_parameter",
+      "raw_scale": 0.01,
+      "physical_unit": "m/s",
+      "special_values": {},
+      "ui": {
+        "min": 1,
+        "max": 100,
+        "step": 5
+      },
+      "consumers": [
+        {
+          "path": "openpilot/selfdrive/controls/lib/longitudinal_planner.py",
+          "symbol": "LongitudinalPlanner.update"
+        },
+        {
+          "path": "openpilot/selfdrive/modeld/modeld.py",
+          "symbol": "main"
+        }
+      ],
+      "requires": [
+        "normal ACC separated from independent SoftHold and vehicle hold",
+        "repeated stopping/departure and final output evidence"
+      ],
+      "dependencies": [
+        "StoppingAccel",
+        "VEgoStopping",
+        "StopDistanceCarrot",
+        "TrafficStopDistanceAdjust"
+      ],
+      "required_signals": [
+        "carState.vEgo",
+        "carState.aEgo",
+        "carState.gasPressed",
+        "carState.brakePressed",
+        "carControl.longActive",
+        "longitudinalPlan.aTarget",
+        "longitudinalPlan.vTargetNow",
+        "longitudinalPlan.jTargetNow",
+        "carControl.actuators.accel",
+        "carOutput.actuatorsOutput.accel",
+        "controlsState.longControlState",
+        "radarState",
+        "sendcan",
+        "carState.softHoldActive",
+        "carState.cruiseState.standstill",
+        "longitudinalPlan.shouldStop",
+        "longitudinalPlan.desiredDistance"
+      ],
+      "implementation_status": "not_implemented",
+      "validation_status": "not_validated",
+      "path_notes": "Hundredths of m/s. Existing stored values and UI minimum raw1 must be preserved; do not force a historical minimum10 or convert the threshold to km/h. Do not change during stopping/hold transition. carOutput acceleration is not proof of final Hyundai SCC aReqValue; decode sendcan with the matching DBC or require final-output diagnostic evidence.",
+      "structural_blocker": null
+    },
+    {
+      "key": "StopDistanceCarrot",
+      "axis": "longitudinal",
+      "family": "stopping",
+      "classification": "numeric_parameter",
+      "raw_scale": 0.01,
+      "physical_unit": "m",
+      "special_values": {},
+      "ui": {
+        "min": 400,
+        "max": 1000,
+        "step": 10
+      },
+      "consumers": [
+        {
+          "path": "openpilot/selfdrive/carrot/carrot_functions.py",
+          "symbol": "CarrotPlanner._params_update"
+        },
+        {
+          "path": "openpilot/selfdrive/controls/lib/longitudinal_mpc_lib/long_mpc.py",
+          "symbol": "LongitudinalMpc.update"
+        }
+      ],
+      "requires": [
+        "normal ACC separated from independent SoftHold and vehicle hold",
+        "repeated stopping/departure and final output evidence"
+      ],
+      "dependencies": [
+        "StoppingAccel",
+        "VEgoStopping",
+        "StopDistanceCarrot",
+        "TrafficStopDistanceAdjust"
+      ],
+      "required_signals": [
+        "carState.vEgo",
+        "carState.aEgo",
+        "carState.gasPressed",
+        "carState.brakePressed",
+        "carControl.longActive",
+        "longitudinalPlan.aTarget",
+        "longitudinalPlan.vTargetNow",
+        "longitudinalPlan.jTargetNow",
+        "carControl.actuators.accel",
+        "carOutput.actuatorsOutput.accel",
+        "controlsState.longControlState",
+        "radarState",
+        "sendcan",
+        "carState.softHoldActive",
+        "carState.cruiseState.standstill",
+        "longitudinalPlan.shouldStop",
+        "longitudinalPlan.desiredDistance"
+      ],
+      "implementation_status": "not_implemented",
+      "validation_status": "not_validated",
+      "path_notes": "Raw centimetres consumed as metres; contributes to following/stopping obstacle distance and is not the internal user_stop_distance state. Do not change during stopping/hold transition. carOutput acceleration is not proof of final Hyundai SCC aReqValue; decode sendcan with the matching DBC or require final-output diagnostic evidence.",
+      "structural_blocker": null
+    },
+    {
+      "key": "TrafficStopDistanceAdjust",
+      "axis": "longitudinal",
+      "family": "stopping",
+      "classification": "numeric_parameter",
+      "raw_scale": 0.01,
+      "physical_unit": "m",
+      "special_values": {},
+      "ui": {
+        "min": -600,
+        "max": 600,
+        "step": 100
+      },
+      "consumers": [
+        {
+          "path": "openpilot/selfdrive/carrot/carrot_functions.py",
+          "symbol": "CarrotPlanner._params_update"
+        },
+        {
+          "path": "openpilot/selfdrive/controls/lib/longitudinal_mpc_lib/long_mpc.py",
+          "symbol": "LongitudinalMpc.update"
+        }
+      ],
+      "requires": [
+        "normal ACC separated from independent SoftHold and vehicle hold",
+        "repeated stopping/departure and final output evidence"
+      ],
+      "dependencies": [
+        "StoppingAccel",
+        "VEgoStopping",
+        "StopDistanceCarrot",
+        "TrafficStopDistanceAdjust"
+      ],
+      "required_signals": [
+        "carState.vEgo",
+        "carState.aEgo",
+        "carState.gasPressed",
+        "carState.brakePressed",
+        "carControl.longActive",
+        "longitudinalPlan.aTarget",
+        "longitudinalPlan.vTargetNow",
+        "longitudinalPlan.jTargetNow",
+        "carControl.actuators.accel",
+        "carOutput.actuatorsOutput.accel",
+        "controlsState.longControlState",
+        "radarState",
+        "sendcan",
+        "carState.softHoldActive",
+        "carState.cruiseState.standstill",
+        "longitudinalPlan.shouldStop",
+        "longitudinalPlan.desiredDistance"
+      ],
+      "implementation_status": "not_implemented",
+      "validation_status": "not_validated",
+      "path_notes": "Signed centimetres consumed as metres by the traffic-stop obstacle adjustment; does not replace lead-follow, signal guard, independent SoftHold or driver-hold contracts. Do not change during stopping/hold transition. carOutput acceleration is not proof of final Hyundai SCC aReqValue; decode sendcan with the matching DBC or require final-output diagnostic evidence.",
+      "structural_blocker": null
+    },
+    {
+      "key": "PathOffset",
+      "axis": "lateral",
+      "family": "path_geometry",
+      "classification": "numeric_parameter",
+      "raw_scale": 0.01,
+      "physical_unit": "m",
+      "special_values": {},
+      "ui": {
+        "min": -150,
+        "max": 150,
+        "step": 1
+      },
+      "consumers": [
+        {
+          "path": "openpilot/selfdrive/controls/lib/lateral_planner.py",
+          "symbol": "LateralPlanner.update"
+        },
+        {
+          "path": "openpilot/selfdrive/controls/controlsd.py",
+          "symbol": "Controls.state_control"
+        }
+      ],
+      "requires": [
+        "actual lateral target source identified",
+        "independent lane/path position, roll and calibration evidence"
+      ],
+      "dependencies": [
+        "LatMpcInputOffset",
+        "SteerRatioRate"
+      ],
+      "required_signals": [
+        "carState",
+        "modelV2",
+        "lateralPlan",
+        "controlsState.activeLaneLine",
+        "controlsState.desiredCurvature",
+        "livePose",
+        "liveParameters"
+      ],
+      "implementation_status": "not_implemented",
+      "validation_status": "not_validated",
+      "path_notes": "Signed centimetres added to planned path y before lateral MPC. Lateral planner geometry can be calculated even when controlsd uses model action directly; a path offset is not proof of a corresponding lane-free command change. Steering angle mean alone does not identify path offset.",
+      "structural_blocker": null
+    },
+    {
+      "key": "SteerRatioRate",
+      "axis": "lateral",
+      "family": "vehicle_model",
+      "classification": "numeric_parameter",
+      "raw_scale": 0.01,
+      "physical_unit": "1",
+      "special_values": {},
+      "ui": {
+        "min": 30,
+        "max": 200,
+        "step": 1
+      },
+      "consumers": [
+        {
+          "path": "openpilot/selfdrive/controls/controlsd.py",
+          "symbol": "Controls.state_control"
+        },
+        {
+          "path": "openpilot/selfdrive/controls/lib/steer_ratio.py",
+          "symbol": "resolve_vehicle_model_steer_ratio"
+        }
+      ],
+      "requires": [
+        "manual CustomSR override not selected",
+        "learned ratio and actual vehicle model sensitivity known"
+      ],
+      "dependencies": [
+        "CustomSR",
+        "PathOffset"
+      ],
+      "required_signals": [
+        "carState.steeringAngleDeg",
+        "carState.vEgo",
+        "liveParameters.steerRatio",
+        "liveParameters.angleOffsetDeg",
+        "liveParameters.roll",
+        "livePose",
+        "controlsState.curvature"
+      ],
+      "implementation_status": "not_implemented",
+      "validation_status": "not_validated",
+      "path_notes": "Multiplier on learned steer ratio, not a change to physical steering gearing. Valid raw range30..200; invalid values fall back to100. A valid CustomSR takes precedence and bypasses this multiplier.",
+      "structural_blocker": null
+    },
+    {
+      "key": "CustomSR",
+      "axis": "lateral",
+      "family": "vehicle_model_context",
+      "classification": "context_only",
+      "raw_scale": 0.1,
+      "physical_unit": "steering_ratio",
+      "special_values": {
+        "0": "No manual ratio override; use learned ratio with SteerRatioRate."
+      },
+      "ui": {
+        "min": 0,
+        "max": 300,
+        "step": 1
+      },
+      "consumers": [
+        {
+          "path": "openpilot/selfdrive/controls/controlsd.py",
+          "symbol": "Controls.state_control"
+        },
+        {
+          "path": "openpilot/selfdrive/controls/lib/steer_ratio.py",
+          "symbol": "resolve_vehicle_model_steer_ratio"
+        }
+      ],
+      "requires": [],
+      "dependencies": [
+        "SteerRatioRate"
+      ],
+      "required_signals": [
+        "initData.params",
+        "liveParameters.steerRatio"
+      ],
+      "implementation_status": "not_implemented",
+      "validation_status": "not_validated",
+      "path_notes": "Initial inventory classified this as mode context. Offline calibration may adjust an already active manual ratio without crossing raw 10. The settings schema provides raw 0..300 in steps of 1; these are menu bounds, not validated change limits. Consumer selects finite raw*0.1 only when the resulting ratio >1; otherwise it uses the scaled learned ratio.",
+      "structural_blocker": null
+    }
+  ]
+}

@@ -1,0 +1,1295 @@
+{
+  "schema_version": 1,
+  "scope": "sampled_consumer_observation_coverage",
+  "consumer_application_ack": false,
+  "device_qualified": false,
+  "notes": [
+    "Stored values, sampled effective object values, read freshness and application ACK are separate.",
+    "A missing consumer or bypassed/unsupported path never proves application.",
+    "Dropped-event counts include coalesced contention loss markers and are not exact publisher loss counts."
+  ],
+  "consumers": [
+    {
+      "consumer_id": "controls.vehicle_model",
+      "source_path": "openpilot/selfdrive/controls/controlsd.py",
+      "meaning": "Current vehicle-model overrides and resolved model context",
+      "sampling": "at_most_1_hz_sampled_observation",
+      "consumer_application_ack": false
+    },
+    {
+      "consumer_id": "controls.lateral_target",
+      "source_path": "openpilot/selfdrive/controls/controlsd.py",
+      "meaning": "Current steering-delay and smoothing inputs at curvature target selection",
+      "sampling": "at_most_1_hz_sampled_observation",
+      "consumer_application_ack": false
+    },
+    {
+      "consumer_id": "controls.torque",
+      "source_path": "openpilot/selfdrive/controls/lib/latcontrol_torque.py",
+      "meaning": "Current torque controller coefficients and constructor-latched FF context",
+      "sampling": "at_most_1_hz_sampled_observation",
+      "consumer_application_ack": false
+    },
+    {
+      "consumer_id": "controls.longitudinal",
+      "source_path": "openpilot/selfdrive/controls/lib/longcontrol.py",
+      "meaning": "Current longitudinal PID/fixed-brand/stop controller values",
+      "sampling": "at_most_1_hz_sampled_observation",
+      "consumer_application_ack": false
+    },
+    {
+      "consumer_id": "modeld.action",
+      "source_path": "openpilot/selfdrive/modeld/modeld.py",
+      "meaning": "Current action-head timing inputs; used and next delay components remain separate",
+      "sampling": "at_most_1_hz_sampled_observation",
+      "consumer_application_ack": false
+    },
+    {
+      "consumer_id": "planner.lateral",
+      "source_path": "openpilot/selfdrive/controls/lib/lateral_planner.py",
+      "meaning": "Lane MPC cost and path-offset inputs in the selected planning path",
+      "sampling": "at_most_1_hz_sampled_observation",
+      "consumer_application_ack": false
+    },
+    {
+      "consumer_id": "planner.lane_path",
+      "source_path": "openpilot/selfdrive/controls/lib/lane_planner_2.py",
+      "meaning": "Lane input time-warp offset at the consuming path",
+      "sampling": "at_most_1_hz_sampled_observation",
+      "consumer_application_ack": false
+    },
+    {
+      "consumer_id": "planner.longitudinal",
+      "source_path": "openpilot/selfdrive/controls/lib/longitudinal_planner.py",
+      "meaning": "Longitudinal delay/stopping threshold and selected acceleration-cap context",
+      "sampling": "at_most_1_hz_sampled_observation",
+      "consumer_application_ack": false
+    },
+    {
+      "consumer_id": "planner.carrot",
+      "source_path": "openpilot/selfdrive/carrot/carrot_functions.py",
+      "meaning": "Cached stored-value observations; group reads do not prove final dynamic use",
+      "sampling": "at_most_1_hz_sampled_observation",
+      "consumer_application_ack": false
+    },
+    {
+      "consumer_id": "planner.long_mpc",
+      "source_path": "openpilot/selfdrive/controls/lib/longitudinal_mpc_lib/long_mpc.py",
+      "meaning": "Selected gap, lead-response and stopping inputs with dynamic output context",
+      "sampling": "at_most_1_hz_sampled_observation",
+      "consumer_application_ack": false
+    }
+  ],
+  "parameters": [
+    {
+      "key": "LateralTorqueAccelFactor",
+      "consumers": [
+        {
+          "consumer_id": "controls.torque",
+          "source_path": "openpilot/selfdrive/controls/lib/latcontrol_torque.py",
+          "meaning": "Current torque controller coefficients and constructor-latched FF context",
+          "conditions": [
+            "torque lateral controller active",
+            "LateralTorqueCustom > 0",
+            "effective FF path identified"
+          ],
+          "latched": false,
+          "dynamic": false,
+          "units": "consumer_physical_units",
+          "consumer_application_ack": false
+        }
+      ]
+    },
+    {
+      "key": "LateralTorqueFriction",
+      "consumers": [
+        {
+          "consumer_id": "controls.torque",
+          "source_path": "openpilot/selfdrive/controls/lib/latcontrol_torque.py",
+          "meaning": "Current torque controller coefficients and constructor-latched FF context",
+          "conditions": [
+            "torque lateral controller active",
+            "LateralTorqueCustom > 0",
+            "effective FF path identified"
+          ],
+          "latched": false,
+          "dynamic": false,
+          "units": "consumer_physical_units",
+          "consumer_application_ack": false
+        }
+      ]
+    },
+    {
+      "key": "LateralTorqueKpV",
+      "consumers": [
+        {
+          "consumer_id": "controls.torque",
+          "source_path": "openpilot/selfdrive/controls/lib/latcontrol_torque.py",
+          "meaning": "Current torque controller coefficients and constructor-latched FF context",
+          "conditions": [
+            "torque lateral controller active",
+            "LateralTorqueCustom > 0",
+            "effective FF path identified"
+          ],
+          "latched": false,
+          "dynamic": false,
+          "units": "consumer_physical_units",
+          "consumer_application_ack": false
+        }
+      ]
+    },
+    {
+      "key": "LateralTorqueKiV",
+      "consumers": [
+        {
+          "consumer_id": "controls.torque",
+          "source_path": "openpilot/selfdrive/controls/lib/latcontrol_torque.py",
+          "meaning": "Current torque controller coefficients and constructor-latched FF context",
+          "conditions": [
+            "torque lateral controller active",
+            "LateralTorqueCustom > 0",
+            "effective FF path identified"
+          ],
+          "latched": false,
+          "dynamic": false,
+          "units": "consumer_physical_units",
+          "consumer_application_ack": false
+        }
+      ]
+    },
+    {
+      "key": "LateralTorqueKf",
+      "consumers": [
+        {
+          "consumer_id": "controls.torque",
+          "source_path": "openpilot/selfdrive/controls/lib/latcontrol_torque.py",
+          "meaning": "Current torque controller coefficients and constructor-latched FF context",
+          "conditions": [
+            "torque lateral controller active",
+            "LateralTorqueCustom > 0",
+            "effective FF path identified"
+          ],
+          "latched": false,
+          "dynamic": false,
+          "units": "consumer_physical_units",
+          "consumer_application_ack": false
+        }
+      ]
+    },
+    {
+      "key": "LateralTorqueKd",
+      "consumers": [
+        {
+          "consumer_id": "controls.torque",
+          "source_path": "openpilot/selfdrive/controls/lib/latcontrol_torque.py",
+          "meaning": "Current torque controller coefficients and constructor-latched FF context",
+          "conditions": [
+            "torque lateral controller active",
+            "LateralTorqueCustom > 0",
+            "effective FF path identified",
+            "current_derivative_path_unsupported_effective_zero"
+          ],
+          "latched": false,
+          "dynamic": false,
+          "units": "consumer_physical_units",
+          "consumer_application_ack": false
+        }
+      ]
+    },
+    {
+      "key": "LateralTorqueCustom",
+      "consumers": [
+        {
+          "consumer_id": "controls.torque",
+          "source_path": "openpilot/selfdrive/controls/lib/latcontrol_torque.py",
+          "meaning": "Current torque controller coefficients and constructor-latched FF context",
+          "conditions": [],
+          "latched": false,
+          "dynamic": false,
+          "units": "consumer_physical_units",
+          "consumer_application_ack": false
+        }
+      ]
+    },
+    {
+      "key": "NNFF",
+      "consumers": [
+        {
+          "consumer_id": "controls.torque",
+          "source_path": "openpilot/selfdrive/controls/lib/latcontrol_torque.py",
+          "meaning": "Current torque controller coefficients and constructor-latched FF context",
+          "conditions": [],
+          "latched": true,
+          "dynamic": false,
+          "units": "consumer_physical_units",
+          "consumer_application_ack": false
+        }
+      ]
+    },
+    {
+      "key": "NNFFLite",
+      "consumers": [
+        {
+          "consumer_id": "controls.torque",
+          "source_path": "openpilot/selfdrive/controls/lib/latcontrol_torque.py",
+          "meaning": "Current torque controller coefficients and constructor-latched FF context",
+          "conditions": [],
+          "latched": true,
+          "dynamic": false,
+          "units": "consumer_physical_units",
+          "consumer_application_ack": false
+        }
+      ]
+    },
+    {
+      "key": "SteerActuatorDelay",
+      "consumers": [
+        {
+          "consumer_id": "controls.lateral_target",
+          "source_path": "openpilot/selfdrive/controls/controlsd.py",
+          "meaning": "Current steering-delay and smoothing inputs at curvature target selection",
+          "conditions": [],
+          "latched": false,
+          "dynamic": true,
+          "units": "consumer_physical_units",
+          "consumer_application_ack": false
+        },
+        {
+          "consumer_id": "controls.torque",
+          "source_path": "openpilot/selfdrive/controls/lib/latcontrol_torque.py",
+          "meaning": "Current torque controller coefficients and constructor-latched FF context",
+          "conditions": [],
+          "latched": true,
+          "dynamic": false,
+          "units": "consumer_physical_units",
+          "consumer_application_ack": false
+        },
+        {
+          "consumer_id": "modeld.action",
+          "source_path": "openpilot/selfdrive/modeld/modeld.py",
+          "meaning": "Current action-head timing inputs; used and next delay components remain separate",
+          "conditions": [],
+          "latched": false,
+          "dynamic": true,
+          "units": "consumer_physical_units",
+          "consumer_application_ack": false
+        }
+      ]
+    },
+    {
+      "key": "LatSmoothSec",
+      "consumers": [
+        {
+          "consumer_id": "controls.lateral_target",
+          "source_path": "openpilot/selfdrive/controls/controlsd.py",
+          "meaning": "Current steering-delay and smoothing inputs at curvature target selection",
+          "conditions": [],
+          "latched": false,
+          "dynamic": true,
+          "units": "consumer_physical_units",
+          "consumer_application_ack": false
+        },
+        {
+          "consumer_id": "modeld.action",
+          "source_path": "openpilot/selfdrive/modeld/modeld.py",
+          "meaning": "Current action-head timing inputs; used and next delay components remain separate",
+          "conditions": [],
+          "latched": false,
+          "dynamic": true,
+          "units": "consumer_physical_units",
+          "consumer_application_ack": false
+        }
+      ]
+    },
+    {
+      "key": "LatMpcPathCost",
+      "consumers": [
+        {
+          "consumer_id": "planner.lateral",
+          "source_path": "openpilot/selfdrive/controls/lib/lateral_planner.py",
+          "meaning": "Lane MPC cost and path-offset inputs in the selected planning path",
+          "conditions": [
+            "lane-MPC-derived target actually selected by controlsd",
+            "solver and downstream vehicle response evidence available",
+            "actual_selected_planning_path_required"
+          ],
+          "latched": false,
+          "dynamic": false,
+          "units": "consumer_physical_units",
+          "consumer_application_ack": false
+        }
+      ]
+    },
+    {
+      "key": "LatMpcMotionCost",
+      "consumers": [
+        {
+          "consumer_id": "planner.lateral",
+          "source_path": "openpilot/selfdrive/controls/lib/lateral_planner.py",
+          "meaning": "Lane MPC cost and path-offset inputs in the selected planning path",
+          "conditions": [
+            "lane-MPC-derived target actually selected by controlsd",
+            "solver and downstream vehicle response evidence available",
+            "actual_selected_planning_path_required"
+          ],
+          "latched": false,
+          "dynamic": false,
+          "units": "consumer_physical_units",
+          "consumer_application_ack": false
+        }
+      ]
+    },
+    {
+      "key": "LatMpcAccelCost",
+      "consumers": [
+        {
+          "consumer_id": "planner.lateral",
+          "source_path": "openpilot/selfdrive/controls/lib/lateral_planner.py",
+          "meaning": "Lane MPC cost and path-offset inputs in the selected planning path",
+          "conditions": [
+            "lane-MPC-derived target actually selected by controlsd",
+            "solver and downstream vehicle response evidence available",
+            "actual_selected_planning_path_required"
+          ],
+          "latched": false,
+          "dynamic": false,
+          "units": "consumer_physical_units",
+          "consumer_application_ack": false
+        }
+      ]
+    },
+    {
+      "key": "LatMpcJerkCost",
+      "consumers": [
+        {
+          "consumer_id": "planner.lateral",
+          "source_path": "openpilot/selfdrive/controls/lib/lateral_planner.py",
+          "meaning": "Lane MPC cost and path-offset inputs in the selected planning path",
+          "conditions": [
+            "lane-MPC-derived target actually selected by controlsd",
+            "solver and downstream vehicle response evidence available",
+            "actual_selected_planning_path_required"
+          ],
+          "latched": false,
+          "dynamic": false,
+          "units": "consumer_physical_units",
+          "consumer_application_ack": false
+        }
+      ]
+    },
+    {
+      "key": "LatMpcSteeringRateCost",
+      "consumers": [
+        {
+          "consumer_id": "planner.lateral",
+          "source_path": "openpilot/selfdrive/controls/lib/lateral_planner.py",
+          "meaning": "Lane MPC cost and path-offset inputs in the selected planning path",
+          "conditions": [
+            "lane-MPC-derived target actually selected by controlsd",
+            "solver and downstream vehicle response evidence available",
+            "actual_selected_planning_path_required"
+          ],
+          "latched": false,
+          "dynamic": false,
+          "units": "consumer_physical_units",
+          "consumer_application_ack": false
+        }
+      ]
+    },
+    {
+      "key": "LatMpcInputOffset",
+      "consumers": [
+        {
+          "consumer_id": "planner.lane_path",
+          "source_path": "openpilot/selfdrive/controls/lib/lane_planner_2.py",
+          "meaning": "Lane input time-warp offset at the consuming path",
+          "conditions": [
+            "lane path selected",
+            "actual_selected_planning_path_required"
+          ],
+          "latched": false,
+          "dynamic": false,
+          "units": "consumer_physical_units",
+          "consumer_application_ack": false
+        }
+      ]
+    },
+    {
+      "key": "LongTuningKpV",
+      "consumers": [
+        {
+          "consumer_id": "controls.longitudinal",
+          "source_path": "openpilot/selfdrive/controls/lib/longcontrol.py",
+          "meaning": "Current longitudinal PID/fixed-brand/stop controller values",
+          "conditions": [
+            "brand is neither hyundai (including Kia/Genesis) nor toyota",
+            "single-breakpoint variable longitudinal tuning path selected",
+            "openpilot longitudinal controller active",
+            "hyundai_toyota_platform_fixed_paths_bypass_stored_tuning"
+          ],
+          "latched": false,
+          "dynamic": false,
+          "units": "consumer_physical_units",
+          "consumer_application_ack": false
+        }
+      ]
+    },
+    {
+      "key": "LongTuningKiV",
+      "consumers": [
+        {
+          "consumer_id": "controls.longitudinal",
+          "source_path": "openpilot/selfdrive/controls/lib/longcontrol.py",
+          "meaning": "Current longitudinal PID/fixed-brand/stop controller values",
+          "conditions": [
+            "brand is neither hyundai (including Kia/Genesis) nor toyota",
+            "single-breakpoint variable longitudinal tuning path selected",
+            "openpilot longitudinal controller active",
+            "hyundai_toyota_platform_fixed_paths_bypass_stored_tuning"
+          ],
+          "latched": false,
+          "dynamic": false,
+          "units": "consumer_physical_units",
+          "consumer_application_ack": false
+        }
+      ]
+    },
+    {
+      "key": "LongTuningKf",
+      "consumers": [
+        {
+          "consumer_id": "controls.longitudinal",
+          "source_path": "openpilot/selfdrive/controls/lib/longcontrol.py",
+          "meaning": "Current longitudinal PID/fixed-brand/stop controller values",
+          "conditions": [
+            "brand is neither hyundai (including Kia/Genesis) nor toyota",
+            "single-breakpoint variable longitudinal tuning path selected",
+            "openpilot longitudinal controller active",
+            "hyundai_toyota_platform_fixed_paths_bypass_stored_tuning"
+          ],
+          "latched": false,
+          "dynamic": false,
+          "units": "consumer_physical_units",
+          "consumer_application_ack": false
+        }
+      ]
+    },
+    {
+      "key": "LongActuatorDelay",
+      "consumers": [
+        {
+          "consumer_id": "modeld.action",
+          "source_path": "openpilot/selfdrive/modeld/modeld.py",
+          "meaning": "Current action-head timing inputs; used and next delay components remain separate",
+          "conditions": [
+            "effective longitudinal path identified",
+            "planner and modeld transition timing observable"
+          ],
+          "latched": false,
+          "dynamic": true,
+          "units": "consumer_physical_units",
+          "consumer_application_ack": false
+        },
+        {
+          "consumer_id": "planner.longitudinal",
+          "source_path": "openpilot/selfdrive/controls/lib/longitudinal_planner.py",
+          "meaning": "Longitudinal delay/stopping threshold and selected acceleration-cap context",
+          "conditions": [
+            "effective longitudinal path identified",
+            "planner and modeld transition timing observable",
+            "actual_selected_planning_path_required"
+          ],
+          "latched": false,
+          "dynamic": true,
+          "units": "consumer_physical_units",
+          "consumer_application_ack": false
+        }
+      ]
+    },
+    {
+      "key": "CruiseMaxVals0",
+      "consumers": [
+        {
+          "consumer_id": "planner.longitudinal",
+          "source_path": "openpilot/selfdrive/controls/lib/longitudinal_planner.py",
+          "meaning": "Longitudinal delay/stopping threshold and selected acceleration-cap context",
+          "conditions": [
+            "speed-band interpolation and driving-mode factor resolved",
+            "higher-priority lead/curve/vehicle limits distinguished",
+            "actual_selected_planning_path_required"
+          ],
+          "latched": false,
+          "dynamic": true,
+          "units": "consumer_physical_units",
+          "consumer_application_ack": false
+        },
+        {
+          "consumer_id": "planner.carrot",
+          "source_path": "openpilot/selfdrive/carrot/carrot_functions.py",
+          "meaning": "Cached stored-value observations; group reads do not prove final dynamic use",
+          "conditions": [
+            "speed-band interpolation and driving-mode factor resolved",
+            "higher-priority lead/curve/vehicle limits distinguished",
+            "cached_read_only_not_final_dynamic_use"
+          ],
+          "latched": false,
+          "dynamic": false,
+          "units": "consumer_physical_units",
+          "consumer_application_ack": false
+        }
+      ]
+    },
+    {
+      "key": "CruiseMaxVals1",
+      "consumers": [
+        {
+          "consumer_id": "planner.longitudinal",
+          "source_path": "openpilot/selfdrive/controls/lib/longitudinal_planner.py",
+          "meaning": "Longitudinal delay/stopping threshold and selected acceleration-cap context",
+          "conditions": [
+            "speed-band interpolation and driving-mode factor resolved",
+            "higher-priority lead/curve/vehicle limits distinguished",
+            "actual_selected_planning_path_required"
+          ],
+          "latched": false,
+          "dynamic": true,
+          "units": "consumer_physical_units",
+          "consumer_application_ack": false
+        },
+        {
+          "consumer_id": "planner.carrot",
+          "source_path": "openpilot/selfdrive/carrot/carrot_functions.py",
+          "meaning": "Cached stored-value observations; group reads do not prove final dynamic use",
+          "conditions": [
+            "speed-band interpolation and driving-mode factor resolved",
+            "higher-priority lead/curve/vehicle limits distinguished",
+            "cached_read_only_not_final_dynamic_use"
+          ],
+          "latched": false,
+          "dynamic": false,
+          "units": "consumer_physical_units",
+          "consumer_application_ack": false
+        }
+      ]
+    },
+    {
+      "key": "CruiseMaxVals2",
+      "consumers": [
+        {
+          "consumer_id": "planner.longitudinal",
+          "source_path": "openpilot/selfdrive/controls/lib/longitudinal_planner.py",
+          "meaning": "Longitudinal delay/stopping threshold and selected acceleration-cap context",
+          "conditions": [
+            "speed-band interpolation and driving-mode factor resolved",
+            "higher-priority lead/curve/vehicle limits distinguished",
+            "actual_selected_planning_path_required"
+          ],
+          "latched": false,
+          "dynamic": true,
+          "units": "consumer_physical_units",
+          "consumer_application_ack": false
+        },
+        {
+          "consumer_id": "planner.carrot",
+          "source_path": "openpilot/selfdrive/carrot/carrot_functions.py",
+          "meaning": "Cached stored-value observations; group reads do not prove final dynamic use",
+          "conditions": [
+            "speed-band interpolation and driving-mode factor resolved",
+            "higher-priority lead/curve/vehicle limits distinguished",
+            "cached_read_only_not_final_dynamic_use"
+          ],
+          "latched": false,
+          "dynamic": false,
+          "units": "consumer_physical_units",
+          "consumer_application_ack": false
+        }
+      ]
+    },
+    {
+      "key": "CruiseMaxVals3",
+      "consumers": [
+        {
+          "consumer_id": "planner.longitudinal",
+          "source_path": "openpilot/selfdrive/controls/lib/longitudinal_planner.py",
+          "meaning": "Longitudinal delay/stopping threshold and selected acceleration-cap context",
+          "conditions": [
+            "speed-band interpolation and driving-mode factor resolved",
+            "higher-priority lead/curve/vehicle limits distinguished",
+            "actual_selected_planning_path_required"
+          ],
+          "latched": false,
+          "dynamic": true,
+          "units": "consumer_physical_units",
+          "consumer_application_ack": false
+        },
+        {
+          "consumer_id": "planner.carrot",
+          "source_path": "openpilot/selfdrive/carrot/carrot_functions.py",
+          "meaning": "Cached stored-value observations; group reads do not prove final dynamic use",
+          "conditions": [
+            "speed-band interpolation and driving-mode factor resolved",
+            "higher-priority lead/curve/vehicle limits distinguished",
+            "cached_read_only_not_final_dynamic_use"
+          ],
+          "latched": false,
+          "dynamic": false,
+          "units": "consumer_physical_units",
+          "consumer_application_ack": false
+        }
+      ]
+    },
+    {
+      "key": "CruiseMaxVals4",
+      "consumers": [
+        {
+          "consumer_id": "planner.longitudinal",
+          "source_path": "openpilot/selfdrive/controls/lib/longitudinal_planner.py",
+          "meaning": "Longitudinal delay/stopping threshold and selected acceleration-cap context",
+          "conditions": [
+            "speed-band interpolation and driving-mode factor resolved",
+            "higher-priority lead/curve/vehicle limits distinguished",
+            "actual_selected_planning_path_required"
+          ],
+          "latched": false,
+          "dynamic": true,
+          "units": "consumer_physical_units",
+          "consumer_application_ack": false
+        },
+        {
+          "consumer_id": "planner.carrot",
+          "source_path": "openpilot/selfdrive/carrot/carrot_functions.py",
+          "meaning": "Cached stored-value observations; group reads do not prove final dynamic use",
+          "conditions": [
+            "speed-band interpolation and driving-mode factor resolved",
+            "higher-priority lead/curve/vehicle limits distinguished",
+            "cached_read_only_not_final_dynamic_use"
+          ],
+          "latched": false,
+          "dynamic": false,
+          "units": "consumer_physical_units",
+          "consumer_application_ack": false
+        }
+      ]
+    },
+    {
+      "key": "CruiseMaxVals5",
+      "consumers": [
+        {
+          "consumer_id": "planner.longitudinal",
+          "source_path": "openpilot/selfdrive/controls/lib/longitudinal_planner.py",
+          "meaning": "Longitudinal delay/stopping threshold and selected acceleration-cap context",
+          "conditions": [
+            "speed-band interpolation and driving-mode factor resolved",
+            "higher-priority lead/curve/vehicle limits distinguished",
+            "actual_selected_planning_path_required"
+          ],
+          "latched": false,
+          "dynamic": true,
+          "units": "consumer_physical_units",
+          "consumer_application_ack": false
+        },
+        {
+          "consumer_id": "planner.carrot",
+          "source_path": "openpilot/selfdrive/carrot/carrot_functions.py",
+          "meaning": "Cached stored-value observations; group reads do not prove final dynamic use",
+          "conditions": [
+            "speed-band interpolation and driving-mode factor resolved",
+            "higher-priority lead/curve/vehicle limits distinguished",
+            "cached_read_only_not_final_dynamic_use"
+          ],
+          "latched": false,
+          "dynamic": false,
+          "units": "consumer_physical_units",
+          "consumer_application_ack": false
+        }
+      ]
+    },
+    {
+      "key": "CruiseMaxVals6",
+      "consumers": [
+        {
+          "consumer_id": "planner.longitudinal",
+          "source_path": "openpilot/selfdrive/controls/lib/longitudinal_planner.py",
+          "meaning": "Longitudinal delay/stopping threshold and selected acceleration-cap context",
+          "conditions": [
+            "speed-band interpolation and driving-mode factor resolved",
+            "higher-priority lead/curve/vehicle limits distinguished",
+            "actual_selected_planning_path_required"
+          ],
+          "latched": false,
+          "dynamic": true,
+          "units": "consumer_physical_units",
+          "consumer_application_ack": false
+        },
+        {
+          "consumer_id": "planner.carrot",
+          "source_path": "openpilot/selfdrive/carrot/carrot_functions.py",
+          "meaning": "Cached stored-value observations; group reads do not prove final dynamic use",
+          "conditions": [
+            "speed-band interpolation and driving-mode factor resolved",
+            "higher-priority lead/curve/vehicle limits distinguished",
+            "cached_read_only_not_final_dynamic_use"
+          ],
+          "latched": false,
+          "dynamic": false,
+          "units": "consumer_physical_units",
+          "consumer_application_ack": false
+        }
+      ]
+    },
+    {
+      "key": "TFollowGap1",
+      "consumers": [
+        {
+          "consumer_id": "planner.carrot",
+          "source_path": "openpilot/selfdrive/carrot/carrot_functions.py",
+          "meaning": "Cached stored-value observations; group reads do not prove final dynamic use",
+          "conditions": [
+            "selected personality/gap known",
+            "valid lead and actual target following policy identified",
+            "cached_read_only_not_final_dynamic_use"
+          ],
+          "latched": false,
+          "dynamic": false,
+          "units": "consumer_physical_units",
+          "consumer_application_ack": false
+        },
+        {
+          "consumer_id": "planner.long_mpc",
+          "source_path": "openpilot/selfdrive/controls/lib/longitudinal_mpc_lib/long_mpc.py",
+          "meaning": "Selected gap, lead-response and stopping inputs with dynamic output context",
+          "conditions": [
+            "selected personality/gap known",
+            "valid lead and actual target following policy identified",
+            "actual_selected_planning_path_required"
+          ],
+          "latched": false,
+          "dynamic": true,
+          "units": "consumer_physical_units",
+          "consumer_application_ack": false
+        }
+      ]
+    },
+    {
+      "key": "TFollowGap2",
+      "consumers": [
+        {
+          "consumer_id": "planner.carrot",
+          "source_path": "openpilot/selfdrive/carrot/carrot_functions.py",
+          "meaning": "Cached stored-value observations; group reads do not prove final dynamic use",
+          "conditions": [
+            "selected personality/gap known",
+            "valid lead and actual target following policy identified",
+            "cached_read_only_not_final_dynamic_use"
+          ],
+          "latched": false,
+          "dynamic": false,
+          "units": "consumer_physical_units",
+          "consumer_application_ack": false
+        },
+        {
+          "consumer_id": "planner.long_mpc",
+          "source_path": "openpilot/selfdrive/controls/lib/longitudinal_mpc_lib/long_mpc.py",
+          "meaning": "Selected gap, lead-response and stopping inputs with dynamic output context",
+          "conditions": [
+            "selected personality/gap known",
+            "valid lead and actual target following policy identified",
+            "actual_selected_planning_path_required"
+          ],
+          "latched": false,
+          "dynamic": true,
+          "units": "consumer_physical_units",
+          "consumer_application_ack": false
+        }
+      ]
+    },
+    {
+      "key": "TFollowGap3",
+      "consumers": [
+        {
+          "consumer_id": "planner.carrot",
+          "source_path": "openpilot/selfdrive/carrot/carrot_functions.py",
+          "meaning": "Cached stored-value observations; group reads do not prove final dynamic use",
+          "conditions": [
+            "selected personality/gap known",
+            "valid lead and actual target following policy identified",
+            "cached_read_only_not_final_dynamic_use"
+          ],
+          "latched": false,
+          "dynamic": false,
+          "units": "consumer_physical_units",
+          "consumer_application_ack": false
+        },
+        {
+          "consumer_id": "planner.long_mpc",
+          "source_path": "openpilot/selfdrive/controls/lib/longitudinal_mpc_lib/long_mpc.py",
+          "meaning": "Selected gap, lead-response and stopping inputs with dynamic output context",
+          "conditions": [
+            "selected personality/gap known",
+            "valid lead and actual target following policy identified",
+            "actual_selected_planning_path_required"
+          ],
+          "latched": false,
+          "dynamic": true,
+          "units": "consumer_physical_units",
+          "consumer_application_ack": false
+        }
+      ]
+    },
+    {
+      "key": "TFollowGap4",
+      "consumers": [
+        {
+          "consumer_id": "planner.carrot",
+          "source_path": "openpilot/selfdrive/carrot/carrot_functions.py",
+          "meaning": "Cached stored-value observations; group reads do not prove final dynamic use",
+          "conditions": [
+            "selected personality/gap known",
+            "valid lead and actual target following policy identified",
+            "cached_read_only_not_final_dynamic_use"
+          ],
+          "latched": false,
+          "dynamic": false,
+          "units": "consumer_physical_units",
+          "consumer_application_ack": false
+        },
+        {
+          "consumer_id": "planner.long_mpc",
+          "source_path": "openpilot/selfdrive/controls/lib/longitudinal_mpc_lib/long_mpc.py",
+          "meaning": "Selected gap, lead-response and stopping inputs with dynamic output context",
+          "conditions": [
+            "selected personality/gap known",
+            "valid lead and actual target following policy identified",
+            "actual_selected_planning_path_required"
+          ],
+          "latched": false,
+          "dynamic": true,
+          "units": "consumer_physical_units",
+          "consumer_application_ack": false
+        }
+      ]
+    },
+    {
+      "key": "DynamicTFollowLC",
+      "consumers": [
+        {
+          "consumer_id": "planner.carrot",
+          "source_path": "openpilot/selfdrive/carrot/carrot_functions.py",
+          "meaning": "Cached stored-value observations; group reads do not prove final dynamic use",
+          "conditions": [
+            "valid lane-change gap policy and candidate lane/lead evidence",
+            "cached_read_only_not_final_dynamic_use"
+          ],
+          "latched": false,
+          "dynamic": false,
+          "units": "consumer_physical_units",
+          "consumer_application_ack": false
+        },
+        {
+          "consumer_id": "planner.long_mpc",
+          "source_path": "openpilot/selfdrive/controls/lib/longitudinal_mpc_lib/long_mpc.py",
+          "meaning": "Selected gap, lead-response and stopping inputs with dynamic output context",
+          "conditions": [
+            "valid lane-change gap policy and candidate lane/lead evidence",
+            "actual_selected_planning_path_required"
+          ],
+          "latched": false,
+          "dynamic": true,
+          "units": "consumer_physical_units",
+          "consumer_application_ack": false
+        }
+      ]
+    },
+    {
+      "key": "SpeedTFFactor",
+      "consumers": [
+        {
+          "consumer_id": "planner.carrot",
+          "source_path": "openpilot/selfdrive/carrot/carrot_functions.py",
+          "meaning": "Cached stored-value observations; group reads do not prove final dynamic use",
+          "conditions": [
+            "cached_read_only_not_final_dynamic_use"
+          ],
+          "latched": false,
+          "dynamic": false,
+          "units": "consumer_physical_units",
+          "consumer_application_ack": false
+        },
+        {
+          "consumer_id": "planner.long_mpc",
+          "source_path": "openpilot/selfdrive/controls/lib/longitudinal_mpc_lib/long_mpc.py",
+          "meaning": "Selected gap, lead-response and stopping inputs with dynamic output context",
+          "conditions": [
+            "actual_selected_planning_path_required"
+          ],
+          "latched": false,
+          "dynamic": true,
+          "units": "consumer_physical_units",
+          "consumer_application_ack": false
+        }
+      ]
+    },
+    {
+      "key": "TFollowDecelBoost",
+      "consumers": [
+        {
+          "consumer_id": "planner.carrot",
+          "source_path": "openpilot/selfdrive/carrot/carrot_functions.py",
+          "meaning": "Cached stored-value observations; group reads do not prove final dynamic use",
+          "conditions": [
+            "cached_read_only_not_final_dynamic_use"
+          ],
+          "latched": false,
+          "dynamic": false,
+          "units": "consumer_physical_units",
+          "consumer_application_ack": false
+        },
+        {
+          "consumer_id": "planner.long_mpc",
+          "source_path": "openpilot/selfdrive/controls/lib/longitudinal_mpc_lib/long_mpc.py",
+          "meaning": "Selected gap, lead-response and stopping inputs with dynamic output context",
+          "conditions": [
+            "actual_selected_planning_path_required"
+          ],
+          "latched": false,
+          "dynamic": true,
+          "units": "consumer_physical_units",
+          "consumer_application_ack": false
+        }
+      ]
+    },
+    {
+      "key": "LeadAccelResponse",
+      "consumers": [
+        {
+          "consumer_id": "planner.carrot",
+          "source_path": "openpilot/selfdrive/carrot/carrot_functions.py",
+          "meaning": "Cached stored-value observations; group reads do not prove final dynamic use",
+          "conditions": [
+            "discrete profile evaluated in actual driving mode and selected gap",
+            "valid stable lead and MPC-source qualification",
+            "cached_read_only_not_final_dynamic_use"
+          ],
+          "latched": false,
+          "dynamic": false,
+          "units": "consumer_physical_units",
+          "consumer_application_ack": false
+        },
+        {
+          "consumer_id": "planner.long_mpc",
+          "source_path": "openpilot/selfdrive/controls/lib/longitudinal_mpc_lib/long_mpc.py",
+          "meaning": "Selected gap, lead-response and stopping inputs with dynamic output context",
+          "conditions": [
+            "discrete profile evaluated in actual driving mode and selected gap",
+            "valid stable lead and MPC-source qualification",
+            "actual_selected_planning_path_required"
+          ],
+          "latched": false,
+          "dynamic": true,
+          "units": "consumer_physical_units",
+          "consumer_application_ack": false
+        }
+      ]
+    },
+    {
+      "key": "LeadAccelResponseTF1",
+      "consumers": [
+        {
+          "consumer_id": "planner.carrot",
+          "source_path": "openpilot/selfdrive/carrot/carrot_functions.py",
+          "meaning": "Cached stored-value observations; group reads do not prove final dynamic use",
+          "conditions": [
+            "discrete profile evaluated in actual driving mode and selected gap",
+            "valid stable lead and MPC-source qualification",
+            "cached_read_only_not_final_dynamic_use"
+          ],
+          "latched": false,
+          "dynamic": false,
+          "units": "consumer_physical_units",
+          "consumer_application_ack": false
+        },
+        {
+          "consumer_id": "planner.long_mpc",
+          "source_path": "openpilot/selfdrive/controls/lib/longitudinal_mpc_lib/long_mpc.py",
+          "meaning": "Selected gap, lead-response and stopping inputs with dynamic output context",
+          "conditions": [
+            "discrete profile evaluated in actual driving mode and selected gap",
+            "valid stable lead and MPC-source qualification",
+            "actual_selected_planning_path_required"
+          ],
+          "latched": false,
+          "dynamic": true,
+          "units": "consumer_physical_units",
+          "consumer_application_ack": false
+        }
+      ]
+    },
+    {
+      "key": "LeadAccelResponseTF2",
+      "consumers": [
+        {
+          "consumer_id": "planner.carrot",
+          "source_path": "openpilot/selfdrive/carrot/carrot_functions.py",
+          "meaning": "Cached stored-value observations; group reads do not prove final dynamic use",
+          "conditions": [
+            "discrete profile evaluated in actual driving mode and selected gap",
+            "valid stable lead and MPC-source qualification",
+            "cached_read_only_not_final_dynamic_use"
+          ],
+          "latched": false,
+          "dynamic": false,
+          "units": "consumer_physical_units",
+          "consumer_application_ack": false
+        },
+        {
+          "consumer_id": "planner.long_mpc",
+          "source_path": "openpilot/selfdrive/controls/lib/longitudinal_mpc_lib/long_mpc.py",
+          "meaning": "Selected gap, lead-response and stopping inputs with dynamic output context",
+          "conditions": [
+            "discrete profile evaluated in actual driving mode and selected gap",
+            "valid stable lead and MPC-source qualification",
+            "actual_selected_planning_path_required"
+          ],
+          "latched": false,
+          "dynamic": true,
+          "units": "consumer_physical_units",
+          "consumer_application_ack": false
+        }
+      ]
+    },
+    {
+      "key": "LeadAccelResponseTF3",
+      "consumers": [
+        {
+          "consumer_id": "planner.carrot",
+          "source_path": "openpilot/selfdrive/carrot/carrot_functions.py",
+          "meaning": "Cached stored-value observations; group reads do not prove final dynamic use",
+          "conditions": [
+            "discrete profile evaluated in actual driving mode and selected gap",
+            "valid stable lead and MPC-source qualification",
+            "cached_read_only_not_final_dynamic_use"
+          ],
+          "latched": false,
+          "dynamic": false,
+          "units": "consumer_physical_units",
+          "consumer_application_ack": false
+        },
+        {
+          "consumer_id": "planner.long_mpc",
+          "source_path": "openpilot/selfdrive/controls/lib/longitudinal_mpc_lib/long_mpc.py",
+          "meaning": "Selected gap, lead-response and stopping inputs with dynamic output context",
+          "conditions": [
+            "discrete profile evaluated in actual driving mode and selected gap",
+            "valid stable lead and MPC-source qualification",
+            "actual_selected_planning_path_required"
+          ],
+          "latched": false,
+          "dynamic": true,
+          "units": "consumer_physical_units",
+          "consumer_application_ack": false
+        }
+      ]
+    },
+    {
+      "key": "LeadAccelResponseTF4",
+      "consumers": [
+        {
+          "consumer_id": "planner.carrot",
+          "source_path": "openpilot/selfdrive/carrot/carrot_functions.py",
+          "meaning": "Cached stored-value observations; group reads do not prove final dynamic use",
+          "conditions": [
+            "discrete profile evaluated in actual driving mode and selected gap",
+            "valid stable lead and MPC-source qualification",
+            "cached_read_only_not_final_dynamic_use"
+          ],
+          "latched": false,
+          "dynamic": false,
+          "units": "consumer_physical_units",
+          "consumer_application_ack": false
+        },
+        {
+          "consumer_id": "planner.long_mpc",
+          "source_path": "openpilot/selfdrive/controls/lib/longitudinal_mpc_lib/long_mpc.py",
+          "meaning": "Selected gap, lead-response and stopping inputs with dynamic output context",
+          "conditions": [
+            "discrete profile evaluated in actual driving mode and selected gap",
+            "valid stable lead and MPC-source qualification",
+            "actual_selected_planning_path_required"
+          ],
+          "latched": false,
+          "dynamic": true,
+          "units": "consumer_physical_units",
+          "consumer_application_ack": false
+        }
+      ]
+    },
+    {
+      "key": "StoppingAccel",
+      "consumers": [
+        {
+          "consumer_id": "controls.longitudinal",
+          "source_path": "openpilot/selfdrive/controls/lib/longcontrol.py",
+          "meaning": "Current longitudinal PID/fixed-brand/stop controller values",
+          "conditions": [
+            "normal ACC separated from independent SoftHold and vehicle hold",
+            "repeated stopping/departure and final output evidence"
+          ],
+          "latched": false,
+          "dynamic": false,
+          "units": "consumer_physical_units",
+          "consumer_application_ack": false
+        }
+      ]
+    },
+    {
+      "key": "VEgoStopping",
+      "consumers": [
+        {
+          "consumer_id": "modeld.action",
+          "source_path": "openpilot/selfdrive/modeld/modeld.py",
+          "meaning": "Current action-head timing inputs; used and next delay components remain separate",
+          "conditions": [
+            "normal ACC separated from independent SoftHold and vehicle hold",
+            "repeated stopping/departure and final output evidence"
+          ],
+          "latched": false,
+          "dynamic": true,
+          "units": "consumer_physical_units",
+          "consumer_application_ack": false
+        },
+        {
+          "consumer_id": "planner.longitudinal",
+          "source_path": "openpilot/selfdrive/controls/lib/longitudinal_planner.py",
+          "meaning": "Longitudinal delay/stopping threshold and selected acceleration-cap context",
+          "conditions": [
+            "normal ACC separated from independent SoftHold and vehicle hold",
+            "repeated stopping/departure and final output evidence",
+            "actual_selected_planning_path_required"
+          ],
+          "latched": false,
+          "dynamic": true,
+          "units": "consumer_physical_units",
+          "consumer_application_ack": false
+        }
+      ]
+    },
+    {
+      "key": "StopDistanceCarrot",
+      "consumers": [
+        {
+          "consumer_id": "planner.carrot",
+          "source_path": "openpilot/selfdrive/carrot/carrot_functions.py",
+          "meaning": "Cached stored-value observations; group reads do not prove final dynamic use",
+          "conditions": [
+            "normal ACC separated from independent SoftHold and vehicle hold",
+            "repeated stopping/departure and final output evidence",
+            "cached_read_only_not_final_dynamic_use"
+          ],
+          "latched": false,
+          "dynamic": false,
+          "units": "consumer_physical_units",
+          "consumer_application_ack": false
+        },
+        {
+          "consumer_id": "planner.long_mpc",
+          "source_path": "openpilot/selfdrive/controls/lib/longitudinal_mpc_lib/long_mpc.py",
+          "meaning": "Selected gap, lead-response and stopping inputs with dynamic output context",
+          "conditions": [
+            "normal ACC separated from independent SoftHold and vehicle hold",
+            "repeated stopping/departure and final output evidence",
+            "actual_selected_planning_path_required"
+          ],
+          "latched": false,
+          "dynamic": true,
+          "units": "consumer_physical_units",
+          "consumer_application_ack": false
+        }
+      ]
+    },
+    {
+      "key": "TrafficStopDistanceAdjust",
+      "consumers": [
+        {
+          "consumer_id": "planner.carrot",
+          "source_path": "openpilot/selfdrive/carrot/carrot_functions.py",
+          "meaning": "Cached stored-value observations; group reads do not prove final dynamic use",
+          "conditions": [
+            "normal ACC separated from independent SoftHold and vehicle hold",
+            "repeated stopping/departure and final output evidence",
+            "cached_read_only_not_final_dynamic_use"
+          ],
+          "latched": false,
+          "dynamic": false,
+          "units": "consumer_physical_units",
+          "consumer_application_ack": false
+        },
+        {
+          "consumer_id": "planner.long_mpc",
+          "source_path": "openpilot/selfdrive/controls/lib/longitudinal_mpc_lib/long_mpc.py",
+          "meaning": "Selected gap, lead-response and stopping inputs with dynamic output context",
+          "conditions": [
+            "normal ACC separated from independent SoftHold and vehicle hold",
+            "repeated stopping/departure and final output evidence",
+            "actual_selected_planning_path_required"
+          ],
+          "latched": false,
+          "dynamic": true,
+          "units": "consumer_physical_units",
+          "consumer_application_ack": false
+        }
+      ]
+    },
+    {
+      "key": "PathOffset",
+      "consumers": [
+        {
+          "consumer_id": "planner.lateral",
+          "source_path": "openpilot/selfdrive/controls/lib/lateral_planner.py",
+          "meaning": "Lane MPC cost and path-offset inputs in the selected planning path",
+          "conditions": [
+            "actual lateral target source identified",
+            "independent lane/path position, roll and calibration evidence",
+            "actual_selected_planning_path_required"
+          ],
+          "latched": false,
+          "dynamic": false,
+          "units": "consumer_physical_units",
+          "consumer_application_ack": false
+        }
+      ]
+    },
+    {
+      "key": "SteerRatioRate",
+      "consumers": [
+        {
+          "consumer_id": "controls.vehicle_model",
+          "source_path": "openpilot/selfdrive/controls/controlsd.py",
+          "meaning": "Current vehicle-model overrides and resolved model context",
+          "conditions": [
+            "manual CustomSR override not selected",
+            "learned ratio and actual vehicle model sensitivity known"
+          ],
+          "latched": false,
+          "dynamic": true,
+          "units": "consumer_physical_units",
+          "consumer_application_ack": false
+        }
+      ]
+    },
+    {
+      "key": "CustomSR",
+      "consumers": [
+        {
+          "consumer_id": "controls.vehicle_model",
+          "source_path": "openpilot/selfdrive/controls/controlsd.py",
+          "meaning": "Current vehicle-model overrides and resolved model context",
+          "conditions": [],
+          "latched": false,
+          "dynamic": true,
+          "units": "consumer_physical_units",
+          "consumer_application_ack": false
+        }
+      ]
+    }
+  ]
+}

@@ -9,3 +9,21 @@
      },
      {
        "id": "tools.runtime",
+@@ -41,7 +41,7 @@
+       "kind": "bundle",
+       "source": "src/entries/logs.js",
+       "path": "js/generated/logs.js",
+-      "hash": "aa3f48bc3d5957a6959157f870fa6758d135fa94346a76109a2087057fd5cecc"
++      "hash": "1b2b2e2b7acde6d2c98f6005efbedbd205704e240b2cfd068892da9ec18b4a30"
+     },
+     {
+       "id": "terminal.runtime",
+@@ -125,7 +125,7 @@
+       "kind": "bundle",
+       "source": "src/entries/logs.css",
+       "path": "css/generated/logs.css",
+-      "hash": "e2403fbad519badab15a06e827f442fb40e4a7ffe2f05970fcf0de4b05e848a3"
++      "hash": "46c4004ce8ccaf43a78d38cdc124e9dc478f642e3d0742e11832ccf72ddb7b7a"
+     },
+     {
+       "id": "terminal.styles",

@@ -1,0 +1,11 @@
+{
+  "schema_version": 1,
+  "profile_id": "synthetic-host-demo-v1",
+  "validation_status": "synthetic_only",
+  "pre_margin_ns": 100000000,
+  "recovery_ns": 200000000,
+  "max_gap_ns": 200000000,
+  "dependency_ns": 100000000,
+  "max_samples": 100000,
+  "max_age_ns": 100000000
+}

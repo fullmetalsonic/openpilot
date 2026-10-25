@@ -4,9 +4,10 @@ import builtins
 import datetime
 import json
 from libcpp cimport bool
+from libcpp.map cimport map
+from libcpp.optional cimport optional
 from libcpp.string cimport string
 from libcpp.vector cimport vector
-from libcpp.optional cimport optional
 
 from openpilot.common.swaglog import cloudlog
 
@@ -29,6 +30,21 @@ cdef extern from "common/params.h":
     JSON
     BYTES
 
+  cdef enum ParamsCasState "ParamsCasState":
+    CAS_STORED "ParamsCasState::STORED"
+    CAS_CONFLICT "ParamsCasState::CONFLICT"
+    CAS_FAILED "ParamsCasState::FAILED"
+    CAS_UNCERTAIN "ParamsCasState::UNCERTAIN"
+
+  cdef struct ParamsCasResult:
+    ParamsCasState state
+    int error
+    bool changed
+
+  cdef struct ParamsRawSnapshot:
+    int error
+    map[string, optional[string]] values
+
   cdef cppclass c_Params "Params":
     c_Params(string) except + nogil
     string get(string, bool) nogil
@@ -50,6 +66,8 @@ cdef extern from "common/params.h":
     string getParamPath(string) nogil
     void clearAll(ParamKeyFlag)
     vector[string] allKeys()
+    ParamsRawSnapshot getManyRaw(vector[string]) nogil
+    ParamsCasResult compareAndSetRaw(string, optional[string], map[string, optional[string]]) nogil
 
 PYTHON_2_CPP = {
   (str, STRING): lambda v: v,
@@ -234,3 +252,132 @@ cdef class Params:
     cdef string k = self.check_key(key)
     cdef ParamKeyType t = self.p.getKeyType(k)
     return self._cpp2python(t, value, None, key)
+
+  def get_many_raw(self, keys):
+    """
+    Atomically get raw binary values for multiple keys under a single lock acquisition.
+    Returns a dict mapping key -> bytes | None.
+    Raises OSError on any read failure without returning partial values.
+
+    Note: This API does not add ABA/version detection, journal atomicity, or consumer ACK.
+    """
+    if not isinstance(keys, (list, tuple)):
+      raise TypeError(f"keys must be list or tuple, got {type(keys).__name__}")
+
+    cdef vector[string] cpp_keys
+    cdef string k_bytes
+    for k in keys:
+      if not isinstance(k, str):
+        raise TypeError(f"key must be str, got {type(k).__name__}")
+      if '\0' in k:
+        raise UnknownKeyName(k)
+      k_bytes = k.encode('utf-8')
+      if not self.p.checkKey(k_bytes):
+        raise UnknownKeyName(k)
+      cpp_keys.push_back(k_bytes)
+
+    cdef ParamsRawSnapshot snapshot
+    with nogil:
+      snapshot = self.p.getManyRaw(cpp_keys)
+
+    if snapshot.error != 0:
+      raise OSError(snapshot.error, f"Failed to get raw params: errno={snapshot.error}")
+
+    result = {}
+    cdef optional[string] opt_val
+    cdef string s
+    for k in keys:
+      k_bytes = k.encode('utf-8')
+      opt_val = snapshot.values[k_bytes]
+      if opt_val.has_value():
+        s = opt_val.value()
+        result[k] = s.data()[:s.size()]
+      else:
+        result[k] = None
+    return result
+
+  def get_raw(self, key):
+    """
+    Get raw binary value for a single key without type conversions or defaults.
+    Returns None if missing, b"" if empty file, or raw bytes.
+
+    Note: This API does not add ABA/version detection, journal atomicity, or consumer ACK.
+    """
+    if not isinstance(key, str):
+      raise TypeError(f"key must be str, got {type(key).__name__}")
+    return self.get_many_raw([key])[key]
+
+  def compare_and_set_raw(self, key, value, expected):
+    """
+    Compare and set raw parameter value atomically under a single lock.
+    Verifies that all keys in `expected` match their current disk state before mutating `key`.
+    `value=None` performs conditional deletion.
+
+    Returns dict:
+      {"state": "stored" | "conflict" | "failed" | "uncertain", "errno": int, "changed": bool}
+
+    Note: This API does not add ABA/version detection, journal atomicity, or consumer ACK.
+    """
+    if not isinstance(key, str):
+      raise TypeError(f"key must be str, got {type(key).__name__}")
+    if '\0' in key:
+      raise UnknownKeyName(key)
+    cdef string cpp_key = key.encode('utf-8')
+    if not self.p.checkKey(cpp_key):
+      raise UnknownKeyName(key)
+
+    if not isinstance(expected, dict):
+      raise TypeError(f"expected must be dict, got {type(expected).__name__}")
+    if key not in expected:
+      raise ValueError(f"expected must include target key '{key}'")
+
+    if value is not None and not isinstance(value, bytes):
+      raise TypeError(f"value must be bytes or None, got {type(value).__name__}")
+
+    cdef optional[string] cpp_value
+    cdef string cpp_val_str
+    if value is None:
+      cpp_value = optional[string]()
+    else:
+      cpp_val_str = <string><bytes>bytes(value)
+      cpp_value = optional[string](cpp_val_str)
+
+    cdef map[string, optional[string]] cpp_expected
+    cdef string exp_k_bytes
+    cdef string exp_v_bytes
+    for exp_k, exp_v in expected.items():
+      if not isinstance(exp_k, str):
+        raise TypeError(f"expected key must be str, got {type(exp_k).__name__}")
+      if '\0' in exp_k:
+        raise UnknownKeyName(exp_k)
+      exp_k_bytes = exp_k.encode('utf-8')
+      if not self.p.checkKey(exp_k_bytes):
+        raise UnknownKeyName(exp_k)
+
+      if exp_v is None:
+        cpp_expected[exp_k_bytes] = optional[string]()
+      elif isinstance(exp_v, bytes):
+        exp_v_bytes = <string><bytes>bytes(exp_v)
+        cpp_expected[exp_k_bytes] = optional[string](exp_v_bytes)
+      else:
+        raise TypeError(f"expected value for key '{exp_k}' must be bytes or None, got {type(exp_v).__name__}")
+
+    cdef ParamsCasResult res
+    with nogil:
+      res = self.p.compareAndSetRaw(cpp_key, cpp_value, cpp_expected)
+
+    cdef str state_str
+    if res.state == CAS_STORED:
+      state_str = "stored"
+    elif res.state == CAS_CONFLICT:
+      state_str = "conflict"
+    elif res.state == CAS_FAILED:
+      state_str = "failed"
+    else:
+      state_str = "uncertain"
+
+    return {
+      "state": state_str,
+      "errno": res.error,
+      "changed": res.changed,
+    }

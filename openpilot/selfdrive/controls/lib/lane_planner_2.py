@@ -37,8 +37,15 @@ def lerp(start, end, t):
 def max_abs(a, b):
   return a if abs(a) > abs(b) else b
 
+try:
+  from openpilot.selfdrive.carrot.control_advisor.consumer_observer import create_observer, observe, field
+except Exception:
+  create_observer = None
+
+
 class LanePlanner:
-  def __init__(self):
+  def __init__(self, CP=None):
+    self._advisor_lane_path = create_observer('planner.lane_path', car_params=CP) if create_observer is not None else None
     self.ll_t = np.zeros((TRAJECTORY_SIZE,))
     self.ll_x = np.zeros((TRAJECTORY_SIZE,))
     self.lll_y = np.zeros((TRAJECTORY_SIZE,))
@@ -231,6 +238,8 @@ class LanePlanner:
     #  self.lane_width_left_filtered.x, self.lane_width, self.lane_width_right_filtered.x)
 
     adjustLaneTime = self.params.get_float("LatMpcInputOffset") * 0.01 # 0.06 
+    if getattr(self, '_advisor_lane_path', None) is not None:
+      _advisor_input_used = False
     laneline_active = False
     self.d_prob_count = self.d_prob_count + 1 if self.d_prob > 0.3 else 0
     if self.lanefull_mode and self.d_prob_count > int(1 / DT_MDL):
@@ -239,16 +248,27 @@ class LanePlanner:
       if use_dist_mode:
         lane_path_y_interp = np.interp(path_xyz[:,0] + v_ego * adjustLaneTime, self.ll_x, lane_path_y)
         path_xyz[:,1] = self.d_prob * lane_path_y_interp + (1.0 - self.d_prob) * path_xyz[:,1]
+        if getattr(self, '_advisor_lane_path', None) is not None:
+          _advisor_input_used = True
       else:
         safe_idxs = np.isfinite(self.ll_t)
         if safe_idxs[0]:
           lane_path_y_interp = np.interp(path_t * (1.0 + adjustLaneTime), self.ll_t[safe_idxs], lane_path_y[safe_idxs])
           path_xyz[:,1] = self.d_prob * lane_path_y_interp + (1.0 - self.d_prob) * path_xyz[:,1]
+          if getattr(self, '_advisor_lane_path', None) is not None:
+            _advisor_input_used = True
 
 
     path_xyz[:, 1] += (CAMERA_OFFSET + self.lane_offset_filtered.x)
 
     self.offset_total = self.lane_offset_filtered.x
+    if getattr(self, '_advisor_lane_path', None) is not None:
+      observe(self._advisor_lane_path, lambda: {
+        'fields': {'LatMpcInputOffset': field(adjustLaneTime, read_value=adjustLaneTime,
+                                             state='used' if _advisor_input_used else 'bypassed', source='stored')},
+        'context': {'lanefull_mode': self.lanefull_mode, 'lanes_active': laneline_active,
+                    'time_warp_factor': 1.0 + adjustLaneTime},
+      })
 
     return path_xyz, laneline_active
 

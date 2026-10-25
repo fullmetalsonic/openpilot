@@ -1,0 +1,81 @@
+--- a/openpilot/selfdrive/ui/tests/test_carrot_web.py
++++ b/openpilot/selfdrive/ui/tests/test_carrot_web.py
+@@ -81,7 +81,7 @@
+   params = FakeParamsMemory("192.168.43.1")
+   qr = FakeQRCodeTexture()
+   timestamps = iter(["16:43:27", "16:44:02"])
+-  session = CarrotWebQrSession(params, qr_texture=qr, timestamp_factory=lambda: next(timestamps))
++  session = CarrotWebQrSession(params, qr_texture=qr, timestamp_factory=lambda: next(timestamps), connection_url_factory=lambda origin: origin)
+ 
+   session.open(10.0)
+   assert session.url == "http://192.168.43.1:7000"
+@@ -106,7 +106,7 @@
+ 
+ def test_qr_session_close_timing_and_cleanup():
+   qr = FakeQRCodeTexture()
+-  session = CarrotWebQrSession(FakeParamsMemory("192.168.0.2"), qr_texture=qr)
++  session = CarrotWebQrSession(FakeParamsMemory("192.168.0.2"), qr_texture=qr, connection_url_factory=lambda origin: origin)
+   session.open(5.0)
+ 
+   assert session.seconds_until_close(5.0) == 30
+@@ -120,3 +120,60 @@
+ 
+   session.destroy()
+   assert qr.destroyed
++
++
++@pytest.mark.parametrize("address", ["100.64.2.3", "8.8.8.8"])
++def test_native_url_preserves_cgnat_and_public_unicast(address):
++  assert build_carrot_web_url(address) == f"http://{address}:7000"
++
++
++def test_real_grants_only_change_qr_fragment_on_open_or_address_change(tmp_path):
++  from openpilot.selfdrive.carrot.control_advisor.native_access import issue_local_grant, connection_url
++  params, qr, calls = FakeParamsMemory("100.64.1.2"), FakeQRCodeTexture(), []
++  def connect(origin):
++    calls.append(origin)
++    return connection_url(origin, issue_local_grant(origin, root=tmp_path / "access", boot_id="ui-fixture-boot"))
++  session = CarrotWebQrSession(params, qr_texture=qr, connection_url_factory=connect)
++  session.open(10.)
++  assert session.url == "http://100.64.1.2:7000"
++  assert session.connection_url.startswith(session.url + "#ca_grant=")
++  assert qr.values == [session.connection_url]
++  assert "ca_grant" not in session.url
++  session.update(10.1)
++  session.update(10.2)
++  assert len(calls) == 1
++  params.value = "8.8.8.8"
++  session.update(10.3)
++  assert session.url == "http://8.8.8.8:7000" and len(calls) == 2
++  session.open(11.)
++  assert len(calls) == 3
++  params.value = "0.0.0.0"
++  session.update(11.2)
++  assert session.url is None and session.connection_url is None and qr.values[-1] is None
++  assert len(calls) == 3
++
++
++def test_optional_feature_error_falls_back_to_plain_qr(monkeypatch):
++  from openpilot.selfdrive.ui import carrot_web
++  from openpilot.selfdrive.carrot.control_advisor import native_access
++  monkeypatch.setattr(carrot_web.sys, "platform", "linux")
++  calls = []
++  def unavailable(origin):
++    calls.append(origin)
++    raise OSError("fixture optional feature unavailable")
++  monkeypatch.setattr(native_access, "issue_local_grant", unavailable)
++  qr = FakeQRCodeTexture()
++  session = CarrotWebQrSession(FakeParamsMemory("192.168.0.2"), qr_texture=qr)
++  session.open(1.)
++  assert qr.values == [session.url] and session.connection_url == session.url
++  session.update(1.2)
++  assert len(calls) == 1
++
++
++@pytest.mark.parametrize("candidate", [None, "http://8.8.8.8:7000?ca_grant=invalid"])
++def test_optional_feature_cannot_expand_qr_origin_or_clear_valid_address(candidate):
++  qr = FakeQRCodeTexture()
++  session = CarrotWebQrSession(FakeParamsMemory("192.168.0.2"), qr_texture=qr, connection_url_factory=lambda _: candidate)
++  session.open(1.)
++  assert session.url == session.connection_url == "http://192.168.0.2:7000"
++  assert qr.values == [session.url]

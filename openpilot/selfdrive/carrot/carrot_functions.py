@@ -58,7 +58,7 @@ class TrafficState(Enum):
 A_CRUISE_MAX_BP_CARROT = [0., 10 * CV.KPH_TO_MS, 40 * CV.KPH_TO_MS, 60 * CV.KPH_TO_MS, 80 * CV.KPH_TO_MS, 110 * CV.KPH_TO_MS, 140 * CV.KPH_TO_MS]
 
 class CarrotPlanner:
-  def __init__(self, signal_assist=None, start_guard=None, stop_prepare=None):
+  def __init__(self, signal_assist=None, start_guard=None, stop_prepare=None, CP=None):
     # SignalAssistMode defaults OFF; injected helpers support offline comparison.
     self.signal_assist = signal_assist
     self._signal_runtime = None
@@ -190,6 +190,12 @@ class CarrotPlanner:
     self._traffic_stop_model_lead_matcher = TrafficStopModelLeadMatcher()
     self.trafficStopModelLeadOffset = 0.0
     self.last_event_time = 0.0
+    try:
+      from openpilot.selfdrive.carrot.control_advisor.consumer_observer import create_observer
+      self._consumer_observer = create_observer("planner.carrot", car_params=CP)
+    except Exception:
+      self._consumer_observer = None
+    self._consumer_read_mono = {}
 
   def _params_update(self):
     self.frame += 1
@@ -236,6 +242,45 @@ class CarrotPlanner:
     elif self.params_count >= 100:
 
       self.params_count = 0
+
+    if getattr(self, "_consumer_observer", None) is not None and self.params_count in (20, 30, 40):
+      self._consumer_read_mono[self.params_count] = time.monotonic_ns()
+
+  def _observe_control_cache(self, sm):
+    observer = getattr(self, "_consumer_observer", None)
+    if observer is None:
+      return
+    try:
+      from openpilot.selfdrive.carrot.control_advisor.consumer_observer import field, observe
+    except Exception:
+      self._consumer_observer = None
+      return
+
+    def payload():
+      values = {}
+      personality = sm['selfdriveState'].personality
+      groups = {
+        20: [(f"TFollowGap{i}", getattr(self, f"tFollowGap{i}")) for i in range(1, 5)] +
+            [("LeadAccelResponse", self.leadAccelResponseBase)] +
+            [(f"LeadAccelResponseTF{i + 1}", value) for i, value in enumerate(self.leadAccelResponseTF)] +
+            [("DynamicTFollowLC", self.dynamicTFollowLC), ("SpeedTFFactor", self.speedTFFactor),
+             ("TFollowDecelBoost", self.tFollowDecelBoost)],
+        30: [(f"CruiseMaxVals{i}", getattr(self, f"cruiseMaxVals{i}")) for i in range(7)],
+        40: [("StopDistanceCarrot", self.stop_distance), ("TrafficStopDistanceAdjust", self.trafficStopDistanceAdjust)],
+      }
+      for group, entries in groups.items():
+        read_mono = self._consumer_read_mono.get(group)
+        for key, value in entries:
+          values[key] = field(value, read_value=value if read_mono is not None else None,
+                              state="loaded" if read_mono is not None else "unknown",
+                              source="stored" if read_mono is not None else "unknown", read_mono_ns=read_mono)
+      return {"fields": values, "context": {"mode": self.mode, "driving_mode": self.myDrivingMode.name,
+               "params_count": self.params_count, "personality": int(getattr(personality, "raw", personality)),
+               "lead_response_level": self.leadAccelResponse,
+               "group_read_complete": all(group in self._consumer_read_mono for group in groups),
+               "group_read_basis": "group_read_complete"}}
+
+    observe(observer, payload, cycle_id=self.frame, phase="sampled_use")
 
   def get_carrot_accel(self, v_ego):
     cruiseMaxVals = [self.cruiseMaxVals0, self.cruiseMaxVals1, self.cruiseMaxVals2, self.cruiseMaxVals3, self.cruiseMaxVals4, self.cruiseMaxVals5, self.cruiseMaxVals6]
@@ -903,4 +948,6 @@ class CarrotPlanner:
         self._prepare_runtime.record_prepare(self.prepare_decision)
     #return v_cruise, stop_dist, mode
 
+    if getattr(self, "_consumer_observer", None) is not None:
+      self._observe_control_cache(sm)
     return v_cruise_kph

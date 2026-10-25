@@ -1,0 +1,153 @@
+{
+  "schema_version": 1,
+  "analysis_profile": {
+    "profile_id": "example-log-mask-host-unqualified",
+    "pre_margin_ns": 100000000,
+    "recovery_ns": 2000000000,
+    "max_gap_ns": 200000000,
+    "dependency_ns": 100000000,
+    "max_samples": 100000
+  },
+  "objectives": {
+    "CruiseMaxVals0": {
+      "id": "example-policy-0",
+      "kind": "policy_reference",
+      "reference": {
+        "type": "policy_curve",
+        "input_signal": "v_ego",
+        "input_unit": "m/s",
+        "unit": "m/s^2",
+        "knots": [
+          [
+            0.0,
+            1.3
+          ],
+          [
+            40.0,
+            1.3
+          ]
+        ]
+      }
+    },
+    "CruiseMaxVals1": {
+      "id": "example-policy-1",
+      "kind": "policy_reference",
+      "reference": {
+        "type": "policy_curve",
+        "input_signal": "v_ego",
+        "input_unit": "m/s",
+        "unit": "m/s^2",
+        "knots": [
+          [
+            0.0,
+            1.3
+          ],
+          [
+            40.0,
+            1.3
+          ]
+        ]
+      }
+    },
+    "CruiseMaxVals2": {
+      "id": "example-policy-2",
+      "kind": "policy_reference",
+      "reference": {
+        "type": "policy_curve",
+        "input_signal": "v_ego",
+        "input_unit": "m/s",
+        "unit": "m/s^2",
+        "knots": [
+          [
+            0.0,
+            1.3
+          ],
+          [
+            40.0,
+            1.3
+          ]
+        ]
+      }
+    },
+    "CruiseMaxVals3": {
+      "id": "example-policy-3",
+      "kind": "policy_reference",
+      "reference": {
+        "type": "policy_curve",
+        "input_signal": "v_ego",
+        "input_unit": "m/s",
+        "unit": "m/s^2",
+        "knots": [
+          [
+            0.0,
+            1.3
+          ],
+          [
+            40.0,
+            1.3
+          ]
+        ]
+      }
+    },
+    "CruiseMaxVals4": {
+      "id": "example-policy-4",
+      "kind": "policy_reference",
+      "reference": {
+        "type": "policy_curve",
+        "input_signal": "v_ego",
+        "input_unit": "m/s",
+        "unit": "m/s^2",
+        "knots": [
+          [
+            0.0,
+            1.3
+          ],
+          [
+            40.0,
+            1.3
+          ]
+        ]
+      }
+    },
+    "CruiseMaxVals5": {
+      "id": "example-policy-5",
+      "kind": "policy_reference",
+      "reference": {
+        "type": "policy_curve",
+        "input_signal": "v_ego",
+        "input_unit": "m/s",
+        "unit": "m/s^2",
+        "knots": [
+          [
+            0.0,
+            1.3
+          ],
+          [
+            40.0,
+            1.3
+          ]
+        ]
+      }
+    },
+    "CruiseMaxVals6": {
+      "id": "example-policy-6",
+      "kind": "policy_reference",
+      "reference": {
+        "type": "policy_curve",
+        "input_signal": "v_ego",
+        "input_unit": "m/s",
+        "unit": "m/s^2",
+        "knots": [
+          [
+            0.0,
+            1.3
+          ],
+          [
+            40.0,
+            1.3
+          ]
+        ]
+      }
+    }
+  }
+}

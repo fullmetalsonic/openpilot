@@ -37,6 +37,24 @@ struct ParamKeyAttributes {
   std::optional<std::string> default_value = std::nullopt;
 };
 
+enum class ParamsCasState {
+  STORED,
+  CONFLICT,
+  FAILED,
+  UNCERTAIN
+};
+
+struct ParamsCasResult {
+  ParamsCasState state;
+  int error;
+  bool changed;
+};
+
+struct ParamsRawSnapshot {
+  int error;
+  std::map<std::string, std::optional<std::string>> values;
+};
+
 class Params {
 public:
   explicit Params(const std::string &path = {});
@@ -99,6 +117,13 @@ public:
   inline void putFloatNonBlocking(const std::string &key, float val) {
     putNonBlocking(key, std::to_string(val));
   }
+
+  // Raw snapshot/CAS, sharing the ordinary writer lock. No ABA/version checks,
+  // journal transaction, rollback/retry, or consumer acknowledgement is implied.
+  ParamsRawSnapshot getManyRaw(const std::vector<std::string> &keys_to_read);
+  ParamsCasResult compareAndSetRaw(const std::string &key,
+                                   const std::optional<std::string> &value,
+                                   const std::map<std::string, std::optional<std::string>> &expected);
 
 private:
   void asyncWriteThread();

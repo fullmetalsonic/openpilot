@@ -33,6 +33,11 @@ from openpilot.selfdrive.modeld.helpers import (get_tg_input_devices, load_oob, 
                                                 refresh_usbgpu_device_cache, select_vision_streams, usbgpu_compiled_path,
                                                 usbgpu_pcie_not_ready, usbgpu_present, wait_for_usbgpu_present)
 
+try:
+  from openpilot.selfdrive.carrot.control_advisor.consumer_observer import create_observer, observe, field
+except Exception:
+  create_observer = None
+
 PROCESS_NAME = "openpilot.selfdrive.modeld.modeld"
 SEND_RAW_PRED = os.getenv('SEND_RAW_PRED')
 SIMULATION = os.getenv('SIMULATION') == '1'
@@ -402,6 +407,7 @@ def main(demo=False):
     CP = get_demo_car_params()
   else:
     CP = messaging.log_from_bytes(params.get("CarParams", block=True), car.CarParams)
+  _advisor_action = create_observer('modeld.action', car_params=CP) if create_observer is not None else None
   cloudlog.info("modeld got CarParams: %s", CP.brand)
 
   # TODO this needs more thought, use .2s extra for now to estimate other delays
@@ -418,6 +424,8 @@ def main(demo=False):
   vEgoStopping = params.get_float("VEgoStopping") * 0.01
   camera_yaw_trim_deg = params.get_float("CameraYawTrimDeg") * 0.01
   lat_delay_dynamic = lat_smooth_seconds
+  if _advisor_action is not None:
+    _advisor_next_lat_component, _advisor_next_lat_source = None, 'unknown'
   diagnostics = RuntimeDiagnostics('modeld', cloudlog.event)
   camera_gap = CameraGapTrace(cloudlog.event)
   while True:
@@ -491,6 +499,9 @@ def main(demo=False):
     transforms = {name: model_transform_extra if 'big' in name else model_transform_main for name in model.vision_input_names}
     frame_delay = DT_MDL # compensate for time passed since the frame was captured: current_time - timestamp_eof is 50ms on average
     action_delay = DT_MDL / 2 # middle of the interval between model output (current state) and next frame (expected state)
+    if _advisor_action is not None:
+      _advisor_used_lat_delay = lat_delay_dynamic
+      _advisor_used_lat_component, _advisor_used_lat_source = _advisor_next_lat_component, _advisor_next_lat_source
     lat_action_t = lat_delay_dynamic + frame_delay + action_delay
     long_action_t = long_delay + frame_delay + action_delay
     inputs: dict[str, np.ndarray] = {
@@ -553,10 +564,31 @@ def main(demo=False):
         )
       if custom_lat_delay > 0.0:
         lat_delay_dynamic = custom_lat_delay + lat_smooth_seconds_dynamic
+        if _advisor_action is not None:
+          _advisor_next_lat_component, _advisor_next_lat_source = custom_lat_delay, 'stored'
       else:
-        lat_delay_dynamic = sm["liveDelay"].lateralDelay + lat_smooth_seconds_dynamic
+        _advisor_live_delay = sm["liveDelay"].lateralDelay
+        lat_delay_dynamic = _advisor_live_delay + lat_smooth_seconds_dynamic
+        if _advisor_action is not None:
+          _advisor_next_lat_component, _advisor_next_lat_source = _advisor_live_delay, 'learned'
 
       action = get_action_from_model(model_output, prev_action, lat_action_t, long_action_t, v_ego, lat_smooth_seconds_dynamic, vEgoStopping)
+      if _advisor_action is not None:
+        observe(_advisor_action, lambda: {
+          'fields': {
+            'SteerActuatorDelay': field(_advisor_used_lat_component,
+                                        read_value=_advisor_used_lat_component if _advisor_used_lat_source == 'stored' else None,
+                                        state='used' if _advisor_used_lat_component is not None else 'unknown', source=_advisor_used_lat_source),
+            'LatSmoothSec': field(lat_smooth_seconds_dynamic, read_value=lat_smooth_seconds,
+                                   state='used' if v_ego > MIN_LAT_CONTROL_SPEED else 'bypassed', source='derived'),
+            'LongActuatorDelay': field(long_delay, read_value=long_delay if frame >= 100 else None,
+                                       source='stored' if frame >= 100 else 'inherited'),
+            'VEgoStopping': field(vEgoStopping, read_value=vEgoStopping, source='stored'),
+          },
+          'context': {'frame': frame, 'lat_action_t': lat_action_t, 'long_action_t': long_action_t,
+                      'lat_delay_used_s': _advisor_used_lat_delay, 'next_lat_delay_s': lat_delay_dynamic,
+                      'lat_smooth_dynamic_s': lat_smooth_seconds_dynamic, 'model_action_head': 'action' in model_output},
+        }, cycle_id=frame)
       prev_action = action
       fill_model_msg(modelv2_send, model_output, action,
                      publish_state, meta_main.frame_id, meta_extra.frame_id, frame_id,

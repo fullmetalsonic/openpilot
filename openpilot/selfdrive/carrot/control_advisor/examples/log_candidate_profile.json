@@ -1,0 +1,59 @@
+{
+  "profile_id": "example-log-policy-host-unqualified",
+  "version": 1,
+  "status": "not_validated",
+  "scope": "host_unqualified",
+  "allowed_source_kinds": [
+    "recorded"
+  ],
+  "max_rows": 100000,
+  "max_blocks": 128,
+  "max_candidates_per_key": 8,
+  "max_evaluations": 256,
+  "max_lag_ns": 2000000000,
+  "dependency_margin_ns": 100000000,
+  "min_blocks_per_split": 1,
+  "min_samples_per_split": 30,
+  "minimum_improvement": 0.01,
+  "guard_tolerances": {
+    "CruiseMaxVals0": {
+      "max_absolute_error": 1.0,
+      "max_absolute_prediction": 3.0
+    },
+    "CruiseMaxVals1": {
+      "max_absolute_error": 1.0,
+      "max_absolute_prediction": 3.0
+    },
+    "CruiseMaxVals2": {
+      "max_absolute_error": 1.0,
+      "max_absolute_prediction": 3.0
+    },
+    "CruiseMaxVals3": {
+      "max_absolute_error": 1.0,
+      "max_absolute_prediction": 3.0
+    },
+    "CruiseMaxVals4": {
+      "max_absolute_error": 1.0,
+      "max_absolute_prediction": 3.0
+    },
+    "CruiseMaxVals5": {
+      "max_absolute_error": 1.0,
+      "max_absolute_prediction": 3.0
+    },
+    "CruiseMaxVals6": {
+      "max_absolute_error": 1.0,
+      "max_absolute_prediction": 3.0
+    }
+  },
+  "raw_step_policy": "ui_step",
+  "per_key_change_limits": {
+    "CruiseMaxVals0": 50,
+    "CruiseMaxVals1": 50,
+    "CruiseMaxVals2": 50,
+    "CruiseMaxVals3": 50,
+    "CruiseMaxVals4": 50,
+    "CruiseMaxVals5": 50,
+    "CruiseMaxVals6": 50
+  },
+  "device_qualified": false
+}

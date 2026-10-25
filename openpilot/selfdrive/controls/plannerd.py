@@ -62,7 +62,7 @@ def main():
     poll=(['modelV2', 'liveTracks'] if live_tracks_longitudinal else 'modelV2'),
     ignore_avg_freq=['radarState'],
   )
-  carrot = CarrotPlanner()
+  carrot = CarrotPlanner(CP=CP)
   model_frame = 0
   last_longitudinal_trigger_mono_ns = 0
   diagnostics = RuntimeDiagnostics('plannerd', cloudlog.event)

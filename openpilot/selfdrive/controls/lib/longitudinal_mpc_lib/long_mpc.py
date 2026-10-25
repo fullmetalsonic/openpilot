@@ -247,7 +247,7 @@ def gen_long_ocp():
 
 
 class LongitudinalMpc:
-  def __init__(self, mode='acc', dt=DT_MDL):
+  def __init__(self, mode='acc', dt=DT_MDL, CP=None):
     self.mode = mode
     self.dt = dt
     self.solver = AcadosOcpSolverCython(MODEL_NAME, ACADOS_SOLVER_TYPE, N)
@@ -265,6 +265,11 @@ class LongitudinalMpc:
     self.base_desired_distances = np.zeros(2)
     self.lead_danger_factor = LEAD_DANGER_FACTOR
     self.predicted_danger_margin = 1e3
+    try:
+      from openpilot.selfdrive.carrot.control_advisor.consumer_observer import create_observer
+      self._consumer_observer = create_observer("planner.long_mpc", car_params=CP)
+    except Exception:
+      self._consumer_observer = None
 
 
   def reset(self):
@@ -430,6 +435,7 @@ class LongitudinalMpc:
     mode = self.mode
     comfort_brake = carrot.comfort_brake
     stop_distance = carrot.stop_distance
+    lane_change_credit_used = False
     self.base_desired_distances = np.array([
       desired_follow_distance(v_ego, lead_v_0, comfort_brake, stop_distance, t_follow),
       desired_follow_distance(v_ego, lead_v_1, comfort_brake, stop_distance, t_follow),
@@ -475,6 +481,7 @@ class LongitudinalMpc:
       lead_0_follow_obstacle = lead_0_obstacle
       if cutout_relief_enabled and not reset_state:
         if lane_change.active:
+          lane_change_credit_used = True
           lead_0_follow_obstacle = lead_0_obstacle + lane_change.credit(
             radarstate.leadOne, T_IDXS, v_ego, self.max_a, t_follow, stop_distance, carrot.dynamicTFollowLC,
           )
@@ -663,6 +670,55 @@ class LongitudinalMpc:
       if any((lead_1_obstacle - get_safe_obstacle_distance(self.x_sol[:,1], t_follow, comfort_brake, stop_distance))- self.x_sol[:,0] < 0.0) and \
          (lead_1_obstacle[0] - lead_0_obstacle[0]):
         self.source = 'lead1'
+
+    observer = getattr(self, "_consumer_observer", None)
+    if observer is not None:
+      try:
+        from openpilot.selfdrive.carrot.control_advisor.consumer_observer import field, observe
+      except Exception:
+        self._consumer_observer = None
+        return
+
+      def payload():
+        reads = getattr(carrot, "_consumer_read_mono", {})
+        gap = int(getattr(personality, "raw", personality))
+        values = {}
+        for index in range(1, 5):
+          value = getattr(carrot, f"tFollowGap{index}")
+          values[f"TFollowGap{index}"] = field(value if index - 1 == gap else None,
+            read_value=value if 20 in reads else None, state="used" if index - 1 == gap else "bypassed",
+            source="stored" if 20 in reads else "unknown", read_mono_ns=reads.get(20))
+        for key, value in (("SpeedTFFactor", carrot.speedTFFactor), ("TFollowDecelBoost", carrot.tFollowDecelBoost)):
+          values[key] = field(value, read_value=value if 20 in reads else None,
+                              source="stored" if 20 in reads else "unknown", read_mono_ns=reads.get(20))
+        inherited = carrot.leadAccelResponseTF[gap] < 0
+        response_active = self.lead_accel_response_active
+        values["LeadAccelResponse"] = field(carrot.leadAccelResponse if inherited and response_active else None,
+          read_value=carrot.leadAccelResponseBase if 20 in reads else None,
+          state="used" if inherited and response_active else "bypassed", source="stored" if 20 in reads else "unknown",
+          read_mono_ns=reads.get(20))
+        for index, value in enumerate(carrot.leadAccelResponseTF):
+          selected = index == gap and response_active
+          values[f"LeadAccelResponseTF{index + 1}"] = field(carrot.leadAccelResponse if selected else None,
+            read_value=value if 20 in reads else None, state="used" if selected else "bypassed",
+            source="inherited" if value < 0 else "stored", read_mono_ns=reads.get(20))
+        values["DynamicTFollowLC"] = field(carrot.dynamicTFollowLC if lane_change_credit_used else None,
+          read_value=carrot.dynamicTFollowLC if 20 in reads else None, state="used" if lane_change_credit_used else "bypassed",
+          source="stored" if 20 in reads else "unknown", read_mono_ns=reads.get(20))
+        values["StopDistanceCarrot"] = field(stop_distance, read_value=carrot.stop_distance if 40 in reads else None,
+          source="stored" if 40 in reads else "unknown", read_mono_ns=reads.get(40))
+        values["TrafficStopDistanceAdjust"] = field(adjust_dist if mode == 'acc' else None,
+          read_value=carrot.trafficStopDistanceAdjust if 40 in reads else None,
+          state="used" if mode == 'acc' else "bypassed", source="derived", read_mono_ns=reads.get(40))
+        return {"fields": values, "context": {"mode": mode, "source": self.source, "reset_state": bool(reset_state),
+                 "personality": gap, "v_ego": float(v_ego), "a_ego": float(a_ego), "t_follow": t_follow,
+                 "tf_mode_factor": carrot._tf_mode_factor, "tf_decel_extra": carrot._tf_decel_extra,
+                 "tf_decel_base": carrot._tf_decel_base, "stop_distance": stop_distance,
+                 "traffic_adjust": adjust_dist if mode == 'acc' else None, "lc_credit_used": lane_change_credit_used,
+                 "lead_response_active": response_active, "lead_response_level": self.lead_accel_response_level,
+                 "lane_change_active": bool(getattr(carrot, "lane_change_active", False)), "solution_status": int(self.solution_status)}}
+
+      observe(observer, payload, cycle_id=getattr(carrot, "frame", None), phase="sampled_use")
 
   def run(self):
     # t0 = time.monotonic()

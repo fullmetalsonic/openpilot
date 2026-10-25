@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from ipaddress import ip_address
 from math import ceil, floor
+import sys
 
 from openpilot.selfdrive.ui.widgets.qr_code import QRCodeTexture
 
@@ -11,6 +12,17 @@ CARROT_WEB_PORT = 7000
 CARROT_WEB_ADDRESS_REFRESH_SECONDS = 0.1
 CARROT_WEB_AUTO_CLOSE_SECONDS = 30.0
 CARROT_WEB_MIN_CLOSE_SECONDS = 0.35
+
+
+def _native_connection_url(origin: str) -> str:
+  """Optional feature: only a physical native QR opening issues a grant."""
+  if not sys.platform.startswith("linux"):
+    return origin
+  try:
+    from openpilot.selfdrive.carrot.control_advisor.native_access import issue_local_grant, connection_url
+    return connection_url(origin, issue_local_grant(origin))
+  except Exception:
+    return origin
 
 
 def fit_single_line_font_size(preferred_size: int, measured_width: float, max_width: float) -> int:
@@ -74,12 +86,15 @@ class CarrotWebAddressWatcher:
 
 class CarrotWebQrSession:
   def __init__(self, params_memory, qr_texture: QRCodeTexture | None = None,
-               timestamp_factory: Callable[[], str] | None = None):
+               timestamp_factory: Callable[[], str] | None = None,
+               connection_url_factory: Callable[[str], str] | None = None):
     self._address = CarrotWebAddressWatcher(params_memory)
     self._qr = qr_texture or QRCodeTexture()
     self._timestamp_factory = timestamp_factory or (lambda: datetime.now().strftime("%H:%M:%S"))
     self._opened_at = 0.0
     self._updated_time: str | None = None
+    self._connection_url: str | None = None
+    self._connection_url_factory = connection_url_factory or _native_connection_url
 
   @property
   def url(self) -> str | None:
@@ -90,11 +105,23 @@ class CarrotWebQrSession:
     return self._qr
 
   @property
+  def connection_url(self) -> str | None:
+    return self._connection_url
+
+  @property
   def updated_time(self) -> str | None:
     return self._updated_time
 
   def _refresh_qr(self) -> None:
-    self._qr.set_data(self.url)
+    self._connection_url = self.url
+    if self.url:
+      try:
+        candidate = self._connection_url_factory(self.url)
+        if type(candidate) is str and (candidate == self.url or candidate.startswith(self.url + "#ca_grant=")):
+          self._connection_url = candidate
+      except Exception:
+        pass
+    self._qr.set_data(self.connection_url)
     self._updated_time = self._timestamp_factory() if self.url else None
 
   def open(self, now: float) -> None:

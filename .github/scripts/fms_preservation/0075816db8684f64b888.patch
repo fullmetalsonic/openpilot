@@ -1,0 +1,5 @@
+--- a/openpilot/selfdrive/carrot/web/src/entries/logs.js
++++ b/openpilot/selfdrive/carrot/web/src/entries/logs.js
+@@ -1 +1,2 @@
+ import "../features/logs/index.js";
++import "../features/control_advisor/index.js";

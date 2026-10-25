@@ -15,6 +15,11 @@ from openpilot.selfdrive.controls.lib.lane_planner_2 import LanePlanner
 from openpilot.selfdrive.controls.lib.lane_model_speed import LaneModelSpeedGuard
 from collections import deque
 
+try:
+  from openpilot.selfdrive.carrot.control_advisor.consumer_observer import create_observer, observe, field
+except Exception:
+  create_observer = None
+
 TRAJECTORY_SIZE = 33
 CAMERA_OFFSET = 0.04
 
@@ -32,6 +37,7 @@ STEERING_RATE_COST = 700.0
 
 class LateralPlanner:
   def __init__(self, CP, debug=False):
+    self._advisor_lateral = create_observer('planner.lateral', car_params=CP) if create_observer is not None else None
     #self.DH = DesireHelper()
 
     # Vehicle model parameters used to calculate lateral movement of car
@@ -54,7 +60,7 @@ class LateralPlanner:
 
     self.latDebugText = ""
     # lane_mode
-    self.LP = LanePlanner()
+    self.LP = LanePlanner(CP=CP)
     self.readParams = 0
     self.lanelines_active = False
     self.lanelines_active_tmp = False
@@ -180,6 +186,18 @@ class LateralPlanner:
                      y_pts,
                      heading_pts,
                      yaw_rate_pts)
+    if getattr(self, '_advisor_lateral', None) is not None:
+      observe(self._advisor_lateral, lambda: {
+        'fields': {
+          'LatMpcPathCost': field(self.lateralPathCost, source='stored'),
+          'LatMpcMotionCost': field(self.lateralMotionCost, source='stored'),
+          'LatMpcAccelCost': field(LATERAL_ACCEL_COST, source='stored'),
+          'LatMpcJerkCost': field(LATERAL_JERK_COST, source='stored'),
+          'LatMpcSteeringRateCost': field(STEERING_RATE_COST, source='stored'),
+          'PathOffset': field(self.pathOffset, source='stored'),
+        },
+        'context': {'lane_mode': self.useLaneLineMode, 'lanes_active': self.lanelines_active, 'model_valid': model_active},
+      })
     # init state for next iteration
     # mpc.u_sol is the desired second derivative of psi given x0 curv state.
     # with x0[3] = measured_yaw_rate, this would be the actual desired yaw rate.

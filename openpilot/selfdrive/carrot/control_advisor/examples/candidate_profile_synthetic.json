@@ -1,0 +1,34 @@
+{
+  "profile_id": "explicit-host-fixture-v1",
+  "version": 1,
+  "status": "synthetic_only",
+  "scope": "host_unqualified",
+  "allowed_source_kinds": [
+    "synthetic"
+  ],
+  "max_rows": 1000,
+  "max_blocks": 16,
+  "max_candidates_per_key": 8,
+  "max_evaluations": 64,
+  "max_lag_ns": 100,
+  "dependency_margin_ns": 0,
+  "min_blocks_per_split": 1,
+  "min_samples_per_split": 3,
+  "minimum_improvement": 0.01,
+  "guard_tolerances": {
+    "PathOffset": {
+      "max_absolute_error": 1.0,
+      "max_absolute_prediction": 10.0
+    },
+    "CruiseMaxVals0": {
+      "max_absolute_error": 1.0,
+      "max_absolute_prediction": 2.0
+    }
+  },
+  "raw_step_policy": "ui_step",
+  "per_key_change_limits": {
+    "PathOffset": 50,
+    "CruiseMaxVals0": 50
+  },
+  "device_qualified": false
+}
