@@ -113,6 +113,9 @@
   font-size: var(--fs-label-sm);
 }
 
+.control-advisor__goal { grid-column: 1 / -1; }
+.control-advisor__goal[hidden] { display: none; }
+
 .control-advisor__field :is(input, select) {
   width: 100%;
   min-width: 0;

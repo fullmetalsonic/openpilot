@@ -83,6 +83,47 @@ class LateralCandidateTests(unittest.TestCase):
     self.assertEqual(["torque_mapping_adapter_unavailable"],
                      lateral.propose_family("LateralTorqueAccelFactor", ctx, {})["reason_codes"])
 
+  def test_fit_intercept_is_frozen_from_fit_and_never_refitted_on_holdout(self):
+    rows = torque_rows()
+    for row in rows:
+      row["signals"]["lateral_accel_offset"]["value"] = 0.
+    original = context(rows)
+    options = profile(2800, 1000, 6000, 100)
+    options["method_options"] = {"LateralTorqueAccelFactor": {"offset_policy": "fit_intercept"}}
+    before = deepcopy((original, options))
+    with patch.object(lateral, "estimate_torque", wraps=estimate_torque) as fit:
+      proposed = lateral.propose_family("LateralTorqueAccelFactor", original, options)
+      self.assertEqual([], proposed["reason_codes"])
+      self.assertAlmostEqual(.12, proposed["fit_context"]["lateral_accel_offset"])
+      held = context(deepcopy(rows), "holdout", fit_context=deepcopy(proposed["fit_context"]))
+      for row in held["records"]["holdout"]:
+        row["reference"] += 1.
+        row["signals"]["lateral_accel_independent"]["value"] += 1.
+      held_before = deepcopy(held)
+      result = lateral.evaluate_family("LateralTorqueAccelFactor", 3000, held, "holdout", {})
+      self.assertEqual("evaluated", result["status"])
+      for row, prediction in zip(held["records"]["holdout"], result["predictions"]):
+        self.assertAlmostEqual(1., row["reference"] - prediction)
+      self.assertEqual(1, fit.call_count)
+      self.assertEqual(held_before, held)
+    self.assertEqual(before, (original, options))
+
+  def test_fit_intercept_requires_zero_callback_evidence_and_finite_context(self):
+    options = profile(2800, 1000, 6000, 100)
+    options["method_options"] = {"LateralTorqueAccelFactor": {"offset_policy": "fit_intercept"}}
+    with patch.object(lateral, "estimate_torque", side_effect=AssertionError("must not fit an unknown callback offset")):
+      result = lateral.propose_family("LateralTorqueAccelFactor", context(torque_rows()), options)
+    self.assertEqual(["torque_callback_zero_offset_required"], result["reason_codes"])
+    rows = torque_rows()
+    for row in rows:
+      row["signals"]["lateral_accel_offset"]["value"] = 0.
+    for fixed in ({"lateral_accel_offset": float("nan")}, {"lateral_accel_offset": True}, {"path": 0.}, {}):
+      result = lateral.evaluate_family("LateralTorqueAccelFactor", 3000, context(rows, "holdout", fit_context=fixed), "holdout", {})
+      self.assertEqual("blocked", result["status"])
+      self.assertEqual([], result["predictions"])
+    nonzero = context(torque_rows(), "holdout", fit_context={"lateral_accel_offset": .12})
+    self.assertEqual(["torque_callback_zero_offset_required"], lateral.evaluate_family("LateralTorqueAccelFactor", 3000, nonzero, "holdout", {})["reason_codes"])
+
   def test_tls_residual_spread_is_a_proxy_without_a_friction_recommendation(self):
     ctx = context(torque_rows(noisy=True))
     proposed = lateral.propose_family("LateralTorqueFriction", ctx, profile(150, 0, 500, 10))
@@ -169,13 +210,15 @@ class LateralCandidateTests(unittest.TestCase):
     self.assertEqual("blocked", evaluated["status"])
     self.assertEqual([], evaluated["predictions"])
 
-  def test_pid_and_smoothing_do_not_claim_tracking_benefit_without_a_closed_loop_backend(self):
-    for key in ("LateralTorqueKpV", "LateralTorqueKiV", "LateralTorqueKf", "LatSmoothSec"):
+  def test_pid_and_smoothing_do_not_claim_tracking_benefit_without_validated_inputs(self):
+    for key in ("LateralTorqueKpV", "LateralTorqueKiV", "LateralTorqueKf"):
       with self.subTest(key=key):
-        self.assertEqual(["backend_unavailable"], lateral.propose_family(key, context([]), {})["reason_codes"])
+        self.assertEqual(["pid_profile_required"], lateral.propose_family(key, context([]), {})["reason_codes"])
         result = lateral.evaluate_family(key, 100, context([]), "holdout", {})
         self.assertEqual("closed_loop_model", result["prediction_kind"])
         self.assertEqual("blocked", result["status"])
+    self.assertEqual(["backend_unavailable"], lateral.propose_family("LatSmoothSec", context([]), {})["reason_codes"])
+    self.assertEqual("blocked", lateral.evaluate_family("LatSmoothSec", 100, context([]), "holdout", {})["status"])
     self.assertEqual(["derivative_path_inactive"], lateral.propose_family("LateralTorqueKd", context([]), {})["reason_codes"])
 
   def test_fit_only_inputs_no_mutation_and_no_files_or_vehicle_parameters(self):

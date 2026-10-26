@@ -1,0 +1,185 @@
+{
+  "profile_id": "native-torque-pid-model-experiment-v1",
+  "version": 1,
+  "status": "not_validated",
+  "scope": "host_unqualified",
+  "allowed_source_kinds": [
+    "recorded"
+  ],
+  "max_rows": 100000,
+  "max_blocks": 64,
+  "max_candidates_per_key": 8,
+  "max_evaluations": 192,
+  "max_lag_ns": 2000000000,
+  "dependency_margin_ns": 100000000,
+  "min_blocks_per_split": 1,
+  "min_samples_per_split": 30,
+  "minimum_improvement": 0,
+  "guard_tolerances": {
+    "LateralTorqueKpV": {
+      "mode": "baseline_bounded"
+    },
+    "LateralTorqueKiV": {
+      "mode": "baseline_bounded"
+    },
+    "LateralTorqueKf": {
+      "mode": "baseline_bounded"
+    }
+  },
+  "raw_step_policy": "ui_step",
+  "per_key_change_limits": null,
+  "change_limit_policy": "manual_experiment",
+  "device_qualified": false,
+  "method_options": {
+    "LateralTorqueKpV": {
+      "version": 1,
+      "delay_grid_steps": [
+        0,
+        2,
+        5,
+        10,
+        15,
+        20
+      ],
+      "max_models": 8,
+      "transport_lag_grid_steps": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "min_response_points": 20,
+      "min_torque_std": 0.01,
+      "max_condition": 1000000.0,
+      "max_speed_span": 2.0,
+      "max_clock_jitter_ns": 3000000,
+      "max_signal_age_ns": 100000000,
+      "parity_tolerance": 1e-06,
+      "mapping_tolerance": 1e-06,
+      "model_rmse_bound": 0.1,
+      "model_max_error_bound": 0.35,
+      "plausibility_rmse_margin": 0.01,
+      "pole_min": 1e-05,
+      "pole_max": 0.99999,
+      "max_prediction_disagreement": 0.2,
+      "minimum_improvement": 0.002,
+      "noise_multiplier": 2.0,
+      "command_margin": 0.0,
+      "command_rate_margin": 0.0,
+      "max_integral_growth": 0.05,
+      "max_error_growth": 0.0,
+      "candidate_offsets_steps": [
+        -10,
+        -5,
+        -1,
+        0,
+        1,
+        5,
+        10
+      ],
+      "max_rows": 20000
+    },
+    "LateralTorqueKiV": {
+      "version": 1,
+      "delay_grid_steps": [
+        0,
+        2,
+        5,
+        10,
+        15,
+        20
+      ],
+      "max_models": 8,
+      "transport_lag_grid_steps": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "min_response_points": 20,
+      "min_torque_std": 0.01,
+      "max_condition": 1000000.0,
+      "max_speed_span": 2.0,
+      "max_clock_jitter_ns": 3000000,
+      "max_signal_age_ns": 100000000,
+      "parity_tolerance": 1e-06,
+      "mapping_tolerance": 1e-06,
+      "model_rmse_bound": 0.1,
+      "model_max_error_bound": 0.35,
+      "plausibility_rmse_margin": 0.01,
+      "pole_min": 1e-05,
+      "pole_max": 0.99999,
+      "max_prediction_disagreement": 0.2,
+      "minimum_improvement": 0.002,
+      "noise_multiplier": 2.0,
+      "command_margin": 0.0,
+      "command_rate_margin": 0.0,
+      "max_integral_growth": 0.05,
+      "max_error_growth": 0.0,
+      "candidate_offsets_steps": [
+        -10,
+        -5,
+        -1,
+        0,
+        1,
+        5,
+        10
+      ],
+      "max_rows": 20000
+    },
+    "LateralTorqueKf": {
+      "version": 1,
+      "delay_grid_steps": [
+        0,
+        2,
+        5,
+        10,
+        15,
+        20
+      ],
+      "max_models": 8,
+      "transport_lag_grid_steps": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "min_response_points": 20,
+      "min_torque_std": 0.01,
+      "max_condition": 1000000.0,
+      "max_speed_span": 2.0,
+      "max_clock_jitter_ns": 3000000,
+      "max_signal_age_ns": 100000000,
+      "parity_tolerance": 1e-06,
+      "mapping_tolerance": 1e-06,
+      "model_rmse_bound": 0.1,
+      "model_max_error_bound": 0.35,
+      "plausibility_rmse_margin": 0.01,
+      "pole_min": 1e-05,
+      "pole_max": 0.99999,
+      "max_prediction_disagreement": 0.2,
+      "minimum_improvement": 0.002,
+      "noise_multiplier": 2.0,
+      "command_margin": 0.0,
+      "command_rate_margin": 0.0,
+      "max_integral_growth": 0.05,
+      "max_error_growth": 0.0,
+      "candidate_offsets_steps": [
+        -10,
+        -5,
+        -1,
+        0,
+        1,
+        5,
+        10
+      ],
+      "max_rows": 20000
+    }
+  }
+}

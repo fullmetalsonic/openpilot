@@ -17,6 +17,7 @@ from openpilot.selfdrive.carrot.control_advisor.registry import load_registry
 from openpilot.selfdrive.carrot.control_advisor.rlog import _schema
 from openpilot.selfdrive.carrot.control_advisor.settings_history import SettingsRecorder
 from openpilot.selfdrive.carrot.control_advisor.tests.test_log_candidates import BOOT, ROUTE, log_candidate_configs
+from openpilot.selfdrive.carrot.control_advisor.tests.test_periodic import manual_intent
 
 
 class PeriodicNativeFixture:
@@ -149,11 +150,12 @@ class PeriodicWindowTests(unittest.TestCase):
                                 interval_seconds=180, clock=lambda: clock[0])
     self.addCleanup(analyzer.close)
     self.assertTrue(analyzer.offer(fixture.checkpoint, archive_watermark="a" * 64))
+    analyzer.request_analysis(manual_intent(fixture))
     clock[0] = 180.
     status = analyzer.tick()
     self.assertEqual("running", status["state"], status)
     deadline = time.monotonic() + 60
-    while analyzer._process is not None and time.monotonic() < deadline:
+    while (analyzer._process is not None or analyzer._resume_job) and time.monotonic() < deadline:
       time.sleep(.03)
       status = analyzer.tick()
     self.assertIsNone(analyzer._process, "native periodic child exceeded the bounded test duration")
@@ -167,9 +169,13 @@ class PeriodicWindowTests(unittest.TestCase):
     status, result, directory = self.analyze(fixture)
     self.assertEqual("ready", status["state"], status)
     self.assertEqual(3, status["attempt"]["source_count"])
-    self.assertEqual(3, status["attempt"]["processed_windows"])
+    self.assertEqual(1, status["attempt"]["processed_windows"])
     self.assertEqual(0, status["attempt"]["blocked_windows"])
-    self.assertEqual(3, len(result["windows"]))
+    self.assertEqual(1, len(result["windows"]))
+    progress = json.loads((directory / "trip-progress.json").read_text())
+    self.assertEqual(3, progress["processed_source_count"])
+    manifest = json.loads((directory / "analysis-work" / "trip-manifest.json").read_text())
+    self.assertEqual(3, len(manifest["sources"]))
     for window in result["windows"]:
       self.assertEqual("ready", window["state"])
       bundle = load_candidate_bundle(directory / window["directory"])
@@ -182,13 +188,15 @@ class PeriodicWindowTests(unittest.TestCase):
       with self.subTest(mode=mode):
         fixture = self.fixture()
         fixture.damage_middle(mode)
-        status, result, _ = self.analyze(fixture)
+        status, result, directory = self.analyze(fixture)
         self.assertEqual("partial", status["state"], status)
         self.assertEqual(3, status["attempt"]["source_count"])
-        self.assertEqual(3, len(result["windows"]))
-        self.assertEqual(2, status["attempt"]["processed_windows"])
+        self.assertEqual(1, len(result["windows"]))
+        self.assertEqual(0, status["attempt"]["processed_windows"])
         self.assertEqual(1, status["attempt"]["blocked_windows"])
-        self.assertNotEqual("ready", result["windows"][1]["state"])
+        self.assertNotEqual("ready", result["windows"][0]["state"])
+        self.assertEqual("trip_source_coverage_incomplete", result["windows"][0]["reason"])
+        self.assertFalse((directory / "window-0000").exists())
 
   def test_missing_middle_without_receipt_bounds_stays_explicitly_unknown(self):
     fixture = self.fixture(unknown_middle_bounds=True)
@@ -196,11 +204,14 @@ class PeriodicWindowTests(unittest.TestCase):
     status, result, _ = self.analyze(fixture)
     self.assertEqual("partial", status["state"], status)
     self.assertEqual(3, status["attempt"]["source_count"])
-    self.assertEqual(3, len(result["windows"]))
-    middle = result["windows"][1]
+    self.assertEqual(1, len(result["windows"]))
+    middle = result["windows"][0]
     self.assertNotEqual("ready", middle["state"])
-    self.assertIsNone(middle["source_start_ns"])
-    self.assertIsNone(middle["source_end_ns"])
+    self.assertEqual("trip_source_coverage_incomplete", middle["reason"])
+    # The aggregate request keeps its full endpoints. No score is substituted
+    # from the two available neighbours when the middle range is unknown.
+    self.assertEqual(manual_intent(fixture)["range_start_ns"], middle["source_start_ns"])
+    self.assertEqual(manual_intent(fixture)["requested_end_ns"], middle["source_end_ns"])
 
 
 if __name__ == "__main__":

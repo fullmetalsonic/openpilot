@@ -34,6 +34,15 @@ def _is_link(path):
   return path.is_symlink() or (hasattr(path, "is_junction") and path.is_junction())
 
 
+def _valid_pid_burst_record(record):
+  from .pid_burst import validate_reference
+  if type(record) is not dict or set(record) != {"type", "reference", "recorded_mono_ns"}:
+    raise ValueError("history_pid_burst_record")
+  validate_reference(record["reference"])
+  if type(record["recorded_mono_ns"]) is not int or record["recorded_mono_ns"] < 0:
+    raise ValueError("history_pid_burst_record_time")
+
+
 def _identity(info):
   return (info.st_dev, info.st_ino)
 
@@ -210,7 +219,7 @@ def load_history(path, *, max_bytes=8 * 1024 * 1024, max_events=10_000, include_
           raise ValueError("history_chain")
         record = envelope["record"]
         kind = record.get("type")
-        if (result["closed"] or kind not in {"session", "settings_observation", "diagnostic", "archive_preserved", "preservation_job", "consumer_observation", "session_closed"}
+        if (result["closed"] or kind not in {"session", "settings_observation", "diagnostic", "archive_preserved", "preservation_job", "consumer_observation", "pid_burst_chunk", "session_closed"}
             or (result["verified_events"] == 0) != (kind == "session")):
           raise ValueError("history_lifecycle")
         if kind == "consumer_observation":
@@ -218,6 +227,8 @@ def load_history(path, *, max_bytes=8 * 1024 * 1024, max_events=10_000, include_
           validate_event(record.get("event"))
           if type(record.get("recorded_mono_ns")) is not int or record["recorded_mono_ns"] < 0:
             raise ValueError("history_consumer_record_time")
+        if kind == "pid_burst_chunk":
+          _valid_pid_burst_record(record)
         if kind == "session_closed" and "consumer_budget_rejections" in record:
           if type(record["consumer_budget_rejections"]) is not int or record["consumer_budget_rejections"] < 0:
             raise ValueError("history_consumer_rejections")
@@ -366,7 +377,7 @@ def select_history_window(root, checkpoint, start_ns, end_ns, required_refs=()):
           "verification_scope": "selected_segment_closure", "omitted_sequence_ranges": omitted}
 
 
-def _load_segmented_history(root, *, checkpoint, selection, max_bytes, max_events, include_records):
+def _load_segmented_history(root, *, checkpoint, selection, max_bytes, max_events, include_records, _collection_range=None):
   from .journal_segments import iter_verified_records
   if max_bytes > 32 * 1024 * 1024 or max_events > 40_000:
     raise ValueError("history_window_budget")
@@ -415,8 +426,10 @@ def _load_segmented_history(root, *, checkpoint, selection, max_bytes, max_event
       count += entry["last_sequence"] - entry["first_sequence"] + 1
       files.append({"path": entry["path"], "bytes": entry["bytes"], "sha256": entry["content_sha256"], "copy_mode": "prefix"})
   selected_bytes = sum(item["bytes"] for item in files)
-  if selected_bytes > max_bytes or count > max_events:
+  if _collection_range is None and (selected_bytes > max_bytes or count > max_events):
     raise ValueError("history_window_budget")
+  if _collection_range is not None and (selected or selected_bytes > 512 * 1024 * 1024 or len(files) > 129):
+    raise ValueError("history_collection_budget")
   result = {"state": "complete", "reason": None, "verified_events": 0, "sequence": 0, "sha256": ZERO_HASH,
             "session_id": checkpoint["session_id"], "last_record": None, "bytes": row_bytes,
             "history_complete": False, "consumer_applied": False, "references": {}, "diagnostics": [],
@@ -428,11 +441,12 @@ def _load_segmented_history(root, *, checkpoint, selection, max_bytes, max_event
             "checkpoint_tip": {"sequence": checkpoint["sequence"], "chain_sha256": checkpoint["chain_sha256"], "total_bytes": checkpoint["bytes"]}}
   if include_records:
     result["records"] = []
+  retained_bytes, consumer_previous, consumer_gaps = 0, {}, []
   for item in iter_verified_records(root, checkpoint, segment_indices=indices):
     envelope, reference = item["envelope"], item["reference"]
     record, sequence = envelope["record"], envelope["sequence"]
     kind = record.get("type")
-    if result["closed"] or kind not in {"session", "settings_observation", "diagnostic", "archive_preserved", "preservation_job", "consumer_observation", "session_closed"}:
+    if result["closed"] or kind not in {"session", "settings_observation", "diagnostic", "archive_preserved", "preservation_job", "consumer_observation", "pid_burst_chunk", "session_closed"}:
       raise ValueError("history_lifecycle")
     if kind == "consumer_observation":
       from .consumer_observer import validate_event
@@ -441,6 +455,15 @@ def _load_segmented_history(root, *, checkpoint, selection, max_bytes, max_event
         raise ValueError("history_consumer_record_time")
       result["consumer_events"] += 1
       result["latest_consumers"][event["consumer_id"]] = event
+      previous = consumer_previous.get(event["consumer_id"])
+      if ((previous is None and event["dropped_events"]) or previous is not None and
+          (event["sequence"] != previous["sequence"] + 1 or event["dropped_events"] != previous["dropped_events"]
+           or event["produced_mono_ns"] <= previous["produced_mono_ns"]
+           or any(event[key] != previous[key] for key in ("boot_id", "pid", "process_instance_id", "consumer_instance_id")))):
+        consumer_gaps.append(event["produced_mono_ns"])
+      consumer_previous[event["consumer_id"]] = event
+    elif kind == "pid_burst_chunk":
+      _valid_pid_burst_record(record)
     elif kind == "diagnostic":
       if not _valid_diagnostic(record.get("diagnostic")) or not _valid_route_observation(record.get("route_observation")) or type(record.get("settings_revision")) is not int:
         raise ValueError("history_diagnostic")
@@ -460,12 +483,36 @@ def _load_segmented_history(root, *, checkpoint, selection, max_bytes, max_event
       result["latest_settings"] = record
     result.update(verified_events=result["verified_events"] + 1, sequence=sequence, sha256=envelope["sha256"], last_record=record,
                   closed=kind == "session_closed")
-    result["references"][str(sequence)] = deepcopy(reference)
-    if include_records:
+    keep = True
+    if _collection_range is not None and kind == "consumer_observation":
+      from .trip_analysis import _in_windows
+      stamp = event["produced_mono_ns"]
+      keep = any(_in_windows(stamp + offset, _collection_range["start_ns"], _collection_range["end_ns"])
+                 for offset in (-3_000_000_000, 0, 3_000_000_000))
+    if _collection_range is None or kind != "consumer_observation":
+      result["references"][str(sequence)] = deepcopy(reference)
+    if include_records and keep:
+      retained_bytes += len(_canonical(envelope))
+      if _collection_range is not None and (retained_bytes > max_bytes or len(result["records"]) >= max_events or len(consumer_gaps) > max_events):
+        raise ValueError("history_collection_retained_budget")
       result["records"].append({"sequence": sequence, "sha256": envelope["sha256"], "bytes": reference["bytes"], "reference": deepcopy(reference), "record": deepcopy(record)})
   if result["verified_events"] == 0:
     result.update(state="incomplete", reason="history_empty")
+  if _collection_range is not None:
+    result.update(consumer_gap_stamps=consumer_gaps, retained_byte_count=retained_bytes,
+      retained_record_count=len(result.get("records", [])), source_history_byte_count=selected_bytes,
+      verification_scope="complete_checkpoint_prefix_time_stratified_consumer_retention")
   return result
+
+
+def load_collection_history(root, checkpoint, analysis_range):
+  """Verify every segmented record, retaining a bounded calculation view."""
+  if (type(analysis_range) is not dict or set(analysis_range) != {"start_ns", "end_ns"}
+      or any(type(value) is not int or value < 0 for value in analysis_range.values())
+      or analysis_range["start_ns"] > analysis_range["end_ns"]):
+    raise ValueError("invalid_history_collection_range")
+  return _load_segmented_history(root, checkpoint=checkpoint, selection=None, max_bytes=32 * 1024 * 1024,
+    max_events=40_000, include_records=True, _collection_range=analysis_range)
 
 
 class SettingsRecorder:
@@ -501,6 +548,7 @@ class SettingsRecorder:
     self.max_journal_bytes, self.max_events = max_journal_bytes, max_events
     # Sampled consumers must leave room for settings and preservation receipts.
     self._consumer_bytes = self._consumer_events = self._consumer_budget_rejections = 0
+    self._pid_burst_store = None
     self.session_id, self.path = session_id, self.session_dir / "settings.jsonl"
     if journal_format == "segmented":
       from .journal_segments import SegmentedJournal
@@ -815,6 +863,16 @@ class SettingsRecorder:
     value = validate_event(event)
     # Writer time is not the consumer's read/use time or a settings revision.
     return self._append({"type": "consumer_observation", "event": value, "recorded_mono_ns": self.clock_ns()})
+
+  def append_pid_burst_chunk(self, event):
+    """Separate bounded payload store; a small reference joins the same chain."""
+    from .pid_burst import PidBurstStore
+    if self._failed or self._closed:
+      return False
+    if self._pid_burst_store is None:
+      self._pid_burst_store = PidBurstStore(self.session_dir)
+    reference = self._pid_burst_store.append(event)
+    return self._append({"type": "pid_burst_chunk", "reference": reference, "recorded_mono_ns": self.clock_ns()})
 
   def close(self):
     if self._closed:

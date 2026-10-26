@@ -1,0 +1,121 @@
+--- a/openpilot/selfdrive/controls/lib/latcontrol_torque.py
++++ b/openpilot/selfdrive/controls/lib/latcontrol_torque.py
+@@ -14,6 +14,11 @@
+ from openpilot.common.pid import PIDController
+ 
+ from openpilot.common.params import Params
++
++try:
++  from openpilot.selfdrive.carrot.control_advisor.consumer_observer import create_observer, observe, field, torque_feedforward_path, observe_pid_burst
++except Exception:
++  create_observer = None
+ 
+ # At higher speeds (25+mph) we can assume:
+ # Lateral acceleration achieved by a specific car correlates to
+@@ -67,11 +72,16 @@
+ 
+ class LatControlTorque(LatControl):
+   def __init__(self, CP, CI):
++    self._advisor_torque = create_observer('controls.torque', car_params=CP) if create_observer is not None else None
++    if self._advisor_torque is not None:
++      self._advisor_torque_source = self._advisor_pid_source = 'inherited'
+     super().__init__(CP, CI)
+     self.torque_params = CP.lateralTuning.torque.as_builder()
+     self.pid = PIDController(self.torque_params.kp, self.torque_params.ki,
+                              k_f=self.torque_params.kf, pos_limit=self.steer_max, neg_limit=-self.steer_max)
+     self.torque_from_lateral_accel = CI.torque_from_lateral_accel()
++    if self._advisor_torque is not None:
++      self._advisor_torque_ff_path = torque_feedforward_path(self.torque_from_lateral_accel)
+     self.use_steering_angle = self.torque_params.useSteeringAngle
+     self.steering_angle_deadzone_deg = self.torque_params.steeringAngleDeadzoneDeg
+ 
+@@ -105,7 +115,10 @@
+ 
+       # precompute time differences between ModelConstants.T_IDXS
+       self.t_diffs = np.diff(ModelConstants.T_IDXS)
+-      self.desired_lat_jerk_time = self.params.get_float("SteerActuatorDelay") * 0.01 + 0.3
++      _advisor_nnff_delay = self.params.get_float("SteerActuatorDelay") * 0.01
++      self.desired_lat_jerk_time = _advisor_nnff_delay + 0.3
++      if self._advisor_torque is not None:
++        self._advisor_nnff_delay = _advisor_nnff_delay
+ 
+     if self.use_nnff:
+       self.pitch = FirstOrderFilter(0.0, 0.5, 0.01)
+@@ -138,6 +151,8 @@
+     self.torque_params.latAccelFactor = latAccelFactor
+     self.torque_params.latAccelOffset = latAccelOffset
+     self.torque_params.friction = friction
++    if getattr(self, '_advisor_torque', None) is not None:
++      self._advisor_torque_source = 'learned'
+ 
+   def update(self, active, CS, VM, params, steer_limited_by_controls, desired_curvature, CC, curvature_limited, model_data=None):
+     self.frame += 1
+@@ -155,10 +170,14 @@
+         self.pid.k_f = lateralTorqueKf
+         self.pid._k_d = [[0], [lateralTorqueKd]]
+         self.torque_params.latAccelOffset = self.latAccelOffset_default
++        if getattr(self, '_advisor_torque', None) is not None:
++          self._advisor_torque_source = self._advisor_pid_source = 'stored'
+       elif self.lateralTorqueCustom > 1:  # 1 -> 0, reset to default
+         self.torque_params.latAccelFactor = self.latAccelFactor_default
+         self.torque_params.friction = self.friction_default
+         self.torque_params.latAccelOffset = self.latAccelOffset_default
++        if getattr(self, '_advisor_torque', None) is not None:
++          self._advisor_torque_source = 'inherited'
+       self.lateralTorqueCustom = lateralTorqueCustom
+ 
+     pid_log = log.ControlsState.LateralTorqueState.new_message()
+@@ -286,6 +305,8 @@
+                                             gravity_adjusted=True)
+ 
+       freeze_integrator = steer_limited_by_controls or CS.steeringPressed or CS.vEgo < 5
++      if getattr(self, '_advisor_torque', None) is not None:
++        _advisor_pid_before = float(self.pid.i)
+       output_torque = self.pid.update(pid_log.error,
+                                       feedforward=ff,
+                                       speed=CS.vEgo,
+@@ -303,5 +324,44 @@
+       #if nn_log is not None:
+       #  pid_log.nnLog = nn_log
+ 
++    if getattr(self, '_advisor_torque', None) is not None:
++      if active:
++        observe_pid_burst(self._advisor_torque, (
++          float(desired_lateral_accel), float(actual_lateral_accel), float(setpoint), float(measurement), float(low_speed_factor),
++          float(CS.vEgo), float(CS.aEgo), float(roll_compensation), float(lateral_accel_deadzone), float(pid_log.error),
++          float(ff), _advisor_pid_before, float(self.pid.p), float(self.pid.i), float(self.pid.f), float(output_torque),
++          float(self.pid.k_p), float(self.pid.k_i), float(self.pid.k_f), float(self.torque_params.latAccelFactor),
++          float(self.torque_params.friction), int(freeze_integrator), int(steer_limited_by_controls), int(curvature_limited), int(CS.steeringPressed),
++        ), (self._advisor_torque_ff_path, self.lateralTorqueCustom, bool(self.use_nnff), bool(self.use_nnff_lite),
++            bool(self.use_steering_angle), float(self.pid.pos_limit), float(self.pid.neg_limit),
++            getattr(self, '_advisor_pid_source', 'unknown'), getattr(self, '_advisor_torque_source', 'unknown')), cycle_id=self.frame)
++      else:
++        observe_pid_burst(self._advisor_torque, None, None, cycle_id=self.frame)
++      _advisor_nnff_selected = bool(active and self.use_nnff and model_data is not None and len(model_data.orientation.x) >= CONTROL_N)
++      _advisor_torque_params_used = active and (not _advisor_nnff_selected or self.nn_friction_override)
++      observe(self._advisor_torque, lambda: {
++        'fields': {
++          'LateralTorqueAccelFactor': field(self.torque_params.latAccelFactor,
++                                            state='used' if _advisor_torque_params_used else ('bypassed' if active else 'loaded'),
++                                            source=getattr(self, '_advisor_torque_source', 'unknown')),
++          'LateralTorqueFriction': field(self.torque_params.friction,
++                                        state='used' if _advisor_torque_params_used else ('bypassed' if active else 'loaded'),
++                                        source=getattr(self, '_advisor_torque_source', 'unknown')),
++          'LateralTorqueKpV': field(self.pid.k_p, state='used' if active else 'loaded', source=getattr(self, '_advisor_pid_source', 'unknown')),
++          'LateralTorqueKiV': field(self.pid.k_i, state='used' if active else 'loaded', source=getattr(self, '_advisor_pid_source', 'unknown')),
++          'LateralTorqueKf': field(self.pid.k_f, state='used' if active else 'loaded', source=getattr(self, '_advisor_pid_source', 'unknown')),
++          'LateralTorqueKd': field(0.0, state='unsupported', source='derived'),
++          'LateralTorqueCustom': field(self.lateralTorqueCustom, state='latched', source='stored'),
++          'NNFF': field(int(self.use_nnff), state='latched', source='inherited'),
++          'NNFFLite': field(int(self.use_nnff_lite), state='latched', source='inherited'),
++          'SteerActuatorDelay': field(getattr(self, '_advisor_nnff_delay', None), read_value=getattr(self, '_advisor_nnff_delay', None),
++                                      state='latched' if self.use_nnff or self.use_nnff_lite else 'bypassed',
++                                      source='stored' if self.use_nnff or self.use_nnff_lite else 'unknown'),
++        },
++        'context': {'active': active, 'torque_custom_mode': self.lateralTorqueCustom, 'nnff': self.use_nnff, 'nnff_lite': self.use_nnff_lite,
++                    'nnff_model_selected': _advisor_nnff_selected,
++                    'torque_ff_path': self._advisor_torque_ff_path,
++                    'nnff_jerk_lookahead_s': getattr(self, 'desired_lat_jerk_time', None), 'derivative_effective': False},
++      }, cycle_id=self.frame)
+     # TODO left is positive in this convention
+     return -output_torque,angle_steers_des, pid_log

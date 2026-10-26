@@ -212,6 +212,8 @@ class RecordingSession:
     if source_mode not in ("live", "synthetic") or not 0 < poll_seconds <= 60 or not 0 < archive_poll_seconds <= 60:
       raise ValueError("invalid_recording_mode_or_period")
     environment = os.environ if environment is None else environment
+    self._analysis_environment = dict(environment)
+    self._analysis_goal = None
     if identity_provider is not None and not callable(identity_provider):
       raise ValueError("invalid_recording_identity_provider")
     self._identity_provider = identity_provider
@@ -237,6 +239,7 @@ class RecordingSession:
     self._diagnostic_bytes = self._diagnostic_files = 0
     self._pending_jobs = 0
     self._pending_consumer_events = 0
+    self._pending_pid_burst_events = self._pid_burst_rejections = 0
     self._analyzer_factory = analyzer_factory
     self._automatic_config = None
     self._automatic_public = _automatic_initial(analysis_interval_seconds)
@@ -247,6 +250,11 @@ class RecordingSession:
     self._archive_identities = set()  # Bounded by the archive's 128-file quota.
     self._archive_watermark = ZERO_HASH
     self._last_checkpoint_sequence = None
+    self._analysis_commands = queue.Queue(maxsize=32)
+    self._analysis_observation = None
+    from .analysis_control import initial_control
+    self._analysis_public = initial_control()
+    self._analysis_binding = None
     if environment.get(prefix + "AUTO_ENABLED") == "1":
       raw = [environment.get(prefix + name, "") for name in ("AUTO_PROFILE", "AUTO_OBJECTIVES", "AUTO_OUTPUT_ROOT")]
       if source_mode == "synthetic":
@@ -291,6 +299,41 @@ class RecordingSession:
     with self._lock:
       return deepcopy(self._automatic_public)
 
+  def analysis_snapshot(self):
+    with self._lock:
+      return deepcopy(self._analysis_public)
+
+  def analysis_binding(self):
+    with self._lock:
+      return deepcopy(self._analysis_binding)
+
+  def analysis_goal(self):
+    with self._lock:
+      return deepcopy(self._analysis_goal)
+
+  def observe_analysis(self, stamp, parking, nonpark_ns=None):
+    if type(stamp) is not int or not 0 <= self.source_clock_ns() - stamp <= 2_000_000_000:
+      stamp = None
+    if type(nonpark_ns) is not int or not 0 <= self.source_clock_ns() - nonpark_ns <= 250_000_000:
+      nonpark_ns = None
+    with self._lock:
+      self._analysis_observation = (stamp, deepcopy(self._latest_route_observation),
+                                    deepcopy(self._public["settings"].get("vehicle_identity", {})), deepcopy(parking), nonpark_ns)
+
+  def request_analysis(self, request_id, goal_id=None):
+    if self._automatic_config is None or self._stop.is_set():
+      raise ValueError("analysis_not_configured")
+    try:
+      self._analysis_commands.put_nowait({"kind": "analyze", "request_id": request_id, "goal_id": goal_id})
+    except queue.Full as error:
+      raise ValueError("analysis_command_queue_full") from error
+
+  def successful_apply(self, receipt, trip_binding):
+    try:
+      self._analysis_commands.put_nowait({"kind": "apply", "receipt": deepcopy(receipt), "trip_binding": deepcopy(trip_binding)})
+    except queue.Full as error:
+      raise ValueError("analysis_command_queue_full") from error
+
   def _publish_checkpoint(self, recorder):
     # Only the journal writer calls this, after durable archive acceptance.
     if self._automatic_config is None or not self._archive_available or self._stop.is_set():
@@ -310,6 +353,7 @@ class RecordingSession:
 
   def _automatic_loop(self):
     analyzer = None
+    control = None
     reaped = True
     try:
       while not self._ready.wait(0.05):
@@ -333,7 +377,81 @@ class RecordingSession:
           return
       analyzer = factory(self._session_dir, profile, objectives, output,
                          interval_seconds=self._automatic_public["interval_seconds"], source_mode=self.source_mode)
+      from .analysis_control import AnalysisControl
+      from .consumer_observer import _read_boot_id
+      from .evidence import hash_file
+      from .periodic import _atomic
+      control = AnalysisControl(self.session_id, _read_boot_id(), profile_sha256=hash_file(profile, 4 * 1024 * 1024)[0],
+                                objectives_sha256=hash_file(objectives, 64 * 1024)[0])
+      goal_environment = dict(self._analysis_environment)
+      if goal_environment.get("CARROT_CONTROL_ADVISOR_BUILTIN_GOALS") == "1":
+        from .runtime_config import BUILTIN_PROFILE_PATH, BUILTIN_OBJECTIVES_PATH
+        from .goals import PROFILE_ENV, OBJECTIVES_ENV, goal_configuration
+        goal_environment.update({PROFILE_ENV: BUILTIN_PROFILE_PATH, OBJECTIVES_ENV: BUILTIN_OBJECTIVES_PATH})
+        selected_goal = goal_environment.get("CARROT_CONTROL_ADVISOR_SELECTED_GOAL")
+        if selected_goal:
+          control.goal_id = selected_goal
+          with self._lock:
+            self._analysis_goal = goal_configuration(selected_goal, goal_environment)["selection"]
+      durable_revision = -1
       while not self._stop.is_set():
+        with self._lock:
+          observation = deepcopy(self._analysis_observation)
+        if observation is not None:
+          previous_trip = deepcopy(control.trip)
+          control.observe(*observation)
+          if previous_trip is not None and previous_trip != control.trip:
+            analyzer.invalidate_analysis("analysis_trip_changed")
+            control.active = None
+        for _ in range(32):
+          try:
+            command = self._analysis_commands.get_nowait()
+          except queue.Empty:
+            break
+          try:
+            if command["kind"] == "analyze":
+              goal_id = command.get("goal_id")
+              if goal_id is not None:
+                from .goals import goal_configuration
+                if self._analysis_environment.get("CARROT_CONTROL_ADVISOR_BUILTIN_GOALS") != "1":
+                  raise ValueError("analysis_goal_requires_builtin_configuration")
+                goal = goal_configuration(goal_id, goal_environment)
+                new_profile, new_objectives = Path(goal["profile_path"]), Path(goal["objectives_path"])
+                new_hashes = (hash_file(new_profile, 4 * 1024 * 1024)[0], hash_file(new_objectives, 64 * 1024)[0])
+                if new_hashes != (control.profile_hash, control.objective_hash):
+                  analyzer.invalidate_analysis("analysis_goal_changed")
+                  analyzer.profile, analyzer.objectives = new_profile, new_objectives
+                  control.change_goal(*new_hashes, goal_id)
+                  profile, objectives = new_profile, new_objectives
+                with self._lock:
+                  self._analysis_goal = goal["selection"]
+              control.request(command["request_id"])
+            else:
+              if control.apply_receipt(command["receipt"], command["trip_binding"], observed_now_ns=self.source_clock_ns()):
+                analyzer.invalidate_analysis("analysis_cut_changed")
+          except (ValueError, OSError) as error:
+            reason = str(error)
+            control.public.update(state="failed", request_id=command.get("request_id"), trigger="manual",
+              reason_codes=[reason if re.fullmatch(r"[a-z0-9_]{1,128}", reason) else "analysis_request_unavailable"])
+        intent = control.take()
+        # An explicit intent is durable before the model subprocess can start.
+        if durable_revision != control.revision:
+          _atomic(self._session_dir / "analysis-control.json", control.durable(), durable=True)
+          durable_revision = control.revision
+        if intent is not None:
+          analyzer.request_analysis(intent)
+        with self._lock:
+          settings_context = deepcopy(self._public["settings"])
+        if control.binding_valid and hasattr(analyzer, "update_current_context"):
+          observation_end = (settings_context.get("observation") or {}).get("end_ns")
+          if type(observation_end) is int and 0 <= self.source_clock_ns() - observation_end <= 2_000_000_000:
+            analyzer.update_current_context({"session_id": self.session_id,
+              "analysis_binding": {"trip_binding": deepcopy(control.trip), "cut_revision": control.cut_revision},
+              "settings_raw": settings_context["values"], "vehicle_identity": settings_context.get("vehicle_identity")})
+          else:
+            analyzer.update_current_context(None)
+        elif hasattr(analyzer, "update_current_context"):
+          analyzer.update_current_context(None)
         try:
           offered = self._checkpoints.get_nowait()
         except queue.Empty:
@@ -341,8 +459,11 @@ class RecordingSession:
         if offered is not None:
           analyzer.offer(offered["checkpoint"], archive_watermark=offered["archive_watermark"])
         analyzer.tick()
+        control.update(analyzer.snapshot())
         with self._lock:
           self._automatic_public = deepcopy(analyzer.snapshot())
+          self._analysis_public = control.snapshot()
+          self._analysis_binding = None if not control.binding_valid else {"trip_binding": deepcopy(control.trip), "cut_revision": control.cut_revision}
         self._stop.wait(0.1)
     except Exception:
       with self._lock:
@@ -361,6 +482,17 @@ class RecordingSession:
       elif self._stop.is_set():
         with self._lock:
           self._automatic_public.update(state="stopped", reason="automatic_analysis_stopped")
+      if control is not None:
+        control.public["can_analyze"] = False
+        if control.public["state"] in {"queued", "running", "waiting_for_tail"}:
+          control.public.update(state="incomplete", reason_codes=["analysis_interrupted"])
+        with self._lock:
+          self._analysis_public = control.snapshot()
+        try:
+          _atomic(self._session_dir / "analysis-control.json", control.durable(), durable=True)
+        except (OSError, ValueError):
+          with self._lock:
+            self._analysis_public.update(state="failed", reason_codes=["analysis_interruption_not_durable"])
       if reaped:
         self._automatic_finished.set()
       self._release_lease_if_finished()
@@ -413,6 +545,18 @@ class RecordingSession:
     accepted = 0
     for event in events:
       with self._lock:
+        if event.get("event_kind") == "pid_burst_chunk":
+          if self._stop.is_set() or self._public["state"] == "failed":
+            self._pid_burst_rejections += 1
+            continue
+          try:
+            self._commands.put_nowait({"kind": "pid_burst", "event": deepcopy(event)})
+          except queue.Full:
+            self._pid_burst_rejections += 1
+          else:
+            self._pending_pid_burst_events += 1
+            accepted += 1
+          continue
         history = self._public["consumer_history"]
         if self._stop.is_set() or self._public["state"] == "failed":
           history.update(state="partial", dropped_events=history["dropped_events"] + 1)
@@ -496,6 +640,18 @@ class RecordingSession:
         try:
           command = self._commands.get(timeout=0.05)
         except queue.Empty:
+          continue
+        if command["kind"] == "pid_burst":
+          committed = False
+          try:
+            committed = recorder.append_pid_burst_chunk(command["event"])
+            self._publish_checkpoint(recorder)
+          except (ValueError, OSError):
+            pass
+          with self._lock:
+            self._pending_pid_burst_events -= 1
+            if not committed:
+              self._pid_burst_rejections += 1
           continue
         if command["kind"] == "consumer":
           committed = False

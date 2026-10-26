@@ -60,6 +60,13 @@ class FakeInput:
   def __init__(self, process, close_exits):
     self.process, self.close_exits = process, close_exits
     self.closed = asyncio.Event()
+    self.commands = []
+
+  def write(self, data):
+    self.commands.append(json.loads(data))
+
+  async def drain(self):
+    pass
 
   def close(self):
     self.closed.set()
@@ -94,6 +101,49 @@ class FakeProcess:
 
 
 class SessionTests(unittest.IsolatedAsyncioTestCase):
+  async def test_explicit_analysis_uses_same_owned_pipe_and_idempotent_ack(self):
+    from openpilot.selfdrive.carrot.control_advisor.analysis_control import initial_control
+    controller = await self.make_controller()
+    started = await controller.start(mode="live", interval_seconds=300, request_id="record")
+    control = {**initial_control(), "can_analyze": True, "reason_codes": []}
+    self.processes[0].emit(started, analysis_control=control)
+    await self.state(controller, "running")
+    ack = await controller.analyze(session_id=started["session_id"], request_id="manual")
+    self.assertEqual(ack["analysis_control"]["state"], "queued")
+    await controller.analyze(session_id=started["session_id"], request_id="manual")
+    self.assertEqual(self.processes[0].stdin.commands, [{"kind": "analyze", "session_id": started["session_id"], "request_id": "manual"}])
+    with self.assertRaises(SessionConflict):
+      await controller.analyze(session_id="different", request_id="manual")
+
+  async def test_unready_analysis_and_malformed_worker_control_fail_closed(self):
+    controller = await self.make_controller()
+    started = await controller.start(mode="live", interval_seconds=300, request_id="record")
+    with self.assertRaises(SessionConflict):
+      await controller.analyze(session_id=started["session_id"], request_id="manual")
+    self.processes[0].emit(started, analysis_control={"state": "ready"})
+    failed = await self.state(controller, "failed")
+    self.assertEqual(failed["reason"], "invalid_worker_output")
+
+  async def test_goal_switch_command_keeps_recording_process_and_same_session(self):
+    from openpilot.selfdrive.carrot.control_advisor.analysis_control import initial_control
+    from openpilot.selfdrive.carrot.control_advisor.runtime_config import BUILTIN_PROFILE_PATH, BUILTIN_OBJECTIVES_PATH
+    controller = await self.make_controller(live_environment={"CARROT_CONTROL_ADVISOR_AUTO_PROFILE": BUILTIN_PROFILE_PATH,
+      "CARROT_CONTROL_ADVISOR_AUTO_OBJECTIVES": BUILTIN_OBJECTIVES_PATH})
+    started = await controller.start(mode="live", interval_seconds=300, request_id="record", goal_id="tracking")
+    process = self.processes[0]
+    process.emit(started, analysis_control={**initial_control(), "can_analyze": True, "reason_codes": []})
+    await self.state(controller, "running")
+    switched = await controller.analyze(session_id=started["session_id"], request_id="new-goal", goal_id="fms_accel_defaults_v1")
+    self.assertEqual(switched["session_id"], started["session_id"])
+    self.assertIs(controller._process, process)
+    self.assertEqual(len(self.spawned), 1)
+    self.assertEqual(process.stdin.commands[-1]["goal_id"], "fms_accel_defaults_v1")
+    self.assertEqual(self.spawned[0][1]["env"]["CARROT_CONTROL_ADVISOR_BUILTIN_GOALS"], "1")
+    with self.assertRaises(SessionConflict):
+      await controller.analyze(session_id=started["session_id"], request_id="new-goal", goal_id="tracking")
+    with self.assertRaises(ValueError):
+      await controller.analyze(session_id=started["session_id"], request_id="path", goal_id="../../other")
+
   async def test_automatic_analysis_partial_summary_is_validated_and_propagated(self):
     from openpilot.selfdrive.carrot.control_advisor.recording import _automatic_initial
     controller = await self.make_controller()
@@ -368,22 +418,24 @@ class SessionTests(unittest.IsolatedAsyncioTestCase):
     with self.assertRaises(SessionConflict):
       await controller.start(mode="live", interval_seconds=300, request_id="late")
 
-  async def test_actual_synthetic_worker_reports_diagnostic_and_eof_cleanup(self):
+  async def test_actual_synthetic_worker_records_bookmarks_without_analysis_and_eof_cleanup(self):
     controller = SessionController(heartbeat_timeout=10, graceful_timeout=3)
     self.addAsyncCleanup(controller.close)
     session = await controller.start(mode="synthetic", interval_seconds=180, request_id="actual-child")
     process = controller._process
 
-    async def diagnostic_ready():
+    async def bookmark_ready():
       while True:
         status = controller.status()
         if status["state"] in ("failed", "unavailable", "ended", "stopped"):
-          self.fail(f"synthetic child ended before diagnostic: {status['reason']}")
-        if status["diagnostic_revision"] >= 1 and status["diagnostic"] is not None:
+          self.fail(f"synthetic child ended before bookmark: {status['reason']}")
+        if status["diagnostic_revision"] >= 1:
           return status
         await asyncio.sleep(.02)
 
-    status = await asyncio.wait_for(diagnostic_ready(), 20)
+    status = await asyncio.wait_for(bookmark_ready(), 20)
+    self.assertIsNone(status["diagnostic"])
+    self.assertEqual(status["analysis_control"]["state"], "recording")
     self.assertEqual("synthetic", status["source_mode"])
     self.assertEqual("accelerated_synthetic", status["clock_mode"])
     self.assertGreater(status["received_events"], 0)

@@ -4,7 +4,7 @@ import { createControlAdvisorView } from "./view.js";
 const STATUS_PATH = "/api/control_advisor/status";
 const REQUEST_PATH = "/api/control_advisor/apply-requests";
 const EXPORT_PATH = "/api/control_advisor/export-jobs";
-const ACTION_PATHS = Object.freeze({ start: "/api/control_advisor/start", stop: "/api/control_advisor/stop", register_request: REQUEST_PATH,
+const ACTION_PATHS = Object.freeze({ start: "/api/control_advisor/start", stop: "/api/control_advisor/stop", analyze: "/api/control_advisor/analyze", register_request: REQUEST_PATH,
   create_export_job: EXPORT_PATH, redeem_access: "/api/control_advisor/access/redeem",
   confirm_vehicle: "/api/control_advisor/vehicle/confirm", backup_vehicle: "/api/control_advisor/vehicle/backup", restore_vehicle: "/api/control_advisor/vehicle/restore" });
 
@@ -133,7 +133,7 @@ export function mountControlAdvisor(container, { fetchImpl = globalThis.fetch, p
   const reviewFiles = new Map();
   const fileReads = new Map();
   const restoreIds = new Map();
-  const ui = { tab: "live", axis: "all", interval: 300, includeRaw: false, vehicleGroup: "", lastRestore: null,
+  const ui = { tab: "live", axis: "all", goalId: "tracking", goalTouched: false, includeRaw: false, vehicleGroup: "", lastRestore: null,
     reviewFiles: {}, selectedReviews: {}, pending: false, connected: false, error: null, actionError: null };
 
   function render() {
@@ -145,6 +145,10 @@ export function mountControlAdvisor(container, { fetchImpl = globalThis.fetch, p
       session: data.session || payload.session, parameters: data.parameters || payload.parameters,
       candidate_report: data.candidate_report || null, parking_summary: data.parking_summary || null,
       review_exports: Array.isArray(data.review_exports) ? data.review_exports : [], review_export_state: data.review_export_state || null };
+    if (!ui.goalTouched) {
+      const selected = createControlAdvisorModel(payload).analysisGoals.selectedId;
+      if (selected) ui.goalId = selected;
+    }
     ui.connected = true;
     ui.error = null;
     render();
@@ -179,6 +183,7 @@ export function mountControlAdvisor(container, { fetchImpl = globalThis.fetch, p
     if (disposed || ui.pending || !ui.connected || !controlAuthorized(model, token) || !model.controlConfigured) return;
     if (kind === "start" && (model.active || !(mode === "live" ? model.liveEnabled : model.syntheticEnabled))) return;
     if (kind === "stop" && (!model.active || !model.sessionId || model.state === "stopping")) return;
+    if (kind === "analyze" && (!model.sessionId || !model.analysisControl.canAnalyze)) return;
     ui.pending = true;
     ui.actionError = null;
     clearTimeout(timer);
@@ -186,7 +191,10 @@ export function mountControlAdvisor(container, { fetchImpl = globalThis.fetch, p
     const serial = ++sequence;
     render();
     try {
-      const body = kind === "start" ? { mode, interval_seconds: ui.interval, request_id: requestId() } : { session_id: model.sessionId };
+      const body = kind === "start" ? { mode, interval_seconds: 300, request_id: requestId() } : { session_id: model.sessionId };
+      if (kind === "start" && mode === "live" && model.analysisGoals.options.some((goal) => goal.id === ui.goalId)) body.goal_id = ui.goalId;
+      if (kind === "analyze") body.request_id = requestId();
+      if (kind === "analyze" && model.analysisGoals.options.some((goal) => goal.id === ui.goalId)) body.goal_id = ui.goalId;
       const data = await client.request(kind, { token: token.trim(), body });
       if (!disposed && sequence === serial) accept(data);
     } catch (error) {
@@ -380,9 +388,11 @@ export function mountControlAdvisor(container, { fetchImpl = globalThis.fetch, p
     onTab(value) { ui.tab = value; render(); },
     onAxis(value) { ui.axis = value; render(); },
     onToken(value) { token = value; ui.actionError = null; render(); },
-    onInterval(value) { if (!ui.pending && !createControlAdvisorModel(payload).active && [180, 300].includes(value)) ui.interval = value; },
+    onGoal(value) { const model = createControlAdvisorModel(payload); if (!ui.pending
+      && model.analysisGoals.options.some((goal) => goal.id === value)) { ui.goalId = value; ui.goalTouched = true; render(); } },
     onStart(mode) { void action("start", mode); },
     onStop() { void action("stop"); },
+    onAnalyze() { void action("analyze"); },
     onApplyRequest(key) { void applyRequestAction("register_request", key); },
     onCancelRequest(id) { void applyRequestAction("cancel_request", id); },
     onExportRaw(value) { ui.includeRaw = value === true; render(); },

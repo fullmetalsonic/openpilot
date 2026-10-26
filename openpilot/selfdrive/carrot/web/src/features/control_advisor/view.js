@@ -117,8 +117,8 @@ function offlineCandidatePanel(document, report, connected, requestControls) {
   if (report.periodic) {
     const periodic = node(document, "div", "control-advisor__values");
     periodic.dataset.caPeriodicStatus = "";
-    periodic.append(pair(document, "자동 분석", report.periodic.stateLabel),
-      pair(document, "분석 주기", `${formatAdvisorNumber(report.periodic.intervalSeconds)}초`),
+    periodic.append(pair(document, "분석 처리", report.periodic.stateLabel),
+      pair(document, "실행 방식", "분석 버튼 또는 P 전환 · 이번 주행 전체"),
       pair(document, "현재 대상 구간 (기기 부팅 시계)", report.periodic.sourceStartSeconds === null || report.periodic.sourceEndSeconds === null ? "범위 미확인"
         : `${formatAdvisorNumber(report.periodic.sourceStartSeconds, 3)}–${formatAdvisorNumber(report.periodic.sourceEndSeconds, 3)}초`),
       pair(document, "분석 기준 시각 (단조 시계)", `${formatAdvisorNumber(report.periodic.cutoffSeconds, 3)}초`),
@@ -129,7 +129,11 @@ function offlineCandidatePanel(document, report, connected, requestControls) {
       pair(document, "현재 게시 버전", formatAdvisorNumber(report.periodic.publicationRevision)),
       pair(document, "마지막 완료 결과 버전", formatAdvisorNumber(report.periodic.resultRevision)),
       pair(document, "마지막 완료 대상 종료 (기기 부팅 시계)", `${formatAdvisorNumber(report.periodic.resultSourceEndSeconds, 3)}초`),
-      node(document, "p", "control-advisor__muted", "대상 시각은 실제 날짜·시각이 아닙니다. 각 완료 세그먼트의 창을 별도로 계산하며 최신 창의 결과는 3분·5분 전체를 통합한 최적값이 아닙니다. 일부 실패·분석 중·최신성 미확인 상태에서는 과거 후보로 대체하지 않습니다."));
+      node(document, "p", "control-advisor__muted", report.periodic.continuousBatch
+        ? "이번 주행 전체를 분석합니다. 설정 적용에 성공했다면 적용 이후부터 분석하며, 원본과 이전 비교 자료는 유지합니다. 시각은 기기 부팅 시계 기준입니다."
+        : "대상 시각은 실제 날짜·시각이 아닙니다. 각 완료 세그먼트의 창을 별도로 계산하며 최신 창의 결과는 3분·5분 전체를 통합한 최적값이 아닙니다. 일부 실패·분석 중·최신성 미확인 상태에서는 과거 후보로 대체하지 않습니다."));
+    if (report.periodic.epochDurationSeconds !== null) periodic.append(
+      pair(document, "최신 설정 구간의 실제 분석 시간", `${formatAdvisorNumber(report.periodic.epochDurationSeconds, 1)}초`));
     if (report.periodic.stale) periodic.append(node(document, "p", "control-advisor__reason", "이전 완료 결과의 최신성을 확인할 수 없어 후보를 보류합니다."));
     if (report.periodic.reasonLabel) periodic.append(node(document, "p", "control-advisor__reason", report.periodic.reasonLabel));
     section.append(periodic);
@@ -151,6 +155,13 @@ function offlineCandidatePanel(document, report, connected, requestControls) {
       node(document, "p", "control-advisor__muted", link.availabilityLabel),
       node(document, "p", "control-advisor__reason", "해시·추출 연결 확인은 신호 의미 전체, 독립 검증 또는 주행 추천의 증명이 아닙니다."));
     if (link.available) {
+      if (link.wholeTrip) provenance.append(pair(document, "전체 원본 확인 / 계산 표본",
+        `${formatAdvisorNumber(link.wholeTrip.rawCount)} / ${formatAdvisorNumber(link.wholeTrip.selectedCount)}`),
+        pair(document, "계산 자료 선정", link.wholeTrip.policyLabel),
+        node(document, "p", "control-advisor__muted", "모든 원본의 제외 조건을 확인하고 주행 전반을 대표하는 자료로 후보를 계산합니다. 원본은 유지합니다."));
+      else if (link.sampling) provenance.append(pair(document, "원래 주기 표본 / 후보 계산 표본",
+        `${formatAdvisorNumber(link.sampling.rawCount)} / ${formatAdvisorNumber(link.sampling.selectedCount)}`),
+        node(document, "p", "control-advisor__muted", "개입·회복 구간은 원래 주기로 구분한 뒤 후보 계산에 5Hz 표본을 사용합니다. 원본과 빠른 제어 변동 기록은 보존합니다."));
       for (const reason of link.reasons) provenance.append(node(document, "p", "control-advisor__muted", reason));
       for (const excluded of link.excludedCounts) provenance.append(pair(document, `제외 근거 · ${excluded.label}`, formatAdvisorNumber(excluded.count)));
     }
@@ -280,6 +291,10 @@ function comparisonCard(document, request) {
       pair(document, "사용 시간", `${formatAdvisorNumber(summary?.eligibleSeconds, 3)}초`),
       pair(document, "원시 RMSE / 사용 RMSE", `${formatAdvisorNumber(summary?.raw?.rmse, 4)} / ${formatAdvisorNumber(summary?.eligible?.rmse, 4)}`),
       pair(document, "사용 편향 / p95 절대오차", `${formatAdvisorNumber(summary?.eligible?.bias, 4)} / ${formatAdvisorNumber(summary?.eligible?.p95, 4)}`));
+    if (summary?.detailPages !== null && summary?.detailPages !== undefined) {
+      card.append(pair(document, "제외 구간 상세", `${formatAdvisorNumber(summary.detailIntervals)}개 · ${formatAdvisorNumber(summary.detailPages)}개 파일`),
+        node(document, "p", "control-advisor__muted", "전체 제외 구간은 로그·그래프 내보내기 묶음에 포함됩니다."));
+    }
     summaries.append(card);
   }
   section.append(summaries, pair(document, "공통 조건 묶음", formatAdvisorNumber(comparison.matched?.commonBins)),
@@ -478,25 +493,27 @@ export function createControlAdvisorView(container, handlers) {
   token.dataset.caToken = "";
   token.placeholder = "로컬에서 설정한 세션 키";
   keyLabel.append(token);
-  const intervalLabel = node(document, "label", "control-advisor__field", "분석 갱신 간격");
-  const interval = node(document, "select");
-  interval.dataset.caInterval = "";
-  for (const [value, text] of [[300, "5분 (기본)"], [180, "3분"]]) {
-    const option = node(document, "option", "", text);
-    option.value = String(value);
-    interval.append(option);
-  }
-  intervalLabel.append(interval);
+  const analysisStatus = node(document, "p", "control-advisor__muted");
+  analysisStatus.dataset.caAnalysisStatus = "";
+  analysisStatus.setAttribute("role", "status");
+  const goalLabel = node(document, "label", "control-advisor__field control-advisor__goal", "분석 목표");
+  const goal = node(document, "select");
+  goal.dataset.caGoal = "";
+  goalLabel.append(goal);
+  const goalNote = node(document, "p", "control-advisor__muted");
+  goalNote.dataset.caGoalNote = "";
+  let goalOptionsSignature = null;
   const actions = node(document, "div", "control-advisor__actions");
   const startLive = node(document, "button", "btn btn--filled", "실제 수신 시작");
   const startSynthetic = node(document, "button", "btn", "합성 데모 시작");
   const stop = node(document, "button", "btn", "수집 종료");
-  for (const [button, action] of [[startLive, "live"], [startSynthetic, "synthetic"], [stop, "stop"]]) {
+  const analyze = node(document, "button", "btn btn--filled", "이번 주행 분석");
+  for (const [button, action] of [[startLive, "live"], [startSynthetic, "synthetic"], [stop, "stop"], [analyze, "analyze"]]) {
     button.type = "button";
     button.dataset.caAction = action;
     actions.append(button);
   }
-  controls.append(keyLabel, intervalLabel, actions);
+  controls.append(keyLabel, goalLabel, actions);
   const controlsNote = node(document, "p", "control-advisor__muted");
   const offline = node(document, "div");
   const tabs = node(document, "div", "control-advisor__tabs c-segmented-control c-segmented-control--equal");
@@ -533,13 +550,14 @@ export function createControlAdvisorView(container, handlers) {
     handlers.onTab(tabButtons[next].dataset.caTab);
   });
   const footer = node(document, "p", "control-advisor__muted", "화면을 닫아도 수집 세션은 유지됩니다. 수집 종료 버튼으로 종료해 주세요. 설정 자동 적용은 없습니다.");
-  root.append(status, connection, controls, controlsNote, offline, tabs, panel, footer);
+  root.append(status, connection, controls, goalNote, analysisStatus, controlsNote, offline, tabs, panel, footer);
   container.replaceChildren(root);
   token.addEventListener("input", () => handlers.onToken(token.value));
-  interval.addEventListener("change", () => handlers.onInterval(Number(interval.value)));
+  goal.addEventListener("change", () => handlers.onGoal(goal.value));
   startLive.addEventListener("click", () => handlers.onStart("live"));
   startSynthetic.addEventListener("click", () => handlers.onStart("synthetic"));
   stop.addEventListener("click", () => handlers.onStop());
+  analyze.addEventListener("click", () => handlers.onAnalyze());
 
   function renderDiagnostic(model) {
     const metrics = node(document, "div", "control-advisor__metrics");
@@ -615,13 +633,29 @@ export function createControlAdvisorView(container, handlers) {
     startLive.disabled = !actionState.canStartLive;
     startSynthetic.disabled = !actionState.canStartSynthetic;
     stop.disabled = !actionState.canStop;
-    interval.disabled = actionState.intervalDisabled;
+    analyze.disabled = !actionState.canAnalyze;
+    analysisStatus.textContent = [model.analysisControl.label, model.analysisControl.scopeLabel,
+      model.analysisControl.progress, "분석 버튼 또는 P 전환 시 실행 · 설정은 수동 적용"].filter(Boolean).join(" · ");
+    goalLabel.hidden = model.analysisGoals.options.length === 0;
+    goalNote.hidden = goalLabel.hidden;
+    const nextGoals = JSON.stringify(model.analysisGoals.options);
+    if (goalOptionsSignature !== nextGoals) {
+      goal.replaceChildren();
+      for (const item of model.analysisGoals.options) {
+        const option = node(document, "option", "", item.label);
+        option.value = item.id; goal.append(option);
+      }
+      goalOptionsSignature = nextGoals;
+    }
+    goal.value = ui.goalId;
+    goal.disabled = ui.pending;
+    goalNote.textContent = model.analysisGoals.options.find((item) => item.id === goal.value)?.description || "";
     token.disabled = ui.pending;
     controlsNote.textContent = model.auth.authorized ? "이 브라우저의 기기 연결 권한이 확인됐습니다. 설정 저장·소비 확인은 항목별 상태를 확인해 주세요."
       : model.auth.nativeAvailable ? "기기 화면의 연결 QR로 이 브라우저를 연결해 주세요. 수동 세션 키도 사용할 수 있습니다."
       : !model.controlConfigured
       ? "세션 제어가 아직 허용되지 않았습니다. 현재 상태와 항목 목록을 볼 수 있습니다."
-      : model.acceleratedSynthetic ? "합성 시계가 가속되어 진행됩니다. 실제 3분·5분 경과가 아닙니다. 세션 키는 이 화면에서만 사용합니다."
+      : model.acceleratedSynthetic ? "합성 시계가 가속되어 진행됩니다. 실제 주행 자료가 아닙니다. 세션 키는 이 화면에서만 사용합니다."
         : "세션 키는 이 화면에서만 사용합니다. 합성 데모는 실제 주행 자료가 아닙니다.";
     selectedTab = ui.tab;
     for (const button of tabButtons) {

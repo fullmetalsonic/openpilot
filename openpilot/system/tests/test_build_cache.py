@@ -200,6 +200,8 @@ class CacheExclusionTests(unittest.TestCase):
     common = repo / 'openpilot/common'
     common.mkdir(parents=True)
     (common / 'params_keys.h').write_text('header')
+    for name in ('params_pyx.pyx', 'params.cc', 'params.h'):
+      (common / name).write_text('synthetic binding source')
     script = repo / 'scripts/ensure_params_build.sh'
     script.write_text((ROOT / 'scripts/ensure_params_build.sh').read_text().replace(
       'echo "Params registry changed; rebuilding params_pyx.so."', ':'))
@@ -209,6 +211,7 @@ class CacheExclusionTests(unittest.TestCase):
     fake.write_text('#!' + sys.executable + '\n' +
       'import os,sys\nfrom pathlib import Path\nfrom openpilot.common.scons_cache_lock import acquire_cache_lock\n' +
       'h=acquire_cache_lock(Path(os.environ["SCONS_CACHE_DIR"]),os.environ["SCONS_CACHE_LOCK_FD"])\n' +
+      'Path("openpilot/common/params_pyx.so").write_text("synthetic binding artifact")\n' +
       'print("ready",flush=True)\nsys.stdin.readline()\nh.close()\n')
     fake.chmod(0o755)
     # The device-specific Params import is outside this concurrency test.

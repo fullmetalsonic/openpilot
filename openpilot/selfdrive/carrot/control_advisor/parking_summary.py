@@ -172,8 +172,10 @@ class ParkingSummaryService:
       if isinstance(exported, dict):
         # Full public comparisons are already represented by compact summary
         # metrics and the fixed ledger prefix; do not duplicate them 64 times.
-        exported["requests"] = [{"request_id": row.get("request_id"), "session_id": row.get("session_id")}
-                                for row in exported.get("requests", [])]
+        exported["requests"] = [{"request_id": row.get("request_id"), "session_id": row.get("session_id"),
+          **({"comparison_details": [deepcopy(row["comparison"][side]["exclusions"]) for side in ("before", "after") if row["comparison"].get(side) is not None]}
+             if (row.get("comparison") or {}).get("schema_version") == 3 else {})}
+          for row in exported.get("requests", [])]
       self._records[(identifier, revision)] = {"summary": deepcopy(summary), "request_export": exported, "bindings": bindings}
       self._latest[session_key] = (digest, (identifier, revision))
       while len(self._records) > self.maximum:
@@ -276,7 +278,7 @@ class ParkingSummaryService:
     summary, files, checkpoints, expected, reasons = frozen["summary"], {}, [], [], []
     end_time = time.monotonic() + 30 if deadline is None else deadline
     read_bytes = 0
-    max_read_bytes = (192 if any((binding.get("reference", {}).get("checkpoint") or {}).get("schema_version") == 2
+    max_read_bytes = (512 if any((binding.get("reference", {}).get("checkpoint") or {}).get("schema_version") == 2
       for binding in frozen["bindings"]) else 64) * 1024 * 1024
     def check():
       if cancelled is not None and cancelled():
@@ -323,7 +325,7 @@ class ParkingSummaryService:
         raise ValueError("summary_source_root_escape")
       if destination in files:
         return
-      if len(files) >= 256:
+      if len(files) >= 512:
         raise ValueError("summary_selection_file_budget")
       charge(checkpoint["bytes"] if checkpoint else prefix_info["bytes"] if prefix_info is not None else path.stat().st_size)
       if checkpoint is not None:
@@ -350,6 +352,35 @@ class ParkingSummaryService:
       files[destination] = item
     exported = frozen["request_export"] or {}
     current_requests = [row for row in exported.get("requests", []) if summary["session_id"] is None or row.get("session_id") == summary["session_id"]]
+    for request in current_requests:
+      details = request.get("comparison_details", [])
+      if not details:
+        continue
+      previous_files = dict(files)
+      try:
+        from .comparison_stream import validate_interval_reference, read_interval_page
+        for detail in details:
+          ref = validate_interval_reference(detail)
+          root = self.roots["automatic"]
+          manifest_path = _relative(ref["path"])
+          interval_manifest = _object(_read(root / manifest_path, 32 * 1024))
+          if hash_file(root / manifest_path, 32 * 1024)[0] != ref["sha256"]:
+            raise ValueError("summary_interval_manifest_changed")
+          if (interval_manifest.get("kind") != "comparison_exclusion_pages" or interval_manifest.get("schema_version") != 1
+              or len(interval_manifest.get("pages", [])) != ref["page_count"]
+              or interval_manifest.get("interval_count") != ref["interval_count"]):
+            raise ValueError("summary_interval_manifest_changed")
+          add("automatic", manifest_path, manifest_path, "comparison_exclusion_manifest")
+          for index, page in enumerate(interval_manifest["pages"]):
+            check()
+            read_interval_page(root, ref, index)
+            relative = _relative((Path(manifest_path).parent / page["path"]).as_posix())
+            add("automatic", relative, relative, "comparison_exclusion_page")
+            if any(files[relative][key] != page[key] for key in ("sha256", "bytes")):
+              raise ValueError("summary_interval_page_changed")
+      except (OSError, ValueError, KeyError, TypeError):
+        files = previous_files
+        reasons.append("comparison_interval_details_unavailable")
     if exported.get("checkpoint") is not None and current_requests:
       try:
         add("requests", exported["ledger_relative_path"], "requests/requests.jsonl", "request_ledger", checkpoint=exported["checkpoint"])
@@ -397,7 +428,8 @@ class ParkingSummaryService:
         else:
           marker = _object(_read(job / "snapshot" / "snapshot.json", 64 * 1024))
           selected_bytes = marker.get("history_byte_count")
-          if type(selected_bytes) is not int or not 0 <= selected_bytes <= 32 * 1024 * 1024:
+          limit = 512 * 1024 * 1024 if marker.get("schema_version") == 3 else 32 * 1024 * 1024
+          if type(selected_bytes) is not int or not 0 <= selected_bytes <= limit:
             raise ValueError("summary_history_selection_budget")
           charge(3 * selected_bytes + 256 * 1024)
         sealed = load_journal_snapshot(self.roots["evidence"] / session_id, job / "snapshot")
@@ -409,9 +441,19 @@ class ParkingSummaryService:
           for history_file in sealed["history_files"]:
             relative = _relative(history_file["path"])
             add("automatic", f"{base}/snapshot/{relative}", f"{base}/snapshot/{relative}", "settings_segment", prefix_info=history_file)
+          inventory = sealed["marker"].get("pid_burst_inventory") or {}
+          chosen = inventory.get("burst_ids")
+          for entry in sealed["history"]["records"]:
+            if entry["record"].get("type") != "pid_burst_chunk":
+              continue
+            ref = entry["record"]["reference"]
+            if chosen is not None and ref["burst_id"] not in chosen:
+              continue
+            relative = _relative(ref["path"])
+            add("automatic", f"{base}/snapshot/{relative}", f"{base}/snapshot/{relative}", "pid_cycle_evidence")
           bind_checkpoint("segmented_settings", f"{base}/snapshot/snapshot.json", token)
-          reasons.append("history_selected_closure_only")
-          if sealed["selection"]["omitted_sequence_ranges"]:
+          reasons.append("history_complete_segment_collection" if sealed["marker"].get("schema_version") == 3 else "history_selected_closure_only")
+          if (sealed.get("selection") or {}).get("omitted_sequence_ranges"):
             reasons.append("history_older_ranges_omitted")
         if (session_id, token["sequence"], token["chain_sha256"]) in seen:
           continue

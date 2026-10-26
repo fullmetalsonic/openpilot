@@ -9,6 +9,7 @@ from __future__ import annotations
 import bz2
 from contextlib import ExitStack, contextmanager
 from functools import lru_cache
+import math
 from pathlib import Path
 import re
 import struct
@@ -36,6 +37,40 @@ _SAFE_FIELDS = {
 }
 
 
+def decode_recorded_car_params(raw):
+  """Project only recorded VM inputs and hashes, never raw CP or VIN fields."""
+  from .vehicle_identity import MAX_CP_BYTES, describe_car_params, _schema as car_schema
+  from .lateral_observations import CP_FIELDS
+  result = {"schema_version": 1, "state": "unavailable", "reason": "recorded_cp_missing",
+            "source": "initData.params.CarParams", "values": None, "config_sha256": None,
+            "schema_sha256": None, "raw_sha256": None, "recording_schema_verified": False}
+  if raw is None:
+    return result
+  if type(raw) is not bytes or not 0 < len(raw) <= MAX_CP_BYTES:
+    result["reason"] = "recorded_cp_empty" if type(raw) is bytes and raw == b"" else "recorded_cp_size_or_type_invalid"
+    return result
+  identity = describe_car_params(raw)
+  if identity["state"] != "observed":
+    result["reason"] = "recorded_" + identity["reason"]
+    return result
+  try:
+    _, schema, _ = car_schema()
+    with schema.CarParams.from_bytes(raw, traversal_limit_in_words=MAX_CP_BYTES // 8) as message:
+      values = {key: float(getattr(message, key)) for key in CP_FIELDS}
+      controller_context = {"brand": str(message.brand), "steer_control_type": str(message.steerControlType),
+                            "flags": int(message.flags), "openpilot_longitudinal": bool(message.openpilotLongitudinalControl)}
+    if (any(not math.isfinite(value) for value in values.values())
+        or any(values[key] <= 0 for key in ("mass", "rotationalInertia", "wheelbase", "tireStiffnessFront", "tireStiffnessRear", "steerRatio"))
+        or not 0 < values["centerToFront"] < values["wheelbase"] or abs(values["steerRatioRear"]) >= 1):
+      result["reason"] = "recorded_cp_vm_values_invalid"
+      return result
+  except Exception:
+    result["reason"] = "recorded_cp_decode_unavailable"
+    return result
+  return {**result, "state": "observed", "reason": None, "values": values, "controller_context": controller_context,
+          **{key: identity[key] for key in ("config_sha256", "schema_sha256", "raw_sha256")}}
+
+
 def _selected_data(service, data):
   if service in SERVICES:
     return data.to_dict()  # Preserve the existing four-service normalizer contract.
@@ -43,10 +78,20 @@ def _selected_data(service, data):
     from .registry import load_registry
     keys = {item["key"] for item in load_registry()["items"]}
     settings, seen, invalid = {}, set(), set()
+    recorded_cp, cp_seen = None, False
     if len(data.params.entries) > 4096:
       raise ValueError("rlog initData parameter count limit exceeded")
     for entry in data.params.entries:
       key = str(entry.key)
+      if key == "CarParams":
+        if cp_seen:
+          recorded_cp = {**decode_recorded_car_params(None), "reason": "recorded_cp_duplicate"}
+        elif len(entry.value) > 1024 * 1024:
+          recorded_cp = {**decode_recorded_car_params(None), "reason": "recorded_cp_size_or_type_invalid"}
+        else:
+          recorded_cp = decode_recorded_car_params(bytes(entry.value))
+        cp_seen = True
+        continue
       if key not in keys:
         continue
       if key in seen:
@@ -66,7 +111,8 @@ def _selected_data(service, data):
     commits = {name: str(getattr(data, name)) for name in ("gitCommit", "gitSrcCommit")}
     commits = {name: value.lower() if re.fullmatch(r"[a-fA-F0-9]{40}", value) else None for name, value in commits.items()}
     return {**commits, "dirty": bool(data.dirty),
-            "settings_raw": settings, "invalid_setting_keys": sorted(invalid), "advisory_only": True}
+            "settings_raw": settings, "invalid_setting_keys": sorted(invalid), "advisory_only": True,
+            "recorded_car_params": recorded_cp if cp_seen else decode_recorded_car_params(None)}
   # Project before conversion: VIN, device identifiers, raw Params and location
   # are never part of the selectable event interface.
   result = {}

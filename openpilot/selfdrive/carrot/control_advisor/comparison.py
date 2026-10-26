@@ -10,13 +10,16 @@ import hashlib
 import json
 import math
 import re
+import sqlite3
 
 from .analysis import AnalysisProfile, Observation, _error, _mask_axis, _merge_intervals, _metrics, _summarize_epoch, _validate_observation
 from .consumer_observer import CONTEXT_KEYS, consumer_ids_for_key, validate_event
+from .comparison_intervals import encode_exclusions, decode_exclusions
 from .registry import load_registry
 
 
 _SHA = re.compile(r"^[a-f0-9]{64}$")
+MAX_PUBLIC_BYTES = 32 * 1024
 _UNKNOWN = {"unknown", "unavailable", "not_recorded", "unsupported", "none"}
 _ACCEL = {"planner.longitudinal.mode", "planner.longitudinal.driving_mode", "planner.longitudinal.source",
           "planner.carrot.driving_mode", "log.accel_mode_factor"}
@@ -189,7 +192,7 @@ def _torque_effective_context(item, timelines, before, after):
     return
   keys = {"LateralTorqueAccelFactor", "LateralTorqueFriction", "LateralTorqueKpV", "LateralTorqueKiV", "LateralTorqueKf"} - {item["key"]}
   timeline = timelines.get("controls.torque", [])
-  stamps = [event["produced_mono_ns"] for event in timeline]
+  stamps = timeline.stamps if hasattr(timeline, "stamps") else [event["produced_mono_ns"] for event in timeline]
   observed = []
   for rows in (before, after):
     values = {key: set() for key in keys}
@@ -217,6 +220,9 @@ def _consumers(application, cohort, item):
   scale = 1 if item["key"] == "SpeedTFFactor" else item["raw_scale"]
   old, new = application["old_raw"] * scale, application["candidate_raw"] * scale
   events = cohort["consumer_events"]
+  if type(events) is dict:
+    from .comparison_stream import streaming_consumers
+    return streaming_consumers(application, cohort, item, required, validate_event, _field_matches)
   if type(events) is not list or not 1 <= len(events) <= 5000:
     raise _Hold("required_consumer_observation_missing")
   timelines, boundary = {}, []
@@ -253,6 +259,9 @@ def _consumers(application, cohort, item):
 
 
 def _side(side, axis, profile, mask, timelines, expected, key, source_floor):
+  if type(side.get("observations")) is dict:
+    from .comparison_stream import streaming_side
+    return streaming_side(side, axis, profile, mask, timelines, expected, key, source_floor, _side)
   window = side["window"]
   for name in ("start_ns", "end_ns", "finalized_through_ns"):
     _integer(window[name])
@@ -271,7 +280,7 @@ def _side(side, axis, profile, mask, timelines, expected, key, source_floor):
       raise _Hold("comparison_settings_intervals_invalid")
     previous_end = hi
   interval_starts = [interval["start_ns"] for interval in intervals]
-  stamps = {role: [event["produced_mono_ns"] for event in timeline] for role, timeline in timelines.items()}
+  stamps = {role: timeline.stamps if hasattr(timeline, "stamps") else [event["produced_mono_ns"] for event in timeline] for role, timeline in timelines.items()}
   observations, extras = [], []
   for raw in rows:
     observation = Observation(**raw)
@@ -313,9 +322,11 @@ def _side(side, axis, profile, mask, timelines, expected, key, source_floor):
   if window["finalized_through_ns"] > safe:
     raise _Hold("comparison_unfinalized_window")
   # Raw recovery/dependency masks must not recursively extend themselves merely
-  # because a fresh source sits on an already excluded row.
+  # because a fresh source sits on an already excluded row. Settings scan holes
+  # exclude their rows without restarting physical sensor recovery.
   gated = [replace(observation, valid=observation.valid and not (
-    reasons - {"comparison_source_dependency_masked"} or "comparison_source_dependency_masked" in reasons and not raw_mask))
+    reasons - {"comparison_source_dependency_masked", "comparison_settings_source_uncertain"}
+    or "comparison_source_dependency_masked" in reasons and not raw_mask))
     for observation, reasons, raw_mask in zip(observations, extras, raw_masks)]
   reasons = _mask_axis(gated, mask)
   records = [(observation, reason | extra) for observation, reason, extra in zip(observations, reasons, extras)
@@ -345,6 +356,11 @@ def _duration(records, selected, maximum_gap):
 
 
 def _matched(before, after, records, profile, mask):
+  from .comparison_stream import DiskRows, streaming_matched
+  if isinstance(before, DiskRows) or isinstance(after, DiskRows):
+    if not isinstance(before, DiskRows) or not isinstance(after, DiskRows):
+      raise _Hold("comparison_disk_pair_invalid")
+    return streaming_matched(before, after, profile, mask)
   bins = [{}, {}]
   for side, observations in zip(bins, (before, after)):
     for observation in observations:
@@ -394,6 +410,7 @@ def evaluate_comparison(application, cohort, profile):
             "before": None, "after": None, "matched": None, "boundary": None, "reason_codes": [],
             "consumer_application_ack": False, "causal_improvement_proven": False, "apply_enabled": False, "device_qualified": False}
   receipt, observed = None, None
+  resources = []
   try:
     mask = _profile(profile)
     if not isinstance(application, dict) or not isinstance(cohort, dict):
@@ -417,7 +434,7 @@ def evaluate_comparison(application, cohort, profile):
         or cohort.get("request_id") != application["request_id"] or cohort.get("request_sha256") != application["request_sha256"]
         or cohort.get("target") != application["target"] or any(cohort.get(key) != application["target"][key] for key in ("session_id", "route", "boot_id"))):
       raise _Hold("comparison_request_target_or_source_unbound")
-    _hashes(cohort["source_hashes"], 32)
+    _hashes(cohort["source_hashes"], 128)
     _reference(cohort["history_reference"])
     items = {item["key"]: item for item in load_registry()["items"]}
     item = items.get(application["key"])
@@ -455,6 +472,10 @@ def evaluate_comparison(application, cohort, profile):
         or before["dependencies"] != dependencies or after["dependencies"] != dependencies):
       raise _Hold("comparison_dependencies_changed_or_unknown")
     timelines, observed, old, new = _consumers(application, cohort, item)
+    for timeline in timelines.values():
+      reader = getattr(timeline, "reader", None)
+      if reader is not None and reader not in resources:
+        resources.append(reader)
     public["state"] = "consumer_observed"
     interval = cohort["setting_change_interval"]
     lower, upper = _integer(interval["after_ns"]), _integer(interval["before_ns"])
@@ -467,7 +488,11 @@ def evaluate_comparison(application, cohort, profile):
       raise _Hold("comparison_windows_overlap_transition_or_settling")
     _contexts(before["context"], after["context"], item, profile, cohort)
     first, eligible_before, records_before = _side(before, item["axis"], profile, mask, timelines, old, item["key"], before["eligible_intervals"][0]["start_ns"])
+    if hasattr(eligible_before, "owner"):
+      resources.append(eligible_before.owner)
     second, eligible_after, records_after = _side(after, item["axis"], profile, mask, timelines, new, item["key"], start)
+    if hasattr(eligible_after, "owner"):
+      resources.append(eligible_after.owner)
     public.update(before=first, after=second)
     if any(summary["eligible_count"] < profile["min_samples"] or summary["eligible_duration_ns"] < profile["min_duration_ns"] for summary in (first, second)):
       raise _Hold("comparison_eligible_exposure_insufficient")
@@ -477,10 +502,22 @@ def evaluate_comparison(application, cohort, profile):
     if min(matched["before"]["count"], matched["after"]["count"]) < profile["min_samples"] or min(matched["before_duration_ns"], matched["after_duration_ns"]) < profile["min_duration_ns"]:
       raise _Hold("comparison_matched_exposure_insufficient")
     public["state"] = "comparison_ready"
-  except (ValueError, TypeError, KeyError, OverflowError, RecursionError) as error:
+  except (OSError, ValueError, TypeError, KeyError, OverflowError, RecursionError, sqlite3.Error) as error:
     reason = str(error)
     public["reason_codes"] = [reason if re.fullmatch(r"[a-z_]{1,128}", reason) else "comparison_evidence_invalid"]
+  for resource in resources:
+    try:
+      resource.close()
+    except (OSError, ValueError, sqlite3.Error):
+      public.update(state="held", before=None, after=None, matched=None, boundary=None, reason_codes=["comparison_disk_source_changed"])
   try:
+    if any(isinstance(public[name], dict) and isinstance(public[name].get("exclusions"), dict) and public[name]["exclusions"].get("encoding") == "reason-indexed-pages-v1" for name in ("before", "after")):
+      public = {**public, "schema_version": 3}
+    elif len(json.dumps(public, sort_keys=True, separators=(",", ":"), allow_nan=False).encode()) > MAX_PUBLIC_BYTES:
+      public = {**public, "schema_version": 2}
+      for name in ("before", "after"):
+        if public[name] is not None:
+          public[name] = {**public[name], "exclusions": encode_exclusions(public[name]["exclusions"])}
     validate_public_comparison(public)
   except (ValueError, TypeError, OverflowError, RecursionError):
     public.update(state="held", before=None, after=None, matched=None, boundary=None, reason_codes=["comparison_public_budget_or_schema"])
@@ -497,7 +534,7 @@ def evaluate_comparison(application, cohort, profile):
 def validate_public_comparison(value):
   required = {"schema_version", "state", "axis", "scope", "target_unit", "before", "after", "matched", "boundary", "reason_codes",
               "consumer_application_ack", "causal_improvement_proven", "apply_enabled", "device_qualified"}
-  if (not isinstance(value, dict) or set(value) != required or type(value["schema_version"]) is not int or value["schema_version"] != 1
+  if (not isinstance(value, dict) or set(value) != required or type(value["schema_version"]) is not int or value["schema_version"] not in (1, 2, 3)
       or type(value["state"]) is not str or value["state"] not in {"held", "consumer_observed", "comparison_ready"}
       or (value["axis"] is not None and type(value["axis"]) is not str) or value["axis"] not in {None, "lateral", "longitudinal"}
       or type(value["scope"]) is not str or value["scope"] not in {"observational_generated", "observational_model_derived", "observational_vehicle_acceleration"}
@@ -541,14 +578,20 @@ def validate_public_comparison(value):
       raise ValueError("invalid_public_comparison_limits")
     for count in limits.values():
       _integer(count)
-    if not isinstance(summary["exclusion_counts"], dict) or not isinstance(summary["scope_limitations"], list) or not isinstance(summary["exclusions"], list):
+    if not isinstance(summary["exclusion_counts"], dict) or not isinstance(summary["scope_limitations"], list):
       raise ValueError("invalid_public_comparison_exclusions")
     for code, count in summary["exclusion_counts"].items():
       reason(code)
       _integer(count)
     for code in summary["scope_limitations"]:
       reason(code)
-    for interval in summary["exclusions"]:
+    if value["schema_version"] == 3:
+      from .comparison_stream import validate_interval_reference
+      validate_interval_reference(summary["exclusions"])
+      intervals = []
+    else:
+      intervals = decode_exclusions(summary["exclusions"], schema_version=value["schema_version"])
+    for interval in intervals:
       if not isinstance(interval, dict) or set(interval) != {"reason", "start_ns", "end_ns", "sample_count"}:
         raise ValueError("invalid_public_comparison_exclusions")
       reason(interval["reason"])
@@ -587,6 +630,6 @@ def validate_public_comparison(value):
     raise ValueError("invalid_public_comparison_ready")
   # JSON roundtrip also rejects nonfinite nested metrics and mutable aliasing.
   encoded = json.dumps(value, sort_keys=True, separators=(",", ":"), allow_nan=False)
-  if len(encoded.encode()) > 32 * 1024:
+  if len(encoded.encode()) > MAX_PUBLIC_BYTES:
     raise ValueError("public_comparison_budget")
   return json.loads(encoded)

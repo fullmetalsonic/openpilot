@@ -302,6 +302,15 @@ class LongitudinalPlanner:
       action_t=action_t,
       vEgoStopping=vEgoStopping,
     )
+    _advisor_projection = None
+    if getattr(self, "_consumer_observer", None) is not None:
+      try:
+        _advisor_projection = (tuple(float(value) for value in self.v_desired_trajectory),
+                               tuple(float(value) for value in self.a_desired_trajectory),
+                               tuple(float(value) for value in CONTROL_N_T_IDX),
+                               (float(output_a_target_base), int(bool(output_should_stop_mpc)), float(output_v_target_mpc), float(_)))
+      except Exception:
+        _advisor_projection = None
 
     lead_index = 1 if self.mpc.source == 'lead1' else 0
     leads = (sm['radarState'].leadOne, sm['radarState'].leadTwo)
@@ -396,11 +405,18 @@ class LongitudinalPlanner:
             read_value=value if read_mono is not None else None,
             state="used" if self.mpc.mode == 'acc' else "bypassed", source="stored" if read_mono is not None else "unknown",
             read_mono_ns=read_mono)
-        return {"fields": values, "context": {"mode": self.mpc.mode, "source": self.mpc.source,
+        context = {"mode": self.mpc.mode, "source": self.mpc.source,
                  "reset_state": bool(reset_state), "v_ego": v_ego, "action_t": action_t,
                  "preview_action_t": self.lead_preview_action_time, "accel_limit_base": float(accel_limits[1]),
                  "accel_limit_final": float(accel_limits_turns[1]), "solution_status": int(self.mpc.solution_status),
-                 "group_read_complete": True}}
+                 "group_read_complete": True}
+        if _advisor_projection is not None:
+          context.update(projection_observation_version=1,
+                         projection_speeds_head=_advisor_projection[0][:16], projection_speeds_tail=_advisor_projection[0][16:],
+                         projection_accels_head=_advisor_projection[1][:16], projection_accels_tail=_advisor_projection[1][16:],
+                         projection_times_head=_advisor_projection[2][:16], projection_times_tail=_advisor_projection[2][16:],
+                         projection_output=_advisor_projection[3])
+        return {"fields": values, "context": context}
 
       observe(observer, payload, cycle_id=getattr(carrot, "frame", None), phase="sampled_use")
 

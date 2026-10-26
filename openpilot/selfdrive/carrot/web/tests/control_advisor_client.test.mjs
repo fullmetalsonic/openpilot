@@ -4,6 +4,16 @@ import test from "node:test";
 import { advisorErrorMessage, consumeNativeGrant, createAdvisorClient } from "../src/features/control_advisor/index.js";
 import { buildReviewRegistrationBody } from "../src/features/control_advisor/model.js";
 
+test("manual analysis posts the session and idempotency ID, with no timer or range in the browser", async () => {
+  const calls = [];
+  const client = createAdvisorClient({ fetchImpl: async (...args) => { calls.push(args); return { ok: true, json: async () => ({ ok: true }) }; } });
+  const body = { session_id: "trip", request_id: "manual-A" };
+  await client.request("analyze", { body });
+  assert.equal(calls[0][0], "/api/control_advisor/analyze");
+  assert.equal(calls[0][1].method, "POST");
+  assert.deepEqual(JSON.parse(calls[0][1].body), body);
+});
+
 test("review registration preserves strict JSON bytes and history uses authenticated POST without paths or URL credentials", async () => {
   const calls = [];
   const client = createAdvisorClient({ fetchImpl: async (...args) => { calls.push(args); return { ok: true, json: async () => ({ ok: true }) }; } });

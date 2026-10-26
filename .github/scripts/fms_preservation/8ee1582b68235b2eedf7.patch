@@ -1,0 +1,91 @@
+--- a/openpilot/system/tests/test_params_check.py
++++ b/openpilot/system/tests/test_params_check.py
+@@ -44,7 +44,26 @@
+   header.write_text(SOURCE, encoding='utf-8')
+   monkeypatch.setattr(params_check, 'PARAMS_HEADER', header)
+   keys = [b'Existing']
+-  native = SimpleNamespace(Params=lambda: SimpleNamespace(all_keys=lambda: keys))
++
++  class FakeParams:
++    def __init__(self, path=None):
++      if not path:
++        raise ValueError('Production default constructor not allowed')
++      self.path = path
++
++    def all_keys(self):
++      return keys
++
++    def get_raw(self, key):
++      raise AssertionError('raw API get_raw must not be called')
++
++    def get_many_raw(self, keys_to_read):
++      raise AssertionError('raw API get_many_raw must not be called')
++
++    def compare_and_set_raw(self, key, value, expected):
++      raise AssertionError('raw API compare_and_set_raw must not be called')
++
++  native = SimpleNamespace(Params=FakeParams)
+   monkeypatch.setitem(sys.modules, 'openpilot.common.params', native)
+   assert params_check.main() == 1
+   keys.append(b'AutoNaviSpeedBumpEndDistance')
+@@ -53,6 +72,51 @@
+ 
+ def test_broken_native_extension_fails_boot_check(monkeypatch):
+   monkeypatch.setitem(sys.modules, 'openpilot.common.params', None)
++  assert params_check.main() == 1
++
++
++def test_same_keys_missing_raw_api_fails_boot_check(monkeypatch, tmp_path):
++  header = tmp_path / 'params_keys.h'
++  header.write_text(SOURCE, encoding='utf-8')
++  monkeypatch.setattr(params_check, 'PARAMS_HEADER', header)
++  keys = [b'Existing', b'AutoNaviSpeedBumpEndDistance']
++
++  class OldParamsWithoutRawApi:
++    def __init__(self, path=None):
++      if not path:
++        raise ValueError('Production default constructor not allowed')
++      self.path = path
++
++    def all_keys(self):
++      return keys
++
++  native = SimpleNamespace(Params=OldParamsWithoutRawApi)
++  monkeypatch.setitem(sys.modules, 'openpilot.common.params', native)
++  assert params_check.main() == 1
++
++
++@pytest.mark.parametrize('bad_method', ['get_raw', 'get_many_raw', 'compare_and_set_raw'])
++def test_noncallable_raw_api_fails_boot_check(monkeypatch, tmp_path, bad_method):
++  header = tmp_path / 'params_keys.h'
++  header.write_text(SOURCE, encoding='utf-8')
++  monkeypatch.setattr(params_check, 'PARAMS_HEADER', header)
++  keys = [b'Existing', b'AutoNaviSpeedBumpEndDistance']
++
++  class ParamsWithNonCallableApi:
++    def __init__(self, path=None):
++      if not path:
++        raise ValueError('Production default constructor not allowed')
++      self.path = path
++
++    def all_keys(self):
++      return keys
++
++    get_raw = (lambda self, k: b'') if bad_method != 'get_raw' else 'not_callable'
++    get_many_raw = (lambda self, ks: {}) if bad_method != 'get_many_raw' else 123
++    compare_and_set_raw = (lambda self, k, v, e: {}) if bad_method != 'compare_and_set_raw' else None
++
++  native = SimpleNamespace(Params=ParamsWithNonCallableApi)
++  monkeypatch.setitem(sys.modules, 'openpilot.common.params', native)
+   assert params_check.main() == 1
+ 
+ 
+@@ -92,6 +156,8 @@
+   guard = guard[guard.index('\n'):]
+   script = f'''
+ python3() {{ return {native_result}; }}
++run_startup_command() {{ "$@"; }}
++show_startup_failure() {{ exit 1; }}
+ launch_test() {{{guard}
+ echo manager_started
+ }}

@@ -1,0 +1,112 @@
+--- a/openpilot/selfdrive/controls/lib/longitudinal_planner.py
++++ b/openpilot/selfdrive/controls/lib/longitudinal_planner.py
+@@ -26,7 +26,6 @@
+ from openpilot.selfdrive.car.cruise import V_CRUISE_MAX, V_CRUISE_UNSET
+ from openpilot.common.swaglog import cloudlog
+ from openpilot.common.params import Params
+-from openpilot.common.stopping_params import get_stopping_speed
+ from openpilot.selfdrive.carrot.carrot_man_input import get_carrot_man
+ from openpilot.selfdrive.carrot.signal_stop_prepare import PrepareAccel
+ from openpilot.selfdrive.controls.lib.cruise_coasting import CruiseCoastingPlan, coasting_percent, no_coasting_lead
+@@ -52,7 +51,7 @@
+ class LongitudinalPlanner:
+   def __init__(self, CP, init_v=0.0, init_a=0.0, dt=DT_MDL):
+     self.CP = CP
+-    self.mpc = LongitudinalMpc(dt=dt)
++    self.mpc = LongitudinalMpc(dt=dt, CP=CP)
+     self.fcw = False
+     # VW MEB(ID.4/ID.5)에서만 True. 가속 오버라이드 중 출발 FCW 오탐을 끄기 위한 게이트.
+     self.is_vw_meb = is_volkswagen_meb(CP)
+@@ -92,6 +91,11 @@
+     self.coasting_percent = 0
+     self.coasting_param_time = 1.0
+     self.coasting_target = 0.0
++    try:
++      from openpilot.selfdrive.carrot.control_advisor.consumer_observer import create_observer
++      self._consumer_observer = create_observer("planner.longitudinal", car_params=CP)
++    except Exception:
++      self._consumer_observer = None
+ 
+   def update_lead_tracks(self, radar_state):
+     for index, lead in enumerate((radar_state.leadOne, radar_state.leadTwo)):
+@@ -287,7 +291,8 @@
+     self.v_desired_filter.x = self.v_desired_filter.x + self.dt * (self.a_desired + a_prev) / 2.0
+ 
+     longitudinalActuatorDelay = self.params.get_float("LongActuatorDelay")*0.01
+-    vEgoStopping = get_stopping_speed(self.params)
++    vEgoStopping = self.params.get_float("VEgoStopping") * 0.01
++    consumer_read_mono = time.monotonic_ns() if getattr(self, "_consumer_observer", None) is not None else None
+     action_t =  longitudinalActuatorDelay + DT_MDL
+ 
+     output_a_target_base, output_should_stop_mpc, output_v_target_mpc, _ = get_accel_from_plan(
+@@ -297,6 +302,15 @@
+       action_t=action_t,
+       vEgoStopping=vEgoStopping,
+     )
++    _advisor_projection = None
++    if getattr(self, "_consumer_observer", None) is not None:
++      try:
++        _advisor_projection = (tuple(float(value) for value in self.v_desired_trajectory),
++                               tuple(float(value) for value in self.a_desired_trajectory),
++                               tuple(float(value) for value in CONTROL_N_T_IDX),
++                               (float(output_a_target_base), int(bool(output_should_stop_mpc)), float(output_v_target_mpc), float(_)))
++      except Exception:
++        _advisor_projection = None
+ 
+     lead_index = 1 if self.mpc.source == 'lead1' else 0
+     leads = (sm['radarState'].leadOne, sm['radarState'].leadTwo)
+@@ -371,7 +385,40 @@
+     self.update_coasting(sm, carrot, v_cruise_kph, v_cruise, reset_state,
+                          force_slow_decel, coasting_turn_blocked, cutin_predecel_limit)
+     self.apply_signal_stop_prepare(sm, carrot, reset_state)
+-    self.apply_signal_start_guard(carrot)
++    self.apply_signal_start_guard(carrot, v_ego)
++    observer = getattr(self, "_consumer_observer", None)
++    if observer is not None:
++      try:
++        from openpilot.selfdrive.carrot.control_advisor.consumer_observer import field, observe
++      except Exception:
++        self._consumer_observer = None
++        return
++
++      def payload():
++        read_mono = getattr(carrot, "_consumer_read_mono", {}).get(30)
++        values = {"LongActuatorDelay": field(longitudinalActuatorDelay, read_value=longitudinalActuatorDelay,
++                                             source="stored", read_mono_ns=consumer_read_mono),
++                  "VEgoStopping": field(vEgoStopping, read_value=vEgoStopping, source="stored", read_mono_ns=consumer_read_mono)}
++        for index in range(7):
++          value = getattr(carrot, f"cruiseMaxVals{index}")
++          values[f"CruiseMaxVals{index}"] = field(value if self.mpc.mode == 'acc' else None,
++            read_value=value if read_mono is not None else None,
++            state="used" if self.mpc.mode == 'acc' else "bypassed", source="stored" if read_mono is not None else "unknown",
++            read_mono_ns=read_mono)
++        context = {"mode": self.mpc.mode, "source": self.mpc.source,
++                 "reset_state": bool(reset_state), "v_ego": v_ego, "action_t": action_t,
++                 "preview_action_t": self.lead_preview_action_time, "accel_limit_base": float(accel_limits[1]),
++                 "accel_limit_final": float(accel_limits_turns[1]), "solution_status": int(self.mpc.solution_status),
++                 "group_read_complete": True}
++        if _advisor_projection is not None:
++          context.update(projection_observation_version=1,
++                         projection_speeds_head=_advisor_projection[0][:16], projection_speeds_tail=_advisor_projection[0][16:],
++                         projection_accels_head=_advisor_projection[1][:16], projection_accels_tail=_advisor_projection[1][16:],
++                         projection_times_head=_advisor_projection[2][:16], projection_times_tail=_advisor_projection[2][16:],
++                         projection_output=_advisor_projection[3])
++        return {"fields": values, "context": context}
++
++      observe(observer, payload, cycle_id=getattr(carrot, "frame", None), phase="sampled_use")
+ 
+   def apply_signal_stop_prepare(self, sm, carrot, reset_state, now=None):
+     from openpilot.selfdrive.carrot.signal_stop_prepare import prepare_lead_blocked
+@@ -399,8 +446,10 @@
+         self.output_j_target_now = min(self.output_j_target_now, (self.output_a_target-previous)/elapsed)
+       # No shouldStop or go request: the existing model owns stopping/handover.
+ 
+-  def apply_signal_start_guard(self, carrot):
+-    if carrot.start_decision is not None and carrot.start_decision.hold:
++  def apply_signal_start_guard(self, carrot, v_ego):
++    from openpilot.selfdrive.carrot.signal_assist import departed_signal_stop
++    if (not departed_signal_stop(v_ego)
++        and carrot.start_decision is not None and carrot.start_decision.hold):
+       # Explicit departure veto, including the first constrained MPC cycle.
+       # Preserve any stronger braking and normal longitudinal/Panda gating.
+       self.output_should_stop = True

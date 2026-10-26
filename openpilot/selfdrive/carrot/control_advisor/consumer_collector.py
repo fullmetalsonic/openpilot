@@ -173,6 +173,8 @@ class ConsumerCollector:
     self.read_max_age_ns, self.future_tolerance_ns = read_max_age_ns, future_tolerance_ns
     self.received_events = self.rejected_events = self.dropped_events = self.restarts = 0
     self._entries, self._retired = {}, {consumer: set() for consumer in CONSUMER_BINDINGS}
+    self._burst_entry, self._burst_retired = None, set()
+    self._burst_received = self._burst_rejected = 0
     self._closed = False
     self.transport = None
     self.expected_boot_id = expected_boot_id
@@ -224,22 +226,57 @@ class ConsumerCollector:
       if packet is None:
         break
       self.received_events += 1
+      burst = False
       try:
         raw, credentials = packet if isinstance(packet, tuple) and len(packet) == 2 else (packet, None)
         if not isinstance(raw, bytes) or not 1 <= len(raw) <= MAX_EVENT_BYTES:
           raise ValueError("consumer_datagram_limit")
-        event = validate_event(json.loads(raw.decode("utf-8"), object_pairs_hook=_unique,
-                         parse_constant=lambda _: (_ for _ in ()).throw(ValueError("nonfinite_consumer_json"))))
+        payload = json.loads(raw.decode("utf-8"), object_pairs_hook=_unique,
+                             parse_constant=lambda _: (_ for _ in ()).throw(ValueError("nonfinite_consumer_json")))
+        burst = isinstance(payload, dict) and payload.get("event_kind") == "pid_burst_chunk"
+        if burst:
+          from .pid_burst import validate_chunk
+          self.received_events -= 1
+          self._burst_received += 1
+          event = validate_chunk(payload)
+        else:
+          event = validate_event(payload)
         if getattr(self.transport, "credentials_required", False):
           expected_uid = os.getuid() if hasattr(os, "getuid") else None
           if (not isinstance(credentials, dict) or credentials.get("pid") != event["pid"]
               or expected_uid is None or credentials.get("uid") != expected_uid):
             raise ValueError("consumer_sender_identity_mismatch")
-        self._accept(event)
+        if burst:
+          self._accept_burst(event)
+        else:
+          self._accept(event)
         result.append(event)
       except (ValueError, TypeError, UnicodeError, KeyError, OverflowError, RecursionError):
-        self.rejected_events += 1
+        if burst:
+          self._burst_rejected += 1
+        else:
+          self.rejected_events += 1
     return result
+
+  def _accept_burst(self, event):
+    now = self.clock_ns()
+    if (self.expected_boot_id is not None and event["boot_id"] != self.expected_boot_id
+        or event["produced_mono_ns"] > now + self.future_tolerance_ns
+        or now - event["produced_mono_ns"] > self.max_age_ns):
+      raise ValueError("pid_burst_identity_or_time_mismatch")
+    identity = tuple(event[name] for name in ("boot_id", "pid", "process_instance_id", "consumer_instance_id"))
+    position = event["round_id"], event["block_id"], event["chunk_sequence"]
+    if identity in self._burst_retired:
+      raise ValueError("retired_pid_burst_instance")
+    if self._burst_entry is not None:
+      previous = self._burst_entry
+      if identity != previous["identity"]:
+        if event["produced_mono_ns"] <= previous["time"] or len(self._burst_retired) >= 8:
+          raise ValueError("pid_burst_restart_not_ordered")
+        self._burst_retired.add(previous["identity"])
+      elif position <= previous["position"] or event["produced_mono_ns"] < previous["time"]:
+        raise ValueError("pid_burst_sequence_not_increasing")
+    self._burst_entry = {"identity": identity, "position": position, "time": event["produced_mono_ns"]}
 
   def _accept(self, event):
     now = self.clock_ns()

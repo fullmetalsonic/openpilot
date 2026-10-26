@@ -99,27 +99,25 @@ class LiveTests(unittest.TestCase):
     self.assertTrue(all(row.context["recv_ns"] == row.mono_ns for row in session._window))
     self.assertEqual(0, session.late_events)
 
-  def test_late_intervention_invalidates_old_result_and_requires_fresh_window(self):
+  def test_late_intervention_invalidates_live_inputs_without_running_analysis(self):
     session = LiveSession("late", source_mode="synthetic", interval_seconds=180, clock_ns=Clock())
     ticks(session, 0, 3605)
-    first = session.snapshot()["diagnostic"]
+    first = session.preservation_bookmark.copy()
     self.assertIsNotNone(first)
-    self.assertFalse(first["invalidated"])
-    old_revision = session.diagnostic_revision
+    self.assertTrue(first["recording_only"])
     intervention = LiveEvent("carState", 2_000_000_000, True, {"steeringPressed": True}, 2_050_000_000)
     session.ingest_batch([intervention])
     status = session.snapshot()
     self.assertEqual("degraded", status["state"])
     self.assertEqual(1, status["late_events"])
-    self.assertTrue(status["diagnostic_invalidated"])
+    self.assertIsNone(status["diagnostic"])
     self.assertFalse(first["invalidated"])  # previous immutable result was not overwritten
-    self.assertEqual("invalidated", status["history"][-1]["state"])
+    self.assertTrue(all(not item["ready"] for item in status["transition"].values()))
     ticks(session, 3605, 3705)
-    self.assertEqual(old_revision + 1, session.diagnostic_revision)
-    self.assertTrue(session.snapshot()["diagnostic_invalidated"])
+    self.assertIsNone(session.diagnostic)
     ticks(session, 3705, 7210)
-    self.assertFalse(session.snapshot()["diagnostic_invalidated"])
-    self.assertGreater(session.diagnostic_revision, old_revision + 1)
+    self.assertIsNone(session.diagnostic)
+    self.assertGreater(session.preservation_bookmark["revision"], first["revision"])
 
   def test_count_byte_and_observation_limits_invalidate_instead_of_silent_drop(self):
     session = LiveSession("queue", source_mode="synthetic", max_queue_events=3, clock_ns=Clock())
@@ -136,7 +134,7 @@ class LiveTests(unittest.TestCase):
     self.assertGreater(session.overflow_events, 0)
     self.assertLessEqual(len(session._window), 2)
 
-  def test_ending_after_loss_keeps_incomplete_fresh_window_invalidated(self):
+  def test_ending_after_loss_preserves_a_partial_bookmark_without_analysis(self):
     session = LiveSession("late-end", source_mode="synthetic", interval_seconds=180, clock_ns=Clock())
     ticks(session, 0, 3605)
     session.ingest_batch([LiveEvent("carState", 2_000_000_000, True, {}, 2_050_000_000)])
@@ -144,9 +142,9 @@ class LiveTests(unittest.TestCase):
     session.finish()
     status = session.snapshot()
     self.assertEqual("ended", status["state"])
-    self.assertTrue(status["diagnostic_invalidated"])
-    self.assertTrue(status["diagnostic"]["partial_window"])
-    self.assertEqual("fresh_window_incomplete", status["diagnostic"]["invalidation_reason"])
+    self.assertIsNone(status["diagnostic"])
+    self.assertTrue(session.preservation_bookmark["partial_window"])
+    self.assertEqual(session.late_events, 1)
 
   def test_missing_data_gaps_expiry_and_source_clock_are_not_healthy_states(self):
     clock = Clock()
@@ -168,22 +166,19 @@ class LiveTests(unittest.TestCase):
     self.assertGreater(session.gap_events, 0)
     self.assertEqual("degraded", session.state)
 
-  def test_display_details_and_history_are_bounded_with_omissions_disclosed(self):
+  def test_recording_window_and_history_remain_bounded_without_diagnostics(self):
     session = LiveSession("bounded", source_mode="synthetic", clock_ns=Clock())
     for index in range(1500):
       events = worker._synthetic_tick(index)
       if index % 10 == 0:
         events[-1].data["steeringPressed"] = True
       session.ingest_batch(events)
-      if index % 150 == 149:
-        session._evaluate(partial=True)
     session.finish()
     status = session.snapshot()
     self.assertLessEqual(len(status["history"]), 6)
-    summary = status["diagnostic"]["axes"]["lateral"]["epochs"]["unverified-session"]
-    self.assertLessEqual(len(summary["exclusions"]), 32)
-    self.assertGreater(summary["exclusion_intervals_omitted"], 0)
-    self.assertEqual(summary["sample_count"], summary["eligible_count"] + summary["excluded_count"] + summary["provisional_count"])
+    self.assertIsNone(status["diagnostic"])
+    self.assertLess(len(session._window), 100)
+    self.assertTrue(session.preservation_bookmark["recording_only"])
     self.assertFalse(status["recommendations_enabled"])
     self.assertFalse(status["apply_enabled"])
 
@@ -202,12 +197,11 @@ class LiveTests(unittest.TestCase):
   def test_observed_settings_initial_change_and_gap_reset_both_axes(self):
     session = LiveSession("settings", source_mode="synthetic", interval_seconds=180, clock_ns=Clock())
     ticks(session, 0, 3605)
-    first = session.diagnostic
+    first = session.preservation_bookmark.copy()
     notice = {"revision": 1, "durable_revision": 1, "state": "partial", "journal": {"durable": True},
               "observation": {"gap": False}}
     session.observe_settings(notice)
-    self.assertTrue(session.diagnostic["invalidated"])
-    self.assertEqual(session.diagnostic_revision, session.diagnostic["revision"])
+    self.assertIsNone(session.diagnostic)
     self.assertFalse(first["invalidated"])
     self.assertEqual(0, len(session._window))
     ticks(session, 3605, 3620)
@@ -220,8 +214,8 @@ class LiveTests(unittest.TestCase):
     session.observe_settings({**notice, "revision": 2, "durable_revision": 2})
     ticks(session, 3620, 3630)
     session.finish()
-    self.assertEqual(2, session.diagnostic["observed_settings_revision"])
-    self.assertEqual({"observed-2"}, set(session.diagnostic["axes"]["lateral"]["epochs"]))
+    self.assertEqual(2, session.preservation_bookmark["observed_settings_revision"])
+    self.assertTrue(all(row.epoch == "observed-2" for row in session._window))
 
   def test_worker_eof_finishes_without_waiting_for_logical_interval(self):
     root = Path(__file__).parents[5]
@@ -270,7 +264,8 @@ class LiveTests(unittest.TestCase):
     self.assertEqual("", error)
     self.assertEqual("ended", statuses[-1]["state"])
     self.assertEqual("synthetic_logical_600_seconds_complete", statuses[-1]["reason"])
-    self.assertEqual(2, statuses[-1]["diagnostic_revision"])
+    self.assertEqual(10, statuses[-1]["diagnostic_revision"])  # One light bookmark per minute, including final tail.
+    self.assertIsNone(statuses[-1]["diagnostic"])
     self.assertEqual((0, 0, 0), tuple(statuses[-1][name] for name in ("late_events", "overflow_events", "gap_events")))
 
   def test_status_byte_limit_is_explicit_instead_of_truncating_json(self):

@@ -15,7 +15,7 @@ from typing import Any
 import unittest
 from unittest.mock import patch
 
-from openpilot.selfdrive.carrot.control_advisor.runtime_config import resolve_runtime_config
+from openpilot.selfdrive.carrot.control_advisor.runtime_config import BUILTIN_PROFILE_PATH, BUILTIN_OBJECTIVES_PATH, resolve_runtime_config
 
 
 class FakeParams:
@@ -124,7 +124,7 @@ class TestRuntimeConfig(unittest.TestCase):
     self.assertTrue(res["capabilities"]["native_runtime_detected"])
     self.assertTrue(res["capabilities"]["params_available"])
     self.assertTrue(res["capabilities"]["collection_ready"])
-    self.assertFalse(res["capabilities"]["analysis_configured"])
+    self.assertTrue(res["capabilities"]["analysis_configured"])
     self.assertFalse(fake_p.put_called)
 
     expected = {
@@ -142,8 +142,9 @@ class TestRuntimeConfig(unittest.TestCase):
     self.assertEqual(res["blockers"]["collection"], [])
     self.assertEqual(res["blockers"]["requests"], [])
     self.assertEqual(res["blockers"]["exports"], [])
-    self.assertIn("profile_missing", res["blockers"]["analysis"])
-    self.assertIn("objectives_missing", res["blockers"]["analysis"])
+    self.assertEqual(res["paths"]["profile"], BUILTIN_PROFILE_PATH)
+    self.assertEqual(res["paths"]["objectives"], BUILTIN_OBJECTIVES_PATH)
+    self.assertEqual(res["blockers"]["analysis"], [])
 
     self.assertEqual(existing, {value: Path(value).exists() for value in existing})
 

@@ -6,6 +6,7 @@ import os
 from pathlib import Path
 import threading
 import time
+from types import SimpleNamespace
 import unittest
 from unittest import mock
 
@@ -55,6 +56,38 @@ def payload(value=0.3, stamp=None):
 
 
 class ObserverTests(unittest.TestCase):
+  def test_torque_path_requires_actual_base_method_identity(self):
+    class Base:
+      def torque_from_lateral_accel_linear(self):
+        return 0.
+    class Standard(Base):
+      pass
+    class Custom(Base):
+      def torque_from_lateral_accel_linear(self):
+        return 1.
+    class BrokenCallback:
+      @property
+      def __func__(self):
+        raise RuntimeError("callback inspection failed")
+    loaded = SimpleNamespace(CarInterfaceBase=Base)
+    with mock.patch.dict(observer.sys.modules, {"opendbc.car.interfaces": loaded}):
+      self.assertEqual("linear_standard", observer.torque_feedforward_path(Standard().torque_from_lateral_accel_linear))
+      self.assertEqual("unverified", observer.torque_feedforward_path(Custom().torque_from_lateral_accel_linear))
+      self.assertEqual("unverified", observer.torque_feedforward_path(lambda: 0.))
+      self.assertEqual("unverified", observer.torque_feedforward_path(Base.torque_from_lateral_accel_linear))
+      self.assertEqual("unverified", observer.torque_feedforward_path(BrokenCallback()))
+    with mock.patch.dict(observer.sys.modules, {"opendbc.car.interfaces": None}):
+      self.assertEqual("unverified", observer.torque_feedforward_path(Standard().torque_from_lateral_accel_linear))
+
+  def test_torque_path_protocol_accepts_only_declared_states(self):
+    for path in ("linear_standard", "unverified"):
+      value = payload()
+      value["context"]["torque_ff_path"] = path
+      self.assertEqual(path, observer._payload("controls.torque", value)["context"]["torque_ff_path"])
+    value["context"]["torque_ff_path"] = "linear_by_name"
+    with self.assertRaisesRegex(ValueError, "invalid_consumer_context_enum"):
+      observer._payload("controls.torque", value)
+
   def pump(self, sender=None, **options):
     sender = Sink() if sender is None else sender
     pump = observer._Pump(sender=sender, identity={"boot_id": BOOT, "pid": 123, "process_instance_id": "c" * 32},

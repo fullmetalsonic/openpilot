@@ -2,12 +2,13 @@
 
 sent_torque uses torqued's negative carOutput.actuatorsOutput.torque convention.
 Independent acceleration is already aligned and roll-compensated by the input
-producer. A declared per-row nuisance offset is shared by every Factor candidate.
+producer. Factor uses declared callback offsets, or an explicitly fit-only frozen intercept.
 """
 import math
 from numbers import Real
 
 from .torque_fit import estimate_torque
+from . import candidate_pid
 
 
 MAX_ROWS = 100_000
@@ -40,9 +41,7 @@ def capabilities():
     "LateralTorqueKd": item("inactive_derivative_path", "unavailable", {}, "1", kind="closed_loop_model",
                               reasons=("derivative_path_inactive",)),
   }
-  for key in ("LateralTorqueKpV", "LateralTorqueKiV", "LateralTorqueKf"):
-    result[key] = item("identified_response_model_required", "unavailable", {}, "m/s^2", kind="closed_loop_model",
-                       reasons=("backend_unavailable",))
+  result.update(candidate_pid.capabilities())
   for key in ("LateralTorqueFriction", "SteerActuatorDelay"):
     result[key]["estimate_kind"] = "diagnostic_proxy"
   return result
@@ -209,6 +208,8 @@ def _raw_lag(context, rows, profile):
 
 
 def propose_family(key, context, profile):
+  if key in candidate_pid.KEYS:
+    return candidate_pid.propose_family(key, context, profile)
   capability = capabilities().get(key)
   result = {"raw_estimate": None, "candidate_raw_values": [],
             "method_id": capability["method_id"] if capability else "unsupported", "reason_codes": []}
@@ -220,6 +221,12 @@ def propose_family(key, context, profile):
     rows = _rows(context, "fit")
     if key in ("LateralTorqueAccelFactor", "LateralTorqueFriction"):
       points = _torque_points(context, rows)
+      options = profile.get("method_options", {}).get(key, {})
+      if type(options) is not dict or "offset_policy" in options and options["offset_policy"] != "fit_intercept":
+        raise _Blocked("torque_offset_policy_unsupported")
+      fit_intercept = key == "LateralTorqueAccelFactor" and options.get("offset_policy") == "fit_intercept"
+      if fit_intercept and any(_signal(row, "lateral_accel_offset", "m/s^2") != 0 for row in rows):
+        raise _Blocked("torque_callback_zero_offset_required")
       fit = estimate_torque(points, max_input_points=MAX_ROWS, max_fit_points=MAX_ROWS, seed=0)
       if fit["status"] != "available":
         raise _Blocked(fit["reason"] or "raw_fit_unavailable")
@@ -233,6 +240,8 @@ def propose_family(key, context, profile):
         raise _Blocked("torque_sign_or_rank_invalid")
       if not min(x for x, _ in points) < 0 < max(x for x, _ in points):
         raise _Blocked("insufficient_direction_coverage")
+      if fit_intercept:
+        result["fit_context"] = {"lateral_accel_offset": _number(fit["raw_fit"]["latAccelOffset"])}
     elif key in ("SteerRatioRate", "CustomSR"):
       slope = _positive_inverse_slope(_ratio_points(context, rows, key))
       raw = (100. if key == "SteerRatioRate" else 10.) / slope
@@ -256,6 +265,8 @@ def propose_family(key, context, profile):
 
 
 def evaluate_family(key, candidate_raw, context, split, budget):
+  if key in candidate_pid.KEYS:
+    return candidate_pid.evaluate_family(key, candidate_raw, context, split, budget)
   capability = capabilities().get(key)
   result = {"status": "blocked", "prediction_kind": capability["prediction_kind"] if capability else "static_formula",
             "predictions": [], "reason_codes": []}
@@ -269,7 +280,16 @@ def evaluate_family(key, candidate_raw, context, split, budget):
       _torque_points(context, rows, reference=True)
       if raw <= 0:
         raise _Blocked("torque_sign_or_rank_invalid")
-      predictions = [raw * .001 * _signal(row, "sent_torque", "1") + _signal(row, "lateral_accel_offset", "m/s^2") for row in rows]
+      fixed = context.get("fit_context")
+      if fixed is not None:
+        if type(fixed) is not dict or set(fixed) != {"lateral_accel_offset"}:
+          raise _Blocked("invalid_fit_context")
+        offset = _number(fixed["lateral_accel_offset"])
+        if any(_signal(row, "lateral_accel_offset", "m/s^2") != 0 for row in rows):
+          raise _Blocked("torque_callback_zero_offset_required")
+        predictions = [raw * .001 * _signal(row, "sent_torque", "1") + offset for row in rows]
+      else:
+        predictions = [raw * .001 * _signal(row, "sent_torque", "1") + _signal(row, "lateral_accel_offset", "m/s^2") for row in rows]
     elif key in ("SteerRatioRate", "CustomSR"):
       _ratio_points(context, rows, key, reference=True)
       if key == "CustomSR" and raw * .1 <= 1.:

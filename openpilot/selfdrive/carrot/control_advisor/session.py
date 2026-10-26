@@ -233,9 +233,62 @@ class SessionController:
     self._transition_seen = {}
     self._stderr_tail = b""
     self._closed = False
+    self._analysis_requests = OrderedDict()
+    self._analysis_binding = None
 
   def status(self):
-    return self._outward(self._snapshot, self._consumer_seen, self._last_heartbeat, self._parking_seen)
+    from .analysis_control import initial_control
+    result = self._outward(self._snapshot, self._consumer_seen, self._last_heartbeat, self._parking_seen)
+    result.setdefault("analysis_control", initial_control())
+    if self._process is None or self._snapshot["state"] not in ACTIVE_STATES - {"starting", "stopping"}:
+      result["analysis_control"]["can_analyze"] = False
+    return result
+
+  async def _command(self, session_id, command):
+    async with self._lock:
+      if self._closed or self._process is None or session_id != self._snapshot["session_id"] or self._snapshot["source_mode"] != "live":
+        raise SessionConflict("analysis_session_not_active")
+      payload = json.dumps({**command, "session_id": session_id}, separators=(",", ":"), allow_nan=False).encode() + b"\n"
+      if len(payload) > 8192:
+        raise ValueError("analysis_command_limit")
+      try:
+        self._process.stdin.write(payload)
+        await self._process.stdin.drain()
+      except (OSError, RuntimeError) as error:
+        raise SessionConflict("analysis_worker_unavailable") from error
+
+  async def analyze(self, *, session_id, request_id, goal_id=None):
+    if type(request_id) is not str or re.fullmatch(r"[A-Za-z0-9_-]{1,80}", request_id) is None:
+      raise ValueError("invalid_analysis_request")
+    if goal_id is not None and not any(option["id"] == goal_id for option in self.analysis_goal_options()):
+      raise ValueError("invalid_analysis_goal")
+    effective_goal = goal_id if goal_id is not None else (self._snapshot.get("analysis_goal") or {}).get("id")
+    signature = (session_id, effective_goal)
+    previous = self._analysis_requests.get(request_id)
+    if previous is not None:
+      if previous != signature:
+        raise SessionConflict("analysis_request_id_conflict")
+      control = self.status()["analysis_control"]
+      if control["request_id"] != request_id or control["state"] not in {"failed", "incomplete"}:
+        return self.status()
+    if not self.status()["analysis_control"]["can_analyze"]:
+      raise SessionConflict("analysis_trip_not_ready")
+    await self._command(session_id, {"kind": "analyze", "request_id": request_id, **({"goal_id": goal_id} if goal_id is not None else {})})
+    self._analysis_requests[request_id] = signature
+    while len(self._analysis_requests) > 128:
+      self._analysis_requests.popitem(last=False)
+    # Queue acknowledgement is distinct from a completed analysis result.
+    self._snapshot["analysis_control"].update(state="queued", request_id=request_id, trigger="manual", reason_codes=[])
+    return self.status()
+
+  async def successful_apply(self, session_id, receipt, boot_id):
+    vehicle = receipt.get("vehicle_identity", {}).get("physical_group_id")
+    if not vehicle or not boot_id:
+      return False
+    await self._command(session_id, {"kind": "successful_apply", "receipt": {
+      "stored_mono_ns": receipt["stored_mono_ns"], "revision": receipt["revision"], "request_id": receipt["request_id"]},
+      "trip_binding": {"vehicle_id": vehicle, "boot_id": boot_id}})
+    return True
 
   def request_binding(self):
     """Capture on the owning event loop; a repeated heartbeat never renews a poll."""
@@ -251,12 +304,15 @@ class SessionController:
              and settings.get("state") in {"observed", "partial"} and observation.get("gap") is False
              and type(observation.get("begin_ns")) is int and type(observation.get("end_ns")) is int
              and 0 <= observation["begin_ns"] <= observation["end_ns"] and settings.get("poll_sequence", 0) > 0)
-    return {"session_id": self._snapshot["session_id"], "generation": self._generation,
+    result = {"session_id": self._snapshot["session_id"], "generation": self._generation,
             "source_mode": self._snapshot["source_mode"], "state": self._snapshot["state"],
             "settings_revision": settings.get("revision") if fresh else None,
             "settings_raw": deepcopy(settings.get("values", {})) if fresh else {},
             "observed_mono_ns": int(seen["received_at"] * 1e9) if fresh else None,
             "settings_observation_fresh": bool(fresh)}
+    if fresh and self._analysis_binding is not None:
+      result["analysis_binding"] = deepcopy(self._analysis_binding)
+    return result
 
   @staticmethod
   def _consumer_marker(event):
@@ -330,9 +386,15 @@ class SessionController:
       record["last_heartbeat"] = self._last_heartbeat
       record["parking_seen"] = deepcopy(self._parking_seen)
 
-  async def start(self, *, mode, interval_seconds, request_id):
+  def analysis_goal_options(self):
+    from .goals import goal_options
+    return goal_options(self._live_environment)
+
+  async def start(self, *, mode, interval_seconds, request_id, goal_id=None):
     validate_start(mode, interval_seconds, request_id)
-    operation = asyncio.create_task(self._start(mode, interval_seconds, request_id))
+    if goal_id is not None and mode != "live":
+      raise ValueError("analysis_goal_requires_live_mode")
+    operation = asyncio.create_task(self._start(mode, interval_seconds, request_id, goal_id))
     try:
       snapshot, _ = await asyncio.shield(operation)
       return snapshot
@@ -345,40 +407,57 @@ class SessionController:
         pass
       raise
 
-  async def _start(self, mode, interval_seconds, request_id):
+  def _child_environment(self, mode):
+    environment = {key: value for key, value in os.environ.items() if key != "CARROT_CONTROL_ADVISOR_TOKEN"}
+    if mode == "live":
+      environment.update({key: value for key, value in self._live_environment.items()
+                          if key not in self._live_flag_keys or environment.get(key) != "0"})
+    return environment
+
+  async def _start(self, mode, interval_seconds, request_id, goal_id=None):
     async with self._lock:
       if self._closed:
         raise SessionConflict("controller_closed")
       previous = self._requests.get(request_id)
       if previous is not None:
-        if (previous["mode"], previous["interval_seconds"]) != (mode, interval_seconds):
+        if (previous["mode"], previous["interval_seconds"], previous.get("goal_id")) != (mode, interval_seconds, goal_id):
           raise SessionConflict("request_id_conflict")
         return self._outward(previous["snapshot"], previous.get("consumer_seen", {}), previous.get("last_heartbeat"), previous.get("parking_seen")), False
       if self._process is not None:
         raise SessionConflict("session_already_active")
+      environment = self._child_environment(mode)
+      from .goals import goal_options
+      preset_allowed = mode == "live" and bool(goal_options(environment))
+      environment["CARROT_CONTROL_ADVISOR_BUILTIN_GOALS"] = "1" if preset_allowed else "0"
+      environment["CARROT_CONTROL_ADVISOR_SELECTED_GOAL"] = goal_id or ("tracking" if preset_allowed else "")
+      goal = None
+      if goal_id is not None:
+        from .goals import goal_configuration, PROFILE_ENV, OBJECTIVES_ENV
+        goal = goal_configuration(goal_id, environment)
+        environment.update({PROFILE_ENV: goal["profile_path"], OBJECTIVES_ENV: goal["objectives_path"]})
       self._generation += 1
       generation = self._generation
       session_id = uuid.uuid4().hex
       self._snapshot = {**_idle(), "session_id": session_id, "source_mode": mode, "state": "starting",
                         "interval_seconds": interval_seconds,
                         "parking": unknown_parking("native_event" if mode == "live" else "synthetic_event")}
+      if goal is not None:
+        self._snapshot["analysis_goal"] = goal["selection"]
       self._last_heartbeat = None
       self._transition_seen = {}
       self._consumer_seen = {}
       self._settings_seen = None
       self._parking_seen = None
+      self._analysis_binding = None
       self._stderr_tail = b""
       self._current_request = request_id
       self._requests[request_id] = {"mode": mode, "interval_seconds": interval_seconds, "generation": generation,
+                                    "goal_id": goal_id,
                                     "snapshot": deepcopy(self._snapshot), "consumer_seen": {}, "last_heartbeat": None}
       while len(self._requests) > 16:
         self._requests.popitem(last=False)
       try:
         # The child needs no session-control secret, and never receives shell input.
-        environment = {key: value for key, value in os.environ.items() if key != "CARROT_CONTROL_ADVISOR_TOKEN"}
-        if mode == "live":
-          environment.update({key: value for key, value in self._live_environment.items()
-                              if key not in self._live_flag_keys or environment.get(key) != "0"})
         self._process = await self._spawn(
           self.python_executable, "-m", "openpilot.selfdrive.carrot.control_advisor.worker",
           "--mode", mode, "--session-id", session_id, "--interval-seconds", str(interval_seconds),
@@ -408,6 +487,20 @@ class SessionController:
         raise ValueError("automatic_analysis_interval_mismatch")
       if self._snapshot["source_mode"] == "synthetic" and automatic["state"] not in {"disabled", "failed", "stopped"}:
         raise ValueError("automatic_analysis_source_mode_mismatch")
+    analysis = None
+    if "analysis_control" in payload:
+      from .analysis_control import validate_control
+      analysis = validate_control(payload["analysis_control"])
+    if "analysis_binding" in payload:
+      if payload["analysis_binding"] is None:
+        self._analysis_binding = None
+      else:
+        from .analysis_control import validate_binding
+        self._analysis_binding = validate_binding(payload["analysis_binding"])
+    selection = payload.get("analysis_goal")
+    if selection is not None:
+      if selection not in self.analysis_goal_options() or self._snapshot["source_mode"] != "live":
+        raise ValueError("invalid_worker_analysis_goal")
     consumers = _consumer_status(payload["consumer_observations"], self._snapshot["source_mode"]) if "consumer_observations" in payload else None
     transition = validate_transition(payload["transition"]) if "transition" in payload else None
     if payload.get("session_id") != self._snapshot["session_id"] or payload.get("source_mode") != self._snapshot["source_mode"]:
@@ -495,6 +588,10 @@ class SessionController:
         self._settings_seen = {"marker": marker, "received_at": self._monotonic()}
     if automatic is not None:
       self._snapshot["automatic_analysis"] = automatic
+    if analysis is not None:
+      self._snapshot["analysis_control"] = analysis
+    if selection is not None:
+      self._snapshot["analysis_goal"] = deepcopy(selection)
     if consumers is not None:
       self._snapshot["consumer_observations"] = consumers
       received_at = self._monotonic()

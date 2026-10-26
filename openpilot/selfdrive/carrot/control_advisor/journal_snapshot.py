@@ -14,6 +14,8 @@ MAX_BYTES = 8 * 1024 * 1024
 MAX_EVENTS = 10_000
 WINDOW_MAX_BYTES = 32 * 1024 * 1024
 WINDOW_MAX_EVENTS = 40_000
+PID_SNAPSHOT_MAX_BYTES = 32 * 1024 * 1024
+PID_SNAPSHOT_MAX_FILES = 4096
 
 
 def _version(info):
@@ -171,6 +173,75 @@ def _selected_files(root, token, selection):
   return result
 
 
+def select_pid_references(references, analysis_range):
+  """Choose complete bursts by time only, one inside each frozen third."""
+  if analysis_range is None:
+    return references
+  start, end = analysis_range["start_ns"], analysis_range["end_ns"]
+  if type(start) is not int or type(end) is not int or not 0 <= start <= end:
+    raise ValueError("invalid_pid_selection_range")
+  groups = {}
+  for reference in references:
+    groups.setdefault(reference["burst_id"], []).append(reference)
+  candidates = []
+  for burst_id, parts in groups.items():
+    parts.sort(key=lambda row: row["chunk_sequence"])
+    if ([row["chunk_sequence"] for row in parts] != list(range(len(parts))) or not parts[-1]["terminal"]
+        or any(row["terminal"] for row in parts[:-1]) or len({row["dependency_digest"] for row in parts}) != 1):
+      continue
+    lo, hi = min(row["mono_start_ns"] for row in parts), max(row["mono_end_ns"] for row in parts)
+    if max(row["frame_end"] for row in parts) - min(row["frame_start"] for row in parts) + 1 != 1000:
+      continue
+    candidates.append((lo, hi, burst_id, parts))
+  cuts = [start, start + (end - start) // 3, start + 2 * (end - start) // 3, end]
+  chosen = []
+  for lo, hi in zip(cuts, cuts[1:]):
+    eligible = sorted((row for row in candidates if lo + 2_100_000_000 <= row[0] and row[1] <= hi - 2_100_000_000), key=lambda row: (row[0], row[2]))
+    if eligible:
+      chosen.extend(eligible[0][3])
+  return chosen
+
+
+def _pin_pid_chunks(source, target, history, *, copy_files=False, analysis_range=None):
+  """Pin only payloads named by this verified prefix, with a separate budget."""
+  records = [entry["record"] for entry in history["records"] if entry["record"]["type"] == "pid_burst_chunk"]
+  if not records:
+    return None
+  from .pid_burst import MAX_ROUND_BYTES, load_chunk, validate_reference
+  references, rounds = {}, {}
+  for record in records:
+    reference = validate_reference(record["reference"])
+    previous = references.get(reference["path"])
+    if previous is not None:
+      if previous != reference:
+        raise ValueError("snapshot_pid_reference_conflict")
+      continue
+    references[reference["path"]] = reference
+    key = reference["path"].split("/")[1], reference["round_id"]
+    rounds[key] = rounds.get(key, 0) + reference["bytes"]
+    if rounds[key] > MAX_ROUND_BYTES:
+      raise ValueError("snapshot_pid_payload_budget")
+  all_references = [references[path] for path in sorted(references)]
+  ordered = sorted(select_pid_references(all_references, analysis_range), key=lambda row: row["path"])
+  if len(ordered) > PID_SNAPSHOT_MAX_FILES or sum(item["bytes"] for item in ordered) > PID_SNAPSHOT_MAX_BYTES:
+    raise ValueError("snapshot_pid_payload_budget")
+  for reference in ordered:
+    load_chunk(source, reference)
+    destination = target / reference["path"]
+    if copy_files:
+      destination.parent.mkdir(parents=True, exist_ok=True)
+      if _prefix_digest(source / reference["path"], reference["bytes"], destination=destination, exact=True) != reference["sha256"]:
+        raise ValueError("snapshot_pid_source_changed")
+    load_chunk(target, reference)
+  inventory = {"file_count": len(ordered), "bytes": sum(item["bytes"] for item in ordered),
+               "sha256": hashlib.sha256(_canonical(ordered)).hexdigest()}
+  if analysis_range is not None:
+    inventory.update(selection_policy="complete_burst_each_frozen_time_third_v1", selection_range=analysis_range,
+      burst_ids=sorted({row["burst_id"] for row in ordered}), original_reference_count=len(all_references),
+      original_reference_sha256=hashlib.sha256(_canonical(all_references)).hexdigest())
+  return inventory
+
+
 def checkpoint_reference(root, checkpoint):
   """Original final row reference, not a synthetic row or a rewritten journal."""
   token = validate_checkpoint(checkpoint)
@@ -190,9 +261,9 @@ def checkpoint_reference(root, checkpoint):
     "bytes": active["bytes"], "total_bytes": token["bytes"], "durable": True})
 
 
-def _create_segmented_snapshot(session_directory, destination, token, *, window_seconds):
+def _create_segmented_snapshot(session_directory, destination, token, *, window_seconds, analysis_range=None):
   from .settings_history import select_history_window
-  if type(window_seconds) is not int or window_seconds not in (180, 300):
+  if analysis_range is None and (type(window_seconds) is not int or window_seconds not in (180, 300)):
     raise ValueError("invalid_snapshot_window")
   source, target = Path(session_directory), Path(destination)
   if source.resolve() == target.resolve() or source.resolve() in target.resolve().parents or target.resolve() in source.resolve().parents:
@@ -205,7 +276,15 @@ def _create_segmented_snapshot(session_directory, destination, token, *, window_
   # Include the closing log segment and intervention/recovery margin. This is
   # evidence closure, not an assertion that this extra time is tuning eligible.
   end = token["cutoff_mono_ns"]
-  selection = select_history_window(source, token, max(0, end - (window_seconds + 65) * 1_000_000_000), end)
+  if analysis_range is not None:
+    if (type(analysis_range) is not dict or set(analysis_range) != {"start_ns", "end_ns"}
+        or any(type(value) is not int or value < 0 for value in analysis_range.values())
+        or not analysis_range["start_ns"] <= analysis_range["end_ns"] <= end):
+      raise ValueError("invalid_snapshot_range")
+    start, end = max(0, analysis_range["start_ns"] - 65_000_000_000), analysis_range["end_ns"]
+  else:
+    start = max(0, end - (window_seconds + 65) * 1_000_000_000)
+  selection = select_history_window(source, token, start, end)
   files = _selected_files(source, token, selection)
   target.mkdir(exist_ok=False)
   (target / "history").mkdir()
@@ -218,12 +297,15 @@ def _create_segmented_snapshot(session_directory, destination, token, *, window_
   if history["state"] != "complete" or history.get("selected_closure_complete") is not True:
     raise ValueError("snapshot_selection_unverified")
   archives = committed_archives(history)
+  pid_inventory = _pin_pid_chunks(source, target, history, copy_files=True, analysis_range=analysis_range)
   marker = {"schema_version": 2, "kind": "advisor_journal_snapshot", "session_id": token["session_id"],
             "checkpoint": token, "selection": selection, "history_files": files,
             "history_byte_count": sum(item["bytes"] for item in files),
             "recording_sha256": hashlib.sha256(metadata).hexdigest(), "selected_closure_complete": True,
             "source_session_closed": history["closed"], "archive_ids": sorted(archives),
             "power_loss_durability": "file_fsync_only" if os.name == "nt" else "file_and_directory_fsync"}
+  if pid_inventory is not None:
+    marker["pid_burst_inventory"] = pid_inventory
   _sync_directory(target / "history")
   _write(target / "snapshot.json", _canonical(marker) + b"\n")
   _sync_directory(target)
@@ -235,7 +317,7 @@ def _create_segmented_snapshot(session_directory, destination, token, *, window_
 def _load_segmented_snapshot(source, root, marker, marker_bytes):
   required = {"schema_version", "kind", "session_id", "checkpoint", "selection", "history_files", "history_byte_count",
               "recording_sha256", "selected_closure_complete", "source_session_closed", "archive_ids", "power_loss_durability"}
-  if (set(marker) != required or type(marker["schema_version"]) is not int or marker["schema_version"] != 2
+  if (set(marker) not in (required, required | {"pid_burst_inventory"}) or type(marker["schema_version"]) is not int or marker["schema_version"] != 2
       or marker["kind"] != "advisor_journal_snapshot" or marker["selected_closure_complete"] is not True
       or type(marker["source_session_closed"]) is not bool
       or marker["power_loss_durability"] not in {"file_fsync_only", "file_and_directory_fsync"}):
@@ -260,6 +342,8 @@ def _load_segmented_snapshot(source, root, marker, marker_bytes):
   if source.resolve() != root.resolve() and _read(source / "recording.json", 64 * 1024) != metadata:
     raise ValueError("snapshot_source_changed")
   archives = committed_archives(history)
+  if _pin_pid_chunks(source, root, history, analysis_range=(marker.get("pid_burst_inventory") or {}).get("selection_range")) != marker.get("pid_burst_inventory"):
+    raise ValueError("snapshot_pid_inventory_mismatch")
   if sorted(archives) != marker["archive_ids"] or _read(root / "snapshot.json", 64 * 1024) != marker_bytes:
     raise ValueError("snapshot_archive_inventory_mismatch")
   return {"marker": marker, "history": history, "archive_receipts": archives, "recording": _object(metadata),
@@ -267,12 +351,15 @@ def _load_segmented_snapshot(source, root, marker, marker_bytes):
           "history_files": files, "selection": marker["selection"]}
 
 
-def create_journal_snapshot(session_directory, destination, checkpoint, *, max_bytes=MAX_BYTES, max_events=MAX_EVENTS, window_seconds=300):
+def create_journal_snapshot(session_directory, destination, checkpoint, *, max_bytes=MAX_BYTES, max_events=MAX_EVENTS, window_seconds=300, analysis_range=None):
   """Child-process I/O only. A failed snapshot keeps an incomplete new directory."""
   _limits(max_bytes, max_events)
   token = validate_checkpoint(checkpoint)
   if token["schema_version"] == 2:
-    return _create_segmented_snapshot(session_directory, destination, token, window_seconds=window_seconds)
+    if analysis_range is not None:
+      from .trip_history import create_trip_snapshot
+      return create_trip_snapshot(session_directory, destination, token, analysis_range)
+    return _create_segmented_snapshot(session_directory, destination, token, window_seconds=window_seconds, analysis_range=analysis_range)
   if token["bytes"] > max_bytes or token["sequence"] > max_events:
     raise ValueError("snapshot_checkpoint_budget")
   source, target = Path(session_directory), Path(destination)
@@ -292,10 +379,13 @@ def create_journal_snapshot(session_directory, destination, checkpoint, *, max_b
   if history["state"] != "complete" or history.get("snapshot_prefix_complete") is not True:
     raise ValueError("snapshot_prefix_unverified")
   archives = committed_archives(history)
+  pid_inventory = _pin_pid_chunks(source, target, history, copy_files=True, analysis_range=analysis_range)
   marker = {"schema_version": 1, "kind": "advisor_journal_snapshot", "session_id": token["session_id"], "checkpoint": token,
             "settings_sha256": hashlib.sha256(prefix).hexdigest(), "recording_sha256": hashlib.sha256(metadata).hexdigest(),
             "snapshot_prefix_complete": True, "source_session_closed": history["closed"], "archive_ids": sorted(archives),
             "power_loss_durability": "file_fsync_only" if os.name == "nt" else "file_and_directory_fsync"}
+  if pid_inventory is not None:
+    marker["pid_burst_inventory"] = pid_inventory
   if _read(source / "settings.jsonl", token["bytes"], prefix=True) != prefix or _read(source / "recording.json", 64 * 1024) != metadata:
     raise ValueError("snapshot_source_changed")
   _sync_directory(target)
@@ -349,13 +439,16 @@ def load_journal_snapshot(session_directory, snapshot_directory, *, max_bytes=MA
   source, root = Path(session_directory), Path(snapshot_directory)
   marker_bytes = _read(root / "snapshot.json", 64 * 1024)
   marker = _object(marker_bytes)
+  if marker.get("schema_version") == 3:
+    from .trip_history import load_trip_snapshot
+    return load_trip_snapshot(source, root, marker, marker_bytes)
   if marker.get("schema_version") == 2:
     return _load_segmented_snapshot(source, root, marker, marker_bytes)
   # A caller supporting both formats cannot enlarge the v1 format's bounds.
   max_bytes, max_events = min(max_bytes, MAX_BYTES), min(max_events, MAX_EVENTS)
   required = {"schema_version", "kind", "session_id", "checkpoint", "settings_sha256", "recording_sha256",
               "snapshot_prefix_complete", "source_session_closed", "archive_ids", "power_loss_durability"}
-  if (set(marker) != required or type(marker["schema_version"]) is not int or marker["schema_version"] != 1
+  if (set(marker) not in (required, required | {"pid_burst_inventory"}) or type(marker["schema_version"]) is not int or marker["schema_version"] != 1
       or marker["kind"] != "advisor_journal_snapshot" or marker["snapshot_prefix_complete"] is not True
       or type(marker["source_session_closed"]) is not bool
       or marker["power_loss_durability"] not in {"file_fsync_only", "file_and_directory_fsync"}):
@@ -377,7 +470,25 @@ def load_journal_snapshot(session_directory, snapshot_directory, *, max_bytes=MA
       or _read(source / "recording.json", 64 * 1024) != metadata):
     raise ValueError("snapshot_prefix_mismatch")
   archives = committed_archives(history)
+  if _pin_pid_chunks(source, root, history, analysis_range=(marker.get("pid_burst_inventory") or {}).get("selection_range")) != marker.get("pid_burst_inventory"):
+    raise ValueError("snapshot_pid_inventory_mismatch")
   if marker["archive_ids"] != sorted(archives) or _read(root / "snapshot.json", 64 * 1024) != marker_bytes:
     raise ValueError("snapshot_archive_inventory_mismatch")
   return {"marker": marker, "history": history, "archive_receipts": archives, "recording": _object(metadata),
           "recording_bytes": metadata, "history_bytes": prefix}
+
+
+def iter_snapshot_consumer_events(session_directory, snapshot_directory):
+  """Stream every immutable consumer event, including unselected time strata."""
+  sealed = load_journal_snapshot(session_directory, snapshot_directory)
+  if sealed["marker"]["schema_version"] == 3:
+    from .journal_segments import iter_verified_records
+    from .consumer_observer import validate_event
+    for item in iter_verified_records(Path(snapshot_directory), sealed["marker"]["checkpoint"]):
+      record = item["envelope"]["record"]
+      if record.get("type") == "consumer_observation":
+        yield validate_event(record["event"])
+  else:
+    for item in sealed["history"]["records"]:
+      if item["record"]["type"] == "consumer_observation":
+        yield item["record"]["event"]

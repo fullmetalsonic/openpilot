@@ -176,6 +176,10 @@ class LiveSession:
     self.received_events = self.observations = self.late_events = self.overflow_events = self.gap_events = self.dropped_events = 0
     self.poll_budget_overruns = self.diagnostic_revision = 0
     self.diagnostic, self.history = None, deque(maxlen=6)
+    self.preservation_bookmark = None
+    self._bookmark_start_ns = None
+    self._bookmark_end_ns = None
+    self.nonpark_observed_ns = None
     self._heap, self._window = [], deque()
     self._sequence = self._queued_bytes = 0
     self._max_seen_ns = self._released_through_ns = -1
@@ -209,7 +213,9 @@ class LiveSession:
     if type(revision) is not int or revision < 0:
       raise ValueError("observed settings revision must be a nonnegative integer")
     state = notice.get("state", "unavailable")
-    token = (revision, state, notice.get("durable_revision"), notice.get("journal", {}).get("durable"))
+    route_notice = notice.get("route_observation") or {}
+    token = (revision, state, notice.get("durable_revision"), notice.get("journal", {}).get("durable"),
+             route_notice.get("route"), route_notice.get("state"))
     observation = notice.get("observation") or {}
     gap = observation.get("gap") is True or notice.get("notification_gap") is True
     if token == self._settings_notice_token and not gap:
@@ -228,6 +234,7 @@ class LiveSession:
     if self.state in TERMINAL_STATES:
       return
     self.parking.invalidate()
+    self.nonpark_observed_ns = None
     self.transition = unknown_transition("transition_invalidated")
     self.dropped_events += len(self._heap)
     self._heap.clear()
@@ -305,6 +312,9 @@ class LiveSession:
       if event.service in {"carState", "carControl"}:
         self.parking.feed(event.service, event.mono_ns, event.valid, event.data,
                           event.recv_ns if self.source_mode == "live" else None)
+      if event.service == "carState":
+        self.nonpark_observed_ns = (event.mono_ns if event.valid and event.data.get("canValid") is True
+          and event.data.get("canTimeout") is not True and event.data.get("gearShifter") in {"drive", "reverse", "neutral", "low", "sport", "eco", "brake"} else None)
       try:
         rows = self._normalizer.feed(event.service, event.mono_ns, event.valid, event.data, event.recv_ns)
       except ValueError:
@@ -326,11 +336,13 @@ class LiveSession:
         if self._next_evaluation_ns is None:
           self._next_evaluation_ns = rows[0]["mono_ns"] + self.interval_ns
         guard_ns = self.profile.pre_margin_ns + self.profile.recovery_ns + self.profile.dependency_ns
-        earliest = rows[-1]["mono_ns"] - self.interval_ns - guard_ns
+        earliest = rows[-1]["mono_ns"] - guard_ns
         while self._window and self._window[0].mono_ns < earliest:
           self._window.popleft()
-        if rows[-1]["mono_ns"] >= self._next_evaluation_ns:
-          self._evaluate()
+        if self._bookmark_start_ns is None:
+          self._bookmark_start_ns = rows[0]["mono_ns"]
+        if rows[-1]["mono_ns"] - (self._bookmark_end_ns if self._bookmark_end_ns is not None else self._bookmark_start_ns) >= 60_000_000_000:
+          self.bookmark()
     self._released_through_ns = max(self._released_through_ns, through_ns)
 
   def _observe_transition(self, row):
@@ -380,6 +392,21 @@ class LiveSession:
     self._needs_fresh_window = incomplete_after_loss
     self.state, self.reason = "running", "unvalidated_diagnostic_ready"
 
+  def bookmark(self, *, partial=False):
+    """Bound a preservation job without evaluating or suggesting settings."""
+    if self._bookmark_start_ns is None or not self._window:
+      return None
+    end = self._window[-1].mono_ns
+    if end == self._bookmark_end_ns:
+      return self.preservation_bookmark
+    self.diagnostic_revision += 1
+    self.preservation_bookmark = {"revision": self.diagnostic_revision, "window_start_ns": self._bookmark_start_ns,
+      "window_end_ns": end, "profile_id": self.profile.profile_id, "invalidated": False, "partial_window": partial,
+      "observed_settings_revision": self.observed_settings_revision, "route_observation": deepcopy(self._route_observation),
+      "recording_only": True}
+    self._bookmark_start_ns = self._bookmark_end_ns = end
+    return self.preservation_bookmark
+
   def tick(self):
     self.parking.tick()
     if self.state in TERMINAL_STATES:
@@ -396,7 +423,7 @@ class LiveSession:
     if self.state in TERMINAL_STATES:
       return
     self._drain(self._max_seen_ns)
-    self._evaluate(partial=True)
+    self.bookmark(partial=True)
     self.state, self.reason = "ended", reason
     self.parking.stop()
     self.transition = unknown_transition("transition_session_ended")

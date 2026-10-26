@@ -13,11 +13,17 @@ MAX_RESULT_BYTES = 1024 * 1024
 MAX_COLLECTION_BYTES = 32 * 1024 * 1024
 MAX_LINK_BYTES = 256 * 1024
 ENGINE_FILES = ('candidates.py', 'candidate_lateral.py', 'candidate_longitudinal.py',
+                'candidate_pid.py', 'pid_burst.py', 'policy_observations.py',
+                'comparison.py', 'comparison_intervals.py', 'comparison_stream.py',
                 'candidate_report.py', 'parameters.json', 'torque_fit.py',
-                'log_candidates.py', 'log_signals.py', 'log_history.py', 'rlog.py',
-                'normalizer.py', 'analysis.py', 'settings_history.py',
-                'journal_snapshot.py', 'journal_segments.py', 'inspection.py', 'periodic.py', 'vehicle_identity.py')
-SOURCE_FILES = ('openpilot/selfdrive/carrot/t_follow.py',
+                'log_candidates.py', 'log_signals.py', 'lateral_observations.py', 'log_history.py', 'rlog.py',
+                'normalizer.py', 'analysis.py', 'trip_analysis.py', 'trip_history.py', 'settings_history.py',
+                'journal_snapshot.py', 'journal_segments.py', 'inspection.py', 'periodic.py', 'vehicle_identity.py', 'goals.py')
+SOURCE_FILES = ('openpilot/common/params_keys.h', 'openpilot/selfdrive/carrot/t_follow.py',
+                'openpilot/common/pid.py', 'opendbc_repo/opendbc/car/interfaces.py', 'opendbc_repo/opendbc/car/__init__.py',
+                'opendbc_repo/opendbc/car/hyundai/carcontroller.py', 'opendbc_repo/opendbc/car/hyundai/values.py',
+                'openpilot/selfdrive/car/card.py',
+                'openpilot/selfdrive/controls/lib/drive_helpers.py',
                 'openpilot/selfdrive/controls/lib/longitudinal_preview.py',
                 'openpilot/selfdrive/controls/lib/steer_ratio.py',
                 'openpilot/selfdrive/carrot_settings.json',
@@ -63,7 +69,7 @@ def _link_receipt(value):
               'session_link', 'semantic_mapping', 'originals_preservation', 'originals_current_availability',
               'sources', 'source_fields', 'objectives', 'objectives_sha256', 'mask_profile_sha256',
               'excluded_counts', 'reasons', 'input_sha256', 'profile_sha256'}
-  if type(value) is not dict or set(value) != required or type(value['schema_version']) is not int or value['schema_version'] != 1:
+  if type(value) is not dict or not (required <= set(value) <= (required | {'sampling_audit', 'source_collection', 'whole_trip'})) or type(value['schema_version']) is not int or value['schema_version'] != 1:
     raise ValueError('invalid_log_link_receipt')
   if (value['source_bytes_verified_at_generation'] is not True or value['schema_decoded'] is not True
       or value['session_link'] not in ('verified_archive_receipt', 'unlinked')
@@ -89,15 +95,63 @@ def _link_receipt(value):
     seen.add(entry['id'])
   if sum(entry['bytes'] for entry in sources) > 512 * 1024 * 1024:
     raise ValueError('log_link_source_byte_limit')
+  if 'source_collection' in value:
+    from .candidates import source_collection
+    digest = source_collection(value['source_collection'])
+    if sources != [{'id': 'collection-' + digest[:16], 'sha256': digest,
+                    'bytes': len(json.dumps(value['source_collection'], sort_keys=True, separators=(',', ':')).encode())}]:
+      raise ValueError('log_link_collection_mismatch')
+  if 'whole_trip' in value:
+    trip = value['whole_trip']
+    if (type(trip) is not dict or trip.get('schema_version') != 1 or trip.get('kind') != 'whole_trip_analysis'
+        or type(trip.get('raw_anchor_count')) is not int or type(trip.get('selected_anchor_count')) is not int
+        or not 0 < trip['selected_anchor_count'] <= trip['raw_anchor_count']
+        or trip.get('causal_improvement_proven') is not False or 'source_collection' not in value
+        or [{key: row[key] for key in ('id', 'sha256', 'bytes')} for row in trip.get('sources', [])] != value['source_collection']['sources']):
+      raise ValueError('invalid_whole_trip_receipt')
   fields, excluded, reasons = value['source_fields'], value['excluded_counts'], value['reasons']
   if (type(fields) is not dict or len(fields) > 64 or any(not identifier(key) or not identifier(field) for key, field in fields.items())
       or type(excluded) is not dict or len(excluded) > 32 or any(not identifier(key) or type(count) is not int or not 0 <= count <= 10**9 for key, count in excluded.items())
       or type(reasons) is not list or len(reasons) > 32 or any(not identifier(reason) for reason in reasons)
       or type(value['objectives']) is not dict or len(json.dumps(value['objectives'], allow_nan=False).encode()) > 64 * 1024):
     raise ValueError('invalid_log_link_details')
+
+  if 'sampling_audit' in value:
+    from .log_candidates import _sampling_policy, _sampling_clock_basis
+    audit = value['sampling_audit']
+    fields = {'version', 'raw_anchor_count', 'unique_response_count', 'selected_count', 'full_rate_excluded_counts'}
+    optional = {'clock_basis', 'anchor_fallback_count', 'full_rate_unavailable_for'}
+    if (type(audit) is not dict or not fields <= set(audit) <= fields | optional
+        or _sampling_policy(value['objectives']) is None or audit['version'] != 'native_static_response_5hz_v1'):
+      raise ValueError('invalid_sampling_audit')
+    expected_basis = _sampling_clock_basis(value['objectives'])
+    if (('clock_basis' in audit) != ('anchor_fallback_count' in audit)
+        or audit.get('clock_basis', 'response_time') != expected_basis):
+      raise ValueError('invalid_sampling_clock_basis')
+    for key in ('raw_anchor_count', 'unique_response_count', 'selected_count', 'anchor_fallback_count'):
+      count = audit.get(key, 0)
+      if type(count) is not int or not 0 <= count <= 10**9:
+        raise ValueError('invalid_sampling_audit_count')
+    raw = audit['raw_anchor_count']
+    unique = audit['unique_response_count'] + audit.get('anchor_fallback_count', 0)
+    if not audit['selected_count'] <= unique <= raw:
+      raise ValueError('invalid_sampling_audit_order')
+    excluded = audit['full_rate_excluded_counts']
+    if (type(excluded) is not dict or len(excluded) > 32
+        or any(not identifier(key) or type(count) is not int or not 0 <= count <= raw for key, count in excluded.items())):
+      raise ValueError('invalid_sampling_audit_excluded_count')
+    unavailable = audit.get('full_rate_unavailable_for', {})
+    if type(unavailable) is not dict or len(unavailable) > 47 or set(unavailable) - set(value['objectives']['objectives']):
+      raise ValueError('invalid_sampling_unavailable_keys')
+    for reasons in unavailable.values():
+      if (type(reasons) is not dict or not reasons or set(reasons) - {'recorded_reference_unlinked', 'recorded_dependency_unavailable', 'factor_mapping_unverified'}
+          or any(type(count) is not int or not 0 <= count <= raw for count in reasons.values())):
+        raise ValueError('invalid_sampling_unavailable_count')
+
   if len(json.dumps(value, allow_nan=False).encode()) > MAX_LINK_BYTES:
     raise ValueError('log_link_receipt_limit')
   return value
+
 
 
 def calculate_bundle(input_path, profile_path, destination, *, log_link=None):
@@ -161,7 +215,8 @@ def _load_single_bundle(directory, byte_limit=MAX_BUNDLE_BYTES):
       or not 0 <= input_epoch['start_ns'] <= input_epoch['end_ns']):
     raise ValueError('invalid_candidate_source_epoch')
   envelope = {'state': 'ready', 'reason': None, 'report': report, 'artifact_sha256': digest,
-              'integrity_verified': True, 'raw_sources_verified': False, 'device_qualified': False, 'apply_enabled': False}
+              'integrity_verified': True, 'raw_sources_verified': False, 'device_qualified': False, 'apply_enabled': False,
+              'latest_epoch': {'start_ns': input_epoch['start_ns'], 'end_ns': input_epoch['end_ns']}}
   receipt = None
   if len(manifest['files']) == 3:
     entry = manifest['files'][2]
@@ -171,13 +226,22 @@ def _load_single_bundle(directory, byte_limit=MAX_BUNDLE_BYTES):
         or receipt['epoch_id'] != report['provenance']['epoch_id']
         or any(receipt[key] != result[key] for key in ('input_sha256', 'profile_sha256'))):
       raise ValueError('log_link_binding_mismatch')
+    if 'whole_trip' in receipt:
+      trip_hash = hashlib.sha256(json.dumps(receipt['whole_trip'], sort_keys=True, separators=(',', ':'), allow_nan=False).encode()).hexdigest()
+      if input_epoch.get('dependencies', {}).get('trip_selection_manifest_sha256') != trip_hash:
+        raise ValueError('whole_trip_manifest_binding_mismatch')
     envelope['log_link'] = {key: receipt[key] for key in ('source_bytes_verified_at_generation', 'schema_decoded',
       'session_link', 'semantic_mapping', 'originals_preservation', 'originals_current_availability', 'excluded_counts', 'reasons')}
-    envelope['log_link'].update(source_count=len(receipt['sources']), epoch_count=1)
+    envelope['log_link'].update(source_count=len(receipt.get('source_collection', {}).get('sources', receipt['sources'])), epoch_count=1)
+    if 'whole_trip' in receipt:
+      envelope['log_link']['whole_trip'] = {key: receipt['whole_trip'][key] for key in ('raw_anchor_count', 'selected_anchor_count', 'selection_policy', 'source_range', 'full_rate_excluded_counts')}
+    if 'sampling_audit' in receipt:
+      envelope['log_link']['sampling_audit'] = receipt['sampling_audit']
   elif 'log_link_sha256' in result:
     raise ValueError('log_link_receipt_missing')
   total = manifest['result']['bytes'] + sum(entry['bytes'] for entry in manifest['files'])
   return envelope, input_epoch, receipt, total
+
 
 
 def _load_reports(directory):
@@ -220,7 +284,10 @@ def load_candidate_bundle(directory):
   envelope = loaded[-1][0]
   if 'log_link' in envelope:
     envelope['log_link']['epoch_count'] = len(loaded)
+  if loaded[-1][1] is not None:
+    envelope['latest_epoch'] = {'start_ns': loaded[-1][1]['start_ns'], 'end_ns': loaded[-1][1]['end_ns']}
   return envelope
+
 
 
 def verify_log_sources(directory, paths):

@@ -15,6 +15,22 @@ from openpilot.selfdrive.carrot.control_advisor.settings_history import Settings
 from openpilot.selfdrive.carrot.control_advisor.tests.test_log_candidates import NativeLogCandidateFixture, log_candidate_configs
 
 
+def manual_intent(fixture):
+  """Explicit immutable whole-trip request; no clock advance grants authority."""
+  if not hasattr(fixture, "_manual_intent"):
+    from openpilot.selfdrive.carrot.control_advisor.rlog import validate_closed_log
+    paths = getattr(fixture, "sources", [getattr(fixture, "source", None)])
+    coverage = [validate_closed_log(path)["services"]["carState"] for path in paths]
+    token = fixture.recorder.checkpoint()
+    fixture._manual_intent = {"schema_version": 1, "request_id": "manual-fixture", "trigger": "manual",
+      "session_id": token["session_id"], "range_start_ns": min(item["mono_min_ns"] for item in coverage),
+      "requested_end_ns": max(item["mono_max_ns"] for item in coverage), "cut_revision": 0,
+      "trip_binding": {"vehicle_id": "generated-pc-fixture", "boot_id": "00000000-0000-0000-0000-000000000001", "route": "00000000--0123456789"},
+      "profile_sha256": hashlib.sha256(fixture.profile.read_bytes()).hexdigest(),
+      "objectives_sha256": hashlib.sha256(fixture.objectives.read_bytes()).hexdigest()}
+  return json.loads(json.dumps(fixture._manual_intent))
+
+
 class Clock:
   def __init__(self):
     self.now = 0.
@@ -38,7 +54,7 @@ def wait_controller(controller, seconds=25):
   deadline = time.monotonic() + seconds
   while time.monotonic() < deadline:
     value = controller.tick()
-    if controller._process is None and value["attempt"] is not None:
+    if controller._process is None and value["attempt"] is not None and value["state"] in {"ready", "partial", "failed"}:
       return value
     time.sleep(.03)
   raise AssertionError("periodic child exceeded test deadline")
@@ -80,6 +96,7 @@ class PeriodicTests(unittest.TestCase):
     controller.offer(token, archive_watermark="a" * 64)
     self.assertEqual("waiting", controller.tick()["state"])
     clock.now = 180
+    controller.request_analysis(manual_intent(fixture))
     controller.tick()
     fixture.now += 1_000_000_000
     fixture.recorder.sample()
@@ -99,6 +116,7 @@ class PeriodicTests(unittest.TestCase):
     self.assertIsNone(expired["report"])
     count = len(list((controller.root / "jobs").iterdir()))
     controller.offer(fixture.recorder.checkpoint(), archive_watermark="a" * 64)
+    controller.request_analysis(manual_intent(fixture))
     clock.now = 360
     controller.tick()
     self.assertIsNone(controller._process)
@@ -107,6 +125,7 @@ class PeriodicTests(unittest.TestCase):
     controller.close()
     restarted, clock2 = self.controller(fixture)
     restarted.offer(token, archive_watermark="a" * 64)
+    restarted.request_analysis(manual_intent(fixture))
     clock2.now = 180
     restarted.tick()
     self.assertIsNone(restarted._process)
@@ -120,6 +139,7 @@ class PeriodicTests(unittest.TestCase):
       return real_popen([sys.executable, "-c", "import time;time.sleep(60)"], **options)
     with patch.object(periodic.subprocess, "Popen", side_effect=hanging):
       controller.offer(fixture.recorder.checkpoint())
+      controller.request_analysis(manual_intent(fixture))
       clock.now = 180
       controller.tick()
       process = controller._process
@@ -129,6 +149,7 @@ class PeriodicTests(unittest.TestCase):
     self.assertEqual("periodic_job_timeout", controller.snapshot()["reason"])
     self.assertFalse((controller.root / "latest.json").exists())
     controller.offer(fixture.recorder.checkpoint())
+    controller.request_analysis(manual_intent(fixture))
     clock.now = 362
     with patch.object(periodic.subprocess, "Popen", side_effect=hanging):
       controller.tick()
@@ -141,6 +162,7 @@ class PeriodicTests(unittest.TestCase):
     fixture = self.fixture(missing_consumer=True)
     controller, clock = self.controller(fixture)
     controller.offer(fixture.recorder.checkpoint(), archive_watermark="a" * 64)
+    controller.request_analysis(manual_intent(fixture))
     clock.now = 180
     controller.tick()
     self.assertEqual("ready", wait_controller(controller)["state"])
@@ -157,6 +179,7 @@ class PeriodicTests(unittest.TestCase):
         "context": {"mode": "acc"}, "source_hashes": {path: hashlib.sha256((repo / path).read_bytes()).hexdigest() for path in (OBSERVER_PATH, CONSUMER_PATHS["planner.carrot"])}}
       fixture.recorder.append_consumer_observation(event)
     controller.offer(fixture.recorder.checkpoint(), archive_watermark="a" * 64)
+    controller.request_analysis(manual_intent(fixture))
     clock.now = 360
     controller.tick()
     self.assertEqual("ready", wait_controller(controller)["state"])
@@ -165,6 +188,7 @@ class PeriodicTests(unittest.TestCase):
     self.assertEqual(2, result["result_revision"])
     fixture.recorder.sample()
     controller.offer(fixture.recorder.checkpoint(), archive_watermark="a" * 64)
+    controller.request_analysis(manual_intent(fixture))
     clock.now = 540
     controller.tick()
     self.assertIsNone(controller._process)
@@ -177,6 +201,7 @@ class PeriodicTests(unittest.TestCase):
       fixture.now += 1_000_000_000
       fixture.recorder.sample()
       controller.offer(fixture.recorder.checkpoint(), archive_watermark="a" * 64)
+      controller.request_analysis(manual_intent(fixture))
       clock.now = number * 180
       controller.tick()
       self.assertEqual("ready", wait_controller(controller)["state"])
@@ -185,6 +210,7 @@ class PeriodicTests(unittest.TestCase):
     fixture.now += 1_000_000_000
     fixture.recorder.sample()
     restarted.offer(fixture.recorder.checkpoint(), archive_watermark="a" * 64)
+    restarted.request_analysis(manual_intent(fixture))
     next_clock.now = 180
     restarted.tick()
     self.assertIsNone(restarted._process)
@@ -195,6 +221,7 @@ class PeriodicTests(unittest.TestCase):
     controller, clock = self.controller(fixture, max_cache_bytes=1024)
     source = fixture.source.read_bytes()
     controller.offer(fixture.recorder.checkpoint())
+    controller.request_analysis(manual_intent(fixture))
     clock.now = 180
     self.assertEqual("periodic_cache_quota", controller.tick()["reason"])
     self.assertEqual(source, fixture.source.read_bytes())

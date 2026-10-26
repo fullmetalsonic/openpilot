@@ -147,19 +147,19 @@
     {
       "path": "docs/fms_control_advisor_completion_plan.md",
       "before_sha256": null,
-      "after_sha256": "00cd3d89aabc1f50669d42bbd4e87323a4f608bc6be75fda94ee26f2f02b0821",
+      "after_sha256": "4d64980618006320c54ad73b984aa132dba7928d8faca76c1d694d313baae768",
       "kind": "blob",
-      "asset": "fms_preservation/cbed7ea708094f121887.blob",
-      "asset_sha256": "00cd3d89aabc1f50669d42bbd4e87323a4f608bc6be75fda94ee26f2f02b0821",
+      "asset": "fms_preservation/1e47ae9cb7865d9293b9.blob",
+      "asset_sha256": "4d64980618006320c54ad73b984aa132dba7928d8faca76c1d694d313baae768",
       "review_bundle": "fms_dm_shared_preservation.patch"
     },
     {
       "path": "docs/fms_control_advisor_install_test.md",
       "before_sha256": null,
-      "after_sha256": "2516e7cb3a32e5272405da504225d29a7a09ddc22a6a9dd46486a438e2b489b4",
+      "after_sha256": "9e2499cf3a901e88dea2171ef125e4b55f305574e0534a5a0e2a8517c18e23a7",
       "kind": "blob",
-      "asset": "fms_preservation/3a3808c63c86a1d71199.blob",
-      "asset_sha256": "2516e7cb3a32e5272405da504225d29a7a09ddc22a6a9dd46486a438e2b489b4",
+      "asset": "fms_preservation/a203670f466152fbc8ba.blob",
+      "asset_sha256": "9e2499cf3a901e88dea2171ef125e4b55f305574e0534a5a0e2a8517c18e23a7",
       "review_bundle": "fms_dm_shared_preservation.patch"
     },
     {
@@ -761,10 +761,10 @@
     {
       "path": "openpilot/selfdrive/carrot/control_advisor/README.md",
       "before_sha256": null,
-      "after_sha256": "e1d85a91f89600c82339380bf42282bc85a460ea964e55bcf4c1d2538c0be3e2",
+      "after_sha256": "0932c37c109ef86dcdcb46e9a115ec4c1030281f8fdf1b0323e7c0bea6f1865d",
       "kind": "blob",
-      "asset": "fms_preservation/2caa5ba1fa4f72609111.blob",
-      "asset_sha256": "e1d85a91f89600c82339380bf42282bc85a460ea964e55bcf4c1d2538c0be3e2",
+      "asset": "fms_preservation/13e921f069d6f2cfe3e3.blob",
+      "asset_sha256": "0932c37c109ef86dcdcb46e9a115ec4c1030281f8fdf1b0323e7c0bea6f1865d",
       "review_bundle": "fms_dm_shared_preservation.patch"
     },
     {
@@ -795,6 +795,15 @@
       "review_bundle": "fms_dm_shared_preservation.patch"
     },
     {
+      "path": "openpilot/selfdrive/carrot/control_advisor/analysis_control.py",
+      "before_sha256": null,
+      "after_sha256": "9fe62715698ae2c9f984d00c400716dd892ff5b6cbfac63dd3a6a9a78683a6e1",
+      "kind": "blob",
+      "asset": "fms_preservation/a7e03baf6dff397f3b9e.blob",
+      "asset_sha256": "9fe62715698ae2c9f984d00c400716dd892ff5b6cbfac63dd3a6a9a78683a6e1",
+      "review_bundle": "fms_dm_shared_preservation.patch"
+    },
+    {
       "path": "openpilot/selfdrive/carrot/control_advisor/apply_requests.py",
       "before_sha256": null,
       "after_sha256": "cce0cce359f3b7a777eb110b9929125ceffabb0aee522e6d65838da7fae579d8",
@@ -815,64 +824,91 @@
     {
       "path": "openpilot/selfdrive/carrot/control_advisor/candidate_lateral.py",
       "before_sha256": null,
-      "after_sha256": "33d9343d28a3a11dc9e1f96a34d71057401b5c31c0fa503f213c3b27dda35208",
+      "after_sha256": "d6bac744de20276a7a00a3aa8bf7bc66d5f03e387ca639de1959def0f901aea2",
       "kind": "blob",
-      "asset": "fms_preservation/83d677636f9ab3c68c8c.blob",
-      "asset_sha256": "33d9343d28a3a11dc9e1f96a34d71057401b5c31c0fa503f213c3b27dda35208",
+      "asset": "fms_preservation/ccd516539fca09cc11b9.blob",
+      "asset_sha256": "d6bac744de20276a7a00a3aa8bf7bc66d5f03e387ca639de1959def0f901aea2",
       "review_bundle": "fms_dm_shared_preservation.patch"
     },
     {
       "path": "openpilot/selfdrive/carrot/control_advisor/candidate_longitudinal.py",
       "before_sha256": null,
-      "after_sha256": "ad4003685f19372802a00b3da56320eef7c8e0545b24bce1fdd42635606aa712",
+      "after_sha256": "ffcf58157dda4358cdfaf15019ec8aeb39fce1975c41f829490eb2c32d1378a6",
       "kind": "blob",
-      "asset": "fms_preservation/61ef040855ed8d4011e0.blob",
-      "asset_sha256": "ad4003685f19372802a00b3da56320eef7c8e0545b24bce1fdd42635606aa712",
+      "asset": "fms_preservation/9de2f81d4db1ef53d7ea.blob",
+      "asset_sha256": "ffcf58157dda4358cdfaf15019ec8aeb39fce1975c41f829490eb2c32d1378a6",
+      "review_bundle": "fms_dm_shared_preservation.patch"
+    },
+    {
+      "path": "openpilot/selfdrive/carrot/control_advisor/candidate_pid.py",
+      "before_sha256": null,
+      "after_sha256": "e7b026878511be89bc9aacc25d7266b783869e0971d9ba9b09cfe8e2e47995d3",
+      "kind": "blob",
+      "asset": "fms_preservation/973434afed255a68b086.blob",
+      "asset_sha256": "e7b026878511be89bc9aacc25d7266b783869e0971d9ba9b09cfe8e2e47995d3",
       "review_bundle": "fms_dm_shared_preservation.patch"
     },
     {
       "path": "openpilot/selfdrive/carrot/control_advisor/candidate_report.py",
       "before_sha256": null,
-      "after_sha256": "454996fb0007e746f2f668bda2f14a9b5bcfb8f3a9057820fca671b26ca77fa0",
+      "after_sha256": "b57c2f182c9c798679ccb0f3c10fba499905268aa39dd235ac80d2c2ff45ed1a",
       "kind": "blob",
-      "asset": "fms_preservation/3bba07e1f922b90c05db.blob",
-      "asset_sha256": "454996fb0007e746f2f668bda2f14a9b5bcfb8f3a9057820fca671b26ca77fa0",
+      "asset": "fms_preservation/7267d37c75053e002de3.blob",
+      "asset_sha256": "b57c2f182c9c798679ccb0f3c10fba499905268aa39dd235ac80d2c2ff45ed1a",
       "review_bundle": "fms_dm_shared_preservation.patch"
     },
     {
       "path": "openpilot/selfdrive/carrot/control_advisor/candidates.py",
       "before_sha256": null,
-      "after_sha256": "7323f46a4512d659a4ff43548d1779be21e309b6d6194850868c1a8d162d7469",
+      "after_sha256": "069e3474f76f9ab728339c3844156be64333ec0cdfe3d77bf3cb3320ba8db224",
       "kind": "blob",
-      "asset": "fms_preservation/f0cf52624b09d50ed9be.blob",
-      "asset_sha256": "7323f46a4512d659a4ff43548d1779be21e309b6d6194850868c1a8d162d7469",
+      "asset": "fms_preservation/cd8a0e842b849d5edd11.blob",
+      "asset_sha256": "069e3474f76f9ab728339c3844156be64333ec0cdfe3d77bf3cb3320ba8db224",
       "review_bundle": "fms_dm_shared_preservation.patch"
     },
     {
       "path": "openpilot/selfdrive/carrot/control_advisor/comparison.py",
       "before_sha256": null,
-      "after_sha256": "8124c4ff45f70d1d1802c4399b06a99e163c1c401cf675add64a76f03163a003",
+      "after_sha256": "87e496279332beb124ed43dc019d79922c35aa469bacda1b213ea82ca2998af9",
       "kind": "blob",
-      "asset": "fms_preservation/9743d27d32cbd41d9b41.blob",
-      "asset_sha256": "8124c4ff45f70d1d1802c4399b06a99e163c1c401cf675add64a76f03163a003",
+      "asset": "fms_preservation/7204c984d1dca8fd8b02.blob",
+      "asset_sha256": "87e496279332beb124ed43dc019d79922c35aa469bacda1b213ea82ca2998af9",
+      "review_bundle": "fms_dm_shared_preservation.patch"
+    },
+    {
+      "path": "openpilot/selfdrive/carrot/control_advisor/comparison_intervals.py",
+      "before_sha256": null,
+      "after_sha256": "86e189f795da707282f06b39ae0072df50c7d8b8c0746640cb451ba2c18ac289",
+      "kind": "blob",
+      "asset": "fms_preservation/2306546f03eb7f2cfaae.blob",
+      "asset_sha256": "86e189f795da707282f06b39ae0072df50c7d8b8c0746640cb451ba2c18ac289",
+      "review_bundle": "fms_dm_shared_preservation.patch"
+    },
+    {
+      "path": "openpilot/selfdrive/carrot/control_advisor/comparison_stream.py",
+      "before_sha256": null,
+      "after_sha256": "1b4a1fb21fbdc42b50221296a823f9896e8563766e3549e10e6130ef99c0089b",
+      "kind": "blob",
+      "asset": "fms_preservation/d82e10fa5019ada41c08.blob",
+      "asset_sha256": "1b4a1fb21fbdc42b50221296a823f9896e8563766e3549e10e6130ef99c0089b",
       "review_bundle": "fms_dm_shared_preservation.patch"
     },
     {
       "path": "openpilot/selfdrive/carrot/control_advisor/consumer_collector.py",
       "before_sha256": null,
-      "after_sha256": "f963fdce915c5e925f6978dfebfc050c275a12739c16915ec86b5dd740df9ca4",
+      "after_sha256": "c6555c93d00da1df336c2125e9732b78b65e44dc408fcabcb801d4b7680d6ad6",
       "kind": "blob",
-      "asset": "fms_preservation/a751647a54fad3b4162f.blob",
-      "asset_sha256": "f963fdce915c5e925f6978dfebfc050c275a12739c16915ec86b5dd740df9ca4",
+      "asset": "fms_preservation/f778038ef23c00213a32.blob",
+      "asset_sha256": "c6555c93d00da1df336c2125e9732b78b65e44dc408fcabcb801d4b7680d6ad6",
       "review_bundle": "fms_dm_shared_preservation.patch"
     },
     {
       "path": "openpilot/selfdrive/carrot/control_advisor/consumer_observer.py",
       "before_sha256": null,
-      "after_sha256": "408dade88aecee05735a193339592315f5562a4726c2ccb2cffffafa4df1775d",
+      "after_sha256": "61aa5757fc730dd0efd772d07fd32ad9cc86b158e79a9f0640932dd7f043a407",
       "kind": "blob",
-      "asset": "fms_preservation/697dfeec4b3ff972073f.blob",
-      "asset_sha256": "408dade88aecee05735a193339592315f5562a4726c2ccb2cffffafa4df1775d",
+      "asset": "fms_preservation/07f51e243ffd18d5afb1.blob",
+      "asset_sha256": "61aa5757fc730dd0efd772d07fd32ad9cc86b158e79a9f0640932dd7f043a407",
       "review_bundle": "fms_dm_shared_preservation.patch"
     },
     {
@@ -882,6 +918,78 @@
       "kind": "blob",
       "asset": "fms_preservation/49f89cae61c8a1507f47.blob",
       "asset_sha256": "0d0a9c6c4e9325fe8b8b2b68c7dbe20a663de3b5e055d89a395788f366cf5dac",
+      "review_bundle": "fms_dm_shared_preservation.patch"
+    },
+    {
+      "path": "openpilot/selfdrive/carrot/control_advisor/defaults/native_acceleration_objectives.json",
+      "before_sha256": null,
+      "after_sha256": "d182b5c8d88db3d99be0424ae682e92fcae21a24f424fa4d3549aa39148c7e2e",
+      "kind": "blob",
+      "asset": "fms_preservation/49e1991c3f965ef3f65c.blob",
+      "asset_sha256": "d182b5c8d88db3d99be0424ae682e92fcae21a24f424fa4d3549aa39148c7e2e",
+      "review_bundle": "fms_dm_shared_preservation.patch"
+    },
+    {
+      "path": "openpilot/selfdrive/carrot/control_advisor/defaults/native_acceleration_profile.json",
+      "before_sha256": null,
+      "after_sha256": "00acd24742f8f68a929c9b0cf62710bd40a60f8fe535f1028d9778ae43e017dc",
+      "kind": "blob",
+      "asset": "fms_preservation/c5a5c66a85e407015ca0.blob",
+      "asset_sha256": "00acd24742f8f68a929c9b0cf62710bd40a60f8fe535f1028d9778ae43e017dc",
+      "review_bundle": "fms_dm_shared_preservation.patch"
+    },
+    {
+      "path": "openpilot/selfdrive/carrot/control_advisor/defaults/native_objectives.json",
+      "before_sha256": null,
+      "after_sha256": "b5e7de0c92bf6ced512b8b0c66311937e4769d69afa3aeae111b3e539c9d1efc",
+      "kind": "blob",
+      "asset": "fms_preservation/aec1493701424add1258.blob",
+      "asset_sha256": "b5e7de0c92bf6ced512b8b0c66311937e4769d69afa3aeae111b3e539c9d1efc",
+      "review_bundle": "fms_dm_shared_preservation.patch"
+    },
+    {
+      "path": "openpilot/selfdrive/carrot/control_advisor/defaults/native_pid_objectives.json",
+      "before_sha256": null,
+      "after_sha256": "6ec36270028658de43cfd4897cd02100af93b4cc844b128a7339fbdb12317f7c",
+      "kind": "blob",
+      "asset": "fms_preservation/aec7051e17e615cf035e.blob",
+      "asset_sha256": "6ec36270028658de43cfd4897cd02100af93b4cc844b128a7339fbdb12317f7c",
+      "review_bundle": "fms_dm_shared_preservation.patch"
+    },
+    {
+      "path": "openpilot/selfdrive/carrot/control_advisor/defaults/native_pid_profile.json",
+      "before_sha256": null,
+      "after_sha256": "4d88432a4e3d16c2e66e890cd027565adb623cf61b3c04a20e5f01de2200612b",
+      "kind": "blob",
+      "asset": "fms_preservation/e922acba47938a5bdef7.blob",
+      "asset_sha256": "4d88432a4e3d16c2e66e890cd027565adb623cf61b3c04a20e5f01de2200612b",
+      "review_bundle": "fms_dm_shared_preservation.patch"
+    },
+    {
+      "path": "openpilot/selfdrive/carrot/control_advisor/defaults/native_policy_objectives.json",
+      "before_sha256": null,
+      "after_sha256": "4703280bbd4775e247906ca7c15f47298c0ef0a0d5c98a6bdd73b26c3ee3d1ac",
+      "kind": "blob",
+      "asset": "fms_preservation/e97622939cb97e65a4f8.blob",
+      "asset_sha256": "4703280bbd4775e247906ca7c15f47298c0ef0a0d5c98a6bdd73b26c3ee3d1ac",
+      "review_bundle": "fms_dm_shared_preservation.patch"
+    },
+    {
+      "path": "openpilot/selfdrive/carrot/control_advisor/defaults/native_policy_profile.json",
+      "before_sha256": null,
+      "after_sha256": "10123bebaf9235eae6c5be2dc8f63b87d81cdf8f17a7fa3f8c09347d6918b15f",
+      "kind": "blob",
+      "asset": "fms_preservation/8fafe6504954b3f2fa37.blob",
+      "asset_sha256": "10123bebaf9235eae6c5be2dc8f63b87d81cdf8f17a7fa3f8c09347d6918b15f",
+      "review_bundle": "fms_dm_shared_preservation.patch"
+    },
+    {
+      "path": "openpilot/selfdrive/carrot/control_advisor/defaults/native_profile.json",
+      "before_sha256": null,
+      "after_sha256": "817596a7289f75ac77c3fc66c55777441b59d41bed5f7e2e29796e894d1ad200",
+      "kind": "blob",
+      "asset": "fms_preservation/7c0f77d2f21f255676af.blob",
+      "asset_sha256": "817596a7289f75ac77c3fc66c55777441b59d41bed5f7e2e29796e894d1ad200",
       "review_bundle": "fms_dm_shared_preservation.patch"
     },
     {
@@ -948,6 +1056,15 @@
       "review_bundle": "fms_dm_shared_preservation.patch"
     },
     {
+      "path": "openpilot/selfdrive/carrot/control_advisor/goals.py",
+      "before_sha256": null,
+      "after_sha256": "cd6453921dcd0540d86ee226a283ef066d11de9fa65908490e3dbb68207cf4e4",
+      "kind": "blob",
+      "asset": "fms_preservation/5e2523c94e1923ee0014.blob",
+      "asset_sha256": "cd6453921dcd0540d86ee226a283ef066d11de9fa65908490e3dbb68207cf4e4",
+      "review_bundle": "fms_dm_shared_preservation.patch"
+    },
+    {
       "path": "openpilot/selfdrive/carrot/control_advisor/inspection.py",
       "before_sha256": null,
       "after_sha256": "7a90e21525dff55dc12327f7c23fa1e4c902f2ad5dda5607a1a170d085a09e58",
@@ -968,46 +1085,55 @@
     {
       "path": "openpilot/selfdrive/carrot/control_advisor/journal_snapshot.py",
       "before_sha256": null,
-      "after_sha256": "4bf8a4fe822ec769b4188d5fba2a33ebf66f62c1cc8141ed6d95097266c96865",
+      "after_sha256": "d67c018f96fd409a684966c20567e955ad17ea9e500872aa83ff48a6fcf8c1fc",
       "kind": "blob",
-      "asset": "fms_preservation/53e4a9a3cf40c36dd8c3.blob",
-      "asset_sha256": "4bf8a4fe822ec769b4188d5fba2a33ebf66f62c1cc8141ed6d95097266c96865",
+      "asset": "fms_preservation/31bedb67c84a7485cbf3.blob",
+      "asset_sha256": "d67c018f96fd409a684966c20567e955ad17ea9e500872aa83ff48a6fcf8c1fc",
+      "review_bundle": "fms_dm_shared_preservation.patch"
+    },
+    {
+      "path": "openpilot/selfdrive/carrot/control_advisor/lateral_observations.py",
+      "before_sha256": null,
+      "after_sha256": "65502311ab63a5ec14e8cb07cbf733a9d33ec468c024ed480caf0b25c1257bfc",
+      "kind": "blob",
+      "asset": "fms_preservation/464098e288815859f45d.blob",
+      "asset_sha256": "65502311ab63a5ec14e8cb07cbf733a9d33ec468c024ed480caf0b25c1257bfc",
       "review_bundle": "fms_dm_shared_preservation.patch"
     },
     {
       "path": "openpilot/selfdrive/carrot/control_advisor/live.py",
       "before_sha256": null,
-      "after_sha256": "9b908f09c5a62f90e1034fde24be0129fc07ff14eb00af8bf2239860cf8abe79",
+      "after_sha256": "64ec6d213241de7326a5cbc05503c7a5a2958d4a699ec42cec4f0eb57c69f839",
       "kind": "blob",
-      "asset": "fms_preservation/659d90664f9b66ca4071.blob",
-      "asset_sha256": "9b908f09c5a62f90e1034fde24be0129fc07ff14eb00af8bf2239860cf8abe79",
+      "asset": "fms_preservation/3f98728c8090a6342b2d.blob",
+      "asset_sha256": "64ec6d213241de7326a5cbc05503c7a5a2958d4a699ec42cec4f0eb57c69f839",
       "review_bundle": "fms_dm_shared_preservation.patch"
     },
     {
       "path": "openpilot/selfdrive/carrot/control_advisor/log_candidates.py",
       "before_sha256": null,
-      "after_sha256": "3871c56582b9c0b70e71e452f43b9bb73767cc20891dc15aa2bc698fa293d914",
+      "after_sha256": "95068139f1fb22c3c8ab973d042154fea26a5313ef7edc930c4f592f967ec5ee",
       "kind": "blob",
-      "asset": "fms_preservation/2c577f90c7203ea87ea1.blob",
-      "asset_sha256": "3871c56582b9c0b70e71e452f43b9bb73767cc20891dc15aa2bc698fa293d914",
+      "asset": "fms_preservation/ac284873abfcf33b019f.blob",
+      "asset_sha256": "95068139f1fb22c3c8ab973d042154fea26a5313ef7edc930c4f592f967ec5ee",
       "review_bundle": "fms_dm_shared_preservation.patch"
     },
     {
       "path": "openpilot/selfdrive/carrot/control_advisor/log_history.py",
       "before_sha256": null,
-      "after_sha256": "25efdfa23ddf7870c7bb30317a762bdbe3b9f534ad26a001ed1a776a5970b703",
+      "after_sha256": "03ade896bd13be15790a7704c42131a01b9c5902617e57cb59b489aa60c58f8c",
       "kind": "blob",
-      "asset": "fms_preservation/93d5daede391278a9a65.blob",
-      "asset_sha256": "25efdfa23ddf7870c7bb30317a762bdbe3b9f534ad26a001ed1a776a5970b703",
+      "asset": "fms_preservation/2739ad28c04c51f5be29.blob",
+      "asset_sha256": "03ade896bd13be15790a7704c42131a01b9c5902617e57cb59b489aa60c58f8c",
       "review_bundle": "fms_dm_shared_preservation.patch"
     },
     {
       "path": "openpilot/selfdrive/carrot/control_advisor/log_signals.py",
       "before_sha256": null,
-      "after_sha256": "fae327123747a2db6ab15d614154abfb415bdcf4c0b30ad5688b9dc4e6f6fd7f",
+      "after_sha256": "90b11477ba6c0747b70579a8f42657656747fa74bfcc39341d5812433ef9c8f1",
       "kind": "blob",
-      "asset": "fms_preservation/219fa409ed22af9c9923.blob",
-      "asset_sha256": "fae327123747a2db6ab15d614154abfb415bdcf4c0b30ad5688b9dc4e6f6fd7f",
+      "asset": "fms_preservation/c25575e3dabd8190b853.blob",
+      "asset_sha256": "90b11477ba6c0747b70579a8f42657656747fa74bfcc39341d5812433ef9c8f1",
       "review_bundle": "fms_dm_shared_preservation.patch"
     },
     {
@@ -1022,10 +1148,10 @@
     {
       "path": "openpilot/selfdrive/carrot/control_advisor/native_runtime.py",
       "before_sha256": null,
-      "after_sha256": "63a3dfefeacc77ff8070582d9c9a8e179aeb3e0dfed6f602ee42575408ccdd26",
+      "after_sha256": "37ce114d699adad975b5db0b3cf74048df62caf955d38a7ef92fbff17a107a3b",
       "kind": "blob",
-      "asset": "fms_preservation/07b416c42ef1d0bc13cf.blob",
-      "asset_sha256": "63a3dfefeacc77ff8070582d9c9a8e179aeb3e0dfed6f602ee42575408ccdd26",
+      "asset": "fms_preservation/ba7d6a03f986b9c42da9.blob",
+      "asset_sha256": "37ce114d699adad975b5db0b3cf74048df62caf955d38a7ef92fbff17a107a3b",
       "review_bundle": "fms_dm_shared_preservation.patch"
     },
     {
@@ -1058,55 +1184,73 @@
     {
       "path": "openpilot/selfdrive/carrot/control_advisor/parking_summary.py",
       "before_sha256": null,
-      "after_sha256": "17cbe6dad9b80049e80e4466fefcbf77c606c895182383aca5a362512ef8c7d3",
+      "after_sha256": "9b15f4169481c131e2ab0db25111b209de5a413cd6dfa505d1f93cff16c624ef",
       "kind": "blob",
-      "asset": "fms_preservation/1a90f4a49bc949f78f21.blob",
-      "asset_sha256": "17cbe6dad9b80049e80e4466fefcbf77c606c895182383aca5a362512ef8c7d3",
+      "asset": "fms_preservation/ad0b6d0a07125c24b011.blob",
+      "asset_sha256": "9b15f4169481c131e2ab0db25111b209de5a413cd6dfa505d1f93cff16c624ef",
       "review_bundle": "fms_dm_shared_preservation.patch"
     },
     {
       "path": "openpilot/selfdrive/carrot/control_advisor/periodic.py",
       "before_sha256": null,
-      "after_sha256": "19a895ab3a4a6aa74c056793a935f8c6aace3fefc1733cbfe7f448b7b10bc302",
+      "after_sha256": "fb83f76ddc8396ae5c9dafd3ace88eba973001a118c9ae88ec91828912642dc8",
       "kind": "blob",
-      "asset": "fms_preservation/435e7556ecc67015d399.blob",
-      "asset_sha256": "19a895ab3a4a6aa74c056793a935f8c6aace3fefc1733cbfe7f448b7b10bc302",
+      "asset": "fms_preservation/64b53a55393623c1a591.blob",
+      "asset_sha256": "fb83f76ddc8396ae5c9dafd3ace88eba973001a118c9ae88ec91828912642dc8",
+      "review_bundle": "fms_dm_shared_preservation.patch"
+    },
+    {
+      "path": "openpilot/selfdrive/carrot/control_advisor/pid_burst.py",
+      "before_sha256": null,
+      "after_sha256": "dd311458a02f9385514150b356b08587dd1f5cd947b1a3c771d4de297d88b9ae",
+      "kind": "blob",
+      "asset": "fms_preservation/f928015983b53d7f7b4e.blob",
+      "asset_sha256": "dd311458a02f9385514150b356b08587dd1f5cd947b1a3c771d4de297d88b9ae",
+      "review_bundle": "fms_dm_shared_preservation.patch"
+    },
+    {
+      "path": "openpilot/selfdrive/carrot/control_advisor/policy_observations.py",
+      "before_sha256": null,
+      "after_sha256": "3d156527b578ca69ba7dbc86d7fb6061a8531e25101374909bd028ee4681e508",
+      "kind": "blob",
+      "asset": "fms_preservation/37a417b30688624f53c6.blob",
+      "asset_sha256": "3d156527b578ca69ba7dbc86d7fb6061a8531e25101374909bd028ee4681e508",
       "review_bundle": "fms_dm_shared_preservation.patch"
     },
     {
       "path": "openpilot/selfdrive/carrot/control_advisor/recording.py",
       "before_sha256": null,
-      "after_sha256": "fcf17b7dacf80af891e45e410d31b183d3efe9521c4e45ee43948674e81d52d8",
+      "after_sha256": "8f2d2d48e43b48860364dc8e17a18dc071403d962abe5b4a9dda10c41d6fd6d5",
       "kind": "blob",
-      "asset": "fms_preservation/510aa08810d3b27baa57.blob",
-      "asset_sha256": "fcf17b7dacf80af891e45e410d31b183d3efe9521c4e45ee43948674e81d52d8",
+      "asset": "fms_preservation/4dd5e7438c686909868d.blob",
+      "asset_sha256": "8f2d2d48e43b48860364dc8e17a18dc071403d962abe5b4a9dda10c41d6fd6d5",
       "review_bundle": "fms_dm_shared_preservation.patch"
     },
     {
       "path": "openpilot/selfdrive/carrot/control_advisor/registry.py",
       "before_sha256": null,
-      "after_sha256": "d4f244ae920887731219168ed302f2a9eb3bea9517e7dfd87b34a4d0f2681338",
+      "after_sha256": "026cd13eacfe5099c3dc8a9a750de9f8b4f98fdbd6fb4ae67f5910b97955ed01",
       "kind": "blob",
-      "asset": "fms_preservation/cca5f28ece6cd36a9ef8.blob",
-      "asset_sha256": "d4f244ae920887731219168ed302f2a9eb3bea9517e7dfd87b34a4d0f2681338",
+      "asset": "fms_preservation/558c098399484a36430d.blob",
+      "asset_sha256": "026cd13eacfe5099c3dc8a9a750de9f8b4f98fdbd6fb4ae67f5910b97955ed01",
       "review_bundle": "fms_dm_shared_preservation.patch"
     },
     {
       "path": "openpilot/selfdrive/carrot/control_advisor/request_evidence.py",
       "before_sha256": null,
-      "after_sha256": "1137ec4da649957e9ce6b20ad47cd90c0b759f6fe8fae28ed8ebc31662447879",
+      "after_sha256": "663f3308f9d8a3ebb72640a2cc5ebc552b7f8282b0b4d174725b33a7f5d98395",
       "kind": "blob",
-      "asset": "fms_preservation/1fce110608899d9dd25e.blob",
-      "asset_sha256": "1137ec4da649957e9ce6b20ad47cd90c0b759f6fe8fae28ed8ebc31662447879",
+      "asset": "fms_preservation/3593875fed79854c49c6.blob",
+      "asset_sha256": "663f3308f9d8a3ebb72640a2cc5ebc552b7f8282b0b4d174725b33a7f5d98395",
       "review_bundle": "fms_dm_shared_preservation.patch"
     },
     {
       "path": "openpilot/selfdrive/carrot/control_advisor/review_export.py",
       "before_sha256": null,
-      "after_sha256": "060869c7987a72738cdb7985758a4983b716e168da3646e26a7698fd6dae073c",
+      "after_sha256": "f8faf5dc3e521e5e3a5a4c673015560d447befe82a847243b3053b205ae4a373",
       "kind": "blob",
-      "asset": "fms_preservation/3f14bc2c28d2f73e274a.blob",
-      "asset_sha256": "060869c7987a72738cdb7985758a4983b716e168da3646e26a7698fd6dae073c",
+      "asset": "fms_preservation/a6462ebe0580c9361f4d.blob",
+      "asset_sha256": "f8faf5dc3e521e5e3a5a4c673015560d447befe82a847243b3053b205ae4a373",
       "review_bundle": "fms_dm_shared_preservation.patch"
     },
     {
@@ -1121,37 +1265,37 @@
     {
       "path": "openpilot/selfdrive/carrot/control_advisor/rlog.py",
       "before_sha256": null,
-      "after_sha256": "2b619f592e824ec18a5b53676f598551be9cbc8ccc1fadfac0b623b8e03cd51a",
+      "after_sha256": "dbfdf2fd966bef85d4d951c32dfd72780e8e1a74eef6fe5501b8acff4e0c3303",
       "kind": "blob",
-      "asset": "fms_preservation/2638dc13c2218ae8ffc7.blob",
-      "asset_sha256": "2b619f592e824ec18a5b53676f598551be9cbc8ccc1fadfac0b623b8e03cd51a",
+      "asset": "fms_preservation/73796c7dbb6f0957f90a.blob",
+      "asset_sha256": "dbfdf2fd966bef85d4d951c32dfd72780e8e1a74eef6fe5501b8acff4e0c3303",
       "review_bundle": "fms_dm_shared_preservation.patch"
     },
     {
       "path": "openpilot/selfdrive/carrot/control_advisor/runtime_config.py",
       "before_sha256": null,
-      "after_sha256": "7c6597cdb4a3677d30c83f679a9739bc138da6314e1ee95aa1488b5e599ccb82",
+      "after_sha256": "c582a909396febcb968a440795cb69a3ba48c4026e45ee8bc8fd478502794515",
       "kind": "blob",
-      "asset": "fms_preservation/59f4ea67a93b2e06ec69.blob",
-      "asset_sha256": "7c6597cdb4a3677d30c83f679a9739bc138da6314e1ee95aa1488b5e599ccb82",
+      "asset": "fms_preservation/953b997bad5f292a52ce.blob",
+      "asset_sha256": "c582a909396febcb968a440795cb69a3ba48c4026e45ee8bc8fd478502794515",
       "review_bundle": "fms_dm_shared_preservation.patch"
     },
     {
       "path": "openpilot/selfdrive/carrot/control_advisor/session.py",
       "before_sha256": null,
-      "after_sha256": "737514a54820a54d20d66aa8fdfba9c761c1a7e55115327a22ffab0a28bdd917",
+      "after_sha256": "3fb44e49cbbc7f5eabaf5cd59d27a551c50f5aadc5ea8599a41b904b0c26a398",
       "kind": "blob",
-      "asset": "fms_preservation/860d9291f7a6d2c811de.blob",
-      "asset_sha256": "737514a54820a54d20d66aa8fdfba9c761c1a7e55115327a22ffab0a28bdd917",
+      "asset": "fms_preservation/e649870144ccfc6b7446.blob",
+      "asset_sha256": "3fb44e49cbbc7f5eabaf5cd59d27a551c50f5aadc5ea8599a41b904b0c26a398",
       "review_bundle": "fms_dm_shared_preservation.patch"
     },
     {
       "path": "openpilot/selfdrive/carrot/control_advisor/settings_history.py",
       "before_sha256": null,
-      "after_sha256": "04ef0892b17585c1208657fe966552b10d373a6a7194f54831025de18eba3c9f",
+      "after_sha256": "12f8feacfe3c9b80572fccaaddf8e6b03f6460cbd378e8824d878cf5c8b61cfd",
       "kind": "blob",
-      "asset": "fms_preservation/f3c97fe2ddeacccecba9.blob",
-      "asset_sha256": "04ef0892b17585c1208657fe966552b10d373a6a7194f54831025de18eba3c9f",
+      "asset": "fms_preservation/ac74bb98b3e6dcee7251.blob",
+      "asset_sha256": "12f8feacfe3c9b80572fccaaddf8e6b03f6460cbd378e8824d878cf5c8b61cfd",
       "review_bundle": "fms_dm_shared_preservation.patch"
     },
     {
@@ -1164,12 +1308,39 @@
       "review_bundle": "fms_dm_shared_preservation.patch"
     },
     {
+      "path": "openpilot/selfdrive/carrot/control_advisor/tests/test_accumulation.py",
+      "before_sha256": null,
+      "after_sha256": "ee40d170c6de4c1a6b64b92093b367ce9ab4e976bca84f3da4009ce2f31a4a9d",
+      "kind": "blob",
+      "asset": "fms_preservation/d748863ab6bb775ec469.blob",
+      "asset_sha256": "ee40d170c6de4c1a6b64b92093b367ce9ab4e976bca84f3da4009ce2f31a4a9d",
+      "review_bundle": "fms_dm_shared_preservation.patch"
+    },
+    {
       "path": "openpilot/selfdrive/carrot/control_advisor/tests/test_analysis.py",
       "before_sha256": null,
       "after_sha256": "8f32369b6cb9ce351a6225565a816583f582d5b970357888031f3f16de30a58a",
       "kind": "blob",
       "asset": "fms_preservation/a2578da33f701c96d965.blob",
       "asset_sha256": "8f32369b6cb9ce351a6225565a816583f582d5b970357888031f3f16de30a58a",
+      "review_bundle": "fms_dm_shared_preservation.patch"
+    },
+    {
+      "path": "openpilot/selfdrive/carrot/control_advisor/tests/test_analysis_control.py",
+      "before_sha256": null,
+      "after_sha256": "dbc5baf1869d89286b6e4b12b9c3c22154587ed5f6b9d2290115bdd4f15280dd",
+      "kind": "blob",
+      "asset": "fms_preservation/71c44020307f4c90c0ef.blob",
+      "asset_sha256": "dbc5baf1869d89286b6e4b12b9c3c22154587ed5f6b9d2290115bdd4f15280dd",
+      "review_bundle": "fms_dm_shared_preservation.patch"
+    },
+    {
+      "path": "openpilot/selfdrive/carrot/control_advisor/tests/test_analysis_trigger.py",
+      "before_sha256": null,
+      "after_sha256": "b3df09096b67364211c5bd1921c21ff990cd530033868dedd15167c12b542fcc",
+      "kind": "blob",
+      "asset": "fms_preservation/84672857bd4a4bdd64a1.blob",
+      "asset_sha256": "b3df09096b67364211c5bd1921c21ff990cd530033868dedd15167c12b542fcc",
       "review_bundle": "fms_dm_shared_preservation.patch"
     },
     {
@@ -1191,12 +1362,30 @@
       "review_bundle": "fms_dm_shared_preservation.patch"
     },
     {
+      "path": "openpilot/selfdrive/carrot/control_advisor/tests/test_candidate_availability.py",
+      "before_sha256": null,
+      "after_sha256": "67ecc11d726f24109bef15e63d581e4f541e68c5c97dc6a03c08727802659936",
+      "kind": "blob",
+      "asset": "fms_preservation/981710637a727b586682.blob",
+      "asset_sha256": "67ecc11d726f24109bef15e63d581e4f541e68c5c97dc6a03c08727802659936",
+      "review_bundle": "fms_dm_shared_preservation.patch"
+    },
+    {
+      "path": "openpilot/selfdrive/carrot/control_advisor/tests/test_candidate_goal_targets.py",
+      "before_sha256": null,
+      "after_sha256": "ba391bb302ae110594d3b50318bf77148b0b6d44e0c008099b14240b70e4e03b",
+      "kind": "blob",
+      "asset": "fms_preservation/6f3c439cc2a4ec149ebf.blob",
+      "asset_sha256": "ba391bb302ae110594d3b50318bf77148b0b6d44e0c008099b14240b70e4e03b",
+      "review_bundle": "fms_dm_shared_preservation.patch"
+    },
+    {
       "path": "openpilot/selfdrive/carrot/control_advisor/tests/test_candidate_lateral.py",
       "before_sha256": null,
-      "after_sha256": "58f3873502d79a7d9e8384774caf3a5e849522f101051558a7990a984a729b62",
+      "after_sha256": "9a17fe56685d655a7f37cdf568232e7f4843b86cd673588392e9741f25929f68",
       "kind": "blob",
-      "asset": "fms_preservation/486f3949e58cf567036b.blob",
-      "asset_sha256": "58f3873502d79a7d9e8384774caf3a5e849522f101051558a7990a984a729b62",
+      "asset": "fms_preservation/2c1c27fa8671eaf9a8c6.blob",
+      "asset_sha256": "9a17fe56685d655a7f37cdf568232e7f4843b86cd673588392e9741f25929f68",
       "review_bundle": "fms_dm_shared_preservation.patch"
     },
     {
@@ -1206,6 +1395,15 @@
       "kind": "blob",
       "asset": "fms_preservation/c1868db312bf094a2a5c.blob",
       "asset_sha256": "c8c6137b067d6d77ec5ee0d29034cafe6b9cd5f16dd8c1c6e4c312efdfb80597",
+      "review_bundle": "fms_dm_shared_preservation.patch"
+    },
+    {
+      "path": "openpilot/selfdrive/carrot/control_advisor/tests/test_candidate_pid.py",
+      "before_sha256": null,
+      "after_sha256": "abe38a6271b2120301ee923dd007484ef96ef7946c953be09587ebbb99f4161a",
+      "kind": "blob",
+      "asset": "fms_preservation/58ffa28cd4eae14d6807.blob",
+      "asset_sha256": "abe38a6271b2120301ee923dd007484ef96ef7946c953be09587ebbb99f4161a",
       "review_bundle": "fms_dm_shared_preservation.patch"
     },
     {
@@ -1220,10 +1418,10 @@
     {
       "path": "openpilot/selfdrive/carrot/control_advisor/tests/test_candidates.py",
       "before_sha256": null,
-      "after_sha256": "7ec6c2c1d44c1963c7a75a37c40cf936ad59d6724d28f380c9208918bdfe16bb",
+      "after_sha256": "14abba8384410da90de0ce80b96272839acd660c14363577ac5884c62d9832da",
       "kind": "blob",
-      "asset": "fms_preservation/850a3c365e4e0d049c5f.blob",
-      "asset_sha256": "7ec6c2c1d44c1963c7a75a37c40cf936ad59d6724d28f380c9208918bdfe16bb",
+      "asset": "fms_preservation/83f241789e555c53f9f6.blob",
+      "asset_sha256": "14abba8384410da90de0ce80b96272839acd660c14363577ac5884c62d9832da",
       "review_bundle": "fms_dm_shared_preservation.patch"
     },
     {
@@ -1238,10 +1436,37 @@
     {
       "path": "openpilot/selfdrive/carrot/control_advisor/tests/test_comparison.py",
       "before_sha256": null,
-      "after_sha256": "e39b204ccdad59fb4019d8fa9d13aa1a377158cb13bf4d98e76ed46898d0160a",
+      "after_sha256": "b1a4fbbc93e8f24d3e85d4494df409882d49bdb85cd3e1acb858a2703a172ef3",
       "kind": "blob",
-      "asset": "fms_preservation/09f053dfc6596d13444f.blob",
-      "asset_sha256": "e39b204ccdad59fb4019d8fa9d13aa1a377158cb13bf4d98e76ed46898d0160a",
+      "asset": "fms_preservation/9d4bcb25a13320d93579.blob",
+      "asset_sha256": "b1a4fbbc93e8f24d3e85d4494df409882d49bdb85cd3e1acb858a2703a172ef3",
+      "review_bundle": "fms_dm_shared_preservation.patch"
+    },
+    {
+      "path": "openpilot/selfdrive/carrot/control_advisor/tests/test_comparison_intervals.py",
+      "before_sha256": null,
+      "after_sha256": "47a5873be427c3109dfda1f33ffc24333164d63ae842314c71d9dbc3361dc069",
+      "kind": "blob",
+      "asset": "fms_preservation/d981f0d80a53e89d429d.blob",
+      "asset_sha256": "47a5873be427c3109dfda1f33ffc24333164d63ae842314c71d9dbc3361dc069",
+      "review_bundle": "fms_dm_shared_preservation.patch"
+    },
+    {
+      "path": "openpilot/selfdrive/carrot/control_advisor/tests/test_comparison_stream.py",
+      "before_sha256": null,
+      "after_sha256": "111349cbfdb43bbea66b2263d4e94bce98691bedc3bf0640852a3378343f99ed",
+      "kind": "blob",
+      "asset": "fms_preservation/1105091b7f902da25e67.blob",
+      "asset_sha256": "111349cbfdb43bbea66b2263d4e94bce98691bedc3bf0640852a3378343f99ed",
+      "review_bundle": "fms_dm_shared_preservation.patch"
+    },
+    {
+      "path": "openpilot/selfdrive/carrot/control_advisor/tests/test_completion_seal.py",
+      "before_sha256": null,
+      "after_sha256": "100e5f03be116f0734829ed7936124ab2fb862d75414838767c9389c55946a87",
+      "kind": "blob",
+      "asset": "fms_preservation/b218f2e6335de6784c76.blob",
+      "asset_sha256": "100e5f03be116f0734829ed7936124ab2fb862d75414838767c9389c55946a87",
       "review_bundle": "fms_dm_shared_preservation.patch"
     },
     {
@@ -1256,10 +1481,10 @@
     {
       "path": "openpilot/selfdrive/carrot/control_advisor/tests/test_consumer_control_hooks.py",
       "before_sha256": null,
-      "after_sha256": "80a9e6446aba3623935f398360c6ad5c8069c021f0c57ae1c8cc22598042a9cf",
+      "after_sha256": "054398de80f388365525b193a79c163151d29b29e2bdaeb25521ce7e40d69422",
       "kind": "blob",
-      "asset": "fms_preservation/8bc21089e290169bcd08.blob",
-      "asset_sha256": "80a9e6446aba3623935f398360c6ad5c8069c021f0c57ae1c8cc22598042a9cf",
+      "asset": "fms_preservation/719f5fee86712de91656.blob",
+      "asset_sha256": "054398de80f388365525b193a79c163151d29b29e2bdaeb25521ce7e40d69422",
       "review_bundle": "fms_dm_shared_preservation.patch"
     },
     {
@@ -1274,10 +1499,10 @@
     {
       "path": "openpilot/selfdrive/carrot/control_advisor/tests/test_consumer_observer.py",
       "before_sha256": null,
-      "after_sha256": "ce9338d8fbc2903b82e1d8aca80c39b8401b4c92f41dc730ef87fe73d805023e",
+      "after_sha256": "b6875ae80775dc7d147fd6d6956df80d062e50327f1928f59d8fd62c8fc4b58c",
       "kind": "blob",
-      "asset": "fms_preservation/bb9f744112ef159f5318.blob",
-      "asset_sha256": "ce9338d8fbc2903b82e1d8aca80c39b8401b4c92f41dc730ef87fe73d805023e",
+      "asset": "fms_preservation/1fc6277b2c16372b5373.blob",
+      "asset_sha256": "b6875ae80775dc7d147fd6d6956df80d062e50327f1928f59d8fd62c8fc4b58c",
       "review_bundle": "fms_dm_shared_preservation.patch"
     },
     {
@@ -1308,12 +1533,30 @@
       "review_bundle": "fms_dm_shared_preservation.patch"
     },
     {
+      "path": "openpilot/selfdrive/carrot/control_advisor/tests/test_continuous_log_analysis.py",
+      "before_sha256": null,
+      "after_sha256": "dd211fc5202e67de6e6e8bfcdddfd8528adf35c1991c8bfc2c5402e590e289ee",
+      "kind": "blob",
+      "asset": "fms_preservation/21139a1cb7a3469fe58d.blob",
+      "asset_sha256": "dd211fc5202e67de6e6e8bfcdddfd8528adf35c1991c8bfc2c5402e590e289ee",
+      "review_bundle": "fms_dm_shared_preservation.patch"
+    },
+    {
       "path": "openpilot/selfdrive/carrot/control_advisor/tests/test_evidence.py",
       "before_sha256": null,
       "after_sha256": "0f54993d792deddbadf0ee70879f9b9776956d6b4fdf6db0c5b20fc70b4d41f4",
       "kind": "blob",
       "asset": "fms_preservation/774e28d90fcb57a364de.blob",
       "asset_sha256": "0f54993d792deddbadf0ee70879f9b9776956d6b4fdf6db0c5b20fc70b4d41f4",
+      "review_bundle": "fms_dm_shared_preservation.patch"
+    },
+    {
+      "path": "openpilot/selfdrive/carrot/control_advisor/tests/test_goal_selection.py",
+      "before_sha256": null,
+      "after_sha256": "9c75642811eeed64c1ae2bcd3ca800055ea231aea2a5c90cca6a2ca3d582426f",
+      "kind": "blob",
+      "asset": "fms_preservation/ae01c0bbce2bbb9cf202.blob",
+      "asset_sha256": "9c75642811eeed64c1ae2bcd3ca800055ea231aea2a5c90cca6a2ca3d582426f",
       "review_bundle": "fms_dm_shared_preservation.patch"
     },
     {
@@ -1344,12 +1587,39 @@
       "review_bundle": "fms_dm_shared_preservation.patch"
     },
     {
+      "path": "openpilot/selfdrive/carrot/control_advisor/tests/test_lateral_log_signals.py",
+      "before_sha256": null,
+      "after_sha256": "073318e51919c3abdc0618cf45b6e296910c0dc87324eff18e37819b79abc426",
+      "kind": "blob",
+      "asset": "fms_preservation/7a731b8fcc5c843d87bf.blob",
+      "asset_sha256": "073318e51919c3abdc0618cf45b6e296910c0dc87324eff18e37819b79abc426",
+      "review_bundle": "fms_dm_shared_preservation.patch"
+    },
+    {
+      "path": "openpilot/selfdrive/carrot/control_advisor/tests/test_lateral_observation_index.py",
+      "before_sha256": null,
+      "after_sha256": "4f0efd3614b5d7d137f3c9dc517d8e408ea58bb593c3e63f7eaf81fd40c2b996",
+      "kind": "blob",
+      "asset": "fms_preservation/a515660b5d23411d0979.blob",
+      "asset_sha256": "4f0efd3614b5d7d137f3c9dc517d8e408ea58bb593c3e63f7eaf81fd40c2b996",
+      "review_bundle": "fms_dm_shared_preservation.patch"
+    },
+    {
+      "path": "openpilot/selfdrive/carrot/control_advisor/tests/test_lateral_observations.py",
+      "before_sha256": null,
+      "after_sha256": "36b8a4dec251bfa05240ec46748b35aee118ac2ba1aaef51a3c68742628872c7",
+      "kind": "blob",
+      "asset": "fms_preservation/56811c559f41aa3da675.blob",
+      "asset_sha256": "36b8a4dec251bfa05240ec46748b35aee118ac2ba1aaef51a3c68742628872c7",
+      "review_bundle": "fms_dm_shared_preservation.patch"
+    },
+    {
       "path": "openpilot/selfdrive/carrot/control_advisor/tests/test_live.py",
       "before_sha256": null,
-      "after_sha256": "40438f4ab0a9bcd0a528ffaf054db4ebe94e0107d1679aff136b2ca7459e3478",
+      "after_sha256": "949584f414b2682bcd9a61346332b59fb7dea5c3377ad9a761686fc8adb06cc7",
       "kind": "blob",
-      "asset": "fms_preservation/b1cd15404ee2f6dcfbe8.blob",
-      "asset_sha256": "40438f4ab0a9bcd0a528ffaf054db4ebe94e0107d1679aff136b2ca7459e3478",
+      "asset": "fms_preservation/81670c47caf3ca1d8827.blob",
+      "asset_sha256": "949584f414b2682bcd9a61346332b59fb7dea5c3377ad9a761686fc8adb06cc7",
       "review_bundle": "fms_dm_shared_preservation.patch"
     },
     {
@@ -1389,12 +1659,39 @@
       "review_bundle": "fms_dm_shared_preservation.patch"
     },
     {
+      "path": "openpilot/selfdrive/carrot/control_advisor/tests/test_native_calibration_flow.py",
+      "before_sha256": null,
+      "after_sha256": "4138691f8812443fdce96376f808944bf43f47ea92cf78221e8894a7f71df692",
+      "kind": "blob",
+      "asset": "fms_preservation/d7b8f73f9947a33cbd83.blob",
+      "asset_sha256": "4138691f8812443fdce96376f808944bf43f47ea92cf78221e8894a7f71df692",
+      "review_bundle": "fms_dm_shared_preservation.patch"
+    },
+    {
+      "path": "openpilot/selfdrive/carrot/control_advisor/tests/test_native_evidence_integration.py",
+      "before_sha256": null,
+      "after_sha256": "2f52153373f08ec747c72b9e3bea1cbbff4867a2cb0c2df12796a4cb338fb8ce",
+      "kind": "blob",
+      "asset": "fms_preservation/4841b9ca1ebe0147d7c9.blob",
+      "asset_sha256": "2f52153373f08ec747c72b9e3bea1cbbff4867a2cb0c2df12796a4cb338fb8ce",
+      "review_bundle": "fms_dm_shared_preservation.patch"
+    },
+    {
+      "path": "openpilot/selfdrive/carrot/control_advisor/tests/test_native_pid_pack.py",
+      "before_sha256": null,
+      "after_sha256": "628d73bad51b70a5261f6835a858aeb43a3f4cd3e12d9ae88df76eb84f618494",
+      "kind": "blob",
+      "asset": "fms_preservation/5b078d6d042d1bb7c878.blob",
+      "asset_sha256": "628d73bad51b70a5261f6835a858aeb43a3f4cd3e12d9ae88df76eb84f618494",
+      "review_bundle": "fms_dm_shared_preservation.patch"
+    },
+    {
       "path": "openpilot/selfdrive/carrot/control_advisor/tests/test_native_runtime.py",
       "before_sha256": null,
-      "after_sha256": "125e7b562443fb31c9fd0685aecf8f4255adb53623bd014c2e873a2f43d306e3",
+      "after_sha256": "98da406e6719f624d97d72278ebb965a5e0187b8ae2a0b8349d81b2b9e67711e",
       "kind": "blob",
-      "asset": "fms_preservation/b3f5e3b7c0926738ba62.blob",
-      "asset_sha256": "125e7b562443fb31c9fd0685aecf8f4255adb53623bd014c2e873a2f43d306e3",
+      "asset": "fms_preservation/35a818449344d9260008.blob",
+      "asset_sha256": "98da406e6719f624d97d72278ebb965a5e0187b8ae2a0b8349d81b2b9e67711e",
       "review_bundle": "fms_dm_shared_preservation.patch"
     },
     {
@@ -1409,10 +1706,10 @@
     {
       "path": "openpilot/selfdrive/carrot/control_advisor/tests/test_parking.py",
       "before_sha256": null,
-      "after_sha256": "fd416c268b6b23dc0297c33e005bf0d69a49fe570d98493c0dc9670e762d8165",
+      "after_sha256": "885c3a37cbe0c8f2d8154d17e56ed289dbedb2e9e471236bb8f04b980ebf8a1e",
       "kind": "blob",
-      "asset": "fms_preservation/7f10e3b3af65a58a0468.blob",
-      "asset_sha256": "fd416c268b6b23dc0297c33e005bf0d69a49fe570d98493c0dc9670e762d8165",
+      "asset": "fms_preservation/62cb75166d7912bc4bf3.blob",
+      "asset_sha256": "885c3a37cbe0c8f2d8154d17e56ed289dbedb2e9e471236bb8f04b980ebf8a1e",
       "review_bundle": "fms_dm_shared_preservation.patch"
     },
     {
@@ -1436,28 +1733,55 @@
     {
       "path": "openpilot/selfdrive/carrot/control_advisor/tests/test_periodic.py",
       "before_sha256": null,
-      "after_sha256": "874a902e264b85b05a69c3ed9fd8083db214107000943934698229210b33b6ab",
+      "after_sha256": "7da37fea83f08562b54f5690cca575e71e4821415a0896bb7f6ff0c71fb41d86",
       "kind": "blob",
-      "asset": "fms_preservation/2f21fe2a29b38188031f.blob",
-      "asset_sha256": "874a902e264b85b05a69c3ed9fd8083db214107000943934698229210b33b6ab",
+      "asset": "fms_preservation/ff6e0703fca974952ce6.blob",
+      "asset_sha256": "7da37fea83f08562b54f5690cca575e71e4821415a0896bb7f6ff0c71fb41d86",
       "review_bundle": "fms_dm_shared_preservation.patch"
     },
     {
       "path": "openpilot/selfdrive/carrot/control_advisor/tests/test_periodic_recording.py",
       "before_sha256": null,
-      "after_sha256": "fc052fb877f1f261199b4d548846c8042d42a6aa60c637dd68b9e07541fc9ea3",
+      "after_sha256": "e87cbfcf12259749f8b47f178d750574464e5e7f5781cf54088f72fc6f76787e",
       "kind": "blob",
-      "asset": "fms_preservation/1c3e5368c438474bb612.blob",
-      "asset_sha256": "fc052fb877f1f261199b4d548846c8042d42a6aa60c637dd68b9e07541fc9ea3",
+      "asset": "fms_preservation/0237dbb62098d2b77bb6.blob",
+      "asset_sha256": "e87cbfcf12259749f8b47f178d750574464e5e7f5781cf54088f72fc6f76787e",
       "review_bundle": "fms_dm_shared_preservation.patch"
     },
     {
       "path": "openpilot/selfdrive/carrot/control_advisor/tests/test_periodic_windows.py",
       "before_sha256": null,
-      "after_sha256": "d30ffaad9a111143c0827483457d4e7410c9fe36913f2f9f2d81ac7d62d9279f",
+      "after_sha256": "7a4fc9807c13a84cdbc9edc2531881ba3ba4c7e2f0041a46204041ea2c2941bd",
       "kind": "blob",
-      "asset": "fms_preservation/244aa7225a0380ceb788.blob",
-      "asset_sha256": "d30ffaad9a111143c0827483457d4e7410c9fe36913f2f9f2d81ac7d62d9279f",
+      "asset": "fms_preservation/f2054687e5c7aa3d8f73.blob",
+      "asset_sha256": "7a4fc9807c13a84cdbc9edc2531881ba3ba4c7e2f0041a46204041ea2c2941bd",
+      "review_bundle": "fms_dm_shared_preservation.patch"
+    },
+    {
+      "path": "openpilot/selfdrive/carrot/control_advisor/tests/test_pid_burst.py",
+      "before_sha256": null,
+      "after_sha256": "d219d213c8e4d34bed85f1d92e52ba35115d2f20dc4f429b76096a290eed96ba",
+      "kind": "blob",
+      "asset": "fms_preservation/846c93c1e35d820537a9.blob",
+      "asset_sha256": "d219d213c8e4d34bed85f1d92e52ba35115d2f20dc4f429b76096a290eed96ba",
+      "review_bundle": "fms_dm_shared_preservation.patch"
+    },
+    {
+      "path": "openpilot/selfdrive/carrot/control_advisor/tests/test_policy_observations.py",
+      "before_sha256": null,
+      "after_sha256": "6e8b6d114158cf53c01748640857210fba066c65e7aa81bdb9442b5b03b25f28",
+      "kind": "blob",
+      "asset": "fms_preservation/66fca38f9a5fb43e34be.blob",
+      "asset_sha256": "6e8b6d114158cf53c01748640857210fba066c65e7aa81bdb9442b5b03b25f28",
+      "review_bundle": "fms_dm_shared_preservation.patch"
+    },
+    {
+      "path": "openpilot/selfdrive/carrot/control_advisor/tests/test_recorded_objectives.py",
+      "before_sha256": null,
+      "after_sha256": "4fd1c22e2bb3c0d20dad1f724ead835250b54452d61897bae90d6b3f51baa165",
+      "kind": "blob",
+      "asset": "fms_preservation/c5c0813fa8a00276c579.blob",
+      "asset_sha256": "4fd1c22e2bb3c0d20dad1f724ead835250b54452d61897bae90d6b3f51baa165",
       "review_bundle": "fms_dm_shared_preservation.patch"
     },
     {
@@ -1490,10 +1814,10 @@
     {
       "path": "openpilot/selfdrive/carrot/control_advisor/tests/test_review_export.py",
       "before_sha256": null,
-      "after_sha256": "845848bd9b0ee690247f22fc177b7132788a44ecf0217e7889f56b136cda61f2",
+      "after_sha256": "2d44e8d6e8844f7db6a84f47602a9e1361b6497dfb816d4a8b3e53d0dc409b15",
       "kind": "blob",
-      "asset": "fms_preservation/18ecc64aa8ead0d08852.blob",
-      "asset_sha256": "845848bd9b0ee690247f22fc177b7132788a44ecf0217e7889f56b136cda61f2",
+      "asset": "fms_preservation/5aedd629bae85cab51a1.blob",
+      "asset_sha256": "2d44e8d6e8844f7db6a84f47602a9e1361b6497dfb816d4a8b3e53d0dc409b15",
       "review_bundle": "fms_dm_shared_preservation.patch"
     },
     {
@@ -1517,10 +1841,19 @@
     {
       "path": "openpilot/selfdrive/carrot/control_advisor/tests/test_runtime_config.py",
       "before_sha256": null,
-      "after_sha256": "69db023733574d4b68e37a69884136ff258eab3f92d832945094892200e7666d",
+      "after_sha256": "8b97e6d466c4057ec45b1f04d35a307050d9d751505f99db8969536baa4f666e",
       "kind": "blob",
-      "asset": "fms_preservation/15c492191a0bdbe7775f.blob",
-      "asset_sha256": "69db023733574d4b68e37a69884136ff258eab3f92d832945094892200e7666d",
+      "asset": "fms_preservation/eb677b8e3fef292caede.blob",
+      "asset_sha256": "8b97e6d466c4057ec45b1f04d35a307050d9d751505f99db8969536baa4f666e",
+      "review_bundle": "fms_dm_shared_preservation.patch"
+    },
+    {
+      "path": "openpilot/selfdrive/carrot/control_advisor/tests/test_runtime_defaults.py",
+      "before_sha256": null,
+      "after_sha256": "b627ce30812d11c92d50bc56816ecb92c323200164e55846cb7df143bfc52a8f",
+      "kind": "blob",
+      "asset": "fms_preservation/a0348566da7a390f7c8f.blob",
+      "asset_sha256": "b627ce30812d11c92d50bc56816ecb92c323200164e55846cb7df143bfc52a8f",
       "review_bundle": "fms_dm_shared_preservation.patch"
     },
     {
@@ -1544,10 +1877,10 @@
     {
       "path": "openpilot/selfdrive/carrot/control_advisor/tests/test_session.py",
       "before_sha256": null,
-      "after_sha256": "06b19cb7931dad44e6babc5ed9fe9b034843682886bc2c6e3e33f67e96052bec",
+      "after_sha256": "a824a4bcb4ace33beac3e1b36f104f5e12dd0b2948133f4ba5102b442b7c0cc1",
       "kind": "blob",
-      "asset": "fms_preservation/33a4e99f0b8d454e0939.blob",
-      "asset_sha256": "06b19cb7931dad44e6babc5ed9fe9b034843682886bc2c6e3e33f67e96052bec",
+      "asset": "fms_preservation/650ae8cca59866028c19.blob",
+      "asset_sha256": "a824a4bcb4ace33beac3e1b36f104f5e12dd0b2948133f4ba5102b442b7c0cc1",
       "review_bundle": "fms_dm_shared_preservation.patch"
     },
     {
@@ -1557,6 +1890,15 @@
       "kind": "blob",
       "asset": "fms_preservation/a53f560aef2a942c760d.blob",
       "asset_sha256": "dd9bb1edb83aa71564168dd738133bfa488a494331c7014ab00d56838a74dcf1",
+      "review_bundle": "fms_dm_shared_preservation.patch"
+    },
+    {
+      "path": "openpilot/selfdrive/carrot/control_advisor/tests/test_static_log_projection.py",
+      "before_sha256": null,
+      "after_sha256": "d19a0f8436d005a1deb587561d0f04d7e0ba96bdded643f015516a47b5f94fc5",
+      "kind": "blob",
+      "asset": "fms_preservation/a69eeb0dcc99fd49d8ec.blob",
+      "asset_sha256": "d19a0f8436d005a1deb587561d0f04d7e0ba96bdded643f015516a47b5f94fc5",
       "review_bundle": "fms_dm_shared_preservation.patch"
     },
     {
@@ -1575,6 +1917,15 @@
       "kind": "blob",
       "asset": "fms_preservation/2f661a4e978e8657e39c.blob",
       "asset_sha256": "8739b139e64f1dcaa8ba4e9418ff34c7feb3e1509666185ead93c59d52b9378c",
+      "review_bundle": "fms_dm_shared_preservation.patch"
+    },
+    {
+      "path": "openpilot/selfdrive/carrot/control_advisor/tests/test_trip_analysis.py",
+      "before_sha256": null,
+      "after_sha256": "73006dd91fb7179a673c15b7ed7b87c24e7f54e889b5aa35e8c1f61d82f620b1",
+      "kind": "blob",
+      "asset": "fms_preservation/25811a3fda634756143b.blob",
+      "asset_sha256": "73006dd91fb7179a673c15b7ed7b87c24e7f54e889b5aa35e8c1f61d82f620b1",
       "review_bundle": "fms_dm_shared_preservation.patch"
     },
     {
@@ -1641,6 +1992,24 @@
       "review_bundle": "fms_dm_shared_preservation.patch"
     },
     {
+      "path": "openpilot/selfdrive/carrot/control_advisor/trip_analysis.py",
+      "before_sha256": null,
+      "after_sha256": "60afcfe3062a439012a51a03760ea5a965b49f1d9a41a4dad4c7e8aed20fc2f4",
+      "kind": "blob",
+      "asset": "fms_preservation/cd6b5ad9880596f752b9.blob",
+      "asset_sha256": "60afcfe3062a439012a51a03760ea5a965b49f1d9a41a4dad4c7e8aed20fc2f4",
+      "review_bundle": "fms_dm_shared_preservation.patch"
+    },
+    {
+      "path": "openpilot/selfdrive/carrot/control_advisor/trip_history.py",
+      "before_sha256": null,
+      "after_sha256": "bb989694d38ffcf0b6d1b0c74b05fe399d33ad945e5909e2d9f8694e5f1a45ea",
+      "kind": "blob",
+      "asset": "fms_preservation/bb0573bf12d3f3a0729a.blob",
+      "asset_sha256": "bb989694d38ffcf0b6d1b0c74b05fe399d33ad945e5909e2d9f8694e5f1a45ea",
+      "review_bundle": "fms_dm_shared_preservation.patch"
+    },
+    {
       "path": "openpilot/selfdrive/carrot/control_advisor/vehicle_binding.py",
       "before_sha256": null,
       "after_sha256": "da5612a4c90e9a5541925b6b58898783ff7fbbeb41c80de3ea1613b2a2255b7d",
@@ -1670,10 +2039,10 @@
     {
       "path": "openpilot/selfdrive/carrot/control_advisor/worker.py",
       "before_sha256": null,
-      "after_sha256": "938f65a44fbb79309337e4b50f50f60235925c746b867258e96bd7bc9e739d28",
+      "after_sha256": "5099dab12ca4ffaae4164a8a3b7717c9439191d1563d9a7056f97682ad4a452b",
       "kind": "blob",
-      "asset": "fms_preservation/ca3dc6c3d4e304ba3ff5.blob",
-      "asset_sha256": "938f65a44fbb79309337e4b50f50f60235925c746b867258e96bd7bc9e739d28",
+      "asset": "fms_preservation/109f7951ee1d73d100e7.blob",
+      "asset_sha256": "5099dab12ca4ffaae4164a8a3b7717c9439191d1563d9a7056f97682ad4a452b",
       "review_bundle": "fms_dm_shared_preservation.patch"
     },
     {
@@ -1706,10 +2075,10 @@
     {
       "path": "openpilot/selfdrive/carrot/server/features/control_advisor.py",
       "before_sha256": null,
-      "after_sha256": "ed7d7f1765a03a8c70292b894f2bf24cf373ba86f0850baf57ec2500269020e4",
+      "after_sha256": "87f3426f9f8e8c67c030438c5f440701e8d6187e72d53898660e0f51a67db55b",
       "kind": "blob",
-      "asset": "fms_preservation/67e9f65a736097ec56c7.blob",
-      "asset_sha256": "ed7d7f1765a03a8c70292b894f2bf24cf373ba86f0850baf57ec2500269020e4",
+      "asset": "fms_preservation/603b197ee646354a50ce.blob",
+      "asset_sha256": "87f3426f9f8e8c67c030438c5f440701e8d6187e72d53898660e0f51a67db55b",
       "review_bundle": "fms_dm_shared_preservation.patch"
     },
     {
@@ -1796,10 +2165,10 @@
     {
       "path": "openpilot/selfdrive/carrot/server/tests/test_control_advisor.py",
       "before_sha256": null,
-      "after_sha256": "b4f8cd80c4fd62e5981c55959e423fa16792e67b78f15b3f3a74fde5a5a236b2",
+      "after_sha256": "f4058cb739d7013e9a97332b84efb42e9e83cd4827c06cb73d5ec220e0f668a4",
       "kind": "blob",
-      "asset": "fms_preservation/b1d9a879baf42817226d.blob",
-      "asset_sha256": "b4f8cd80c4fd62e5981c55959e423fa16792e67b78f15b3f3a74fde5a5a236b2",
+      "asset": "fms_preservation/c18c0aa79157e6920dd6.blob",
+      "asset_sha256": "f4058cb739d7013e9a97332b84efb42e9e83cd4827c06cb73d5ec220e0f668a4",
       "review_bundle": "fms_dm_shared_preservation.patch"
     },
     {
@@ -2035,28 +2404,28 @@
     {
       "path": "openpilot/selfdrive/carrot/web/css/generated/logs.css",
       "before_sha256": "e2403fbad519badab15a06e827f442fb40e4a7ffe2f05970fcf0de4b05e848a3",
-      "after_sha256": "46c4004ce8ccaf43a78d38cdc124e9dc478f642e3d0742e11832ccf72ddb7b7a",
+      "after_sha256": "12ecfbf3a24facfe80e782a0b9f3a22dfcc5659cec191c2d60a1f557d42849f0",
       "kind": "hunks",
-      "asset": "fms_preservation/1d20c9719b9c9d340234.patch",
-      "asset_sha256": "584043a3986285ac8c6b5a9d588d340ebd7eed8d45ec823a0f7cfe8065f3ce16",
+      "asset": "fms_preservation/35b1c6db6ad7c4d75e10.patch",
+      "asset_sha256": "be7fcb8fc8084022fdf0a7a198b2d04f493314efca4809ab837f4f05c778371a",
       "review_bundle": "fms_dm_shared_preservation.patch"
     },
     {
       "path": "openpilot/selfdrive/carrot/web/generated/asset-manifest.json",
       "before_sha256": "c012fb4da64ecd76f5df52d7830163be0dc1e64571d325bcd0744d5499055a8e",
-      "after_sha256": "8f3a9afddf5cd83140426e85006e78794f3a1df9430ff918d3aba0cd2ccba006",
+      "after_sha256": "5671d77d0bae42432202ba9ca537dbe6eb6e9ef65aac0b3933252776260fd60b",
       "kind": "hunks",
-      "asset": "fms_preservation/e91967e46ff9a3f749ea.patch",
-      "asset_sha256": "d3be54da6e5640d5db952944d5a1b2bc686d3a868750b9cc06cd545aeb0eaeb0",
+      "asset": "fms_preservation/df211d9297f793ec8659.patch",
+      "asset_sha256": "64c1e8a0cf98ea47b9da5a36ee4f9d2091c42b89d36967e15057d09ff0b24c08",
       "review_bundle": "fms_dm_shared_preservation.patch"
     },
     {
       "path": "openpilot/selfdrive/carrot/web/js/generated/logs.js",
       "before_sha256": "aa3f48bc3d5957a6959157f870fa6758d135fa94346a76109a2087057fd5cecc",
-      "after_sha256": "1b2b2e2b7acde6d2c98f6005efbedbd205704e240b2cfd068892da9ec18b4a30",
+      "after_sha256": "4b82ec20f55bbf8acb5f6b73174e3f5315e358fc202e8fa3c59e9c76b53e4420",
       "kind": "hunks",
-      "asset": "fms_preservation/f6d9051f17d1dbfe2034.patch",
-      "asset_sha256": "2f07a2adc8cd38d4cb3f171e1c1b9fa7ad37b2fc3c9d7b2266b86e402003db96",
+      "asset": "fms_preservation/ecb19508976305f3f663.patch",
+      "asset_sha256": "b13f0c8e0f1604388ee2f5ffd8ca4444d6ff1f9f18fdd45a669983a65166150d",
       "review_bundle": "fms_dm_shared_preservation.patch"
     },
     {
@@ -2150,39 +2519,48 @@
       "review_bundle": "fms_dm_shared_preservation.patch"
     },
     {
+      "path": "openpilot/selfdrive/carrot/web/src/features/control_advisor/comparison_intervals.js",
+      "before_sha256": null,
+      "after_sha256": "9079afb766f4b7f89b14653f075b54e2f7e613d03219502216786090b32d03b2",
+      "kind": "blob",
+      "asset": "fms_preservation/389c5391d8311c0dfc53.blob",
+      "asset_sha256": "9079afb766f4b7f89b14653f075b54e2f7e613d03219502216786090b32d03b2",
+      "review_bundle": "fms_dm_shared_preservation.patch"
+    },
+    {
       "path": "openpilot/selfdrive/carrot/web/src/features/control_advisor/index.js",
       "before_sha256": null,
-      "after_sha256": "023233a213bee272a518573dbb7b602d87e83368d3f860957a5c7202cfbfd73c",
+      "after_sha256": "bdc613049e8b6dab5119ba0dee2f1067e662c85e09f17919c252a1f9b2fe10e8",
       "kind": "blob",
-      "asset": "fms_preservation/714d668152251e120c26.blob",
-      "asset_sha256": "023233a213bee272a518573dbb7b602d87e83368d3f860957a5c7202cfbfd73c",
+      "asset": "fms_preservation/4723e041208e0a5b4c9a.blob",
+      "asset_sha256": "bdc613049e8b6dab5119ba0dee2f1067e662c85e09f17919c252a1f9b2fe10e8",
       "review_bundle": "fms_dm_shared_preservation.patch"
     },
     {
       "path": "openpilot/selfdrive/carrot/web/src/features/control_advisor/model.js",
       "before_sha256": null,
-      "after_sha256": "764dd153718dc67c8a940a7938e4ebf21ae8bad8d7679294840f2af56b104857",
+      "after_sha256": "9d00edb8f596adfe7a6be8ea30aae5c4426a41c971d7ddfbe201261b6ba9bc87",
       "kind": "blob",
-      "asset": "fms_preservation/90e4cc3f711023bfc83f.blob",
-      "asset_sha256": "764dd153718dc67c8a940a7938e4ebf21ae8bad8d7679294840f2af56b104857",
+      "asset": "fms_preservation/ac1b03982cc4ca4ab6da.blob",
+      "asset_sha256": "9d00edb8f596adfe7a6be8ea30aae5c4426a41c971d7ddfbe201261b6ba9bc87",
       "review_bundle": "fms_dm_shared_preservation.patch"
     },
     {
       "path": "openpilot/selfdrive/carrot/web/src/features/control_advisor/style.css",
       "before_sha256": null,
-      "after_sha256": "e22ea8270ce69837d38752948b3634748b5c82787218256da71312287238ef55",
+      "after_sha256": "719b0071e6a7eb065eaa2cd7743d22910d654f03924d12b22913ff9478284b06",
       "kind": "blob",
-      "asset": "fms_preservation/d83c8140b66ce40b69a2.blob",
-      "asset_sha256": "e22ea8270ce69837d38752948b3634748b5c82787218256da71312287238ef55",
+      "asset": "fms_preservation/4ca4ec8ffee120dc900b.blob",
+      "asset_sha256": "719b0071e6a7eb065eaa2cd7743d22910d654f03924d12b22913ff9478284b06",
       "review_bundle": "fms_dm_shared_preservation.patch"
     },
     {
       "path": "openpilot/selfdrive/carrot/web/src/features/control_advisor/view.js",
       "before_sha256": null,
-      "after_sha256": "190b86141d781c3079e50f79f190a65ce292b5f611029052e2b1f70598e26860",
+      "after_sha256": "4ca9d11fe0718fc263c265232a16fb96489d0256e6771eb3c44351397e31f203",
       "kind": "blob",
-      "asset": "fms_preservation/b7feab309779d6931ddf.blob",
-      "asset_sha256": "190b86141d781c3079e50f79f190a65ce292b5f611029052e2b1f70598e26860",
+      "asset": "fms_preservation/cc326e4a3cb7575d4f99.blob",
+      "asset_sha256": "4ca9d11fe0718fc263c265232a16fb96489d0256e6771eb3c44351397e31f203",
       "review_bundle": "fms_dm_shared_preservation.patch"
     },
     {
@@ -2215,19 +2593,37 @@
     {
       "path": "openpilot/selfdrive/carrot/web/tests/control_advisor_client.test.mjs",
       "before_sha256": null,
-      "after_sha256": "089e664fdb7386ad7aee39e4a80493076e5b77155bf715cb944b872fad976a87",
+      "after_sha256": "225db0b0cba4795052a8d5628a9e3b9138e4cda11b776f1cf48f6dff0344531d",
       "kind": "blob",
-      "asset": "fms_preservation/b0c85491f9c6a1501b9d.blob",
-      "asset_sha256": "089e664fdb7386ad7aee39e4a80493076e5b77155bf715cb944b872fad976a87",
+      "asset": "fms_preservation/fd0d45d7976558166586.blob",
+      "asset_sha256": "225db0b0cba4795052a8d5628a9e3b9138e4cda11b776f1cf48f6dff0344531d",
+      "review_bundle": "fms_dm_shared_preservation.patch"
+    },
+    {
+      "path": "openpilot/selfdrive/carrot/web/tests/control_advisor_comparison_intervals.test.mjs",
+      "before_sha256": null,
+      "after_sha256": "2198027f8364ed6790dcd6d5d0bbf6559d958d41e02186964438654953b00899",
+      "kind": "blob",
+      "asset": "fms_preservation/22c36b66e1cb4ff3226c.blob",
+      "asset_sha256": "2198027f8364ed6790dcd6d5d0bbf6559d958d41e02186964438654953b00899",
+      "review_bundle": "fms_dm_shared_preservation.patch"
+    },
+    {
+      "path": "openpilot/selfdrive/carrot/web/tests/control_advisor_goal.test.mjs",
+      "before_sha256": null,
+      "after_sha256": "9b44cbb5bfcc240aff39bc48b351a01c357b042c82b7136e76133783f8898bf9",
+      "kind": "blob",
+      "asset": "fms_preservation/a1b2ee81c611e1aa536b.blob",
+      "asset_sha256": "9b44cbb5bfcc240aff39bc48b351a01c357b042c82b7136e76133783f8898bf9",
       "review_bundle": "fms_dm_shared_preservation.patch"
     },
     {
       "path": "openpilot/selfdrive/carrot/web/tests/control_advisor_model.test.mjs",
       "before_sha256": null,
-      "after_sha256": "097f8a75631f59ddd3b4cf7af2f7f1a02a517df6eb780e409158729865a57e3b",
+      "after_sha256": "758e9c6e08aabd2b33825f46b4ce115ab205a39b393f3746c602cda7fe8eb341",
       "kind": "blob",
-      "asset": "fms_preservation/e4e6bd693ab6d1e0c154.blob",
-      "asset_sha256": "097f8a75631f59ddd3b4cf7af2f7f1a02a517df6eb780e409158729865a57e3b",
+      "asset": "fms_preservation/38a6e3a54a86f59ad4f0.blob",
+      "asset_sha256": "758e9c6e08aabd2b33825f46b4ce115ab205a39b393f3746c602cda7fe8eb341",
       "review_bundle": "fms_dm_shared_preservation.patch"
     },
     {
@@ -2364,10 +2760,10 @@
     {
       "path": "openpilot/selfdrive/controls/lib/latcontrol_torque.py",
       "before_sha256": "67fb6ecafc4d0ce999e2bbf1b729b5f6cf58a5f787c054e770162e7f2f3629cc",
-      "after_sha256": "683b841bd422673e8d55fde168baa6b958788bdbc00066429eca136fab5f6148",
+      "after_sha256": "2dba66ec7feef3e201a38b71750a5605005ee0d94d559f6ee12e5030b6f49730",
       "kind": "hunks",
-      "asset": "fms_preservation/3c378e3c66fe6bae15bc.patch",
-      "asset_sha256": "b6eb09842bea152310c87052a70f03201ae13bfa51f7964eb477def12ca99133",
+      "asset": "fms_preservation/bab927d96824d5b95ba5.patch",
+      "asset_sha256": "2635f9f748f6c68322c213a9b19f9eef149b875a757305791afcc5f350b79930",
       "review_bundle": "fms_dm_shared_preservation.patch"
     },
     {
@@ -2382,29 +2778,29 @@
     {
       "path": "openpilot/selfdrive/controls/lib/longcontrol.py",
       "before_sha256": "15c6aa56c299aecdfab7be13487e723c423fcb7604941b5f64cf89037c77a10b",
-      "after_sha256": "9e5a5aee506d764342d5385e3851ed4a00ca339a25e054952953482b19b925d6",
+      "after_sha256": "6be1e08d61e412335c8ab6838708c024df79142c56f0a301c10239b0bae7ef38",
       "kind": "hunks",
-      "asset": "fms_preservation/d898d40b6ec107b2e374.patch",
-      "asset_sha256": "2840548a2e45c25ce835fa27acf0103c66292de3e76a07c81482a71d73668594",
+      "asset": "fms_preservation/2cc780dfcc9cdbe68743.patch",
+      "asset_sha256": "d5c8f653f14c187a3bf1475baae51ec7b55ea32f0001ace7ecba1d2df08fe4af",
       "review_bundle": "fms_dm_shared_preservation.patch"
     },
     {
       "path": "openpilot/selfdrive/controls/lib/longitudinal_mpc_lib/long_mpc.py",
       "before_sha256": "9d0ff1004cd6445aa17092749cb41d8114f8f11337881e95bf14012d8e308efd",
-      "after_sha256": "9f1944bfaaad1c832f5e7cd12aef6b05431d34d280db7189604827b23c2b0833",
+      "after_sha256": "876535dcae98fce75bb037f313498f54b09cd3021fc897907f5f36d79c5e7706",
       "kind": "hunks",
-      "asset": "fms_preservation/4fa59a11748df8ce5f1e.patch",
-      "asset_sha256": "95bdca080ce6f2497ece1349ca15444c934347b5625fdff03e765dac4074502d",
+      "asset": "fms_preservation/04ed6f5b9930e72133c3.patch",
+      "asset_sha256": "a6ebf99da54e92837cf216a049f86e876758a94a9f37f57ccc8a86a3aa312d37",
       "review_bundle": "fms_dm_shared_preservation.patch"
     },
     {
       "path": "openpilot/selfdrive/controls/lib/longitudinal_planner.py",
       "before_sha256": "79e6905dd39931adc15bf686e882f19a84e2f51953f4b3fdfbb942afbb297a14",
-      "after_sha256": "02cdcfbb9276f1dd24a25ae58defa56e3e19ae5f5deef25539ce65af5524933b",
+      "after_sha256": "a68b229d9a449abac01006922cefc46b86bd257bf74c3ca3310a2e8da65e3cbf",
       "kind": "hunks",
-      "asset": "fms_preservation/843fbbd5b573292e7d4a.patch",
-      "asset_sha256": "7e96732a8c374350dd1884bb4c67cc1c4e18e4a9c19e648ab1f7cfa0dbb2365a",
-      "review_bundle": "fms_control_advisor_consumers.patch"
+      "asset": "fms_preservation/ca507d1647cd64b395f2.patch",
+      "asset_sha256": "7de8d4473f62466aa761060e833bfd4a4fc0f411bb63089cd6d0f3f567510c74",
+      "review_bundle": "fms_dm_shared_preservation.patch"
     },
     {
       "path": "openpilot/selfdrive/controls/plannerd.py",
@@ -2937,6 +3333,15 @@
       "review_bundle": "fms_dm_shared_preservation.patch"
     },
     {
+      "path": "openpilot/system/manager/params_check.py",
+      "before_sha256": "8d61b3f9fa324d8fc4d1444f17a9cfd6f2aa7b6bbb76a14cca61503156fffbe5",
+      "after_sha256": "665d8898c6a865d8d800132e14f95e64a640bbbb54dfc84bacb3adb27a37e157",
+      "kind": "hunks",
+      "asset": "fms_preservation/54039b6f2b61f544e9e4.patch",
+      "asset_sha256": "6405f39ad21052247c24d792cc456b7083e23e5932885cb4781c899146617e16",
+      "review_bundle": "fms_dm_shared_preservation.patch"
+    },
+    {
       "path": "openpilot/system/manager/process_config.py",
       "before_sha256": "ae38823c1819e53a03013f7d8184e41137920192e2c4112b99d72024b887f9cd",
       "after_sha256": "ac0a0b94136de9868744c91d79d61e9dcc6311dfa7d66d0132b26f5dd4912206",
@@ -2964,12 +3369,48 @@
       "review_bundle": "fms_dm_shared_preservation.patch"
     },
     {
+      "path": "openpilot/system/tests/test_build_cache.py",
+      "before_sha256": "8294155bed40d403c4209a3c68f402b8e27568dff676e63d7c999e131ce4b447",
+      "after_sha256": "8ec18c6ff8de5d1f49eec32c76cc5429a8d52ee8352c35a520f71f2ce81fb28c",
+      "kind": "hunks",
+      "asset": "fms_preservation/c0e65f2d68ea0f5adaf0.patch",
+      "asset_sha256": "0c562584fc12c6f3c3050cf325c623cd60ef83b58082f19ffbed1d0be8021d36",
+      "review_bundle": "fms_dm_shared_preservation.patch"
+    },
+    {
+      "path": "openpilot/system/tests/test_params_build.py",
+      "before_sha256": null,
+      "after_sha256": "47fae06ac6c7fde5aedfaaccb327960c0e4aa18569bcd14fbc378e49b4e85874",
+      "kind": "blob",
+      "asset": "fms_preservation/458e2721c77094d2f0cb.blob",
+      "asset_sha256": "47fae06ac6c7fde5aedfaaccb327960c0e4aa18569bcd14fbc378e49b4e85874",
+      "review_bundle": "fms_dm_shared_preservation.patch"
+    },
+    {
+      "path": "openpilot/system/tests/test_params_check.py",
+      "before_sha256": "f0547dfc53c4e5d87a5ce1635ab8e15e6550583885b260863871f6b8bc079553",
+      "after_sha256": "078adcec7c3fb6c20e87e7d98c6c4b4172421499492785c88f80bc3c46cd9612",
+      "kind": "hunks",
+      "asset": "fms_preservation/8ee1582b68235b2eedf7.patch",
+      "asset_sha256": "8ab9d09a271423fc9b14ed337adfd7fb54286f3ef7d749285240720b69e5405a",
+      "review_bundle": "fms_dm_shared_preservation.patch"
+    },
+    {
       "path": "openpilot/system/tests/test_proclog_smaps.py",
       "before_sha256": "6ea0689ac6d8a7a920349a410ff6968b9b090cdfa15cde13ed0ddba76dd85601",
       "after_sha256": "4f4019a81bf34e4079ddb3fb8ab2aa0e5fe46cefc79f5fe80e956849bf29ae7d",
       "kind": "hunks",
       "asset": "fms_preservation/9f77355f4745c3d1abcc.patch",
       "asset_sha256": "414f40594ced23ee9ce5f6f0d525c472c562ca085fd5f438648452a93576aaab",
+      "review_bundle": "fms_dm_shared_preservation.patch"
+    },
+    {
+      "path": "scripts/ensure_params_build.sh",
+      "before_sha256": "fd6d19f62d3021a1120c86d1d73ba8e7049042b9d8a3158123fca5e32aacf7e6",
+      "after_sha256": "11938e805b9d97986a3e71088646defde93632afb5d1ffc62dfefcf3c6f53099",
+      "kind": "hunks",
+      "asset": "fms_preservation/22131cdde8270386d7a4.patch",
+      "asset_sha256": "f887db4f548b043f035a129af3e21a4889b697f996ae66a139608eb846e70e88",
       "review_bundle": "fms_dm_shared_preservation.patch"
     },
     {
@@ -3291,5 +3732,6 @@
     }
   ],
   "followup_base_fms": "647f9c926017d2cd9de05bb1cc559d13a3b49c4c",
-  "followup_upstream_policy": "e944a8c5 lead-relative handover adapted, no whole upstream replacement"
+  "followup_upstream_policy": "e944a8c5 lead-relative handover adapted, no whole upstream replacement",
+  "advisor_followup": "2026-10-26 explicit manual/P whole-trip analysis, successful-apply cutoff, bounded native capture/model/policy evidence, comparison/export and startup preservation; existing FMS control contracts unchanged"
 }

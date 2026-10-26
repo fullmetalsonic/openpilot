@@ -91,8 +91,12 @@ class NativeRuntime:
     if (type(value) is not dict or value.get("source_mode") != "live" or value.get("state") not in _ACTIVE
         or value.get("settings_observation_fresh") is not True):
       raise RequestDisabled("native_live_observation_required")
-    return {"session_id": value["session_id"], "generation": value["generation"], "source_mode": "live",
-            "state": "running", "target_id": self.target_id}
+    result = {"session_id": value["session_id"], "generation": value["generation"], "source_mode": "live",
+              "state": "running", "target_id": self.target_id}
+    if "analysis_binding" in value:
+      from .analysis_control import validate_binding
+      result["analysis_binding"] = validate_binding(value["analysis_binding"])
+    return result
 
   def _select(self):
     descriptor = self._descriptor()
@@ -119,8 +123,11 @@ class NativeRuntime:
     if target_id != self.target_id:
       raise ValueError("request_target_mismatch")
     with self._lock:
-      self._session()
-      return self._select().request_binding()
+      session = self._session()
+      result = self._select().request_binding()
+      if "analysis_binding" in session:
+        result["analysis_binding"] = deepcopy(session["analysis_binding"])
+      return result
 
   def _consumer_reason(self, key, raw, status, descriptor):
     from .comparison import _field_matches
@@ -215,6 +222,17 @@ class NativeRuntime:
   def request_receipt(self, request_id):
     with self._lock:
       return self._select().request_receipt(request_id)
+
+  def successful_analysis_cut(self, request_id):
+    """A durable native receipt is the only authority for an analysis cut."""
+    with self._lock:
+      receipt = self._select().request_receipt(request_id)
+      if receipt is None:
+        return None
+      result = receipt.get("native_result", {})
+      if result.get("state") != "stored" or result.get("errno") != 0 or result.get("changed") is not True:
+        return None
+      return {"receipt": receipt, "boot_id": self.boot_id}
 
   def compare_and_swap(self, **kwargs):
     with self._lock:

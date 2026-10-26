@@ -1,9 +1,11 @@
 """Journal-to-scheduler wiring; process containment is tested by the scheduler."""
 from copy import deepcopy
+from pathlib import Path
 import json
 import threading
 import time
 import unittest
+from unittest.mock import patch
 
 from openpilot.selfdrive.carrot.control_advisor.recording import RecordingSession, _RootLease, _automatic_initial
 from . import test_recording as recording_fixture
@@ -21,6 +23,8 @@ class FakeAnalyzer:
     self.thread_name = threading.current_thread().name
     self.offers, self.watermarks, self.ticks, self.closed = [], [], 0, False
     self.public = _automatic_initial(options["interval_seconds"], state="waiting", reason="waiting_for_checkpoint")
+    self.waiting = threading.Event()
+    self.intents, self.invalidations = [], []
     type(self).instances.append(self)
 
   def offer(self, token, *, archive_watermark=None):
@@ -31,10 +35,19 @@ class FakeAnalyzer:
   def tick(self):
     self.ticks += 1
     if self.blocked_tick is not None:
+      self.waiting.set()
       self.blocked_tick.wait(3)
 
   def snapshot(self):
     return deepcopy(self.public)
+
+  def request_analysis(self, intent):
+    self.intents.append(deepcopy(intent))
+    self.public.update(state="running", reason=None)
+
+  def invalidate_analysis(self, reason):
+    self.invalidations.append(reason)
+    self.public.update(state="waiting", reason=reason)
 
   def close(self, *, timeout):
     if self.blocked_close is not None:
@@ -48,6 +61,8 @@ class PeriodicRecordingTests(unittest.TestCase):
   environment = recording_fixture.RecordingTests.environment
 
   def auto_environment(self, *, enabled=True, **changes):
+    for name in ("explicit-profile.json", "explicit-objectives.json"):
+      (self.root / name).write_text("{}")
     values = self.environment(demo=False)
     values.update({"CARROT_CONTROL_ADVISOR_AUTO_ENABLED": "1" if enabled else "0",
                    "CARROT_CONTROL_ADVISOR_AUTO_PROFILE": str(self.root / "explicit-profile.json"),
@@ -56,14 +71,53 @@ class PeriodicRecordingTests(unittest.TestCase):
     values.update(changes)
     return values
 
-  def start_recorder(self, *, environment=None, factory=FakeAnalyzer, interval=180, session_id="periodic-fixture"):
+  def start_recorder(self, *, environment=None, factory=FakeAnalyzer, interval=180, session_id="periodic-fixture", identity_provider=None):
     FakeAnalyzer.instances, FakeAnalyzer.blocked_tick, FakeAnalyzer.blocked_close = [], None, None
     recorder = RecordingSession(session_id, source_mode="live", environment=environment or self.auto_environment(),
                                  source_clock_ns=self.clock, poll_seconds=.02, archive_poll_seconds=.02,
-                                 analysis_interval_seconds=interval, analyzer_factory=factory).start()
+                                 analysis_interval_seconds=interval, analyzer_factory=factory, identity_provider=identity_provider).start()
     self.addCleanup(recorder.close)
     wait_for(lambda: recorder.snapshot()["settings"]["durable_revision"] > 0)
     return recorder
+
+  def test_goal_switch_keeps_writer_trip_and_successful_apply_cut(self):
+    from openpilot.selfdrive.carrot.control_advisor.runtime_config import BUILTIN_PROFILE_PATH, BUILTIN_OBJECTIVES_PATH
+    from openpilot.selfdrive.carrot.control_advisor.goals import goal_configuration
+    identity = {"identity_version": 1, "state": "observed", "reason": None, "config_sha256": "1" * 64,
+      "schema_sha256": "2" * 64, "raw_sha256": "3" * 64, "vin_sha256": None, "car_fingerprint": "GENERATED_UNIT",
+      "physical_group_id": "a" * 32, "physical_group_basis": "local_confirmation"}
+    environment = self.auto_environment(CARROT_CONTROL_ADVISOR_AUTO_PROFILE=BUILTIN_PROFILE_PATH,
+      CARROT_CONTROL_ADVISOR_AUTO_OBJECTIVES=BUILTIN_OBJECTIVES_PATH,
+      CARROT_CONTROL_ADVISOR_BUILTIN_GOALS="1", CARROT_CONTROL_ADVISOR_SELECTED_GOAL="tracking")
+    with patch("openpilot.selfdrive.carrot.control_advisor.consumer_observer._read_boot_id", return_value="unit-boot"):
+      recorder = self.start_recorder(environment=environment, identity_provider=lambda: identity)
+      analyzer = wait_for(lambda: FakeAnalyzer.instances and FakeAnalyzer.instances[0])
+      threads, directory = list(recorder._threads), recorder._session_dir
+      recorder.observe_analysis(self.clock(), {})
+      wait_for(lambda: recorder.analysis_binding() is not None)
+      recorder.observe_analysis(self.clock(), {})
+      wait_for(lambda: recorder.analysis_snapshot()["can_analyze"])
+      recorder.request_analysis("first")
+      wait_for(lambda: len(analyzer.intents) == 1)
+      stored = self.clock()
+      recorder.successful_apply({"stored_mono_ns": stored, "revision": 1}, {"vehicle_id": "a" * 32, "boot_id": "unit-boot"})
+      wait_for(lambda: recorder.analysis_snapshot()["apply_cut_ns"] == str(stored))
+      recorder.observe_analysis(self.clock(), {})
+      wait_for(lambda: recorder.analysis_snapshot()["can_analyze"])
+      recorder.request_analysis("second", "fms_accel_defaults_v1")
+      wait_for(lambda: len(analyzer.intents) == 2)
+      expected = goal_configuration("fms_accel_defaults_v1", environment)
+      self.assertEqual(analyzer.profile, Path(expected["profile_path"]))
+      self.assertEqual(analyzer.intents[1]["range_start_ns"], stored)
+      self.assertEqual(analyzer.intents[1]["cut_revision"], 1)
+      self.assertEqual(analyzer.intents[0]["goal_id"], "tracking")
+      self.assertEqual(analyzer.intents[1]["goal_id"], "fms_accel_defaults_v1")
+      self.assertIn("analysis_goal_changed", analyzer.invalidations)
+      self.assertEqual(recorder._session_dir, directory)
+      self.assertEqual(recorder._threads, threads)
+      recorder.close()
+      self.assertEqual(recorder.analysis_snapshot()["state"], "incomplete")
+      self.assertFalse(recorder.analysis_snapshot()["can_analyze"])
 
   def submit(self, recorder):
     revision = recorder.snapshot()["settings"]["durable_revision"]
@@ -116,7 +170,7 @@ class PeriodicRecordingTests(unittest.TestCase):
     release = threading.Event()
     self.addCleanup(release.set)
     FakeAnalyzer.blocked_tick = release
-    wait_for(lambda: analyzer.ticks > 1)
+    wait_for(analyzer.waiting.is_set)
     self.submit(recorder)
     wait_for(lambda: recorder.snapshot()["preservation"]["verified_segments"] == 1)
     first = recorder.snapshot()["settings"]["poll_sequence"]

@@ -1,3 +1,5 @@
+import { decodeExclusions } from "./comparison_intervals.js";
+
 const ACTIVE_STATES = new Set(["starting", "running", "collecting", "evaluating", "waiting", "waiting_for_data", "degraded", "stopping"]);
 
 const STATE_LABELS = Object.freeze({
@@ -246,6 +248,15 @@ const CANDIDATE_REASONS = Object.freeze({
   independent_objective_missing: "독립 목적함수 근거 없음", objective_unit_mismatch: "목적함수 단위 불일치",
   split_dependency_overlap: "분할 사이 의존 구간 겹침", insufficient_independent_split_exposure: "독립 분할의 사용 근거 부족",
   single_change_limit_missing: "단일 변경 한도 근거 없음", objective_guard_missing: "목적함수 보호 조건 없음",
+  manual_experiment_change_limit_unset: "수동 실험 후보 · 자동 변경 한도 미지정",
+  model_uncertainty_no_candidate: "모델 불확실성 안에서 변경 효과를 구분하지 못해 현재값 유지",
+  pid_command_transport_unverified: "실제 조향 출력의 변환 관계 미확인",
+  pid_command_transport_ambiguous: "조향 출력 지연을 하나로 구분하지 못함",
+  pid_trace_contract_required: "정밀 PID 기록의 기준 정보 부족",
+  pid_effective_use_unlinked: "저장한 PID 값의 연속 사용 근거 부족",
+  torque_mapping_adapter_unavailable: "실제 토크 함수의 표준 관계식 미확인",
+  response_time_alignment_required: "토크 출력과 차량 반응의 지연 정렬 필요",
+  torque_callback_zero_offset_required: "표준 토크 함수의 오프셋 근거 불일치",
   current_value_retained: "현재값 유지 · 변경 근거 미충족", holdout_or_objective_guard_failed: "보류 검증 또는 보호 조건 미충족",
   host_objective_only_not_vehicle_validation: "호스트 목적함수만 확인 · 차량 검증 아님", backend_unavailable: "계산 백엔드 사용 불가",
   context_only_no_automatic_mode_switch: "설정 맥락 항목 · 자동 모드 변경 대상 아님", derivative_path_has_no_effect: "현재 미분 제어 경로에서 효과 없음",
@@ -300,25 +311,45 @@ const LOG_LINK_REASONS = Object.freeze({
   recording_schema_match_unverified: "기록 스키마 일치 미검증",
   settings_observation_uncertain: "설정 읽기 구간 불확실", settings_dependency_uncertain: "설정 관측 공백을 통과한 의존 신호",
   split_dependency_support: "분할 경계의 의존 여백", settings_epoch_unlinked: "설정 구간 미연결",
+  recorded_response_duplicate: "같은 센서 응답의 중복 표본",
+  recorded_response_unavailable: "독립 센서 응답 시각 미확인",
+  recorded_reference_unlinked: "기록된 차량 구성·독립 반응 연결 미충족",
+  recorded_dependency_unavailable: "해당 항목의 시간 지원 구간 부족",
+  factor_mapping_unverified: "해당 구간의 표준 토크 관계식 미확인",
 });
 
 function candidateLogLink(value, sourceKind) {
   if (value === undefined) return null;
   const invalid = { available: false, stateLabel: "원본 연결 정보 확인 불가" };
+  const trip = value?.whole_trip;
+  const wholeTrip = trip && ["thirty_time_strata_centred_ten_seconds_native_5hz_v1", "complete_burst_each_frozen_time_third_v1"].includes(trip.selection_policy)
+    && count(trip.raw_anchor_count) !== null && trip.raw_anchor_count <= 1e9
+    && count(trip.selected_anchor_count) !== null && trip.selected_anchor_count > 0 && trip.selected_anchor_count <= trip.raw_anchor_count
+    ? { rawCount: trip.raw_anchor_count, selectedCount: trip.selected_anchor_count,
+      policyLabel: trip.selection_policy === "complete_burst_each_frozen_time_third_v1" ? "시간 구간별 완전 PID 기록" : "주행 시간대별 균등 선정" } : null;
   if (sourceKind !== "recorded" || !value || typeof value !== "object" || Array.isArray(value)
       || value.source_bytes_verified_at_generation !== true || value.schema_decoded !== true
       || !["verified_archive_receipt", "unlinked"].includes(value.session_link)
       || !["partial", "per_signal_verified"].includes(value.semantic_mapping)
       || !["verified_session_archive", "reference_only"].includes(value.originals_preservation)
       || value.originals_current_availability !== "not_checked"
-      || count(value.source_count) === null || value.source_count > 32
+      || count(value.source_count) === null || value.source_count > (wholeTrip ? 128 : 32)
       || count(value.epoch_count) === null || value.epoch_count > 32
       || !value.excluded_counts || typeof value.excluded_counts !== "object" || Array.isArray(value.excluded_counts)
       || Object.keys(value.excluded_counts).length > 32
       || Object.values(value.excluded_counts).some((number) => count(number) === null || number > 1e9)
       || !Array.isArray(value.reasons) || value.reasons.length > 32
       || value.reasons.some((reason) => typeof reason !== "string" || reason.length > 96)) return invalid;
-  return { available: true, stateLabel: "생성 당시 원본 파일 해시·추출 연결 확인",
+  const audit = value.sampling_audit;
+  const rawCount = count(audit?.raw_anchor_count), selectedCount = count(audit?.selected_count);
+  const uniqueCount = count(audit?.unique_response_count), fallbackCount = count(audit?.anchor_fallback_count ?? 0);
+  const sampling = audit?.version === "native_static_response_5hz_v1" && rawCount !== null && rawCount <= 1e9
+    && selectedCount !== null && uniqueCount !== null && fallbackCount !== null
+    && selectedCount <= uniqueCount + fallbackCount && uniqueCount + fallbackCount <= rawCount
+    && ["response_time", "anchor_time", "response_or_anchor"].includes(audit.clock_basis || "response_time")
+    ? { rawCount, selectedCount, uniqueCount, fallbackCount,
+      basis: audit.clock_basis || "response_time" } : null;
+  return { available: true, stateLabel: "생성 당시 원본 파일 해시·추출 연결 확인", sampling, wholeTrip,
     sessionLabel: value.session_link === "verified_archive_receipt" ? "검증된 보존 세션 영수증과 연결" : "세션 미연결 · 과거 로그일 수 있음",
     semanticLabel: value.semantic_mapping === "per_signal_verified" ? "신호별 매핑 확인 · 주행 검증 아님" : "의미 매핑 일부만 확인",
     preservationLabel: value.originals_preservation === "verified_session_archive" ? "기존 세션 보존 사본 확인" : "원본 참조만 연결 · 보존 확인 아님",
@@ -338,6 +369,8 @@ function periodicReportStatus(value) {
       && count(window.source_end_ns) !== null && window.source_end_ns >= window.source_start_ns)
       || (window.state !== "ready" && window.source_start_ns === null && window.source_end_ns === null))) ? attempt.windows : null;
   const latestWindow = windows?.at(-1);
+  const epoch = value.latest_epoch;
+  const epochValid = count(epoch?.start_ns) !== null && count(epoch?.end_ns) !== null && epoch.end_ns >= epoch.start_ns;
   const reasonLabels = { periodic_publisher_unavailable: "자동 분석 작업자의 응답이 없어 후보를 보류합니다.",
     periodic_result_waiting: "자동 분석 결과 게시를 기다립니다.", periodic_result_invalid: "게시 결과 검증에 실패했습니다.",
     candidate_report_configuration_conflict: "정적 보고서와 자동 결과 경로가 함께 설정돼 결과를 보류합니다.",
@@ -349,6 +382,10 @@ function periodicReportStatus(value) {
     periodic_root_session_overlap: "자동 결과 경로와 기록 세션 경로가 겹칩니다.", periodic_root_unowned: "자동 결과 경로의 소유 조건이 충족되지 않았습니다.",
     periodic_shutdown_incomplete: "자동 분석 종료를 확인하지 못했습니다.", periodic_windows_partial: "일부 분석 창이 보류되거나 실패했습니다." };
   return { stateLabel: CANDIDATE_STATES[value.state] || "자동 분석 상태 미확인",
+    continuousBatch: value.analysis_mode === "continuous_batch",
+    epochStartSeconds: epochValid ? epoch.start_ns / 1e9 : null,
+    epochEndSeconds: epochValid ? epoch.end_ns / 1e9 : null,
+    epochDurationSeconds: epochValid ? (epoch.end_ns - epoch.start_ns) / 1e9 : null,
     reasonLabel: Object.hasOwn(reasonLabels, value.reason) ? reasonLabels[value.reason] : null,
     sourceStartSeconds: count(attempt.source_start_ns) === null ? null : attempt.source_start_ns / 1e9,
     sourceEndSeconds: count(attempt.source_end_ns) === null ? null : attempt.source_end_ns / 1e9,
@@ -413,7 +450,9 @@ export function createCandidateReportModel(value, parameters = []) {
       candidatePhysical: row.status === "search_candidate" ? finiteNumber(row.candidate_physical) : null,
       rawEstimate: row.status === "raw_estimate" ? finiteNumber(row.raw_estimate) : null,
       physicalEstimate: row.status === "raw_estimate" ? finiteNumber(row.physical_estimate) : null,
-      predictionLabel: PREDICTION_LABELS[row.prediction_kind] || "예측 방식 미확인",
+      predictionLabel: row.provenance?.candidate_semantics === "manual_experiment"
+        && row.provenance?.evaluation_scope === "observational_pid_model" ? "관측 기반 PID 모델 · 수동 실험"
+        : PREDICTION_LABELS[row.prediction_kind] || "예측 방식 미확인",
       reasons: [...new Set((Array.isArray(row.reason_codes) ? row.reason_codes : []).slice(0, 24)
         .filter((reason) => Object.hasOwn(CANDIDATE_REASONS, reason)).map((reason) => CANDIDATE_REASONS[reason]))],
       baselineSelection: candidateMetric(metrics.baseline?.select), baselineHoldout: candidateMetric(metrics.baseline?.holdout),
@@ -493,13 +532,34 @@ function comparisonSummary(value) {
   if (!value || typeof value !== "object") return null;
   return { sampleCount: count(value.sample_count), eligibleCount: count(value.eligible_count), excludedCount: count(value.excluded_count),
     provisionalCount: count(value.provisional_count), eligibleSeconds: count(value.eligible_duration_ns) === null ? null : value.eligible_duration_ns / 1e9,
-    raw: comparisonMetric(value.raw_metrics), eligible: comparisonMetric(value.eligible_metrics) };
+    raw: comparisonMetric(value.raw_metrics), eligible: comparisonMetric(value.eligible_metrics),
+    detailPages: value.exclusions?.encoding === "reason-indexed-pages-v1" ? count(value.exclusions.page_count) : null,
+    detailIntervals: value.exclusions?.encoding === "reason-indexed-pages-v1" ? count(value.exclusions.interval_count) : null };
 }
 
 function requestComparison(value) {
-  if (!value || value.schema_version !== 1 || !["held", "consumer_observed", "comparison_ready"].includes(value.state)
+  if (!value || ![1, 2, 3].includes(value.schema_version) || !["held", "consumer_observed", "comparison_ready"].includes(value.state)
       || !["observational_generated", "observational_model_derived", "observational_vehicle_acceleration"].includes(value.scope)
       || value.target_unit !== "m/s^2" || ["consumer_application_ack", "causal_improvement_proven", "apply_enabled", "device_qualified"].some((key) => value[key] !== false)) return null;
+  if (value.schema_version === 2) {
+    try {
+      for (const summary of [value.before, value.after]) {
+        if (summary !== null) decodeExclusions(summary?.exclusions, 2);
+      }
+    } catch { return null; }
+  }
+  if (value.schema_version === 3) {
+    for (const summary of [value.before, value.after]) {
+      if (summary === null) continue;
+      const ref = summary?.exclusions;
+      if (!ref || Object.keys(ref).sort().join(",") !== "encoding,interval_count,page_count,path,sha256"
+          || ref.encoding !== "reason-indexed-pages-v1" || !validDigest(ref.sha256)
+          || ref.path !== `comparison-details/${ref.sha256}/manifest.json`
+          || !Number.isSafeInteger(ref.interval_count) || ref.interval_count < 0
+          || !Number.isSafeInteger(ref.page_count) || ref.page_count < 0 || ref.page_count > 128
+          || (ref.interval_count === 0) !== (ref.page_count === 0)) return null;
+    }
+  }
   const labels = { required_consumer_observation_missing: "별도 소비 관측 근거 부족", consumer_sample_not_time_aligned: "소비 관측 시각 불일치",
     comparison_eligible_exposure_insufficient: "사용 가능한 비교 구간 부족", comparison_matched_exposure_insufficient: "같은 조건의 비교 구간 부족",
     comparison_dependencies_changed_or_unknown: "의존 설정 변경 또는 미확인", comparison_not_a_single_parameter_change: "단일 항목 변경 조건 미충족",
@@ -686,6 +746,34 @@ export function createNativeRuntimeModel(value) {
         objectives_not_found: "목표 자료 파일 없음" })[code] || "분석 입력 준비 조건 미충족") };
 }
 
+function analysisGoalsModel(value, session) {
+  const ids = new Set(["tracking", "fms_accel_defaults_v1"]);
+  const valid = (item) => item && ids.has(item.id) && item.version === 1 && typeof item.label === "string"
+    && item.label.length <= 80 && typeof item.description === "string" && item.description.length <= 400;
+  const options = Array.isArray(value?.options) && value.options.length <= 2
+    ? value.options.filter(valid).map(({ id, label, description }) => ({ id, label, description })) : [];
+  const selected = valid(session.analysis_goal) ? session.analysis_goal : null;
+  return { options, selectedId: selected?.id || null, selectedLabel: selected?.label || null };
+}
+
+export function createAnalysisControlModel(value) {
+  const labels = { recording: "주행 자료 기록 중", queued: "전체 주행 분석 대기", running: "전체 주행 분석 중",
+    waiting_for_tail: "마지막 로그 저장 대기", ready: "분석 완료", failed: "분석 실패", incomplete: "분석 자료 일부 부족" };
+  const valid = value?.schema_version === 1 && value.mode === "manual_or_park" && value.scope === "trip_since_apply";
+  const state = valid && Object.hasOwn(labels, value.state) ? value.state : null;
+  const timestamp = (raw) => {
+    if (typeof raw === "string" && /^(0|[1-9]\d{0,18})$/.test(raw)) return BigInt(raw);
+    return Number.isSafeInteger(raw) && raw >= 0 ? BigInt(raw) : null;
+  };
+  const start = timestamp(value?.range_start_ns), end = timestamp(value?.range_end_ns);
+  const completed = finiteNumber(value?.progress?.completed_sources), total = finiteNumber(value?.progress?.total_sources);
+  return { state, label: state ? labels[state] : "분석 실행 상태 대기", canAnalyze: valid && value.can_analyze === true,
+    scopeLabel: timestamp(value?.apply_cut_ns) !== null ? "마지막 적용 성공 이후부터 이번 주행 전체" : "이번 주행 전체",
+    durationSeconds: start !== null && end !== null && end >= start ? Number((end - start) / 1000000000n) : null,
+    progress: completed !== null && total !== null && completed >= 0 && total >= completed ? `${completed} / ${total}개 로그` : null,
+    triggerLabel: value?.trigger === "park" ? "P 전환" : value?.trigger === "manual" ? "분석 버튼" : null };
+}
+
 export function createControlAdvisorModel(payload = {}) {
   const session = payload?.session && typeof payload.session === "object" ? payload.session : {};
   const capabilities = payload?.capabilities || {};
@@ -714,7 +802,8 @@ export function createControlAdvisorModel(payload = {}) {
     partialWindow: !diagnosticInvalidated && session.diagnostic?.partial_window === true,
     recording: createRecordingModel(session.recording),
     consumerObservations,
-    candidateReport, applyRequests,
+    candidateReport, applyRequests, analysisGoals: analysisGoalsModel(payload.analysis_goals, session),
+    analysisControl: createAnalysisControlModel(payload.analysis_control || session.analysis_control),
     sourceLabel: sourceMode === "synthetic" ? "합성 데모 · 실제 주행 아님"
       : sourceMode === "live" ? "실제 메시지 경로 · 실기기 검증 전" : "수집 세션 없음",
     controlConfigured: capabilities.control_configured === true,
@@ -766,6 +855,7 @@ export function advisorControlState(model, { pending = false, token = "" } = {})
     canStartLive: authorized && model.liveEnabled && !model.active && !pending,
     canStartSynthetic: authorized && model.syntheticEnabled && !model.active && !pending,
     canStop: authorized && model.active && Boolean(model.sessionId) && model.state !== "stopping" && !pending,
+    canAnalyze: authorized && Boolean(model.sessionId) && model.analysisControl?.canAnalyze === true && !pending,
     intervalDisabled: model.active || pending,
   };
 }

@@ -1,7 +1,11 @@
 """Bounded local review copies. No upload, source repair, or current recommendation."""
 from copy import deepcopy
+import csv
 import hashlib
+import html
+import io
 import json
+import math
 import os
 from pathlib import Path, PurePosixPath
 import re
@@ -153,7 +157,7 @@ def _entry(value):
   _identifier(value["root_id"])
   _relative(value["relative_path"])
   destination = str(_relative(value["export_relative_path"]))
-  if destination in {"review.json", "summary.json", "REVIEW_README.md"}:
+  if destination in {"review.json", "summary.json", "REVIEW_README.md", "comparison.csv", "comparison.svg"}:
     raise ValueError("review_reserved_path")
   if not isinstance(value["sha256"], str) or _SHA.fullmatch(value["sha256"]) is None or type(value["bytes"]) is not int or value["bytes"] < 0:
     raise ValueError("review_entry_digest_invalid")
@@ -178,7 +182,9 @@ def _selection(value, limits):
     raise ValueError("review_summary_revision_invalid")
   if type(value["summary"]) is not dict or type(value["source_quality"]) is not dict or type(value["expected_inventory"]) is not list or type(value["checkpoints"]) is not list:
     raise ValueError("review_selection_metadata_invalid")
-  if type(value["files"]) is not list or len(value["files"]) + 3 > limits.values["max_files"] or len(value["checkpoints"]) > 32:
+  has_graph = any(isinstance(row.get("comparison"), dict) for row in value["summary"].get("requests", {}).get("items", [])[:16])
+  generated_count = 5 if has_graph else 3
+  if type(value["files"]) is not list or len(value["files"]) + generated_count > limits.values["max_files"] or len(value["checkpoints"]) > 32:
     raise ValueError("review_file_limit")
   # Metadata is bounded before copying or retaining the frozen selection.
   if len(_json(value)) > 2 * 1024 * 1024:
@@ -291,8 +297,13 @@ def _segmented_members(manifest, checkpoint, marker):
       raise ValueError("review_segmented_inventory_mismatch")
     members.add(path)
     total += row["bytes"]
-  if total > SEGMENTED_HISTORY_BYTES or any(path not in by_path for path in members):
+  limit = 512 * 1024 * 1024 if marker.get("schema_version") == 3 else SEGMENTED_HISTORY_BYTES
+  if total > limit or any(path not in by_path for path in members):
     raise ValueError("review_segmented_byte_limit")
+  pid_prefix = str(base / "pid_bursts") + "/"
+  for entry in manifest["files"]:
+    if entry["role"] == "pid_cycle_evidence" and entry["path"].startswith(pid_prefix):
+      members.add(entry["path"])
   if any(by_path[path]["bytes"] > 64 * 1024 for path in (checkpoint["path"], str(base / "recording.json"))):
     raise ValueError("review_segmented_metadata_limit")
   return members
@@ -307,7 +318,8 @@ def _verify_checkpoint_files(root, manifest, limits):
       from .journal_snapshot import load_journal_snapshot
       parent = path.parent
       sealed = load_journal_snapshot(parent, parent)
-      if sealed["marker"]["checkpoint"] != checkpoint["token"] or sealed["history"].get("selected_closure_complete") is not True:
+      complete = sealed["history"].get("snapshot_prefix_complete") is True if sealed["marker"].get("schema_version") == 3 else sealed["history"].get("selected_closure_complete") is True
+      if sealed["marker"]["checkpoint"] != checkpoint["token"] or not complete:
         raise ValueError("review_segmented_checkpoint_mismatch")
       if checkpoint["token"].get("session_id") != manifest["session_id"]:
         raise ValueError("review_settings_session_mismatch")
@@ -426,6 +438,52 @@ def _directory_inventory(root, max_files, limits):
   return names
 
 
+def _comparison_graph_files(summary):
+  """Render frozen, matched metrics only; never label a change causal."""
+  rows = []
+  for item in summary.get("requests", {}).get("items", [])[:16]:
+    comparison = item.get("comparison")
+    if not isinstance(comparison, dict):
+      continue
+    before, after = comparison.get("before_rmse"), comparison.get("after_rmse")
+    numeric = lambda value: type(value) in (int, float) and math.isfinite(value) and value >= 0
+    valid = comparison.get("state") == "comparison_ready" and numeric(before) and numeric(after)
+    rows.append({"request": str(item.get("request_id", ""))[:128], "key": str(item.get("item_key", ""))[:128],
+      "state": str(comparison.get("state", "unknown"))[:64], "before": before if valid else None,
+      "after": after if valid else None, "source": str(comparison.get("export_source_state", "unverified"))[:64]})
+  if not rows:
+    return []
+  output = io.StringIO(newline="")
+  writer = csv.writer(output, lineterminator="\n")
+  writer.writerow(["request_id", "parameter", "state", "before_rmse", "after_rmse", "after_minus_before", "source_state", "causal_improvement_proven"])
+  safe = lambda value: "'" + value if isinstance(value, str) and value.startswith(("=", "+", "-", "@", "\t", "\r")) else value
+  for row in rows:
+    writer.writerow([safe(row["request"]), safe(row["key"]), safe(row["state"]), row["before"], row["after"],
+      row["after"] - row["before"] if row["before"] is not None else None, safe(row["source"]), "false"])
+  height = 100 + len(rows) * 100
+  svg = [f'<svg xmlns="http://www.w3.org/2000/svg" width="900" height="{height}" viewBox="0 0 900 {height}" role="img">',
+    '<title>Matched RMSE before and after manual parameter application</title>',
+    '<rect width="100%" height="100%" fill="white"/>',
+    '<g font-family="sans-serif" font-size="15" fill="#111">',
+    '<text x="20" y="28">Matched RMSE: blue = before, orange = after. Each row has its own scale.</text>',
+    '<text x="20" y="52">Observational comparison; driving conditions and source verification must be checked.</text>']
+  for index, row in enumerate(rows):
+    y = 95 + index * 100
+    label = html.escape(f'{row["key"]} / {row["request"]}')
+    svg.append(f'<text x="20" y="{y}">{label}</text>')
+    if row["before"] is None:
+      svg.append(f'<text x="30" y="{y + 28}">Comparison unavailable: {html.escape(row["state"])}</text>')
+      continue
+    scale = max(row["before"], row["after"], 1e-12)
+    for offset, value, color in ((12, row["before"], "#2463ac"), (36, row["after"], "#d05e14")):
+      width = 570 * value / scale
+      svg.extend([f'<rect x="30" y="{y + offset}" width="{width:.3f}" height="18" fill="{color}"/>',
+        f'<text x="620" y="{y + offset + 15}">{value:.8g} (source: {html.escape(row["source"])})</text>'])
+  svg.append('</g></svg>')
+  return [("comparison.csv", output.getvalue().encode("utf-8"), "comparison_metrics"),
+          ("comparison.svg", "\n".join(svg).encode("utf-8"), "comparison_graph")]
+
+
 class ReviewPackBuilder:
   def __init__(self, roots, *, export_root):
     self._export_io = _directory(export_root)
@@ -480,8 +538,10 @@ class ReviewPackBuilder:
       _source_digest(path, source, limits)
       os.replace(partial, target)
       entries.append(public)
-    for name, data, role in (("summary.json", _json(selection["summary"]) + b"\n", "summary"),
-                             ("REVIEW_README.md", REVIEW_README.encode(), "review_instructions")):
+    generated = [("summary.json", _json(selection["summary"]) + b"\n", "summary"),
+                 ("REVIEW_README.md", REVIEW_README.encode(), "review_instructions")]
+    generated.extend(_comparison_graph_files(selection["summary"]))
+    for name, data, role in generated:
       total += len(data)
       if total * 2 > limits.values["max_bytes"]:
         raise ValueError("review_byte_limit")
@@ -714,7 +774,8 @@ def _verify_zip_segmented(archive, manifest, limits, temporary):
       anchor = extract(checkpoint["path"])
       marker = _object(_read_bounded(anchor, 64 * 1024))
       members = _segmented_members(manifest, checkpoint, marker)
-      if sum(entries[path]["bytes"] for path in members) > SEGMENTED_HISTORY_BYTES + 128 * 1024:
+      size_limit = 512 * 1024 * 1024 if marker.get("schema_version") == 3 else SEGMENTED_HISTORY_BYTES
+      if sum(entries[path]["bytes"] for path in members) > size_limit + 32 * 1024 * 1024 + 128 * 1024:
         raise ValueError("review_segmented_byte_limit")
       for path in sorted(members - {checkpoint["path"]}):
         extract(path)

@@ -4,6 +4,7 @@ import hashlib
 import json
 from pathlib import Path
 import shutil
+import sqlite3
 import stat
 import tempfile
 import unittest
@@ -85,6 +86,57 @@ class ReviewExportTests(unittest.TestCase):
     self.assertEqual(verified["files"], 2)
     self.assertIsNone(verified["session_id"])
     self.assertIn("settings_checkpoint_unavailable", verified["captured_source_quality"]["freeze_omissions"])
+
+  def test_matched_comparison_exports_exact_metrics_and_a_self_contained_safe_graph(self):
+    selection = self.selection()
+    selection["summary"]["requests"] = {"items": [{"request_id": "trial-1", "item_key": "Kf<untrusted>",
+      "comparison": {"state": "comparison_ready", "before_rmse": 0.125, "after_rmse": 0.25,
+                     "export_source_state": "verified"}}]}
+    created = self.builder.create_review_pack(self.exports / "graph", selection)
+    self.assertEqual(verify_review_pack(created["download_path"])["state"], "verified")
+    with zipfile.ZipFile(created["download_path"]) as archive:
+      csv_data = archive.read("comparison.csv").decode()
+      svg = archive.read("comparison.svg").decode()
+      self.assertIn("0.125,0.25,0.125,verified,false", csv_data)
+      self.assertIn("Kf&lt;untrusted&gt;", svg)
+      self.assertIn("Observational comparison", svg)
+      self.assertNotIn("<script", svg)
+      manifest = json.loads(archive.read("review.json"))
+      for name in ("comparison.csv", "comparison.svg"):
+        entry = next(row for row in manifest["files"] if row["path"] == name)
+        self.assertEqual(entry["sha256"], hashlib.sha256(archive.read(name)).hexdigest())
+
+  def test_whole_trip_detail_pages_and_graph_travel_together_in_a_verified_export(self):
+    from openpilot.selfdrive.carrot.control_advisor.comparison_stream import write_interval_pages, read_interval_page
+    from openpilot.selfdrive.carrot.control_advisor.comparison_intervals import decode_exclusions
+    from openpilot.selfdrive.carrot.control_advisor.parking_summary import ParkingSummaryService
+    automatic = self.root / "automatic"
+    automatic.mkdir()
+    database = sqlite3.connect(":memory:")
+    self.addCleanup(database.close)
+    database.execute("CREATE TABLE intervals(reason TEXT,start INTEGER,end INTEGER,count INTEGER)")
+    database.executemany("INSERT INTO intervals VALUES(?,?,?,?)", [("driver_intervention", index * 1000, index * 1000 + 500, 1) for index in range(1000)])
+    reference = write_interval_pages(database, automatic)
+    row = {"session_id": "paged-session", "request_id": "paged-request", "item_key": "CruiseMaxVals0",
+      "scope": "vehicle", "state": "comparison_ready", "comparison_ready": True, "consumer_observed": True,
+      "comparison": {"schema_version": 3, "state": "comparison_ready", "scope": "observational_vehicle_acceleration",
+        "before": {"exclusions": reference}, "after": {"exclusions": reference},
+        "matched": {"before": {"rmse": .3}, "after": {"rmse": .2}, "after_minus_before": {"rmse": -.1}}}}
+    service = ParkingSummaryService({"automatic": automatic})
+    summary = service.freeze_cached({"session": {"session_id": "paged-session", "source_mode": "live", "state": "stopped"},
+      "request_export": {"inventory_complete": True, "requests": [row]}}, "manual")
+    selection = service.selection(summary["summary_id"], summary["revision"])
+    self.assertNotIn("comparison_interval_details_unavailable", selection["source_quality"]["freeze_omissions"])
+    builder = ReviewPackBuilder({"automatic": automatic}, export_root=self.exports)
+    created = builder.create_review_pack(self.exports / "paged", selection)
+    shutil.rmtree(automatic)
+    self.assertEqual(verify_review_pack(created["download_path"])["state"], "verified")
+    payload = self.exports / "paged" / "payload"
+    intervals = [row for index in range(reference["page_count"]) for row in decode_exclusions(read_interval_page(payload, reference, index), 2)]
+    self.assertEqual(len(intervals), 1000)
+    self.assertEqual(intervals[-1]["start_ns"], 999000)
+    self.assertTrue((payload / "comparison.svg").is_file())
+    self.assertTrue((payload / "comparison.csv").is_file())
 
   def test_explicit_private_raw_preserves_exact_bytes_and_stored_zip(self):
     created = self.create(include_private_raw=True)

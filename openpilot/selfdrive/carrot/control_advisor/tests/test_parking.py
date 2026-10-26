@@ -3,6 +3,7 @@ from collections import deque
 from copy import deepcopy
 from types import SimpleNamespace
 import unittest
+from unittest.mock import patch
 
 from openpilot.selfdrive.carrot.control_advisor.parking import ParkingObserver, validate_parking
 from openpilot.selfdrive.carrot.control_advisor.live import LiveEvent, LiveSession, NativeTransport, LIVE_SERVICES
@@ -162,12 +163,19 @@ class ParkingTests(unittest.TestCase):
     status = session.snapshot()
     self.assertTrue(status["parking_confirmed"])
     self.assertEqual("onroad_observed", status["parking"]["offroad_state"])
-    session.finish()
+    with patch("openpilot.selfdrive.carrot.control_advisor.live.analyze", side_effect=AssertionError("record-only finish ran heavy analysis")):
+      session.finish()
     ended = session.snapshot()
     self.assertFalse(ended["parking_confirmed"])
     self.assertEqual("unknown", ended["parking"]["state"])
     self.assertEqual(status["parking"], ended["last_park_observation"])
-    self.assertLess(ended["finalized_through_ns"], clock.now)
+    self.assertIsNone(ended["finalized_through_ns"])
+    self.assertIsNone(ended["diagnostic"])
+    self.assertEqual([], ended["history"])
+    self.assertEqual(status["counters"], ended["counters"])
+    self.assertEqual(66, ended["received_events"])
+    self.assertEqual([], session._heap)
+    self.assertTrue(all(not socket.values for socket in sockets.values()))
     transport.close()
 
 

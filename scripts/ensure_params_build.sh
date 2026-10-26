@@ -1,15 +1,14 @@
 #!/usr/bin/env bash
-set -e
+set -eo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-HEADER="$ROOT/openpilot/common/params_keys.h"
 MODULE="$ROOT/openpilot/common/params_pyx.so"
 CACHE_DIR="${SCONS_CACHE_DIR:-/tmp/scons_cache}"
 if [ -z "${SCONS_CACHE_DIR:-}" ] && [ -f /TICI ]; then
   CACHE_DIR="/data/scons_cache"
 fi
 
-# Hold the cache guard across output removal, SCons, validation and stamp writes.
+# Hold the cache guard across fingerprinting, SCons, validation and stamp writes.
 # SConstruct validates and reuses this inherited descriptor instead of relocking.
 # Read-only, so a guard created by another user still works; never removed.
 function lock_params_cache {
@@ -41,24 +40,25 @@ export SCONS_CACHE_DIR="$CACHE_DIR"
 lock_params_cache || exit 1
 
 STAMP="$CACHE_DIR/carrot_params_keys.sha256"
-HEADER_HASH="$(sha256sum "$HEADER" | awk '{print $1}')"
+SOURCE_INPUTS=(
+  "openpilot/common/params_pyx.pyx"
+  "openpilot/common/params.cc"
+  "openpilot/common/params.h"
+  "openpilot/common/params_keys.h"
+)
+FINGERPRINT="$(cd "$ROOT" && sha256sum "${SOURCE_INPUTS[@]}" | sha256sum | awk '{print $1}')"
 BUILT_HASH="$(cat "$STAMP" 2>/dev/null || true)"
 
-if [ "$HEADER_HASH" = "$BUILT_HASH" ] && [ -f "$MODULE" ]; then
-  exit 0
+if [ -n "$FINGERPRINT" ] && [ "$FINGERPRINT" = "$BUILT_HASH" ] && [ -f "$MODULE" ]; then
+  if PYTHONPATH="$ROOT${PYTHONPATH:+:$PYTHONPATH}" python3 "$ROOT/openpilot/system/manager/params_check.py"; then
+    exit 0
+  fi
 fi
 
 echo "Params registry changed; rebuilding params_pyx.so."
-rm -f \
-  "$ROOT/openpilot/common/params.o" \
-  "$ROOT/openpilot/common/params.os" \
-  "$ROOT/openpilot/common/libcommon.a" \
-  "$ROOT/openpilot/common/common.a" \
-  "$MODULE"
 
 cd "$ROOT"
 scons -u -j4 openpilot/common/params_pyx.so
-PYTHONPATH="$ROOT${PYTHONPATH:+:$PYTHONPATH}" python3 -c \
-  'from openpilot.common.params import Params; keys = Params().all_keys(); assert b"EnableRadarTracks" in keys and b"CarrotRadarCutInSensitivity" not in keys and b"CarrotRadarMode" not in keys and b"RadarMotionMode" not in keys and b"RadarDPathMode" not in keys and b"RadarLeadModelMode" not in keys'
-printf '%s\n' "$HEADER_HASH" > "$STAMP.tmp"
+PYTHONPATH="$ROOT${PYTHONPATH:+:$PYTHONPATH}" python3 "$ROOT/openpilot/system/manager/params_check.py"
+printf '%s\n' "$FINGERPRINT" > "$STAMP.tmp"
 mv -f "$STAMP.tmp" "$STAMP"

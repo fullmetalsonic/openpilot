@@ -13,7 +13,9 @@ def readiness(settings: dict | None = None) -> list[dict]:
   """Report development readiness without treating data quality as implementation."""
   from .consumer_observer import consumer_ids_for_key
   from .candidates import candidate_capabilities
+  from .policy_observations import policy_capabilities, projection_capabilities
   capabilities = {item["key"]: item for item in candidate_capabilities()}
+  point_methods = {**policy_capabilities(), **projection_capabilities()}
   settings = settings or {}
   rows = []
   for item in load_registry()["items"]:
@@ -24,6 +26,7 @@ def readiness(settings: dict | None = None) -> list[dict]:
     scale = item.get("raw_scale")
     value = raw * scale if type(raw) in (int, float) and scale is not None and special_meaning is None else None
     calculation = capabilities[key]
+    methods = [calculation] + ([point_methods[key]] if key in point_methods else [])
     implemented = calculation["backend"] != "unavailable" and not calculation["reason_codes"]
     implementation = "offline_calculation" if implemented else "backend_unavailable"
     if calculation["backend"] in ("raw_proxy_only", "raw_delay_only"):
@@ -38,6 +41,9 @@ def readiness(settings: dict | None = None) -> list[dict]:
                  "special_meaning": special_meaning, "special_values": special,
                  "implementation_status": implementation,
                  "validation_status": item["validation_status"], "candidate_calculation": calculation,
+                 "calculation_methods": methods, "input_evidence_status": "not_evaluated",
+                 "actual_consumer_use_status": "requires_time_bound_receipt",
+                 "identification_status": "observational_model_unqualified" if key in {"LateralTorqueKpV", "LateralTorqueKiV", "LateralTorqueKf"} else "method_scoped",
                  "structural_blocker": item.get("structural_blocker"),
                  "path_requirements": item.get("requires", []),
                  "consumer_ids": consumer_ids_for_key(key), "consumer_application_ack": False,

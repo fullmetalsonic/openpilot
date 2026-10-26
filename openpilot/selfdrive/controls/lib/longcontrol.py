@@ -138,6 +138,13 @@ class LongControl:
 
   def update(self, active, CS, long_plan, accel_limits, t_since_plan, radarState):
 
+    _advisor_policy_capture = getattr(self, '_advisor_longitudinal', None) is not None
+    if _advisor_policy_capture:
+      try:
+        _advisor_policy_previous_state = int(getattr(self.long_control_state, 'raw', self.long_control_state))
+        _advisor_policy_previous_output = float(self.last_output_accel)
+      except Exception:
+        _advisor_policy_previous_state, _advisor_policy_previous_output = None, None
     soft_hold_active = CS.softHoldActive > 0
     a_target_ff = long_plan.aTarget
     v_target_now = long_plan.vTargetNow
@@ -224,6 +231,12 @@ class LongControl:
           'StoppingAccel': field(self.stopping_accel, state='used' if active else 'loaded', source='unknown'),
         },
         'context': {'active': active, 'brand': self.CP.brand if self.CP.brand in ('hyundai', 'toyota') else 'other',
-                    'long_control_state': str(self.long_control_state), 'fixed_tuning': self.CP.brand in ('hyundai', 'toyota')},
+                    'long_control_state': str(self.long_control_state), 'fixed_tuning': self.CP.brand in ('hyundai', 'toyota'),
+                    **({'policy_observation_version': 1,
+                        'stopping_input': (int(bool(active)), int(bool(soft_hold_active)),
+                          int(getattr(self.long_control_state, 'raw', self.long_control_state)), int(bool(should_stop)),
+                          _advisor_policy_previous_output, float(self.CP.stoppingDecelRate), float(accel_limits[0]), float(accel_limits[1]),
+                          DT_CTRL, _advisor_policy_previous_state), 'stopping_output': float(self.last_output_accel)}
+                       if _advisor_policy_capture and _advisor_policy_previous_state is not None else {})},
       })
     return self.last_output_accel, a_target_ff, j_target_now

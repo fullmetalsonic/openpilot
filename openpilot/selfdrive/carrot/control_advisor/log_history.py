@@ -163,8 +163,12 @@ def load_log_history(session_directory, sources, budget=None, *, session_snapsho
     if history["consumer_budget_rejections"] != 0:
       warnings.append("session_consumer_history_loss_unknown_or_recorded")
     output["session_id"] = history["session_id"]
-    inspection = inspect_session(root, byte_limit=limits["max_bytes"], max_segments=limits["max_segments"],
-                                 **({"session_snapshot": session_snapshot} if sealed is not None else {}))
+    if sealed is not None and sealed["marker"].get("schema_version") == 3:
+      from .trip_history import byte_inventory
+      inspection = byte_inventory(root, history)
+    else:
+      inspection = inspect_session(root, byte_limit=limits["max_bytes"], max_segments=limits["max_segments"],
+                                   **({"session_snapshot": session_snapshot} if sealed is not None else {}))
     if any(inspection["history"][key] != history[key] for key in ("sequence", "sha256", "bytes")):
       raise ValueError("session_integrity_incomplete")
     if inspection["state"] != "verified":
@@ -228,6 +232,8 @@ def load_log_history(session_directory, sources, budget=None, *, session_snapsho
       elif old is None and event["dropped_events"]:
         gaps.append(event["produced_mono_ns"])
       timelines[event["consumer_id"]] = event
+    if "consumer_gap_stamps" in history:
+      gaps = list(history["consumer_gap_stamps"])
     events.sort(key=lambda event: (event["produced_mono_ns"], event["consumer_id"], event["sequence"]))
 
     def causal_events(start, end):
@@ -353,6 +359,13 @@ def load_log_history(session_directory, sources, budget=None, *, session_snapsho
     output.update(state="linked", epochs=deepcopy(epochs), consumer_evidence=deepcopy(events), source_receipts=receipts,
                   code_hashes=code_hashes, clock_binding="witnessed_coorigin", raw_sources_verified=True,
                   reason_codes=sorted(set(warnings) | blocked))
+    output["pid_chunk_refs"] = [deepcopy(item["record"]["reference"]) for item in history.get("records", [])
+                                if item.get("record", {}).get("type") == "pid_burst_chunk"]
+    if sealed is not None:
+      selection = sealed["marker"].get("pid_burst_inventory", {})
+      if "burst_ids" in selection:
+        output["pid_chunk_selection"] = deepcopy(selection)
+        output["pid_chunk_refs"] = [row for row in output["pid_chunk_refs"] if row["burst_id"] in selection["burst_ids"]]
     if sealed is not None:
       output.update(snapshot_prefix_complete=history.get("snapshot_prefix_complete", True),
                     selected_closure_complete=history.get("selected_closure_complete", False), source_session_closed=history["closed"],

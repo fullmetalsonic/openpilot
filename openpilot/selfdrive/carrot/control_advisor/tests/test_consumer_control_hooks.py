@@ -79,6 +79,7 @@ class WithoutObservation(ast.NodeTransformer):
 
 
 def execute(nodes, environment):
+  environment.setdefault('observe_pid_burst', observer.observe_pid_burst)
   module = ast.fix_missing_locations(ast.Module(body=deepcopy(nodes), type_ignores=[]))
   exec(compile(module, '<actual-control-source>', 'exec'), environment)
   return environment
@@ -152,7 +153,7 @@ class ConsumerControlHooksTests(unittest.TestCase):
     return {'np': np, 'math': math, 'deque': deque, 'NS': NS, 'DT_CTRL': .01, 'DT_MDL': .05,
             'ModelConstants': ModelConstants, 'Plan': Plan, 'PIDController': PIDController,
             'create_observer': capture.create if capture else lambda *args, **kwargs: None, 'observe': observer.observe,
-            'field': fail_field if bad_factory else observer.field}
+            'field': fail_field if bad_factory else observer.field, 'torque_feedforward_path': observer.torque_feedforward_path}
 
   def drive_helpers(self, environment):
     source = tree('openpilot/selfdrive/controls/lib/drive_helpers.py')
@@ -350,6 +351,7 @@ class ConsumerControlHooksTests(unittest.TestCase):
     self.assertEqual(.1, last['SteerActuatorDelay']['effective_value'])
     self.assertEqual(.1, last['SteerActuatorDelay']['read_value'])
     self.assertEqual(.4, captured.events[-1]['context']['nnff_jerk_lookahead_s'])
+    self.assertEqual('unverified', captured.events[-1]['context']['torque_ff_path'])
 
   def test_nnff_marks_torque_parameters_used_only_when_actual_function_is_called(self):
     for good, override, used in ((True, False, False), (True, True, True), (False, False, True)):

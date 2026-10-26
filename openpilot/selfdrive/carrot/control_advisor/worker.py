@@ -5,6 +5,7 @@ from contextlib import redirect_stdout
 import json
 import math
 import os
+import queue
 import sys
 import threading
 import time
@@ -69,14 +70,30 @@ def _synthetic_tick(index):
                     max(1, len(json.dumps(values, separators=(",", ":")).encode()))) for service, values in data]
 
 
-def _watch_stdin(stop):
+def _watch_stdin(stop, commands=None):
   try:
     # A buffered reader held by a daemon can fatally lock interpreter shutdown
     # when a natural session end occurs before the parent closes its pipe.
     descriptor = sys.stdin.fileno()
-    while os.read(descriptor, 1):
-      pass
-  except (OSError, ValueError):
+    buffered = b""
+    if os.name == "nt":
+      os.set_blocking(descriptor, False)
+    while not stop.is_set():
+      try:
+        chunk = os.read(descriptor, 4096)
+      except BlockingIOError:
+        stop.wait(.05)
+        continue
+      if not chunk:
+        break
+      buffered += chunk
+      if len(buffered) > 8192:
+        break
+      while b"\n" in buffered:
+        line, buffered = buffered.split(b"\n", 1)
+        if commands is not None:
+          commands.put_nowait(json.loads(line))
+  except (OSError, ValueError, queue.Full):
     pass
   stop.set()
 
@@ -114,7 +131,8 @@ def run(*, mode, session_id, interval_seconds, parent_pid=None):
                                identity_provider=_recording_identity_provider() if mode == "live" else None).start()
   consumers = ConsumerCollector(source_mode=mode, clock_ns=source_clock)
   stop = threading.Event()
-  threading.Thread(target=_watch_stdin, args=(stop,), daemon=True, name="advisor-parent-pipe").start()
+  commands = queue.Queue(maxsize=32)
+  threading.Thread(target=_watch_stdin, args=(stop, commands), daemon=True, name="advisor-parent-pipe").start()
   transport = None
   last_emitted = None
 
@@ -122,7 +140,24 @@ def run(*, mode, session_id, interval_seconds, parent_pid=None):
     recording.submit_consumer_observations(consumers.poll())
     for notice in recording.poll_settings():
       session.observe_settings(notice)
-    recording.submit_diagnostic(session.diagnostic)
+    recording.submit_diagnostic(session.preservation_bookmark)
+    snap = session.snapshot()
+    recording.observe_analysis(session._max_seen_ns, snap["parking"], session.nonpark_observed_ns)
+    for _ in range(32):
+      try:
+        command = commands.get_nowait()
+      except queue.Empty:
+        break
+      if type(command) is not dict or command.get("session_id") != session_id:
+        raise ValueError("analysis_command_session_mismatch")
+      if command.get("kind") == "analyze":
+        session.bookmark(partial=True)
+        recording.submit_diagnostic(session.preservation_bookmark)
+        recording.request_analysis(command["request_id"], command.get("goal_id"))
+      elif command.get("kind") == "successful_apply":
+        recording.successful_apply(command["receipt"], command["trip_binding"])
+      else:
+        raise ValueError("analysis_command_invalid")
     session.recording_status = recording.snapshot()
     session.consumer_observations = {**consumers.snapshot(), "persistence": session.recording_status["consumer_history"]}
 
@@ -139,7 +174,8 @@ def run(*, mode, session_id, interval_seconds, parent_pid=None):
       if not final:
         return
       time.sleep(max(0.0, 1.0 - (now - last_emitted)))
-    _emit({**session.snapshot(), "automatic_analysis": recording.automatic_snapshot()})
+    _emit({**session.snapshot(), "automatic_analysis": recording.automatic_snapshot(), "analysis_control": recording.analysis_snapshot(),
+           "analysis_binding": recording.analysis_binding(), "analysis_goal": recording.analysis_goal()})
     last_emitted = time.monotonic()
 
   try:

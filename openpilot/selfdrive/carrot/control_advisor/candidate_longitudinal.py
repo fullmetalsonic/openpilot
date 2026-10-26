@@ -64,6 +64,42 @@ class _Blocked(ValueError):
   pass
 
 
+def _capability(key, context):
+  from .policy_observations import POLICY_METHOD_ID, PROJECTION_METHOD_ID, policy_capabilities, projection_capabilities
+  method = context.get("objective", {}).get("method_id")
+  if method == POLICY_METHOD_ID:
+    return policy_capabilities().get(key)
+  if method == PROJECTION_METHOD_ID:
+    return projection_capabilities().get(key)
+  return capabilities().get(key)
+
+
+def _point_predictions(key, raw, context, split):
+  from .policy_observations import (
+    POLICY_METHOD_ID, assert_current_policy, assert_current_projection,
+    evaluate_policy_point, evaluate_projection_point,
+  )
+  rows = context.get("records", {}).get(split, [])
+  if not rows:
+    raise _Blocked("evaluation_records_missing")
+  settings = dict(context.get("dependencies", {}))
+  settings.update(context.get("settings_raw", {}))
+  result = []
+  try:
+    for row in rows:
+      if context["objective"]["method_id"] == POLICY_METHOD_ID:
+        point = row.get("policy_observation")
+        assert_current_policy(key, point, settings)
+        result.append(evaluate_policy_point(key, raw, point, settings))
+      else:
+        point = row.get("projection_observation")
+        assert_current_projection(point, settings)
+        result.append(evaluate_projection_point(key, raw, point, settings))
+  except (ValueError, TypeError, KeyError, OverflowError) as exc:
+    raise _Blocked(str(exc) if isinstance(exc, ValueError) else "invalid_policy_point") from exc
+  return result
+
+
 def _number(value):
   if type(value) not in (float, int) or not math.isfinite(value):
     raise _Blocked("invalid_numeric_input")
@@ -186,6 +222,9 @@ def _lane_credit(raw, signals):
 
 
 def _predict(key, raw, context, split):
+  from .policy_observations import POLICY_METHOD_ID, PROJECTION_METHOD_ID
+  if context.get("objective", {}).get("method_id") in {POLICY_METHOD_ID, PROJECTION_METHOD_ID}:
+    return _point_predictions(key, raw, context, split)
   capability = capabilities()[key]
   settings = dict(context.get("dependencies", {}))
   settings.update(context.get("settings_raw", {}))
@@ -258,7 +297,7 @@ def _predict(key, raw, context, split):
 
 
 def evaluate_family(key, candidate_raw, context, split, budget):
-  capability = capabilities().get(key)
+  capability = _capability(key, context)
   if capability is None:
     return {"status": "unsupported", "prediction_kind": "static_formula", "predictions": [], "reason_codes": ["key_unsupported"]}
   result = {"status": "blocked", "prediction_kind": capability["prediction_kind"], "predictions": [],
@@ -282,7 +321,7 @@ def evaluate_family(key, candidate_raw, context, split, budget):
 
 
 def propose_family(key, context, profile):
-  capability = capabilities().get(key)
+  capability = _capability(key, context)
   result = {"raw_estimate": None, "candidate_raw_values": [],
             "method_id": capability["method_id"] if capability else f"{METHOD_PREFIX}.unsupported",
             "reason_codes": list(capability["reason_codes"]) if capability else ["key_unsupported"]}
@@ -301,14 +340,24 @@ def propose_family(key, context, profile):
     step = int(step)
     if key in RESPONSE_KEYS[1:] and current == -1:
       raise _Blocked("inherited_profile_requires_explicit_selection")
-    if key in UNAVAILABLE_KEYS and current == 0:
+    if key in UNAVAILABLE_KEYS and capability["backend"] == "unavailable" and current == 0:
       raise _Blocked("special_mode_requires_explicit_selection")
     fit = context.get("records", {}).get("fit", [])
     if not fit or len(fit) > profile.get("max_rows", 0):
       raise _Blocked("proposal_fit_budget_exhausted")
     if any(context.get("records", {}).get(split) for split in ("select", "holdout")):
       raise _Blocked("proposal_received_nonfit_data")
-    if key in RESPONSE_KEYS:
+    from .policy_observations import PROJECTION_METHOD_ID, POLICY_METHOD_ID
+    if context.get("objective", {}).get("method_id") == PROJECTION_METHOD_ID:
+      target = context["objective"].get("target_raw")
+      if type(target) is not int or not lower <= target <= upper:
+        raise _Blocked("explicit_projection_target_required")
+      # A frozen plan compares an explicit policy setting, not a fitted physical delay.
+      _predict(key, current, context, "fit")
+      estimate = float(target)
+      snapped = current + round((estimate - current) / step) * step
+      candidates = sorted({current - step, current, current + step, snapped - step, snapped, snapped + step})
+    elif key in RESPONSE_KEYS:
       candidates = [value for value in range(6) if lower <= value <= upper]
       scores = []
       for value in candidates:
@@ -326,7 +375,8 @@ def propose_family(key, context, profile):
       slopes = [(b - a) / (neighbor - current) for a, b in zip(base, trial)]
       scale = max(abs(slope) for slope in slopes)
       if scale == 0.:
-        raise _Blocked("candidate_has_no_exposed_effect")
+        raise _Blocked("one_step_effect_unresolved" if context.get("objective", {}).get("method_id") == POLICY_METHOD_ID
+                       else "candidate_has_no_exposed_effect")
       normalized = [slope / scale for slope in slopes]
       delta = math.fsum((_number(row["reference"]) - value) * slope for row, value, slope in zip(fit, base, normalized)) / (scale * math.fsum(slope ** 2 for slope in normalized))
       estimate = current + delta

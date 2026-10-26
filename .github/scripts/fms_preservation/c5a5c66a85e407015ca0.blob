@@ -1,0 +1,59 @@
+{
+  "profile_id": "native-fms-acceleration-host-unqualified-v1",
+  "version": 1,
+  "status": "not_validated",
+  "scope": "host_unqualified",
+  "allowed_source_kinds": [
+    "recorded"
+  ],
+  "max_rows": 100000,
+  "max_blocks": 64,
+  "max_candidates_per_key": 8,
+  "max_evaluations": 192,
+  "max_lag_ns": 2000000000,
+  "dependency_margin_ns": 100000000,
+  "min_blocks_per_split": 1,
+  "min_samples_per_split": 30,
+  "minimum_improvement": 0,
+  "guard_tolerances": {
+    "LateralTorqueAccelFactor": {
+      "mode": "baseline_bounded"
+    },
+    "SteerRatioRate": {
+      "mode": "baseline_bounded"
+    },
+    "CustomSR": {
+      "mode": "baseline_bounded"
+    },
+    "CruiseMaxVals0": {
+      "mode": "baseline_bounded"
+    },
+    "CruiseMaxVals1": {
+      "mode": "baseline_bounded"
+    },
+    "CruiseMaxVals2": {
+      "mode": "baseline_bounded"
+    },
+    "CruiseMaxVals3": {
+      "mode": "baseline_bounded"
+    },
+    "CruiseMaxVals4": {
+      "mode": "baseline_bounded"
+    },
+    "CruiseMaxVals5": {
+      "mode": "baseline_bounded"
+    },
+    "CruiseMaxVals6": {
+      "mode": "baseline_bounded"
+    }
+  },
+  "raw_step_policy": "ui_step",
+  "per_key_change_limits": null,
+  "change_limit_policy": "manual_experiment",
+  "device_qualified": false,
+  "method_options": {
+    "LateralTorqueAccelFactor": {
+      "offset_policy": "fit_intercept"
+    }
+  }
+}

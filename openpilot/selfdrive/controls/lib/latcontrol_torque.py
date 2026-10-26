@@ -16,7 +16,7 @@ from openpilot.common.pid import PIDController
 from openpilot.common.params import Params
 
 try:
-  from openpilot.selfdrive.carrot.control_advisor.consumer_observer import create_observer, observe, field
+  from openpilot.selfdrive.carrot.control_advisor.consumer_observer import create_observer, observe, field, torque_feedforward_path, observe_pid_burst
 except Exception:
   create_observer = None
 
@@ -80,6 +80,8 @@ class LatControlTorque(LatControl):
     self.pid = PIDController(self.torque_params.kp, self.torque_params.ki,
                              k_f=self.torque_params.kf, pos_limit=self.steer_max, neg_limit=-self.steer_max)
     self.torque_from_lateral_accel = CI.torque_from_lateral_accel()
+    if self._advisor_torque is not None:
+      self._advisor_torque_ff_path = torque_feedforward_path(self.torque_from_lateral_accel)
     self.use_steering_angle = self.torque_params.useSteeringAngle
     self.steering_angle_deadzone_deg = self.torque_params.steeringAngleDeadzoneDeg
 
@@ -303,6 +305,8 @@ class LatControlTorque(LatControl):
                                             gravity_adjusted=True)
 
       freeze_integrator = steer_limited_by_controls or CS.steeringPressed or CS.vEgo < 5
+      if getattr(self, '_advisor_torque', None) is not None:
+        _advisor_pid_before = float(self.pid.i)
       output_torque = self.pid.update(pid_log.error,
                                       feedforward=ff,
                                       speed=CS.vEgo,
@@ -321,6 +325,18 @@ class LatControlTorque(LatControl):
       #  pid_log.nnLog = nn_log
 
     if getattr(self, '_advisor_torque', None) is not None:
+      if active:
+        observe_pid_burst(self._advisor_torque, (
+          float(desired_lateral_accel), float(actual_lateral_accel), float(setpoint), float(measurement), float(low_speed_factor),
+          float(CS.vEgo), float(CS.aEgo), float(roll_compensation), float(lateral_accel_deadzone), float(pid_log.error),
+          float(ff), _advisor_pid_before, float(self.pid.p), float(self.pid.i), float(self.pid.f), float(output_torque),
+          float(self.pid.k_p), float(self.pid.k_i), float(self.pid.k_f), float(self.torque_params.latAccelFactor),
+          float(self.torque_params.friction), int(freeze_integrator), int(steer_limited_by_controls), int(curvature_limited), int(CS.steeringPressed),
+        ), (self._advisor_torque_ff_path, self.lateralTorqueCustom, bool(self.use_nnff), bool(self.use_nnff_lite),
+            bool(self.use_steering_angle), float(self.pid.pos_limit), float(self.pid.neg_limit),
+            getattr(self, '_advisor_pid_source', 'unknown'), getattr(self, '_advisor_torque_source', 'unknown')), cycle_id=self.frame)
+      else:
+        observe_pid_burst(self._advisor_torque, None, None, cycle_id=self.frame)
       _advisor_nnff_selected = bool(active and self.use_nnff and model_data is not None and len(model_data.orientation.x) >= CONTROL_N)
       _advisor_torque_params_used = active and (not _advisor_nnff_selected or self.nn_friction_override)
       observe(self._advisor_torque, lambda: {
@@ -344,6 +360,7 @@ class LatControlTorque(LatControl):
         },
         'context': {'active': active, 'torque_custom_mode': self.lateralTorqueCustom, 'nnff': self.use_nnff, 'nnff_lite': self.use_nnff_lite,
                     'nnff_model_selected': _advisor_nnff_selected,
+                    'torque_ff_path': self._advisor_torque_ff_path,
                     'nnff_jerk_lookahead_s': getattr(self, 'desired_lat_jerk_time', None), 'derivative_effective': False},
       }, cycle_id=self.frame)
     # TODO left is positive in this convention

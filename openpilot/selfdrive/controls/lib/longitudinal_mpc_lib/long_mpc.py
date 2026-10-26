@@ -426,6 +426,15 @@ class LongitudinalMpc:
     v_ego = self.x0[1]
     a_ego = self.x0[2]
     self.status = radarstate.leadOne.status or radarstate.leadTwo.status
+    _advisor_policy_capture = getattr(self, "_consumer_observer", None) is not None
+    if _advisor_policy_capture:
+      try:
+        _advisor_policy_tf_pre = (carrot._tf_mode_factor, carrot._tf_decel_base, carrot._tf_decel_extra, carrot._tf_base_last)
+        _advisor_policy_tf_pre = None if any(value is None for value in _advisor_policy_tf_pre) else tuple(float(value) for value in _advisor_policy_tf_pre)
+        _advisor_policy_tf_input = (int(getattr(personality, "raw", personality)), float(v_ego), float(a_ego),
+                           float(carrot.myTFollowFactor), DT_MDL)
+      except Exception:
+        _advisor_policy_tf_pre, _advisor_policy_tf_input = None, None
     t_follow = carrot.get_T_FOLLOW(personality, v_ego, a_ego)
     jerk_factor = carrot.jerk_factor
 
@@ -552,6 +561,21 @@ class LongitudinalMpc:
       gap_margin=response_gap_margin,
       speed_error=v_cruise - v_ego,
     )
+    if _advisor_policy_capture:
+      try:
+        _advisor_response_key = self.lead_response_state.key
+        _advisor_policy_response_pre = ((float(self.lead_response_state.strength),) if _advisor_response_key is None else
+                               (float(self.lead_response_state.strength), int(_advisor_response_key[0]), int(_advisor_response_key[1])))
+        _advisor_policy_response_source = self.source
+        _advisor_policy_response_input = (
+          int(mode == 'acc' and lead_accel_response_enabled and response_track_stable),
+          int(response_lead.status and response_lead.radar and response_lead.radarTrackId >= 0),
+          float(response_lead.aLeadK), float(measured_a_ego), float(response_lead.vRel), float(response_gap_margin),
+          float(v_cruise - v_ego), int(response_lead.radarTrackId), float(self.dt),
+          int(getattr(personality, "raw", personality)), int(getattr(carrot.myDrivingMode, "value", carrot.myDrivingMode)),
+        )
+      except Exception:
+        _advisor_policy_response_pre, _advisor_policy_response_input = None, None
     response_request = self.lead_response_state.update(response_request, self.dt, response_lead.radarTrackId)
     self.lead_accel_response_active = response_request.active
     self.lead_accel_response_level = response_request.level if response_request.active else 0
@@ -710,13 +734,34 @@ class LongitudinalMpc:
         values["TrafficStopDistanceAdjust"] = field(adjust_dist if mode == 'acc' else None,
           read_value=carrot.trafficStopDistanceAdjust if 40 in reads else None,
           state="used" if mode == 'acc' else "bypassed", source="derived", read_mono_ns=reads.get(40))
-        return {"fields": values, "context": {"mode": mode, "source": self.source, "reset_state": bool(reset_state),
+        context = {"mode": mode, "source": self.source, "reset_state": bool(reset_state),
                  "personality": gap, "v_ego": float(v_ego), "a_ego": float(a_ego), "t_follow": t_follow,
                  "tf_mode_factor": carrot._tf_mode_factor, "tf_decel_extra": carrot._tf_decel_extra,
                  "tf_decel_base": carrot._tf_decel_base, "stop_distance": stop_distance,
                  "traffic_adjust": adjust_dist if mode == 'acc' else None, "lc_credit_used": lane_change_credit_used,
                  "lead_response_active": response_active, "lead_response_level": self.lead_accel_response_level,
-                 "lane_change_active": bool(getattr(carrot, "lane_change_active", False)), "solution_status": int(self.solution_status)}}
+                 "lane_change_active": bool(getattr(carrot, "lane_change_active", False)), "solution_status": int(self.solution_status)}
+        if _advisor_policy_capture:
+          context["policy_observation_version"] = 1
+          if _advisor_policy_tf_input is not None:
+            context.update(tf_pre=_advisor_policy_tf_pre, tf_input=_advisor_policy_tf_input, tf_output=float(t_follow))
+          if _advisor_policy_response_input is not None:
+            context.update(response_pre=_advisor_policy_response_pre, response_input=_advisor_policy_response_input,
+                           response_source=_advisor_policy_response_source, response_output=float(response_request.a_change_cost_factor))
+          context.update(follow_input=(float(v_ego), float(lead_v_0), float(t_follow), float(comfort_brake),
+                                       int(bool(radarstate.leadOne.status))), follow_output=float(self.base_desired_distances[0]))
+          if mode == 'acc':
+            context["traffic_policy"] = (float(v_ego), float(getattr(carrot, "trafficStopModelLeadOffset", 0.0)), float(adjust_dist))
+            if lane_change_credit_used and hasattr(lane_change, "targets") and hasattr(lane_change, "primary_id"):
+              def lead_values(lead):
+                return (int(lead.radarTrackId), float(lead.dRel), float(lead.yRel), float(lead.vRel), float(lead.vLead), float(lead.aLeadK))
+              context["lc_leads"] = (lead_values(radarstate.leadOne) + lead_values(lane_change.targets[0])
+                                     if len(lane_change.targets) == 1 else None)
+              context["lc_input"] = (int(bool(lane_change.active)), float(lane_change.confidence), float(lane_change.clearance_s),
+                                     float(v_ego), float(self.max_a), float(t_follow), float(stop_distance), float(T_IDXS[-1]),
+                                     len(lane_change.targets), int(lane_change.primary_id))
+              context["lc_output"] = float(lead_0_follow_obstacle[-1] - lead_0_obstacle[-1])
+        return {"fields": values, "context": context}
 
       observe(observer, payload, cycle_id=getattr(carrot, "frame", None), phase="sampled_use")
 

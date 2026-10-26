@@ -589,6 +589,40 @@ def register(app: web.Application, *, controller=None, token=None, live_enabled=
   app.on_startup.append(load_requests)
   app.on_startup.append(load_review)
 
+  def recording_preference(enabled=None):
+    if (runtime_config or {}).get("runtime_kind") != "native_comma" or not request_root:
+      return True
+    from openpilot.selfdrive.carrot.control_advisor.periodic import _atomic
+    path = Path(request_root) / "recording-preference.json"
+    if not path.is_absolute() or any(part.is_symlink() for part in (path, *path.parents)):
+      raise ValueError("recording_preference_path_invalid")
+    if enabled is None:
+      if not path.exists():
+        return True
+      if path.stat().st_size > 1024:
+        raise ValueError("recording_preference_invalid")
+      value = json.loads(path.read_text(encoding="utf-8"))
+      if type(value) is not dict or set(value) != {"schema_version", "enabled"} or value["schema_version"] != 1 or type(value["enabled"]) is not bool:
+        raise ValueError("recording_preference_invalid")
+      return value["enabled"]
+    path.parent.mkdir(parents=True, exist_ok=True)
+    _atomic(path, {"schema_version": 1, "enabled": enabled}, durable=True)
+    return enabled
+
+  async def start_background_recording(application):
+    if controller_supplied or (runtime_config or {}).get("runtime_kind") != "native_comma" or not capabilities["live_enabled"]:
+      return
+    try:
+      if await request_thread(recording_preference):
+        goal_options = getattr(controller, "analysis_goal_options", None)
+        preset = callable(goal_options) and any(item["id"] == "fms_accel_defaults_v1" for item in goal_options())
+        await controller.start(mode="live", interval_seconds=300, request_id="native_background_recording",
+          **({"goal_id": "fms_accel_defaults_v1"} if preset else {}))
+    except (ValueError, OSError, RuntimeError, SessionConflict):
+      native_public["recording_reason"] = "background_recording_unavailable"
+
+  app.on_startup.append(start_background_recording)
+
   def response(session=None, *, request=None):
     session = controller.status() if session is None else session
     observed = session.get("recording", {}).get("settings", {})
@@ -601,6 +635,10 @@ def register(app: web.Application, *, controller=None, token=None, live_enabled=
                               "parking_summary": deepcopy(summary_public), "review_exports": deepcopy(export_public["jobs"]),
                               "review_export_state": {"state": export_public["state"], "reason": export_public["reason"]},
                               "apply_enabled": False, "recommendations_enabled": False}
+    from openpilot.selfdrive.carrot.control_advisor.analysis_control import initial_control
+    result["analysis_control"] = deepcopy(session.get("analysis_control", initial_control()))
+    goals = getattr(controller, "analysis_goal_options", None)
+    result["analysis_goals"] = {"options": goals() if callable(goals) else [], "selected": deepcopy(session.get("analysis_goal"))}
     if request is not None:
       authorized = cookie_authorized(request)
       result["auth"] = {"authorized": authorized, "method": "native_cookie" if authorized else "none",
@@ -693,13 +731,21 @@ def register(app: web.Application, *, controller=None, token=None, live_enabled=
     body, error = await read_control(request)
     if error is not None:
       return error
-    if set(body) != {"mode", "interval_seconds", "request_id"}:
+    required = {"mode", "interval_seconds", "request_id"}
+    if not required <= set(body) or set(body) - required - {"goal_id"}:
       return _failure("invalid_start_fields", 400)
     try:
       validate_start(body["mode"], body["interval_seconds"], body["request_id"])
+      if "goal_id" in body:
+        goals = getattr(controller, "analysis_goal_options", None)
+        options = goals() if callable(goals) else []
+        if body["mode"] != "live" or type(body["goal_id"]) is not str or not any(option["id"] == body["goal_id"] for option in options):
+          return _failure("invalid_analysis_goal", 400)
       if not capabilities["live_enabled" if body["mode"] == "live" else "synthetic_enabled"]:
         return _failure("mode_disabled", 409)
       session = await controller.start(**body)
+      if body["mode"] == "live" and session.get("state") not in {"failed", "unavailable"}:
+        await request_thread(recording_preference, True)
       return response(session)
     except SessionConflict as exc:
       return _failure(str(exc), 409)
@@ -733,9 +779,27 @@ def register(app: web.Application, *, controller=None, token=None, live_enabled=
       return _failure("invalid_stop_fields", 400)
     try:
       session = await controller.stop(body["session_id"])
+      await request_thread(recording_preference, False)
       return response(session)
     except SessionConflict as exc:
       return _failure(str(exc), 409)
+
+  async def analyze(request):
+    body, error = await read_control(request)
+    if error is not None:
+      return error
+    if not {"session_id", "request_id"} <= set(body) or set(body) - {"session_id", "request_id", "goal_id"} or any(type(body[key]) is not str or re.fullmatch(r"[A-Za-z0-9_-]{1,80}", body[key]) is None for key in body):
+      return _failure("invalid_analysis_fields", 400)
+    if "goal_id" in body:
+      options = getattr(controller, "analysis_goal_options", None)
+      if not callable(options) or not any(item["id"] == body["goal_id"] for item in options()):
+        return _failure("invalid_analysis_goal", 400)
+    try:
+      return response(await controller.analyze(**body))
+    except SessionConflict as error:
+      return _failure(str(error), 409)
+    except (ValueError, OSError, RuntimeError):
+      return _failure("analysis_request_unavailable", 409)
 
   async def native_operation(request, operation):
     body, error = await read_control(request)
@@ -798,8 +862,16 @@ def register(app: web.Application, *, controller=None, token=None, live_enabled=
     return task
 
   async def execute_request(request_id):
+    session_id = controller.status().get("session_id")
     summary = await request_operation(request_actor.execute, request_id)
     remember_request(summary)
+    if native_runtime is not None and summary.get("scope") == "vehicle" and summary.get("state") in {"stored", "consumer_observed", "comparison_ready"}:
+      try:
+        cut = await request_operation(native_runtime.successful_analysis_cut, request_id)
+        if cut is not None:
+          await controller.successful_apply(session_id, cut["receipt"], cut["boot_id"])
+      except (ValueError, OSError, RuntimeError, SessionConflict):
+        native_public["analysis_cut_reason"] = "analysis_cut_delivery_pending"
     await refresh_request_snapshot()
 
   async def register_request(body):
@@ -1177,6 +1249,7 @@ def register(app: web.Application, *, controller=None, token=None, live_enabled=
   app.router.add_post("/api/control_advisor/vehicle/restore", restore_vehicle)
   app.router.add_post("/api/control_advisor/start", start)
   app.router.add_post("/api/control_advisor/stop", stop)
+  app.router.add_post("/api/control_advisor/analyze", analyze)
   app.router.add_post("/api/control_advisor/apply-requests", create_apply_request)
   app.router.add_get("/api/control_advisor/apply-requests/{request_id}", get_apply_request)
   app.router.add_post("/api/control_advisor/apply-requests/{request_id}/cancel", cancel_apply_request)

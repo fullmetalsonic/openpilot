@@ -546,6 +546,22 @@ function logLinkFixture() {
     reasons: ["consumer_evidence_missing", "recording_schema_match_unverified"] };
 }
 
+test("a typed whole-trip receipt exposes all 33 sources and full-rate versus selected counts", async () => {
+  const { parameters, envelope } = await candidateFixture();
+  envelope.report.source_kind = "recorded";
+  envelope.log_link = { ...logLinkFixture(), source_count: 33, whole_trip: { raw_anchor_count: 19800,
+    selected_anchor_count: 1500, selection_policy: "thirty_time_strata_centred_ten_seconds_native_5hz_v1",
+    source_range: { start_ns: 2e9, end_ns: 1981.9e9 }, full_rate_excluded_counts: {} } };
+  let model = createCandidateReportModel(envelope, parameters);
+  assert.equal(model.logLink.available, true);
+  assert.equal(model.logLink.sourceCount, 33);
+  assert.equal(model.logLink.wholeTrip.rawCount, 19800);
+  assert.equal(model.logLink.wholeTrip.selectedCount, 1500);
+  envelope.log_link.whole_trip.selection_policy = "unknown";
+  model = createCandidateReportModel(envelope, parameters);
+  assert.equal(model.logLink.available, false);
+});
+
 test("recorded extraction links separate generation checks, archive preservation, and current access", async () => {
   const { parameters, envelope } = await candidateFixture();
   envelope.report.source_kind = "recorded";
@@ -860,6 +876,83 @@ test("separately validated comparison stays observational and drops private or n
   assert.equal(held.comparisonReady, false);
   assert.equal(held.comparison.state, "held");
   assert.match(held.reason, /현재 비교 보류/);
+});
+
+async function compactComparisonPayload() {
+  const payload = await requestFixture();
+  const metric = { count: 10, rmse: .3, bias: .1, p95_absolute_error: .5 };
+  const summary = { sample_count: 15, eligible_count: 10, excluded_count: 4, provisional_count: 1,
+    eligible_duration_ns: 2e9, raw_metrics: metric, eligible_metrics: metric,
+    exclusions: { encoding: "reason-indexed-v1", reasons: ["driver_intervention"],
+      rows: [[0, "9223372036854775806", "9223372036854775807", 4]] } };
+  const comparison = { schema_version: 2, state: "comparison_ready", axis: "lateral", scope: "observational_generated",
+    target_unit: "m/s^2", before: structuredClone(summary), after: structuredClone(summary), matched: null, reason_codes: [],
+    consumer_application_ack: false, causal_improvement_proven: false, apply_enabled: false, device_qualified: false };
+  payload.apply_requests = [{ request_id: "ui-request-one", item_key: "PathOffset", scope: "pc_simulation", state: "comparison_ready",
+    consumer_observed: true, comparison_ready: true, store_receipt: { value: 20, revision: 1 }, comparison }];
+  return payload;
+}
+
+test("compact comparison intervals are validated without exposing decoded BigInt or changing observational claims", async () => {
+  const payload = await compactComparisonPayload();
+  const item = createControlAdvisorModel(payload).applyRequests.items[0];
+  assert.equal(item.comparisonReady, true);
+  assert.equal(item.consumerObserved, true);
+  assert.equal(item.comparison.before.sampleCount, 15);
+  assert.equal(item.comparison.after.eligible.rmse, .3);
+  assert.equal(item.comparison.causalImprovementProven, false);
+  assert.equal(item.comparison.deviceQualified, false);
+  assert.equal(item.applyEnabled, false);
+  assert.doesNotThrow(() => JSON.stringify(item));
+  assert.doesNotMatch(JSON.stringify(item), /exclusions|reason-indexed|9223372036854775807/);
+  payload.apply_requests[0].comparison.state = "held";
+  payload.apply_requests[0].comparison.before = null;
+  payload.apply_requests[0].comparison.after = null;
+  assert.equal(createControlAdvisorModel(payload).applyRequests.items[0].comparison.state, "held");
+});
+
+test("malformed compact intervals and unknown comparison schemas cannot claim comparison readiness", async () => {
+  for (const mutate of [
+    (comparison) => { comparison.schema_version = 3; },
+    (comparison) => { comparison.before.exclusions.encoding = "unknown"; },
+    (comparison) => { comparison.after.exclusions.rows[0][0] = 1; },
+    (comparison) => { comparison.before.exclusions.rows[0][1] = "01"; },
+    (comparison) => { comparison.after.exclusions.rows[0][2] = "9223372036854775808"; },
+    (comparison) => { comparison.before.exclusions.rows[0][1] = "9223372036854775807";
+      comparison.before.exclusions.rows[0][2] = "9223372036854775806"; },
+    (comparison) => { delete comparison.before.exclusions; },
+    (comparison) => { delete comparison.after; },
+  ]) {
+    const payload = await compactComparisonPayload();
+    mutate(payload.apply_requests[0].comparison);
+    const item = createControlAdvisorModel(payload).applyRequests.items[0];
+    assert.equal(item.comparison, null);
+    assert.equal(item.comparisonReady, false);
+    assert.equal(item.consumerObserved, false);
+  }
+});
+
+test("paged whole-trip comparison preserves metrics and rejects unbound detail paths", async () => {
+  const payload = await compactComparisonPayload();
+  const comparison = payload.apply_requests[0].comparison;
+  comparison.schema_version = 3;
+  const digest = "a".repeat(64);
+  const ref = { encoding: "reason-indexed-pages-v1", path: `comparison-details/${digest}/manifest.json`,
+    sha256: digest, interval_count: 5000, page_count: 10 };
+  comparison.before.exclusions = structuredClone(ref);
+  comparison.after.exclusions = structuredClone(ref);
+  let item = createControlAdvisorModel(payload).applyRequests.items[0];
+  assert.equal(item.comparisonReady, true);
+  assert.equal(item.comparison.before.detailPages, 10);
+  assert.equal(item.comparison.before.detailIntervals, 5000);
+  assert.equal(item.comparison.causalImprovementProven, false);
+  for (const change of [{ path: "../outside" }, { sha256: "b".repeat(64) }, { page_count: 129 },
+    { interval_count: -1 }, { interval_count: 0 }, { path: `/comparison-details/${digest}/manifest.json` }]) {
+    comparison.before.exclusions = { ...ref, ...change };
+    item = createControlAdvisorModel(payload).applyRequests.items[0];
+    assert.equal(item.comparison, null);
+    assert.equal(item.comparisonReady, false);
+  }
 });
 
 function reviewSummaryFixture() {

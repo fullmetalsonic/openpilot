@@ -42,6 +42,30 @@ def candidate_fixture():
   return evidence, profile
 
 
+def factor_fixture(*, holdout_offset=.12):
+  evidence, profile = candidate_fixture()
+  key = "LateralTorqueAccelFactor"
+  evidence["epoch"]["settings_raw"] = {key: 2800, "LateralTorqueCustom": 1}
+  evidence["epoch"]["dependencies"] = {"torque_ff_path": "linear_standard", "torque_response_alignment": "declared_aligned"}
+  evidence["objectives"] = {key: {"id": "independent-factor-reference", "kind": "tracking", "source": "synthetic_truth",
+    "unit": "m/s^2", "reference_signal": "lateral_accel_independent"}}
+  for block in evidence["blocks"]:
+    rows = []
+    offset = holdout_offset if block["id"] == "holdout" else .12
+    for index, torque in enumerate((-.4, -.3, -.2, -.1, .1, .2, .3, .4)):
+      stamp = block["start_ns"] + index * 10
+      rows.append({"mono_ns": stamp, "excluded_reasons": [], "signals": {
+        name: {"value": value, "unit": unit, "source": source, "source_mono_ns": stamp}
+        for name, value, unit, source in (("sent_torque", torque, "1", "consumer_state"),
+          ("lateral_accel_independent", 3 * torque + offset, "m/s^2", "synthetic_truth"),
+          ("lateral_accel_offset", 0., "m/s^2", "declared_callback_contract"))}})
+    block.update(samples=rows, end_ns=rows[-1]["mono_ns"], finalized_through_ns=rows[-1]["mono_ns"])
+  evidence["epoch"]["end_ns"] = evidence["blocks"][-1]["end_ns"]
+  profile.update(change_limit_policy="manual_experiment", per_key_change_limits=None,
+    guard_tolerances={key: {"mode": "baseline_bounded"}}, method_options={key: {"offset_policy": "fit_intercept"}})
+  return evidence, profile
+
+
 class FakeEngine:
   def __init__(self, *, proposals=None, holdout_wrong=False):
     self.calls = []
@@ -458,6 +482,194 @@ class CandidateContractsTest(unittest.TestCase):
       with self.subTest(defect=defect):
         self.assertEqual("blocked", row["status"])
         self.assertIsNone(row["candidate_raw"])
+
+
+  def test_actual_factor_fit_context_is_finite_auditable_and_copied_per_evaluation(self):
+    from openpilot.selfdrive.carrot.control_advisor import candidate_lateral as lateral
+    evidence, profile = factor_fixture()
+    before = copy.deepcopy((evidence, profile))
+    original = lateral.evaluate_family
+    offsets = []
+    def evaluate(key, raw, context, split, budget):
+      offsets.append((split, context["fit_context"]["lateral_accel_offset"]))
+      value = original(key, raw, context, split, budget)
+      context["fit_context"]["lateral_accel_offset"] = 999.
+      return value
+    with patch.object(lateral, "evaluate_family", side_effect=evaluate):
+      report = candidates.evaluate_candidates(evidence, profile)
+    row = self.row(report, "LateralTorqueAccelFactor")
+    self.assertEqual(("search_candidate", 3000), (row["status"], row["candidate_raw"]))
+    self.assertAlmostEqual(.12, row["provenance"]["fit_context"]["lateral_accel_offset"])
+    self.assertTrue(all(math.isclose(offset, .12) for _, offset in offsets))
+    self.assertEqual(before, (evidence, profile))
+    for invalid in ({"lateral_accel_offset": float("nan")}, {"lateral_accel_offset": True}, {"lateral_accel_offset": .12, "unexpected": 1}):
+      forged = copy.deepcopy(report)
+      self.row(forged, "LateralTorqueAccelFactor")["provenance"]["fit_context"] = invalid
+      with self.subTest(context=invalid), self.assertRaises(ValueError):
+        candidates.validate_candidate_report(forged)
+    forged = copy.deepcopy(report)
+    self.row(forged, "PathOffset")["provenance"]["fit_context"] = {"lateral_accel_offset": .12}
+    with self.assertRaises(ValueError):
+      candidates.validate_candidate_report(forged)
+
+  def test_factor_holdout_offset_cannot_refit_and_required_fit_context_cannot_be_omitted(self):
+    from openpilot.selfdrive.carrot.control_advisor import candidate_lateral as lateral
+    evidence, profile = factor_fixture(holdout_offset=1.12)
+    before = copy.deepcopy((evidence, profile))
+    with patch.object(lateral, "estimate_torque", wraps=lateral.estimate_torque) as fit:
+      report = candidates.evaluate_candidates(evidence, profile)
+    row = self.row(report, "LateralTorqueAccelFactor")
+    self.assertEqual(1, fit.call_count)
+    self.assertEqual("keep_current", row["status"])
+    self.assertIsNone(row["candidate_raw"])
+    self.assertAlmostEqual(.12, row["provenance"]["fit_context"]["lateral_accel_offset"])
+    self.assertAlmostEqual(1., row["metrics"]["holdout"]["rmse"])
+    self.assertFalse(row["validation"]["holdout_objective_pass"])
+    self.assertEqual(before, (evidence, profile))
+    propose = lateral.propose_family
+    def missing_context(*args):
+      result = propose(*args)
+      result.pop("fit_context", None)
+      return result
+    with patch.object(lateral, "propose_family", side_effect=missing_context):
+      missing = candidates.evaluate_candidates(*factor_fixture())
+    self.assertIsNone(self.row(missing, "LateralTorqueAccelFactor")["candidate_raw"])
+    self.assertIn("engine_contract_or_budget_failed", self.row(missing, "LateralTorqueAccelFactor")["reason_codes"])
+
+  def manual_profile(self):
+    evidence, profile = candidate_fixture()
+    profile.update(change_limit_policy="manual_experiment", per_key_change_limits={},
+                   guard_tolerances={"PathOffset": {"mode": "baseline_bounded"}})
+    return evidence, profile
+
+  def test_manual_baseline_candidate_is_numeric_and_failed_holdout_never_reselects(self):
+    evidence, profile = self.manual_profile()
+    before = copy.deepcopy((evidence, profile))
+    report, engine = self.calculate(evidence, profile)
+    row = self.row(report)
+    self.assertEqual(("search_candidate", 20, .2), (row["status"], row["candidate_raw"], row["candidate_physical"]))
+    self.assertIn("manual_experiment_change_limit_unset", row["reason_codes"])
+    self.assertIn("host_objective_only_not_vehicle_validation", row["reason_codes"])
+    self.assertTrue(row["validation"]["holdout_objective_pass"])
+    self.assertEqual(before, (evidence, profile))
+    for split, context in engine.calls:
+      actual = "fit" if split == "propose" else split
+      self.assertTrue(context["records"][actual])
+      self.assertTrue(all(not records for name, records in context["records"].items() if name != actual))
+    self.assertTrue(all(report[key] is False for key in ("apply_enabled", "recommendations_enabled", "device_qualified")))
+    actual = self.row(candidates.evaluate_candidates(evidence, profile))
+    self.assertEqual(("search_candidate", 20, "external_geometry_calibration"), (actual["status"], actual["candidate_raw"], actual["backend"]))
+    class HoldoutEngine(FakeEngine):
+      def __init__(self):
+        super().__init__(holdout_wrong=True)
+        self.raw_calls = []
+      def evaluate_family(self, key, raw, context, split, budget):
+        self.raw_calls.append((split, raw))
+        return super().evaluate_family(key, raw, context, split, budget)
+    failing = HoldoutEngine()
+    failed, _ = self.calculate(evidence, profile, failing)
+    self.assertEqual("keep_current", self.row(failed)["status"])
+    self.assertIsNone(self.row(failed)["candidate_raw"])
+    self.assertFalse(self.row(failed)["validation"]["holdout_objective_pass"])
+    self.assertIn("manual_experiment_change_limit_unset", self.row(failed)["reason_codes"])
+    self.assertEqual([0, 20], [raw for split, raw in failing.raw_calls if split == "holdout"])
+
+  def test_baseline_bounded_filters_better_rmse_with_worse_peak_before_holdout(self):
+    evidence, profile = self.manual_profile()
+    class Engine(FakeEngine):
+      def __init__(self):
+        super().__init__()
+        self.raw_calls = []
+      def evaluate_family(self, key, raw, context, split, budget):
+        self.raw_calls.append((split, raw))
+        self.calls.append((split, copy.deepcopy(context)))
+        errors = ([.2] * 5 if raw == 0 else [.21, 0, 0, 0, 0] if raw == 19 else [.1] * 5 if raw == 20 else [.3] * 5)
+        return {"status": "evaluated", "prediction_kind": "static_formula",
+          "predictions": [row["reference"] + error for row, error in zip(context["records"][split], errors)], "reason_codes": []}
+    engine = Engine()
+    report, _ = self.calculate(evidence, profile, engine)
+    row = self.row(report)
+    self.assertLess(math.sqrt(.21 ** 2 / 5), row["metrics"]["selection"]["rmse"])
+    self.assertEqual(("search_candidate", 20), (row["status"], row["candidate_raw"]))
+    self.assertEqual([0, 20], [raw for split, raw in engine.raw_calls if split == "holdout"])
+
+  def test_manual_explicit_limits_keep_existing_generation_and_missing_estimates_cannot_pass(self):
+    evidence, profile = self.manual_profile()
+    profile["per_key_change_limits"] = {"PathOffset": 5}
+    rejected, _ = self.calculate(evidence, profile, FakeEngine(proposals=[20]))
+    self.assertIn("engine_contract_or_budget_failed", self.row(rejected)["reason_codes"])
+    accepted, _ = self.calculate(evidence, profile, FakeEngine(proposals=[5]))
+    self.assertEqual(("search_candidate", 5), (self.row(accepted)["status"], self.row(accepted)["candidate_raw"]))
+    self.assertNotIn("manual_experiment_change_limit_unset", self.row(accepted)["reason_codes"])
+    profile["per_key_change_limits"] = {}
+    for estimate in (None, float("nan"), float("inf")):
+      class MissingEstimate(FakeEngine):
+        def propose_family(self, key, context, profile):
+          result = super().propose_family(key, context, profile)
+          return {**result, "raw_estimate": estimate}
+      with self.subTest(estimate=estimate):
+        report, _ = self.calculate(evidence, profile, MissingEstimate())
+        self.assertNotEqual("search_candidate", self.row(report)["status"])
+        self.assertIsNone(self.row(report)["candidate_raw"])
+        if estimate is None:
+          self.assertIn("manual_candidate_estimate_unavailable", self.row(report)["reason_codes"])
+          self.assertIn("manual_experiment_change_limit_unset", self.row(report)["reason_codes"])
+
+  def test_manual_neighborhood_is_fit_anchored_and_missing_signals_still_block(self):
+    evidence, profile = self.manual_profile()
+    evaluated = []
+    class Engine(FakeEngine):
+      def propose_family(self, key, context, profile):
+        result = super().propose_family(key, context, profile)
+        return {**result, "raw_estimate": 20.25, "candidate_raw_values": [100]}
+      def evaluate_family(self, key, raw, context, split, budget):
+        if split == "select":
+          evaluated.append(raw)
+        return super().evaluate_family(key, raw, context, split, budget)
+    report, _ = self.calculate(evidence, profile, Engine())
+    self.assertEqual("search_candidate", self.row(report)["status"])
+    self.assertEqual({-1, 0, 1, 19, 20, 21, 22}, set(evaluated))
+    broken = copy.deepcopy(evidence)
+    broken["blocks"][0]["samples"][0]["signals"].pop("unshifted_path_y")
+    failed, _ = self.calculate(broken, profile)
+    self.assertIsNone(self.row(failed)["candidate_raw"])
+    self.assertNotEqual("search_candidate", self.row(failed)["status"])
+
+  def test_baseline_guard_keeps_prediction_magnitude_observational_but_finite(self):
+    evidence, profile = self.manual_profile()
+    for block in evidence["blocks"]:
+      for row in block["samples"]:
+        for signal in row["signals"].values():
+          signal["value"] += 100
+    report, _ = self.calculate(evidence, profile)
+    self.assertEqual("search_candidate", self.row(report)["status"])
+    self.assertGreater(self.row(report)["metrics"]["holdout"]["max_absolute_prediction"], 10)
+    class Nonfinite(FakeEngine):
+      def evaluate_family(self, key, raw, context, split, budget):
+        result = super().evaluate_family(key, raw, context, split, budget)
+        if raw == 20:
+          result["predictions"][0] = float("nan")
+        return result
+    failed, _ = self.calculate(evidence, profile, Nonfinite())
+    self.assertIsNone(self.row(failed)["candidate_raw"])
+    self.assertIn("engine_contract_or_budget_failed", self.row(failed)["reason_codes"])
+
+  def test_policy_and_guard_shapes_are_strict_without_mutating_legacy_profiles(self):
+    evidence, profile = candidate_fixture()
+    before = copy.deepcopy(profile)
+    legacy, _ = self.calculate(evidence, profile)
+    explicit, _ = self.calculate(evidence, {**profile, "change_limit_policy": "explicit_limits"})
+    self.assertEqual(legacy["items"], explicit["items"])
+    self.assertEqual(before, profile)
+    for bad_policy in ("unknown", 123, None):
+      with self.subTest(policy=bad_policy), self.assertRaises(ValueError):
+        self.calculate(evidence, {**profile, "change_limit_policy": bad_policy})
+    for guard in ({"mode": "unknown"}, {"mode": True}, {"mode": "baseline_bounded", "max_absolute_error": 1},
+                  {"max_absolute_error": 1}, {}, "invalid"):
+      changed = copy.deepcopy(profile)
+      changed["guard_tolerances"]["PathOffset"] = guard
+      with self.subTest(guard=guard), self.assertRaises(ValueError):
+        self.calculate(evidence, changed)
 
 
 if __name__ == "__main__":

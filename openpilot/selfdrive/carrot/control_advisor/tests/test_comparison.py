@@ -4,9 +4,12 @@ from dataclasses import asdict
 import hashlib
 import json
 import unittest
+from unittest.mock import patch
 
+from openpilot.selfdrive.carrot.control_advisor import comparison as comparison_module
 from openpilot.selfdrive.carrot.control_advisor.analysis import Observation
 from openpilot.selfdrive.carrot.control_advisor.comparison import evaluate_comparison, validate_public_comparison
+from openpilot.selfdrive.carrot.control_advisor.comparison_intervals import encode_exclusions, decode_exclusions
 from openpilot.selfdrive.carrot.control_advisor.consumer_observer import CONSUMER_PATHS, OBSERVER_PATH
 from openpilot.selfdrive.carrot.control_advisor.registry import load_registry
 
@@ -22,7 +25,7 @@ def freeze_profile(application, profile):
   application["baseline"].update(comparison_profile=copy.deepcopy(profile), comparison_profile_sha256=digest(profile))
 
 
-def comparison_fixture(*, lateral=False):
+def comparison_fixture(*, lateral=False, duration_seconds=None):
   key = "LateralTorqueKpV" if lateral else "CruiseMaxVals0"
   item = next(item for item in load_registry()["items"] if item["key"] == key)
   old, new = (30, 40) if lateral else (100, 130)
@@ -39,7 +42,7 @@ def comparison_fixture(*, lateral=False):
                          "code_hashes": code, "source_epoch_id": "old-epoch"},
     "baseline": {"settings_history_reference": before_ref, "dependencies": {}, "dependency_digest": "9" * 64,
                  "dependencies_sha256": digest({})},
-    "stored_mono_ns": 30 * NS, "receipt_sha256": "2" * 64}
+    "stored_mono_ns": (30 if duration_seconds is None else duration_seconds + 10) * NS, "receipt_sha256": "2" * 64}
   values = {item["key"]: 0 for item in load_registry()["items"]}
   values[key] = old
   if lateral:
@@ -68,11 +71,15 @@ def comparison_fixture(*, lateral=False):
       "window": {"start_ns": (begin + 2) * NS, "end_ns": (end - 3) * NS, "finalized_through_ns": (end - 3) * NS},
       "eligible_intervals": [{"start_ns": begin * NS, "end_ns": end * NS}],
       "observations": rows(begin, end, actual, epoch)}
-  before, after = side(0, 15, .7, "old-epoch", before_ref, old), side(36, 55, .9, "new-epoch", after_ref, new)
+  stored_seconds = application["stored_mono_ns"] // NS
+  after_begin = stored_seconds + 6
+  after_end = 55 if duration_seconds is None else after_begin + duration_seconds
+  before = side(0, 15 if duration_seconds is None else duration_seconds, .7, "old-epoch", before_ref, old)
+  after = side(after_begin, after_end, .9, "new-epoch", after_ref, new)
   events = []
-  for stamp in range(61):
+  for stamp in range(after_end + 6):
     for index, role in enumerate(roles):
-      physical = (new if stamp >= 31 + index else old) * item["raw_scale"]
+      physical = (new if stamp >= stored_seconds + 1 + index else old) * item["raw_scale"]
       events.append({"schema_version": 1, "consumer_id": role, "boot_id": target["boot_id"], "pid": 42,
         "process_instance_id": "3" * 32, "consumer_instance_id": str(index + 4) * 32, "sequence": stamp + 1,
         "produced_mono_ns": stamp * NS, "cycle_id": stamp, "phase": "sampled_use", "dropped_events": 0,
@@ -87,7 +94,7 @@ def comparison_fixture(*, lateral=False):
   cohort = {"schema_version": 1, "request_id": application["request_id"], "request_sha256": application["request_sha256"],
     "target": target, "source_kind": "generated_native", **{key: target[key] for key in ("session_id", "route", "boot_id")},
     "history_reference": after_ref, "source_hashes": {"native-before": "5" * 64, "native-after": "6" * 64},
-    "consumer_events": events, "setting_change_interval": {"after_ns": 29 * NS, "before_ns": 31 * NS},
+    "consumer_events": events, "setting_change_interval": {"after_ns": (stored_seconds - 1) * NS, "before_ns": (stored_seconds + 1) * NS},
     "before": before, "after": after}
   profile = {"schema_version": 1, "profile_id": "explicit-generated-comparison", "version": 1,
     "analysis_profile": {"profile_id": "explicit-generated-driver-mask", "pre_margin_ns": NS // 2, "recovery_ns": NS,
@@ -303,6 +310,73 @@ class ComparisonTests(unittest.TestCase):
     result = evaluate_comparison(application, cohort, profile)
     self.assertEqual("held", result["state"])
     self.assertIn("comparison_profile_unbound", result["reason_codes"])
+
+  def test_settings_scan_holes_do_not_restart_sensor_recovery(self):
+    for invalid_sensor in (False, True):
+      with self.subTest(invalid_sensor=invalid_sensor):
+        application, cohort, profile = comparison_fixture()
+        profile["analysis_profile"].update(recovery_ns=2 * NS, dependency_ns=NS // 10)
+        freeze_profile(application, profile)
+        for side, begin, end in ((cohort["before"], 0, 15), (cohort["after"], 36, 55)):
+          side["eligible_intervals"] = [{"start_ns": second * NS + 1, "end_ns": (second + 1) * NS}
+                                        for second in range(begin, end)]
+        if invalid_sensor:
+          next(row for row in cohort["before"]["observations"] if row["mono_ns"] == 6 * NS + 3 * NS // 10)["valid"] = False
+        result = evaluate_comparison(application, cohort, profile)
+        self.assertEqual("comparison_ready", result["state"], result["reason_codes"])
+        before = result["comparison"]["before"]
+        self.assertGreater(before["exclusion_counts"]["comparison_settings_source_uncertain"], 0)
+        scan = 5 * NS + NS // 10
+        fresh = 7 * NS + 2 * NS // 10
+        self.assertTrue(any(interval["reason"] == "comparison_settings_source_uncertain"
+                            and interval["start_ns"] <= scan <= interval["end_ns"] for interval in before["exclusions"]))
+        self.assertEqual(invalid_sensor, any(interval["reason"] == "recovery"
+                         and interval["start_ns"] <= fresh <= interval["end_ns"] for interval in before["exclusions"]))
+        if invalid_sensor:
+          self.assertEqual(1, before["exclusion_counts"]["invalid_signal"])
+
+  def test_three_and_five_minute_public_comparisons_keep_every_exclusion(self):
+    for duration in (180, 300):
+      with self.subTest(seconds=duration):
+        application, cohort, profile = comparison_fixture(duration_seconds=duration)
+        profile["analysis_profile"].update(pre_margin_ns=NS // 10, recovery_ns=2 * NS, dependency_ns=NS // 10)
+        freeze_profile(application, profile)
+        for side in (cohort["before"], cohort["after"]):
+          begin, end = (side["observations"][index]["mono_ns"] // NS for index in (0, -1))
+          side["eligible_intervals"] = [{"start_ns": second * NS + 1, "end_ns": (second + 1) * NS}
+                                        for second in range(begin, end)]
+        original_side, intervals = comparison_module._side, []
+        def capture(*args, **kwargs):
+          value = original_side(*args, **kwargs)
+          intervals.append(copy.deepcopy(value[0]["exclusions"]))
+          return value
+        with patch.object(comparison_module, "_side", side_effect=capture):
+          result = evaluate_comparison(application, cohort, profile)
+        self.assertEqual("comparison_ready", result["state"], result["reason_codes"])
+        public = result["comparison"]
+        self.assertEqual(2, public["schema_version"])
+        self.assertEqual(public, validate_public_comparison(public))
+        self.assertLessEqual(len(json.dumps(public, sort_keys=True, separators=(",", ":")).encode()), 32 * 1024)
+        for index, side in enumerate(("before", "after")):
+          self.assertEqual(intervals[index], decode_exclusions(public[side]["exclusions"], schema_version=2))
+
+  def test_versioned_public_exclusions_are_strict_and_small_legacy_stays_unchanged(self):
+    application, cohort, profile = comparison_fixture()
+    legacy = evaluate_comparison(application, cohort, profile)["comparison"]
+    self.assertEqual(1, legacy["schema_version"])
+    compact = copy.deepcopy(legacy)
+    compact["schema_version"] = 2
+    for side in ("before", "after"):
+      compact[side]["exclusions"] = encode_exclusions(compact[side]["exclusions"])
+    self.assertEqual(compact, validate_public_comparison(compact))
+    invalid = copy.deepcopy(compact)
+    invalid["before"]["exclusions"]["rows"].append([100_000, "0", "1", 1])
+    with self.assertRaisesRegex(ValueError, "invalid_public_comparison_exclusions"):
+      validate_public_comparison(invalid)
+    invalid = copy.deepcopy(compact)
+    invalid["schema_version"] = 1
+    with self.assertRaisesRegex(ValueError, "invalid_public_comparison_exclusions"):
+      validate_public_comparison(invalid)
     application["baseline"]["comparison_profile"] = None
     self.assertEqual("held", evaluate_comparison(application, cohort, profile)["state"])
 

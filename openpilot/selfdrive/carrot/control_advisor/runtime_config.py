@@ -18,6 +18,9 @@ NATIVE_DEFAULTS = {
     "consumer_socket": "/tmp/fms_control_advisor/consumer.sock",
 }
 
+BUILTIN_PROFILE_PATH = str(Path(__file__).resolve().parent / "defaults" / "native_profile.json")
+BUILTIN_OBJECTIVES_PATH = str(Path(__file__).resolve().parent / "defaults" / "native_objectives.json")
+
 
 def _is_link(path: Path) -> bool:
   try:
@@ -218,14 +221,21 @@ def resolve_runtime_config(
   if raw_socket is None and is_native:
     raw_socket = NATIVE_DEFAULTS["consumer_socket"]
 
-  raw_profile = _get_env_override(
-      env,
-      "CARROT_CONTROL_ADVISOR_AUTO_PROFILE",
-  )
-  raw_objectives = _get_env_override(
-      env,
-      "CARROT_CONTROL_ADVISOR_AUTO_OBJECTIVES",
-  )
+  has_profile_env = "CARROT_CONTROL_ADVISOR_AUTO_PROFILE" in env
+  has_objectives_env = "CARROT_CONTROL_ADVISOR_AUTO_OBJECTIVES" in env
+
+  if is_native and not has_profile_env and not has_objectives_env:
+    raw_profile = BUILTIN_PROFILE_PATH
+    raw_objectives = BUILTIN_OBJECTIVES_PATH
+  else:
+    raw_profile = _get_env_override(
+        env,
+        "CARROT_CONTROL_ADVISOR_AUTO_PROFILE",
+    )
+    raw_objectives = _get_env_override(
+        env,
+        "CARROT_CONTROL_ADVISOR_AUTO_OBJECTIVES",
+    )
 
   blockers_collection: List[str] = []
   blockers_analysis: List[str] = []

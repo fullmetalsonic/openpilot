@@ -57,7 +57,7 @@ CONSUMER_PATHS = {
 CONTEXT_KEYS = {
   "controls.vehicle_model": {"resolved_steer_ratio", "live_steer_ratio", "stiffness_factor", "manual_override"},
   "controls.lateral_target": {"active", "path", "lane_selected", "live_delay_used"},
-  "controls.torque": {"active", "torque_custom_mode", "nnff", "nnff_lite", "nnff_model_selected", "nnff_jerk_lookahead_s", "derivative_effective"},
+  "controls.torque": {"active", "torque_custom_mode", "nnff", "nnff_lite", "nnff_model_selected", "nnff_jerk_lookahead_s", "derivative_effective", "torque_ff_path"},
   "controls.longitudinal": {"active", "brand", "long_control_state", "fixed_tuning"},
   "modeld.action": {"frame", "lat_action_t", "long_action_t", "lat_delay_used_s", "next_lat_delay_s", "lat_smooth_dynamic_s", "model_action_head"},
   "planner.lateral": {"lane_mode", "lanes_active", "model_valid"},
@@ -69,6 +69,11 @@ CONTEXT_KEYS = {
                        "tf_decel_base", "stop_distance", "traffic_adjust", "lead_response_active", "lead_response_level", "lane_change_active",
                        "reset_state", "source", "solution_status", "action_t", "preview_action_t", "lc_credit_used"},
 }
+CONTEXT_KEYS["planner.long_mpc"].update({"policy_observation_version", "tf_pre", "tf_input", "tf_output", "response_pre",
+  "response_input", "response_source", "response_output", "lc_leads", "lc_input", "lc_output", "follow_input", "follow_output", "traffic_policy"})
+CONTEXT_KEYS["controls.longitudinal"].update({"policy_observation_version", "stopping_input", "stopping_output"})
+CONTEXT_KEYS["planner.longitudinal"].update({"projection_observation_version", "projection_speeds_head", "projection_speeds_tail",
+  "projection_accels_head", "projection_accels_tail", "projection_times_head", "projection_times_tail", "projection_output"})
 CONTEXT_ENUMS = {
   "path": {"inactive", "vw_lane", "lane", "vw_model", "model"},
   "brand": {"hyundai", "toyota", "other"},
@@ -77,7 +82,21 @@ CONTEXT_ENUMS = {
   "driving_mode": {"Eco", "Safe", "Normal", "High"},
   "source": {"lead0", "lead1", "cruise", "e2e"},
   "group_read_basis": {"group_read_complete"},
+  "torque_ff_path": {"linear_standard", "unverified"},
+  "response_source": {"lead0", "lead1", "cruise", "e2e"},
 }
+_PID_BURST_NOTICE = object()
+
+
+def torque_feedforward_path(callback):
+  """Identify the actual loaded base callback without importing vehicle modules."""
+  try:
+    module = sys.modules.get("opendbc.car.interfaces")
+    base = getattr(module, "CarInterfaceBase", None)
+    linear = getattr(base, "torque_from_lateral_accel_linear", None)
+    return "linear_standard" if linear is not None and getattr(callback, "__func__", None) is linear else "unverified"
+  except Exception:
+    return "unverified"
 
 
 def consumer_ids_for_key(key):
@@ -244,6 +263,10 @@ class _Observer:
     self.instance_id = None
     self.contended = False
     self.cp_requested, self.cp_raw, self.cp_error, self.vehicle_identity = car_params is not None, None, None, None
+    self._pid_burst, self._pid_burst_ids = None, {}
+    if consumer_id == "controls.torque":
+      from .pid_burst import PidBurstBuffer
+      self._pid_burst = PidBurstBuffer()
     if self.cp_requested:
       try:
         from .vehicle_identity import MAX_CP_BYTES
@@ -286,9 +309,12 @@ class _Pump:
       self.lock.release()
 
   def _hashes(self, consumer, cache):
+    paths = (OBSERVER_PATH, CONSUMER_PATHS[consumer])
+    return self._path_hashes(paths, cache)
+
+  def _path_hashes(self, paths, cache):
     import hashlib
     from pathlib import Path
-    paths = (OBSERVER_PATH, CONSUMER_PATHS[consumer])
     root = Path(__file__).resolve().parents[4]
     for path in paths:
       if path in cache:
@@ -326,10 +352,31 @@ class _Pump:
               observer.vehicle_identity = unavailable_identity(observer.cp_error) if observer.cp_error else describe_car_params(observer.cp_raw)
               observer.cp_raw = None
             vehicle = {"identity_version": 1, "vehicle_identity": observer.vehicle_identity}
-          event = validate_event({"schema_version": 1, "consumer_id": observer.consumer_id,
-                                  **identity, "consumer_instance_id": observer.instance_id, **item,
-                                  **vehicle,
-                                  "source_hashes": self.hash_provider(observer.consumer_id) if self.hash_provider else self._hashes(observer.consumer_id, cache)})
+          burst = item is _PID_BURST_NOTICE
+          if burst:
+            from .pid_burst import SOURCE_PATHS, dependency_digest, validate_chunk
+            from .vehicle_identity import unavailable_identity
+            body = observer._pid_burst.drain()
+            if body is None:
+              continue
+            key = body["round_id"], body["block_id"]
+            # Only current/next fixed-size rounds are cached; old IDs are not reused.
+            observer._pid_burst_ids = {entry: value for entry, value in observer._pid_burst_ids.items() if entry[0] >= key[0] - 1}
+            if key not in observer._pid_burst_ids:
+              observer._pid_burst_ids[key] = uuid.uuid4().hex
+            burst_id = observer._pid_burst_ids[key]
+            hashes = self.hash_provider("pid_burst") if self.hash_provider else self._path_hashes(SOURCE_PATHS, cache)
+            descriptor = vehicle.get("vehicle_identity", unavailable_identity())
+            event = validate_chunk({"schema_version": 1, "event_kind": "pid_burst_chunk", "consumer_id": "controls.torque",
+                                    **identity, "consumer_instance_id": observer.instance_id, "burst_id": burst_id,
+                                    "identity_version": 1, "vehicle_identity": descriptor, "source_hashes": hashes,
+                                    "dependency_digest": dependency_digest(body["configuration"], descriptor, hashes),
+                                    "produced_mono_ns": observer.clock_ns(), **body})
+          else:
+            event = validate_event({"schema_version": 1, "consumer_id": observer.consumer_id,
+                                    **identity, "consumer_instance_id": observer.instance_id, **item,
+                                    **vehicle,
+                                    "source_hashes": self.hash_provider(observer.consumer_id) if self.hash_provider else self._hashes(observer.consumer_id, cache)})
           encoded = json.dumps(event, sort_keys=True, separators=(",", ":"), allow_nan=False).encode("utf-8")
           if len(encoded) > MAX_EVENT_BYTES:
             raise ValueError("consumer_datagram_limit")
@@ -345,8 +392,11 @@ class _Pump:
               pass
             self.sender = None
             self._sender_is_native = False
-          with observer.lock:
-            observer.dropped += 1
+          if item is _PID_BURST_NOTICE:
+            observer._pid_burst.mark_dropped("burst_transport_failed")
+          else:
+            with observer.lock:
+              observer.dropped += 1
     finally:
       if self.sender is not None:
         try:
@@ -439,3 +489,21 @@ def observe(observer, payload_factory, *, cycle_id=None, phase="sampled_use"):
         observer.lock.release()
       except Exception:
         pass
+
+
+def observe_pid_burst(observer, values, mode, *, cycle_id):
+  """No serialization, identity probes or waiting in the control thread."""
+  if observer is None:
+    return
+  try:
+    buffer = observer._pid_burst
+    if buffer is not None and buffer.capture(cycle_id, observer.clock_ns(), values, mode):
+      if not observer.pump.enqueue(observer, _PID_BURST_NOTICE):
+        buffer.mark_dropped("burst_notice_queue_full")
+  except Exception:
+    # A diagnostic failure never propagates into a control calculation.
+    try:
+      if getattr(observer, "_pid_burst", None) is not None:
+        observer._pid_burst.mark_dropped("burst_capture_failed")
+    except Exception:
+      pass

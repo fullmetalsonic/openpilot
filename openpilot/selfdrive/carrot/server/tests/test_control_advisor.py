@@ -30,6 +30,8 @@ TOKEN = "synthetic-test-token-no-real-secret-1234567890"
 class FakeController:
   def __init__(self):
     self.starts, self.stops, self.closed = [], [], False
+    self.analysis_requests = []
+    self.analysis_cuts = []
     self.snapshot = {"session_id": None, "source_mode": None, "state": "idle", "diagnostic": None,
                      "history": [], "apply_enabled": False, "recommendations_enabled": False}
 
@@ -54,6 +56,17 @@ class FakeController:
 
   async def close(self):
     self.closed = True
+
+  async def analyze(self, **body):
+    if body["session_id"] != self.snapshot["session_id"]:
+      raise SessionConflict("analysis_session_not_active")
+    self.analysis_requests.append(body)
+    from openpilot.selfdrive.carrot.control_advisor.analysis_control import initial_control
+    self.snapshot["analysis_control"] = {**initial_control(), "state": "queued", "trigger": "manual", "request_id": body["request_id"]}
+    return self.status()
+
+  async def successful_apply(self, session_id, receipt, boot_id):
+    self.analysis_cuts.append({"session_id": session_id, "receipt": deepcopy(receipt), "boot_id": boot_id})
 
 
 class RequestResolverFixture:
@@ -91,6 +104,35 @@ class RequestResolverFixture:
 
 
 class ControlAdvisorApiTests(unittest.IsolatedAsyncioTestCase):
+  async def test_manual_analysis_is_authenticated_bounded_and_returns_pollable_ack(self):
+    client, controller = await self.make_client()
+    await client.post("/api/control_advisor/start", json=self.start_body(mode="live"), headers=self.headers(client))
+    body = {"session_id": controller.status()["session_id"], "request_id": "manual-analysis"}
+    for headers in ({}, {**self.headers(client), "Origin": "http://other.invalid"}):
+      reply = await client.post("/api/control_advisor/analyze", json=body, headers=headers)
+      self.assertEqual(reply.status, 403)
+    reply = await client.post("/api/control_advisor/analyze", json={**body, "source_path": "private"}, headers=self.headers(client))
+    self.assertEqual(reply.status, 400)
+    self.assertEqual(controller.analysis_requests, [])
+    reply = await client.post("/api/control_advisor/analyze", json=body, headers=self.headers(client))
+    self.assertEqual(reply.status, 200)
+    payload = await reply.json()
+    self.assertEqual(payload["analysis_control"]["state"], "queued")
+    self.assertEqual(payload["analysis_control"], payload["session"]["analysis_control"])
+    self.assertEqual(controller.analysis_requests, [body])
+    from openpilot.selfdrive.carrot.control_advisor.goals import goal_options, PROFILE_ENV, OBJECTIVES_ENV
+    from openpilot.selfdrive.carrot.control_advisor.runtime_config import BUILTIN_PROFILE_PATH, BUILTIN_OBJECTIVES_PATH
+    controller.analysis_goal_options = lambda: goal_options({PROFILE_ENV: BUILTIN_PROFILE_PATH, OBJECTIVES_ENV: BUILTIN_OBJECTIVES_PATH})
+    goal_body = {**body, "request_id": "same-trip-new-goal", "goal_id": "fms_accel_defaults_v1"}
+    reply = await client.post("/api/control_advisor/analyze", json=goal_body, headers=self.headers(client))
+    self.assertEqual(reply.status, 200)
+    self.assertEqual((await reply.json())["session"]["session_id"], body["session_id"])
+    self.assertEqual(controller.analysis_requests[-1], goal_body)
+    reply = await client.post("/api/control_advisor/analyze", json={**goal_body, "goal_id": "unknown"}, headers=self.headers(client))
+    self.assertEqual(reply.status, 400)
+    reply = await client.post("/api/control_advisor/analyze", json={**body, "session_id": "stale"}, headers=self.headers(client))
+    self.assertEqual(reply.status, 409)
+
   async def test_request_binding_uses_owned_generation_and_settings_poll_freshness(self):
     now = [10.]
     controller = SessionController(clock=lambda: now[0])
@@ -169,6 +211,28 @@ class ControlAdvisorApiTests(unittest.IsolatedAsyncioTestCase):
     response = await client.post("/api/control_advisor/stop", json={"session_id": session["session_id"]}, headers=valid)
     self.assertEqual(200, response.status)
     self.assertEqual("stopped", (await response.json())["session"]["state"])
+
+  async def test_live_goal_selection_is_catalogued_authenticated_and_path_free(self):
+    from openpilot.selfdrive.carrot.control_advisor.goals import goal_options, PROFILE_ENV, OBJECTIVES_ENV
+    from openpilot.selfdrive.carrot.control_advisor.runtime_config import BUILTIN_PROFILE_PATH, BUILTIN_OBJECTIVES_PATH
+    client, controller = await self.make_client()
+    options = goal_options({PROFILE_ENV: BUILTIN_PROFILE_PATH, OBJECTIVES_ENV: BUILTIN_OBJECTIVES_PATH})
+    controller.analysis_goal_options = lambda: deepcopy(options)
+    response = await client.get("/api/control_advisor/status")
+    public = (await response.json())["analysis_goals"]
+    self.assertEqual(["tracking", "fms_accel_defaults_v1", "torque_pid_experiment_v1", "fms_policy_defaults_v1"], [item["id"] for item in public["options"]])
+    self.assertNotIn("profile_path", json.dumps(public))
+    for goal in ("../../other", None, "unknown"):
+      response = await client.post("/api/control_advisor/start", headers=self.headers(client),
+                                   json=self.start_body(mode="live", goal_id=goal))
+      self.assertEqual(400, response.status)
+    self.assertEqual([], controller.starts)
+    body = self.start_body(mode="live", goal_id="fms_accel_defaults_v1")
+    denied = await client.post("/api/control_advisor/start", json=body)
+    self.assertEqual(403, denied.status)
+    response = await client.post("/api/control_advisor/start", headers=self.headers(client), json=body)
+    self.assertEqual(200, response.status)
+    self.assertEqual([body], controller.starts)
 
   async def test_current_values_require_a_successful_saved_value_observation(self):
     client, controller = await self.make_client()
@@ -781,13 +845,13 @@ class ControlAdvisorApiTests(unittest.IsolatedAsyncioTestCase):
             status = await (await client.get("/api/control_advisor/status")).json()
             self.assertTrue(status["capabilities"]["control_configured"])
             self.assertEqual(not explicit_off, status["capabilities"]["live_enabled"])
-            self.assertFalse(status["native_runtime"]["analysis_configured"])
-            self.assertIn("profile_missing", status["native_runtime"]["blockers"]["analysis"])
+            self.assertTrue(status["native_runtime"]["analysis_configured"])
+            self.assertNotIn("profile_missing", status["native_runtime"]["blockers"]["analysis"])
             child = constructed[-1]["live_environment"]
             self.assertEqual(str(root / "settings"), child["CARROT_CONTROL_ADVISOR_SETTINGS_DIR"])
             self.assertEqual("0", child["CARROT_CONTROL_ADVISOR_CONSUMER_OBSERVATIONS"])
             self.assertNotIn("CARROT_CONTROL_ADVISOR_TOKEN", child)
-            self.assertNotIn("CARROT_CONTROL_ADVISOR_AUTO_ENABLED", child)
+            self.assertEqual("0", child["CARROT_CONTROL_ADVISOR_AUTO_ENABLED"])
           finally:
             await client.close()
 
@@ -806,7 +870,7 @@ class ControlAdvisorApiTests(unittest.IsolatedAsyncioTestCase):
         return {key: value[key] for key in ("target_id", "scope", "session_id", "artifact_sha256", "result_revision", "settings_revision", "dependency_digest")} | {
           "items": [{"item_key": "PathOffset", "eligible": True, "reason": None, "expected_current_raw": value["current_raw"]}]}
     provider = lambda application, token: evaluate_comparison(application, {}, comparison_profile())
-    client, _ = await self.make_client(native_runtime=fixture.runtime, request_resolver=Resolver(), request_root=str(fixture.root / "requests"),
+    client, controller = await self.make_client(native_runtime=fixture.runtime, request_resolver=Resolver(), request_root=str(fixture.root / "requests"),
       export_root="", report_directory="", auto_output_root="", comparison_provider=provider, refresh_interval=.01)
     try:
       prefix = "/api/control_advisor/vehicle/"
@@ -826,6 +890,12 @@ class ControlAdvisorApiTests(unittest.IsolatedAsyncioTestCase):
       self.assertFalse(status["request"]["consumer_observed"])
       self.assertEqual(b"20", fixture.params.values["PathOffset"])
       self.assertEqual(1, len(fixture.params.calls))
+      for _ in range(100):
+        if controller.analysis_cuts:
+          break
+        await asyncio.sleep(.01)
+      self.assertEqual(len(controller.analysis_cuts), 1)
+      self.assertEqual(controller.analysis_cuts[0]["receipt"]["stored_mono_ns"], fixture.runtime.request_receipt(body["request_id"])["stored_mono_ns"])
       repeated = await client.post("/api/control_advisor/apply-requests", json=body, headers=self.headers(client))
       self.assertEqual(202, repeated.status)
       self.assertEqual(1, len(fixture.params.calls))
@@ -839,6 +909,7 @@ class ControlAdvisorApiTests(unittest.IsolatedAsyncioTestCase):
       retried = await client.post(prefix + "restore", json=restore_body, headers=self.headers(client))
       self.assertEqual(200, retried.status)
       self.assertEqual(2, len(fixture.params.calls))
+      self.assertEqual(len(controller.analysis_cuts), 1)  # Restore never starts a new recommendation range.
       second_body = {**fixture.body(), "request_id": "native-second-request"}
       submitted = await client.post("/api/control_advisor/apply-requests", json=second_body, headers=self.headers(client))
       self.assertEqual(202, submitted.status)

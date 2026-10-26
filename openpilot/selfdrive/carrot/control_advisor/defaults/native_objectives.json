@@ -1,0 +1,44 @@
+{
+  "schema_version": 1,
+  "analysis_profile": {
+    "profile_id": "native-control-mask-host-unqualified-v1",
+    "pre_margin_ns": 100000000,
+    "recovery_ns": 2000000000,
+    "max_gap_ns": 250000000,
+    "dependency_ns": 100000000,
+    "max_samples": 100000
+  },
+  "objectives": {
+    "LateralTorqueAccelFactor": {
+      "id": "native-measured-lateral-accel-v1",
+      "kind": "tracking",
+      "reference": {
+        "type": "recorded_signal",
+        "signal": "lateral_accel_independent",
+        "unit": "m/s^2"
+      }
+    },
+    "SteerRatioRate": {
+      "id": "native-measured-curvature-v1",
+      "kind": "geometry_reference",
+      "reference": {
+        "type": "recorded_signal",
+        "signal": "curvature_independent",
+        "unit": "1/m"
+      }
+    },
+    "CustomSR": {
+      "id": "native-measured-curvature-v1",
+      "kind": "geometry_reference",
+      "reference": {
+        "type": "recorded_signal",
+        "signal": "curvature_independent",
+        "unit": "1/m"
+      }
+    }
+  },
+  "sampling": {
+    "version": "native_static_response_5hz_v1",
+    "period_ns": 200000000
+  }
+}

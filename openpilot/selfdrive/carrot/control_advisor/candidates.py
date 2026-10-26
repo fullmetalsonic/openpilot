@@ -7,12 +7,14 @@ only the requested split, and holdout data cannot choose a second candidate.
 from __future__ import annotations
 
 import copy
+import base64
 from bisect import bisect_left, bisect_right
 import hashlib
 import importlib
 import json
 import math
 import re
+import zlib
 
 from .registry import load_registry
 
@@ -22,8 +24,263 @@ _SHA = re.compile(r"^[0-9a-f]{64}$")
 _KINDS = {"static_formula", "frozen_input_replay", "closed_loop_model"}
 _STATES = {"raw_estimate", "search_candidate", "keep_current", "blocked", "unsupported"}
 _CONTEXT_ONLY = {"LateralTorqueCustom", "NNFF", "NNFFLite", "LatMpcInputOffset"}
+_PID_KEYS = {"LateralTorqueKpV", "LateralTorqueKiV", "LateralTorqueKf"}
+_POLICY_METHOD = "fms_policy_state_conditioned_one_step_v1"
+_PROJECTION_METHOD = "fms_frozen_longitudinal_plan_projection_v1"
+
+
+def source_collection(value):
+  """An explicit collection artifact, not a raw-log artifact with enlarged limits."""
+  if type(value) is not dict or set(value) != {"version", "sources"} or value["version"] != 1:
+    raise ValueError("invalid_source_collection")
+  rows = value["sources"]
+  if type(rows) is not list or not 1 <= len(rows) <= 128:
+    raise ValueError("source_collection_count_limit")
+  seen, total = set(), 0
+  for row in rows:
+    if type(row) is not dict or set(row) != {"id", "sha256", "bytes"}:
+      raise ValueError("invalid_source_collection_member")
+    _identifier(row["id"])
+    _sha(row["sha256"])
+    _integer(row["bytes"], 1, 512 * 1024 * 1024)
+    if row["id"] in seen:
+      raise ValueError("duplicate_source_collection_member")
+    seen.add(row["id"])
+    total += row["bytes"]
+  if total > 512 * 1024 * 1024:
+    raise ValueError("source_collection_byte_limit")
+  return hashlib.sha256(json.dumps(value, sort_keys=True, separators=(",", ":"), allow_nan=False).encode()).hexdigest()
+
+
+def encode_consumer_evidence(events):
+  """Lossless wire packing of the same bounded v1 consumer evidence."""
+  if type(events) is not list or not 1 <= len(events) <= 2048:
+    raise ValueError("consumer_evidence_budget_exceeded")
+  payload = json.dumps(events, sort_keys=True, separators=(",", ":"), allow_nan=False).encode()
+  if len(payload) > 16 * 1024 * 1024:
+    raise ValueError("consumer_evidence_decoded_budget")
+  return {"version": 1, "encoding": "canonical_json_zlib_base64", "event_count": len(events),
+          "decoded_bytes": len(payload), "sha256": hashlib.sha256(payload).hexdigest(),
+          "payload": base64.b64encode(zlib.compress(payload)).decode("ascii")}
+
+
+def consumer_events(pack):
+  raw = pack["consumer_evidence"]
+  if "consumer_evidence_block" not in pack:
+    return raw
+  if raw != []:
+    raise ValueError("ambiguous_consumer_evidence")
+  block = pack["consumer_evidence_block"]
+  _keys(block, {"version", "encoding", "event_count", "decoded_bytes", "sha256", "payload"})
+  if type(block["version"]) is not int or block["version"] != 1 or block["encoding"] != "canonical_json_zlib_base64":
+    raise ValueError("invalid_consumer_evidence_encoding")
+  _integer(block["event_count"], 1, 2048)
+  _integer(block["decoded_bytes"], 1, 16 * 1024 * 1024)
+  _sha(block["sha256"])
+  if type(block["payload"]) is not str or len(block["payload"]) > 4 * 1024 * 1024:
+    raise ValueError("consumer_evidence_wire_budget")
+  try:
+    compressed = base64.b64decode(block["payload"], validate=True)
+    decoder = zlib.decompressobj()
+    decoded = decoder.decompress(compressed, block["decoded_bytes"] + 1)
+    if (not decoder.eof or decoder.unconsumed_tail or decoder.unused_data
+        or len(decoded) != block["decoded_bytes"] or hashlib.sha256(decoded).hexdigest() != block["sha256"]):
+      raise ValueError("consumer_evidence_payload_mismatch")
+    from .settings_history import _unique
+    events = json.loads(decoded.decode("utf8"), object_pairs_hook=_unique,
+      parse_constant=lambda _: (_ for _ in ()).throw(ValueError("nonfinite_consumer_evidence")))
+    if type(events) is not list or len(events) != block["event_count"]:
+      raise ValueError("consumer_evidence_count_mismatch")
+    if json.dumps(events, sort_keys=True, separators=(",", ":"), allow_nan=False).encode() != decoded:
+      raise ValueError("noncanonical_consumer_evidence")
+  except (zlib.error, UnicodeError, TypeError) as error:
+    raise ValueError("invalid_consumer_evidence_payload") from error
+  return events
+
+
+def _policy_capability(key, objective):
+  if objective.get("method_id") not in {_POLICY_METHOD, _PROJECTION_METHOD}:
+    return None
+  from .policy_observations import policy_capabilities, projection_capabilities
+  return (policy_capabilities() if objective["method_id"] == _POLICY_METHOD else projection_capabilities()).get(key)
+
+
+def _policy_observations(pack, row, profile, projection=False):
+  """Bind typed points to their original consumer event, never a held copy."""
+  points = ({"frozen_plan_projection": row["projection_observation"]} if "projection_observation" in row else {}) if projection else row.get("policy_observations", {})
+  if type(points) is not dict or len(points) > 6:
+    raise ValueError("invalid_policy_observations")
+  if not points:
+    return {}
+  from .policy_observations import extract_policy_points, validate_policy_point, extract_projection_point, validate_projection_point
+  from .consumer_observer import validate_event
+  events = {_digest(event): event for event in consumer_events(pack)}
+  result = {}
+  for family, wrapper in points.items():
+    _keys(wrapper, {"consumer_event_sha256", "point"})
+    point = (validate_projection_point if projection else validate_policy_point)(wrapper["point"])
+    if not projection and point["family"] != family:
+      raise ValueError("policy_family_mismatch")
+    digest = wrapper["consumer_event_sha256"]
+    if digest is None and pack["source_kind"] == "synthetic" and pack["epoch"]["completeness"] == "fixture":
+      result[family] = copy.deepcopy(wrapper)
+      continue
+    _sha(digest)
+    event = validate_event(events[digest]) if digest in events else None
+    if (event is None or (extract_projection_point(event) if projection else extract_policy_points(event).get(family)) != point
+        or event["boot_id"] != pack["epoch"].get("boot_id")
+        or not 0 <= row["mono_ns"] - event["produced_mono_ns"] <= profile["max_lag_ns"]):
+      raise ValueError("policy_event_unlinked")
+    identity = pack["vehicle_context"].get("context", {}).get("vehicle_identity", {})
+    observed = event.get("vehicle_identity", {})
+    if (identity.get("state") != "observed" or observed.get("state") != "observed"
+        or observed.get("config_sha256") != identity.get("config_sha256")):
+      raise ValueError("policy_vehicle_unlinked")
+    result[family] = copy.deepcopy(wrapper)
+  return result
+
+
+def _pid_use_receipt(pack, trace):
+  header, rows = trace["header"], trace["rows"]
+  settings = pack["epoch"]["settings_raw"]
+  keys = (*sorted(_PID_KEYS), "LateralTorqueCustom", "LateralTorqueAccelFactor", "LateralTorqueFriction")
+  return {"version": 1, "kind": "continuous_effective_pid_use_v1", "epoch_id": pack["epoch"]["id"],
+          "dependency_digest": header["dependency_digest"], "settings_raw": {key: settings.get(key) for key in keys},
+          "first_frame": rows[0][0], "last_frame": rows[-1][0], "row_count": len(rows),
+          "consumer_application_ack": False, "parameter_application_ack": False}
+
+
+def _pid_traces(pack, profile):
+  """Validate dense native trace payloads without expanding or reading files."""
+  traces = pack.get("pid_trace_blocks", [])
+  if type(traces) is not list or len(traces) > min(64, profile["max_blocks"]):
+    raise ValueError("invalid_pid_trace_blocks")
+  if not traces:
+    return []
+  from .pid_burst import COLUMNS, MAX_BLOCK_ROWS, MAX_ROUND_ROWS, STEP_NS, validate_header, validate_reference
+  blocks = {block["id"]: block for block in pack["blocks"]}
+  settings = pack["epoch"]["settings_raw"]
+  identity = pack["vehicle_context"].get("context", {}).get("vehicle_identity", {})
+  source_ids = {item["id"] for item in pack.get("source_collection", {}).get("sources", pack["artifacts"])}
+  seen, total = set(), 0
+  canonical = []
+  for trace in traces:
+    _keys(trace, {"id", "block_id", "header", "rows", "joins", "join_sources", "chunk_refs", "use_receipt"})
+    _identifier(trace["id"])
+    if trace["id"] in seen or trace["block_id"] not in blocks:
+      raise ValueError("pid_trace_block_unlinked")
+    seen.add(trace["id"])
+    block = blocks[trace["block_id"]]
+    header = validate_header(trace["header"], require_verified=True)
+    config = header["configuration"]
+    if (header["boot_id"] != pack["epoch"].get("boot_id") or header["step_ns"] != STEP_NS
+        or identity.get("state") != "observed" or header["vehicle_identity"].get("config_sha256") != identity.get("config_sha256")
+        or config["pid_source"] != "stored" or config["torque_source"] != "stored"
+        or config["torque_custom_mode"] != settings.get("LateralTorqueCustom")
+        or config["torque_custom_mode"] <= 0 or config["nnff"] or config["nnff_lite"]
+        or config["torque_ff_path"] != "linear_standard"):
+      raise ValueError("pid_effective_use_unlinked")
+    expected = {"effective_kp": settings.get("LateralTorqueKpV"), "effective_ki": settings.get("LateralTorqueKiV"),
+                "effective_kf": settings.get("LateralTorqueKf"), "factor": settings.get("LateralTorqueAccelFactor"),
+                "friction": settings.get("LateralTorqueFriction")}
+    for name, raw in expected.items():
+      scale = .001 if name in {"factor", "friction"} else .01
+      if type(raw) is not int or abs(config[name] - raw * scale) > 1e-9:
+        raise ValueError("pid_effective_raw_mismatch")
+    for name, digest in header["source_hashes"].items():
+      if digest is None or pack["vehicle_context"]["code_hashes"].get(name) != digest:
+        raise ValueError("pid_trace_source_unlinked")
+    sources = trace["join_sources"]
+    if type(sources) is not list or not 1 <= len(sources) <= 32 or len(set(sources)) != len(sources) or set(sources) - source_ids:
+      raise ValueError("pid_join_sources_unlinked")
+    rows, joins = trace["rows"], trace["joins"]
+    if type(rows) is not list or not 1 <= len(rows) <= MAX_BLOCK_ROWS or type(joins) is not list or len(joins) != len(rows):
+      raise ValueError("invalid_pid_dense_rows")
+    total += len(rows)
+    if total > min(MAX_ROUND_ROWS, profile["max_rows"]):
+      raise ValueError("pid_trace_row_budget")
+    previous = None
+    signature = [config[name] for name in ("effective_kp", "effective_ki", "effective_kf", "factor", "friction")]
+    for row, join in zip(rows, joins):
+      if type(row) is not list or len(row) != len(COLUMNS) + 2 or type(join) is not list or len(join) != 7:
+        raise ValueError("invalid_pid_dense_row")
+      frame, stamp = _integer(row[0]), _integer(row[1], block["start_ns"], block["finalized_through_ns"])
+      if previous is not None and (frame != previous[0] + 1 or abs(stamp - previous[1] - STEP_NS) > 3_000_000):
+        raise ValueError("pid_trace_discontinuous")
+      previous = frame, stamp
+      for value in row[2:]:
+        _number(value)
+      if any(type(value) is not int or value not in (0, 1) for value in row[23:27]) or row[18:23] != signature:
+        raise ValueError("pid_trace_configuration_changed")
+      _number(join[0])
+      _number(join[2])
+      for stamp_index in (1, 3, 4):
+        _integer(join[stamp_index], 0, stamp)
+      for source_index in (5, 6):
+        _integer(join[source_index], 0, len(sources) - 1)
+      if join[4] < join[3]:
+        raise ValueError("pid_pose_clock_invalid")
+    references = trace["chunk_refs"]
+    if type(references) is not list or not references or len(references) > 256:
+      raise ValueError("invalid_pid_trace_references")
+    refs = [validate_reference(item) for item in references]
+    terminal_only = (len(refs) > 1 and refs[-1]["frame_start"] == refs[-1]["frame_end"] == rows[-1][0] + 1
+                     and refs[-2]["frame_end"] == rows[-1][0])
+    if (any(item["burst_id"] != trace["id"] or item["dependency_digest"] != header["dependency_digest"] for item in refs)
+        or refs[0]["chunk_sequence"] != 0 or not refs[-1]["terminal"]
+        or [item["chunk_sequence"] for item in refs] != list(range(len(refs)))
+        or rows[0][0] != refs[0]["frame_start"] or rows[-1][0] != refs[-1]["frame_end"] and not terminal_only):
+      raise ValueError("pid_trace_receipt_incomplete")
+    if trace["use_receipt"] != _pid_use_receipt(pack, trace):
+      raise ValueError("invalid_pid_effective_use_receipt")
+    canonical.append(trace)
+  return canonical
+
+
+def _pid_records(pack, profile, objective):
+  from .pid_burst import COLUMNS
+  from .candidate_pid import REQUIRED_SIGNALS
+  result = {split: [] for split in ("fit", "select", "holdout")}
+  counts = {"excluded": 0, "provisional": 0, "missing": 0, "missing_fit": 0}
+  memberships = {block: split for split, blocks in pack["splits"].items() for block in blocks}
+  blocks = {block["id"]: block for block in pack["blocks"]}
+  margin = profile["dependency_margin_ns"]
+  for trace in _pid_traces(pack, profile):
+    block = blocks[trace["block_id"]]
+    split = memberships[trace["block_id"]]
+    if trace["rows"][0][1] < block["start_ns"] + margin or trace["rows"][-1][1] > block["finalized_through_ns"] - margin:
+      counts["provisional"] += len(trace["rows"])
+      continue
+    excluded = [row["mono_ns"] for row in block["samples"] if row["excluded_reasons"]]
+    index = bisect_left(excluded, trace["rows"][0][1] - margin)
+    if index < len(excluded) and excluded[index] <= trace["rows"][-1][1] + margin:
+      counts["excluded"] += len(trace["rows"])
+      continue
+    for dense, join in zip(trace["rows"], trace["joins"]):
+      frame, stamp = dense[:2]
+      values = dict(zip(COLUMNS, dense[2:]))
+      values.update(pid_frame=frame, sent_torque_raw=join[0], lateral_accel_kinematic=join[2])
+      signals = {name: {"value": value, "unit": REQUIRED_SIGNALS[name],
+                        "source": "controller_target" if name == "desired_lateral_accel" else "controller_trace",
+                        "source_mono_ns": stamp} for name, value in values.items()}
+      signals["sent_torque_raw"].update(source="controller_output", source_mono_ns=join[1])
+      signals["lateral_accel_kinematic"].update(source="independent_measurement", source_mono_ns=join[3])
+      if any(stamp - signal["source_mono_ns"] > profile["max_lag_ns"] or signal["source_mono_ns"] < block["start_ns"] + margin
+             for signal in signals.values()):
+        counts["missing"] += 1
+        counts["missing_fit"] += int(split == "fit")
+        continue
+      reference = signals.get(objective["reference_signal"])
+      if reference is None or reference["source"] != objective["source"]:
+        counts["missing"] += 1
+        counts["missing_fit"] += int(split == "fit")
+        continue
+      result[split].append({"block_id": trace["id"], "route_id": block["route_id"], "mono_ns": stamp,
+                            "signals": signals, "reference": reference["value"]})
+  return result, counts
 _MODE_SENTINELS = {"SteerActuatorDelay": {0}, **{f"LeadAccelResponseTF{i}": {-1} for i in range(1, 5)}}
 _METRIC_KEYS = {"rows", "blocks", "rmse", "max_absolute_error", "max_absolute_prediction", "trace_digest"}
+_SUPPORT_REASONS = {"recorded_reference_unlinked", "recorded_dependency_unavailable", "factor_mapping_unverified"}
 
 
 def _keys(value, required, optional=()):
@@ -115,7 +372,7 @@ def _profile(profile):
   _keys(profile, {"profile_id", "version", "status", "scope", "allowed_source_kinds", "max_rows", "max_blocks",
                   "max_candidates_per_key", "max_evaluations", "max_lag_ns", "dependency_margin_ns",
                   "min_blocks_per_split", "min_samples_per_split", "minimum_improvement", "guard_tolerances",
-                  "raw_step_policy", "per_key_change_limits", "device_qualified"}, {"method_options"})
+                  "raw_step_policy", "per_key_change_limits", "device_qualified"}, {"method_options", "change_limit_policy"})
   _identifier(profile["profile_id"])
   _integer(profile["version"], 1)
   if profile["status"] not in {"synthetic_only", "not_validated"} or profile["scope"] != "host_unqualified" or profile["device_qualified"] is not False:
@@ -131,6 +388,9 @@ def _profile(profile):
   _number(profile["minimum_improvement"], 0)
   if profile["raw_step_policy"] != "ui_step":
     raise ValueError("raw_step_policy_unsupported")
+  policy = profile.get("change_limit_policy", "explicit_limits")
+  if type(policy) is not str or policy not in {"explicit_limits", "manual_experiment"}:
+    raise ValueError("invalid_change_limit_policy")
   known = {item["key"] for item in load_registry()["items"]}
   limits = profile["per_key_change_limits"]
   if limits is not None:
@@ -142,6 +402,10 @@ def _profile(profile):
   if type(guards) is not dict or set(guards) - known:
     raise ValueError("invalid_guard_tolerances")
   for value in guards.values():
+    if type(value) is dict and set(value) == {"mode"}:
+      if type(value["mode"]) is not str or value["mode"] != "baseline_bounded":
+        raise ValueError("invalid_guard_tolerances")
+      continue
     _keys(value, {"max_absolute_error", "max_absolute_prediction"})
     for number in value.values():
       _number(number, 0)
@@ -153,7 +417,7 @@ def _profile(profile):
 
 def _evidence(pack, profile):
   _keys(pack, {"schema_version", "source_kind", "evidence_id", "artifacts", "vehicle_context", "epoch", "splits", "blocks",
-               "consumer_evidence", "objectives", "model_artifact"})
+               "consumer_evidence", "objectives", "model_artifact"}, {"pid_trace_blocks", "consumer_evidence_block", "source_collection"})
   if pack["schema_version"] != 1 or type(pack["schema_version"]) is not int or pack["source_kind"] not in {"synthetic", "recorded"}:
     raise ValueError("invalid_evidence_version_or_source")
   _identifier(pack["evidence_id"])
@@ -167,6 +431,10 @@ def _evidence(pack, profile):
     if artifact["id"] in seen:
       raise ValueError("duplicate_artifact_id")
     seen.add(artifact["id"])
+  if "source_collection" in pack:
+    digest = source_collection(pack["source_collection"])
+    if pack["artifacts"] != [{"id": "collection-" + digest[:16], "sha256": digest}]:
+      raise ValueError("source_collection_artifact_mismatch")
   vehicle = pack["vehicle_context"]
   _keys(vehicle, {"brand", "controller_path", "mode", "code_hashes"}, {"context"})
   for key in ("brand", "controller_path", "mode"):
@@ -174,7 +442,11 @@ def _evidence(pack, profile):
   if type(vehicle["code_hashes"]) is not dict or not 1 <= len(vehicle["code_hashes"]) <= 32:
     raise ValueError("invalid_code_provenance")
   for path, sha in vehicle["code_hashes"].items():
-    if type(path) is not str or len(path) > 180 or not path.startswith("openpilot/") or ".." in path or "\\" in path:
+    pid_source = False
+    if "pid_trace_blocks" in pack:
+      from .pid_burst import SOURCE_PATHS
+      pid_source = path in SOURCE_PATHS
+    if type(path) is not str or len(path) > 180 or not (path.startswith("openpilot/") or pid_source) or ".." in path or "\\" in path:
       raise ValueError("invalid_code_path")
     _sha(sha)
   _small_tree(vehicle.get("context", {}))
@@ -187,7 +459,8 @@ def _evidence(pack, profile):
     raise ValueError("invalid_epoch_completeness")
   if epoch.get("boot_id") is not None:
     _identifier(epoch["boot_id"])
-  known = {item["key"] for item in load_registry()["items"]}
+  catalog = {item["key"]: item for item in load_registry()["items"]}
+  known = set(catalog)
   if type(epoch["settings_raw"]) is not dict or set(epoch["settings_raw"]) - known:
     raise ValueError("invalid_raw_settings")
   for raw in epoch["settings_raw"].values():
@@ -227,7 +500,7 @@ def _evidence(pack, profile):
       raise ValueError("sample_budget_exceeded")
     previous = -1
     for row in block["samples"]:
-      _keys(row, {"mono_ns", "signals", "excluded_reasons"})
+      _keys(row, {"mono_ns", "signals", "excluded_reasons"}, {"unavailable_for", "policy_observations", "projection_observation"})
       _integer(row["mono_ns"], block["start_ns"], block["end_ns"])
       if row["mono_ns"] <= previous:
         raise ValueError("nonmonotonic_or_duplicate_sample")
@@ -236,6 +509,14 @@ def _evidence(pack, profile):
         raise ValueError("invalid_exclusion_reasons")
       for reason in row["excluded_reasons"]:
         _identifier(reason)
+      unavailable = row.get("unavailable_for", {})
+      if type(unavailable) is not dict or len(unavailable) > len(known) or set(unavailable) - known:
+        raise ValueError("invalid_key_availability")
+      for reasons in unavailable.values():
+        if (type(reasons) is not list or not 1 <= len(reasons) <= len(_SUPPORT_REASONS)
+            or any(type(reason) is not str or reason not in _SUPPORT_REASONS for reason in reasons)
+            or len(set(reasons)) != len(reasons)):
+          raise ValueError("invalid_key_availability_reason")
       if type(row["signals"]) is not dict or len(row["signals"]) > 64:
         raise ValueError("signal_budget_exceeded")
       for name, signal in row["signals"].items():
@@ -247,6 +528,8 @@ def _evidence(pack, profile):
         if pack["source_kind"] == "recorded" and signal["source"] == "synthetic_truth":
           raise ValueError("recorded_signal_is_synthetic")
         _integer(signal["source_mono_ns"], 0, row["mono_ns"])
+      _policy_observations(pack, row, profile)
+      _policy_observations(pack, row, profile, True)
   if ids != set(memberships):
     raise ValueError("missing_split_block")
   margin = profile["dependency_margin_ns"]
@@ -254,20 +537,32 @@ def _evidence(pack, profile):
                     for index, a in enumerate(ranges) for b in ranges[index + 1:])
   if type(pack["objectives"]) is not dict or set(pack["objectives"]) - known:
     raise ValueError("invalid_objectives")
-  for objective in pack["objectives"].values():
-    _keys(objective, {"id", "kind", "source", "unit", "reference_signal"})
+  for item_key, objective in pack["objectives"].items():
+    _keys(objective, {"id", "kind", "source", "unit", "reference_signal"}, {"target_raw", "method_id"})
     for key in ("id", "unit", "reference_signal"):
       _identifier(objective[key])
-    if objective["kind"] not in {"tracking", "policy_reference", "geometry_reference"} or objective["source"] not in {"independent_measurement", "user_specified", "synthetic_truth"}:
+    pid_target = (item_key in _PID_KEYS and pack["source_kind"] == "recorded"
+                  and objective["kind"] == "tracking" and objective["reference_signal"] == "desired_lateral_accel"
+                  and objective["source"] == "controller_target")
+    if (objective["kind"] not in {"tracking", "policy_reference", "geometry_reference"}
+        or objective["source"] not in {"independent_measurement", "user_specified", "synthetic_truth"} and not pid_target):
       raise ValueError("objective_not_independent")
+    if "method_id" in objective:
+      if (objective["method_id"] not in {_POLICY_METHOD, _PROJECTION_METHOD} or objective["kind"] != "policy_reference"
+          or objective["source"] != "user_specified" or _policy_capability(item_key, objective) is None):
+        raise ValueError("invalid_objective_method")
     if pack["source_kind"] == "recorded" and objective["source"] == "synthetic_truth":
       raise ValueError("recorded_objective_is_synthetic")
-  if type(pack["consumer_evidence"]) is not list or len(pack["consumer_evidence"]) > 2048:
+    if "target_raw" in objective:
+      ui = catalog[item_key]["ui"]
+      _integer(objective["target_raw"], ui["min"], ui["max"])
+  events = consumer_events(pack)
+  if type(events) is not list or len(events) > 2048:
     raise ValueError("consumer_evidence_budget_exceeded")
   from .consumer_observer import validate_event
   consumer_sequences = {}
   consumer_times = {}
-  for event in pack["consumer_evidence"]:
+  for event in events:
     validate_event(event)
     identity = (event["consumer_id"], event["boot_id"], event["pid"], event["process_instance_id"], event["consumer_instance_id"])
     previous = consumer_sequences.get(identity)
@@ -288,24 +583,41 @@ def _evidence(pack, profile):
     for key in ("fit_blocks", "validation_blocks"):
       if type(model[key]) is not list or len(model[key]) > profile["max_blocks"] or set(model[key]) - ids:
         raise ValueError("invalid_model_blocks")
+  _pid_traces(pack, profile)
   return independent
 
 
-def _records(pack, profile, objective, required):
+def _records(pack, profile, objective, required, item_key=None):
+  if item_key in _PID_KEYS and "pid_trace_blocks" in pack:
+    return _pid_records(pack, profile, objective)
   result = {split: [] for split in ("fit", "select", "holdout")}
   counts = {"excluded": 0, "provisional": 0, "missing": 0, "missing_fit": 0}
   margin = profile["dependency_margin_ns"]
+  policy = _policy_capability(item_key, objective)
+  policy_seen = set()
+  if policy is not None:
+    from .policy_observations import policy_family_for_key
+    policy_family = "frozen_plan_projection" if objective["method_id"] == _PROJECTION_METHOD else policy_family_for_key(item_key)
   for block in pack["blocks"]:
     split = next(split for split in result if block["id"] in pack["splits"][split])
     excluded = [row["mono_ns"] for row in block["samples"] if row["excluded_reasons"]]
     for row in block["samples"]:
       stamp = row["mono_ns"]
+      # Generated support exclusions are per parameter and already cover their
+      # source dependency. Missing unmarked signals still fail the old contract.
+      if item_key in row.get("unavailable_for", {}):
+        counts["excluded"] += 1
+        continue
       near = bisect_left(excluded, stamp - margin)
       if row["excluded_reasons"] or (near < len(excluded) and excluded[near] <= stamp + margin):
         counts["excluded"] += 1
         continue
       if stamp < block["start_ns"] + margin or stamp > block["finalized_through_ns"] - margin:
         counts["provisional"] += 1
+        continue
+      wrapper = _policy_observations(pack, row, profile, objective["method_id"] == _PROJECTION_METHOD).get(policy_family) if policy is not None else None
+      if policy is not None and wrapper is None:
+        counts["excluded"] += 1
         continue
       needed = dict(required)
       needed[objective["reference_signal"]] = objective["unit"]
@@ -328,18 +640,40 @@ def _records(pack, profile, objective, required):
         counts["missing"] += 1
         counts["missing_fit"] += int(split == "fit")
         continue
-      result[split].append({"block_id": block["id"], "route_id": block["route_id"], "mono_ns": stamp,
-                            "signals": {name: copy.deepcopy(signals[name]) for name in needed}, "reference": reference["value"]})
+      record = {"block_id": block["id"], "route_id": block["route_id"], "mono_ns": stamp,
+                "signals": {name: copy.deepcopy(signals[name]) for name in needed}, "reference": reference["value"]}
+      if policy is not None:
+        token = wrapper["consumer_event_sha256"] or (block["id"], stamp)
+        if token in policy_seen:
+          counts["excluded"] += 1
+          continue
+        policy_seen.add(token)
+        record["projection_observation" if objective["method_id"] == _PROJECTION_METHOD else "policy_observation"] = copy.deepcopy(wrapper["point"])
+      result[split].append(record)
   return result, counts
 
 
-def _context(pack, records, objective, split):
+def _fit_context(value, key):
+  if key in _PID_KEYS:
+    from .candidate_pid import validate_fit_context
+    return validate_fit_context(value)
+  if key != "LateralTorqueAccelFactor":
+    raise ValueError("unsupported_fit_context")
+  _keys(value, {"lateral_accel_offset"})
+  _number(value["lateral_accel_offset"])
+  return copy.deepcopy(value)
+
+
+def _context(pack, records, objective, split, fit_context=None):
   # Full source metadata never includes held-out sample values in an engine call.
   metadata = {key: copy.deepcopy(pack[key]) for key in ("source_kind", "evidence_id", "artifacts", "vehicle_context", "epoch")}
   selected = {name: copy.deepcopy(rows) if name == split else [] for name, rows in records.items()}
-  return {"evidence": metadata, "settings_raw": copy.deepcopy(pack["epoch"]["settings_raw"]),
+  result = {"evidence": metadata, "settings_raw": copy.deepcopy(pack["epoch"]["settings_raw"]),
           "dependencies": copy.deepcopy(pack["epoch"]["dependencies"]), "vehicle_context": copy.deepcopy(pack["vehicle_context"]),
           "records": selected, "objective": copy.deepcopy(objective)}
+  if fit_context is not None:
+    result["fit_context"] = copy.deepcopy(fit_context)
+  return result
 
 
 def _metric(evaluation, rows, expected_kind):
@@ -374,10 +708,16 @@ def _consumer_gate(pack, profile, item, records):
     return ([], []) if pack["epoch"]["completeness"] == "fixture" else (["synthetic_epoch_not_fixture"], [])
   if pack["epoch"]["completeness"] != "observed" or not pack["epoch"].get("boot_id"):
     return ["consumer_identity_or_epoch_unknown"], []
+  if item["key"] in _PID_KEYS and pack.get("pid_trace_blocks"):
+    # The strict trace validator proves actual gains and source flags on every
+    # cycle. A sampled 1Hz consumer event cannot stand in for this receipt.
+    traces = _pid_traces(pack, profile)
+    if traces and all(records.values()):
+      return [], ["controls.torque"]
   from .consumer_observer import consumer_ids_for_key
   timelines = {}
   raw = pack["epoch"]["settings_raw"].get(item["key"])
-  for event in pack["consumer_evidence"]:
+  for event in consumer_events(pack):
     if event["consumer_id"] not in consumer_ids_for_key(item["key"]):
       continue
     timeline = timelines.setdefault(event["consumer_id"], [])
@@ -441,7 +781,7 @@ def evaluate_candidates(evidence: dict, profile: dict) -> dict:
                            "source_verification": "declared_input_only"}, "items": []}
   for item in load_registry()["items"]:
     key, axis = item["key"], item["axis"]
-    cap = caps[axis].get(key, {})
+    cap = _policy_capability(key, evidence["objectives"].get(key, {})) or caps[axis].get(key, {})
     current = evidence["epoch"]["settings_raw"].get(key)
     row = {"key": key, "axis": axis, "family": item["family"], "status": "blocked", "current_raw": current,
            "current_physical": _physical(item, current), "candidate_raw": None, "candidate_physical": None,
@@ -453,8 +793,16 @@ def evaluate_candidates(evidence: dict, profile: dict) -> dict:
                           "independent_route_reproduced": False, "device_qualified": False}, "reason_codes": [],
            "provenance": {"epoch_id": evidence["epoch"]["id"], "objective_id": None, "consumer_ids": [], "excluded_rows": 0, "provisional_rows": 0}}
     report["items"].append(row)
+    if cap.get("method_id") in {_POLICY_METHOD, _PROJECTION_METHOD}:
+      row["provenance"].update(evaluation_scope="frozen_plan_projection" if cap["method_id"] == _PROJECTION_METHOD else "one_cycle_policy_effect", trajectory_prediction=False,
+                               plant_improvement_proven=False)
+    elif key in _PID_KEYS and cap.get("backend") != "unavailable":
+      row["provenance"].update(evaluation_scope="observational_pid_model", candidate_semantics="manual_experiment",
+                               model_provenance="observational_model", causal_improvement_proven=False,
+                               plant_improvement_proven=False)
+    persistent_reasons = []
     def block(*reasons):
-      row["reason_codes"] = list(dict.fromkeys(reasons))[:24]
+      row["reason_codes"] = list(dict.fromkeys([*reasons, *persistent_reasons]))[:24]
     if key in _CONTEXT_ONLY:
       row["status"] = "unsupported"
       block("context_only_no_automatic_mode_switch")
@@ -486,7 +834,7 @@ def evaluate_candidates(evidence: dict, profile: dict) -> dict:
     if not independent:
       block("split_dependency_overlap")
       continue
-    records, counts = _records(evidence, profile, objective, cap.get("required_signals", {}))
+    records, counts = _records(evidence, profile, objective, cap.get("required_signals", {}), key)
     row["provenance"].update(excluded_rows=counts["excluded"], provisional_rows=counts["provisional"])
     if counts["missing_fit"]:
       block("missing_stale_or_mismatched_signal_units")
@@ -508,7 +856,7 @@ def evaluate_candidates(evidence: dict, profile: dict) -> dict:
       engine_profile["parameter"] = {"key": key, "current_raw": current, **ui, "raw_scale": item["raw_scale"],
                                      "max_delta_raw": (profile["per_key_change_limits"] or {}).get(key)}
       proposal = engine.propose_family(key, _context(evidence, records, objective, "fit"), engine_profile)
-      _keys(proposal, {"raw_estimate", "candidate_raw_values", "method_id", "reason_codes"})
+      _keys(proposal, {"raw_estimate", "candidate_raw_values", "method_id", "reason_codes"}, {"fit_context"})
       if proposal["method_id"] != row["method_id"]:
         raise ValueError("proposal_method_changed")
       if proposal["raw_estimate"] is not None:
@@ -521,6 +869,14 @@ def evaluate_candidates(evidence: dict, profile: dict) -> dict:
       if proposal["reason_codes"]:
         block(*proposal["reason_codes"])
         continue
+      fit_context = _fit_context(proposal["fit_context"], key) if "fit_context" in proposal else None
+      options = profile.get("method_options", {}).get(key, {})
+      expects_fit_context = (key in _PID_KEYS or key == "LateralTorqueAccelFactor"
+                             and type(options) is dict and options.get("offset_policy") == "fit_intercept")
+      if expects_fit_context != (fit_context is not None):
+        raise ValueError("proposal_fit_context_mismatch")
+      if fit_context is not None:
+        row["provenance"]["fit_context"] = copy.deepcopy(fit_context)
       if cap.get("backend") in {"raw_proxy_only", "raw_delay_only"}:
         block(*(cap.get("reason_codes") or ["diagnostic_proxy_only"]))
         continue
@@ -535,33 +891,85 @@ def evaluate_candidates(evidence: dict, profile: dict) -> dict:
         raise ValueError("candidate_budget_exceeded")
       limits = profile["per_key_change_limits"]
       guard = profile["guard_tolerances"].get(key)
-      if limits is None or key not in limits:
+      has_limit = limits is not None and key in limits
+      manual_no_limit = profile.get("change_limit_policy", "explicit_limits") == "manual_experiment" and not has_limit
+      if not has_limit and not manual_no_limit:
         block("single_change_limit_missing")
         continue
+      pid_grid = (key in _PID_KEYS and proposal["method_id"] == "linear_torque_pid_observational_ensemble_v1"
+                  and fit_context is not None and fit_context.get("kind") == "observational_pid_ensemble_v1")
+      if manual_no_limit:
+        persistent_reasons.append("manual_experiment_change_limit_unset")
       if guard is None:
         block("objective_guard_missing")
         continue
+      if manual_no_limit and not pid_grid:
+        if row["raw_estimate"] is None:
+          block("manual_candidate_estimate_unavailable")
+          continue
+        for value in values:
+          _integer(value, ui["min"], ui["max"])
+          if (value - current) % ui["step"]:
+            raise ValueError("candidate_quantization_or_change_limit")
+        # This is a bounded experimental neighborhood, not a safe delta limit.
+        step = ui["step"]
+        position = (row["raw_estimate"] - current) / step
+        lower, upper = math.floor(position), math.ceil(position)
+        values = {current + index * step for index in (-1, 0, 1, lower - 1, lower, upper, upper + 1)}
+        values = [value for value in values if ui["min"] <= value <= ui["max"]]
+        values.sort(key=lambda value: (abs(value - row["raw_estimate"]), abs(value - current), value))
+        values = values[:profile["max_candidates_per_key"]]
       candidates = []
       for value in values:
         _integer(value, ui["min"], ui["max"])
-        if (value - current) % ui["step"] or abs(value - current) > limits[key]:
+        if (value - current) % ui["step"] or has_limit and abs(value - current) > limits[key]:
           raise ValueError("candidate_quantization_or_change_limit")
         if value != current and (({value, current} & _MODE_SENTINELS.get(key, set())) or (key == "CustomSR" and min(value, current) <= 10)):
           continue
         if value != current and value not in candidates:
           candidates.append(value)
+      if "target_raw" in objective:
+        target = objective["target_raw"]
+        lower, upper = sorted((current, target))
+        if has_limit:
+          lower, upper = max(lower, current - limits[key]), min(upper, current + limits[key])
+        # A fixed policy goal must not be overshot to compensate another node.
+        boundary = upper if target > current else lower
+        position = (boundary - current) / ui["step"]
+        candidates.extend(current + index * ui["step"] for index in {math.floor(position), math.ceil(position)})
+        candidates = sorted({value for value in candidates if lower <= value <= upper and value != current},
+                            key=lambda value: (abs(value - target), abs(value - current), value))[:profile["max_candidates_per_key"]]
       def evaluate(value, split):
         if budget["remaining_evaluations"] <= 0:
           raise ValueError("evaluation_budget_exhausted")
         budget["remaining_evaluations"] -= 1
-        output = engine.evaluate_family(key, value, _context(evidence, records, objective, split), split, copy.deepcopy(budget))
+        output = engine.evaluate_family(key, value, _context(evidence, records, objective, split, fit_context), split, copy.deepcopy(budget))
+        if pid_grid and output.get("status") == "blocked":
+          reasons = output.get("reason_codes", [])
+          if type(reasons) is list and len(reasons) == 1 and reasons[0] in {
+              "candidate_outside_observed_actuation", "candidate_outside_observed_rate", "candidate_integral_guard", "model_uncertainty_no_candidate"}:
+            raise ValueError(reasons[0])
         metric = _metric(output, records[split], row["prediction_kind"])
         if metric is None:
           raise ValueError("engine_evaluation_unavailable")
         return metric
       baseline_select = evaluate(current, "select")
       row["metrics"]["baseline"]["select"] = baseline_select
-      scored = [(evaluate(value, "select"), value) for value in candidates]
+      scored = []
+      candidate_rejections = {"candidate_outside_observed_actuation", "candidate_outside_observed_rate",
+                              "candidate_integral_guard", "model_uncertainty_no_candidate"}
+      for value in candidates:
+        try:
+          scored.append((evaluate(value, "select"), value))
+        except ValueError as exc:
+          if not pid_grid or str(exc) not in candidate_rejections:
+            raise
+          persistent_reasons.append(str(exc))
+      baseline_bounded = guard.get("mode") == "baseline_bounded"
+      if baseline_bounded:
+        scored = [(metric, value) for metric, value in scored
+                  if metric["rmse"] < baseline_select["rmse"] - profile["minimum_improvement"]
+                  and metric["max_absolute_error"] <= baseline_select["max_absolute_error"]]
       best = min(scored, key=lambda pair: (pair[0]["rmse"], abs(pair[1] - current), pair[1])) if scored else None
       row["validation"]["numerical_checks_pass"] = True
       if best is None or best[0]["rmse"] >= baseline_select["rmse"] - profile["minimum_improvement"]:
@@ -574,7 +982,8 @@ def evaluate_candidates(evidence: dict, profile: dict) -> dict:
       holdout = evaluate(candidate, "holdout")
       row["metrics"]["baseline"]["holdout"] = baseline_holdout
       row["metrics"]["holdout"] = holdout
-      checks = all(metric["max_absolute_error"] <= guard["max_absolute_error"] and metric["max_absolute_prediction"] <= guard["max_absolute_prediction"] for metric in (selected, holdout))
+      checks = (holdout["max_absolute_error"] <= baseline_holdout["max_absolute_error"] if baseline_bounded else
+                all(metric["max_absolute_error"] <= guard["max_absolute_error"] and metric["max_absolute_prediction"] <= guard["max_absolute_prediction"] for metric in (selected, holdout)))
       passed = checks and holdout["rmse"] < baseline_holdout["rmse"] - profile["minimum_improvement"]
       row["validation"]["holdout_objective_pass"] = passed
       if passed:
@@ -621,8 +1030,9 @@ def validate_candidate_report(report: dict) -> dict:
     _sha(artifact["sha256"])
   if type(provenance["code_hashes"]) is not dict or not 1 <= len(provenance["code_hashes"]) <= 32:
     raise ValueError("invalid_report_code_hashes")
+  from .pid_burst import SOURCE_PATHS
   for path, sha in provenance["code_hashes"].items():
-    if type(path) is not str or len(path) > 180 or not path.startswith("openpilot/") or ".." in path or "\\" in path:
+    if type(path) is not str or len(path) > 180 or not (path.startswith("openpilot/") or path in SOURCE_PATHS) or ".." in path or "\\" in path:
       raise ValueError("invalid_report_code_path")
     _sha(sha)
   if type(provenance["mask_versions"]) is not list or len(provenance["mask_versions"]) > 128:
@@ -682,7 +1092,29 @@ def validate_candidate_report(report: dict) -> dict:
     for reason in row["reason_codes"]:
       _identifier(reason)
     binding = row["provenance"]
-    _keys(binding, {"epoch_id", "objective_id", "consumer_ids", "excluded_rows", "provisional_rows"})
+    _keys(binding, {"epoch_id", "objective_id", "consumer_ids", "excluded_rows", "provisional_rows"},
+          {"fit_context", "evaluation_scope", "candidate_semantics", "model_provenance", "causal_improvement_proven",
+           "plant_improvement_proven", "trajectory_prediction"})
+    if "evaluation_scope" in binding:
+      if binding["evaluation_scope"] in {"one_cycle_policy_effect", "frozen_plan_projection"}:
+        expected_method = _POLICY_METHOD if binding["evaluation_scope"] == "one_cycle_policy_effect" else _PROJECTION_METHOD
+        if (row["method_id"] != expected_method or binding.get("trajectory_prediction") is not False
+            or binding.get("plant_improvement_proven") is not False
+            or any(name in binding for name in ("candidate_semantics", "model_provenance", "causal_improvement_proven"))):
+          raise ValueError("invalid_policy_scope_claim")
+      elif binding["evaluation_scope"] == "observational_pid_model":
+        if (row["key"] not in _PID_KEYS or binding.get("candidate_semantics") != "manual_experiment"
+            or binding.get("model_provenance") != "observational_model"
+            or binding.get("causal_improvement_proven") is not False
+            or binding.get("plant_improvement_proven") is not False or "trajectory_prediction" in binding):
+          raise ValueError("invalid_pid_scope_claim")
+      else:
+        raise ValueError("invalid_evaluation_scope")
+    elif any(name in binding for name in ("candidate_semantics", "model_provenance", "causal_improvement_proven",
+                                          "plant_improvement_proven", "trajectory_prediction")):
+      raise ValueError("unbound_evaluation_scope")
+    if "fit_context" in binding:
+      _fit_context(binding["fit_context"], row["key"])
     if binding["epoch_id"] != provenance["epoch_id"]:
       raise ValueError("report_epoch_binding_mismatch")
     if binding["objective_id"] is not None:

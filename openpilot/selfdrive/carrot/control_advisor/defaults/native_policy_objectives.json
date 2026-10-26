@@ -1,0 +1,606 @@
+{
+  "schema_version": 1,
+  "analysis_profile": {
+    "profile_id": "native-control-mask-host-unqualified-v1",
+    "pre_margin_ns": 100000000,
+    "recovery_ns": 2000000000,
+    "max_gap_ns": 250000000,
+    "dependency_ns": 100000000,
+    "max_samples": 100000
+  },
+  "objectives": {
+    "LateralTorqueAccelFactor": {
+      "id": "native-measured-lateral-accel-v1",
+      "kind": "tracking",
+      "reference": {
+        "type": "recorded_signal",
+        "signal": "lateral_accel_independent",
+        "unit": "m/s^2"
+      }
+    },
+    "SteerRatioRate": {
+      "id": "native-measured-curvature-v1",
+      "kind": "geometry_reference",
+      "reference": {
+        "type": "recorded_signal",
+        "signal": "curvature_independent",
+        "unit": "1/m"
+      }
+    },
+    "CustomSR": {
+      "id": "native-measured-curvature-v1",
+      "kind": "geometry_reference",
+      "reference": {
+        "type": "recorded_signal",
+        "signal": "curvature_independent",
+        "unit": "1/m"
+      }
+    },
+    "CruiseMaxVals0": {
+      "id": "fms-default-acceleration-0-v1",
+      "kind": "policy_reference",
+      "reference": {
+        "type": "fms_policy_preset",
+        "preset_id": "fms_accel_defaults",
+        "version": 1,
+        "settings_raw": {
+          "CruiseMaxVals0": 160,
+          "CruiseMaxVals1": 200,
+          "CruiseMaxVals2": 160,
+          "CruiseMaxVals3": 130,
+          "CruiseMaxVals4": 110,
+          "CruiseMaxVals5": 95,
+          "CruiseMaxVals6": 80
+        },
+        "source_sha256": "d3b8b78a73366eda592d1d8b58bce9b35b7b7ccf9aca5b2e7d0682ed4ac8a788"
+      }
+    },
+    "CruiseMaxVals1": {
+      "id": "fms-default-acceleration-1-v1",
+      "kind": "policy_reference",
+      "reference": {
+        "type": "fms_policy_preset",
+        "preset_id": "fms_accel_defaults",
+        "version": 1,
+        "settings_raw": {
+          "CruiseMaxVals0": 160,
+          "CruiseMaxVals1": 200,
+          "CruiseMaxVals2": 160,
+          "CruiseMaxVals3": 130,
+          "CruiseMaxVals4": 110,
+          "CruiseMaxVals5": 95,
+          "CruiseMaxVals6": 80
+        },
+        "source_sha256": "d3b8b78a73366eda592d1d8b58bce9b35b7b7ccf9aca5b2e7d0682ed4ac8a788"
+      }
+    },
+    "CruiseMaxVals2": {
+      "id": "fms-default-acceleration-2-v1",
+      "kind": "policy_reference",
+      "reference": {
+        "type": "fms_policy_preset",
+        "preset_id": "fms_accel_defaults",
+        "version": 1,
+        "settings_raw": {
+          "CruiseMaxVals0": 160,
+          "CruiseMaxVals1": 200,
+          "CruiseMaxVals2": 160,
+          "CruiseMaxVals3": 130,
+          "CruiseMaxVals4": 110,
+          "CruiseMaxVals5": 95,
+          "CruiseMaxVals6": 80
+        },
+        "source_sha256": "d3b8b78a73366eda592d1d8b58bce9b35b7b7ccf9aca5b2e7d0682ed4ac8a788"
+      }
+    },
+    "CruiseMaxVals3": {
+      "id": "fms-default-acceleration-3-v1",
+      "kind": "policy_reference",
+      "reference": {
+        "type": "fms_policy_preset",
+        "preset_id": "fms_accel_defaults",
+        "version": 1,
+        "settings_raw": {
+          "CruiseMaxVals0": 160,
+          "CruiseMaxVals1": 200,
+          "CruiseMaxVals2": 160,
+          "CruiseMaxVals3": 130,
+          "CruiseMaxVals4": 110,
+          "CruiseMaxVals5": 95,
+          "CruiseMaxVals6": 80
+        },
+        "source_sha256": "d3b8b78a73366eda592d1d8b58bce9b35b7b7ccf9aca5b2e7d0682ed4ac8a788"
+      }
+    },
+    "CruiseMaxVals4": {
+      "id": "fms-default-acceleration-4-v1",
+      "kind": "policy_reference",
+      "reference": {
+        "type": "fms_policy_preset",
+        "preset_id": "fms_accel_defaults",
+        "version": 1,
+        "settings_raw": {
+          "CruiseMaxVals0": 160,
+          "CruiseMaxVals1": 200,
+          "CruiseMaxVals2": 160,
+          "CruiseMaxVals3": 130,
+          "CruiseMaxVals4": 110,
+          "CruiseMaxVals5": 95,
+          "CruiseMaxVals6": 80
+        },
+        "source_sha256": "d3b8b78a73366eda592d1d8b58bce9b35b7b7ccf9aca5b2e7d0682ed4ac8a788"
+      }
+    },
+    "CruiseMaxVals5": {
+      "id": "fms-default-acceleration-5-v1",
+      "kind": "policy_reference",
+      "reference": {
+        "type": "fms_policy_preset",
+        "preset_id": "fms_accel_defaults",
+        "version": 1,
+        "settings_raw": {
+          "CruiseMaxVals0": 160,
+          "CruiseMaxVals1": 200,
+          "CruiseMaxVals2": 160,
+          "CruiseMaxVals3": 130,
+          "CruiseMaxVals4": 110,
+          "CruiseMaxVals5": 95,
+          "CruiseMaxVals6": 80
+        },
+        "source_sha256": "d3b8b78a73366eda592d1d8b58bce9b35b7b7ccf9aca5b2e7d0682ed4ac8a788"
+      }
+    },
+    "CruiseMaxVals6": {
+      "id": "fms-default-acceleration-6-v1",
+      "kind": "policy_reference",
+      "reference": {
+        "type": "fms_policy_preset",
+        "preset_id": "fms_accel_defaults",
+        "version": 1,
+        "settings_raw": {
+          "CruiseMaxVals0": 160,
+          "CruiseMaxVals1": 200,
+          "CruiseMaxVals2": 160,
+          "CruiseMaxVals3": 130,
+          "CruiseMaxVals4": 110,
+          "CruiseMaxVals5": 95,
+          "CruiseMaxVals6": 80
+        },
+        "source_sha256": "d3b8b78a73366eda592d1d8b58bce9b35b7b7ccf9aca5b2e7d0682ed4ac8a788"
+      }
+    },
+    "TFollowGap1": {
+      "id": "fms-default-one-cycle-TFollowGap1-v1",
+      "kind": "policy_reference",
+      "reference": {
+        "type": "fms_policy_point_preset",
+        "preset_id": "fms_policy_defaults_v1",
+        "version": 1,
+        "settings_raw": {
+          "TFollowGap1": 110,
+          "TFollowGap2": 120,
+          "TFollowGap3": 140,
+          "TFollowGap4": 160,
+          "SpeedTFFactor": 10,
+          "TFollowDecelBoost": 0,
+          "LeadAccelResponse": 0,
+          "LeadAccelResponseTF1": -1,
+          "LeadAccelResponseTF2": -1,
+          "LeadAccelResponseTF3": -1,
+          "LeadAccelResponseTF4": -1,
+          "DynamicTFollowLC": 100,
+          "StopDistanceCarrot": 550,
+          "TrafficStopDistanceAdjust": -150,
+          "StoppingAccel": -50
+        },
+        "source_sha256": "d3b8b78a73366eda592d1d8b58bce9b35b7b7ccf9aca5b2e7d0682ed4ac8a788"
+      }
+    },
+    "TFollowGap2": {
+      "id": "fms-default-one-cycle-TFollowGap2-v1",
+      "kind": "policy_reference",
+      "reference": {
+        "type": "fms_policy_point_preset",
+        "preset_id": "fms_policy_defaults_v1",
+        "version": 1,
+        "settings_raw": {
+          "TFollowGap1": 110,
+          "TFollowGap2": 120,
+          "TFollowGap3": 140,
+          "TFollowGap4": 160,
+          "SpeedTFFactor": 10,
+          "TFollowDecelBoost": 0,
+          "LeadAccelResponse": 0,
+          "LeadAccelResponseTF1": -1,
+          "LeadAccelResponseTF2": -1,
+          "LeadAccelResponseTF3": -1,
+          "LeadAccelResponseTF4": -1,
+          "DynamicTFollowLC": 100,
+          "StopDistanceCarrot": 550,
+          "TrafficStopDistanceAdjust": -150,
+          "StoppingAccel": -50
+        },
+        "source_sha256": "d3b8b78a73366eda592d1d8b58bce9b35b7b7ccf9aca5b2e7d0682ed4ac8a788"
+      }
+    },
+    "TFollowGap3": {
+      "id": "fms-default-one-cycle-TFollowGap3-v1",
+      "kind": "policy_reference",
+      "reference": {
+        "type": "fms_policy_point_preset",
+        "preset_id": "fms_policy_defaults_v1",
+        "version": 1,
+        "settings_raw": {
+          "TFollowGap1": 110,
+          "TFollowGap2": 120,
+          "TFollowGap3": 140,
+          "TFollowGap4": 160,
+          "SpeedTFFactor": 10,
+          "TFollowDecelBoost": 0,
+          "LeadAccelResponse": 0,
+          "LeadAccelResponseTF1": -1,
+          "LeadAccelResponseTF2": -1,
+          "LeadAccelResponseTF3": -1,
+          "LeadAccelResponseTF4": -1,
+          "DynamicTFollowLC": 100,
+          "StopDistanceCarrot": 550,
+          "TrafficStopDistanceAdjust": -150,
+          "StoppingAccel": -50
+        },
+        "source_sha256": "d3b8b78a73366eda592d1d8b58bce9b35b7b7ccf9aca5b2e7d0682ed4ac8a788"
+      }
+    },
+    "TFollowGap4": {
+      "id": "fms-default-one-cycle-TFollowGap4-v1",
+      "kind": "policy_reference",
+      "reference": {
+        "type": "fms_policy_point_preset",
+        "preset_id": "fms_policy_defaults_v1",
+        "version": 1,
+        "settings_raw": {
+          "TFollowGap1": 110,
+          "TFollowGap2": 120,
+          "TFollowGap3": 140,
+          "TFollowGap4": 160,
+          "SpeedTFFactor": 10,
+          "TFollowDecelBoost": 0,
+          "LeadAccelResponse": 0,
+          "LeadAccelResponseTF1": -1,
+          "LeadAccelResponseTF2": -1,
+          "LeadAccelResponseTF3": -1,
+          "LeadAccelResponseTF4": -1,
+          "DynamicTFollowLC": 100,
+          "StopDistanceCarrot": 550,
+          "TrafficStopDistanceAdjust": -150,
+          "StoppingAccel": -50
+        },
+        "source_sha256": "d3b8b78a73366eda592d1d8b58bce9b35b7b7ccf9aca5b2e7d0682ed4ac8a788"
+      }
+    },
+    "SpeedTFFactor": {
+      "id": "fms-default-one-cycle-SpeedTFFactor-v1",
+      "kind": "policy_reference",
+      "reference": {
+        "type": "fms_policy_point_preset",
+        "preset_id": "fms_policy_defaults_v1",
+        "version": 1,
+        "settings_raw": {
+          "TFollowGap1": 110,
+          "TFollowGap2": 120,
+          "TFollowGap3": 140,
+          "TFollowGap4": 160,
+          "SpeedTFFactor": 10,
+          "TFollowDecelBoost": 0,
+          "LeadAccelResponse": 0,
+          "LeadAccelResponseTF1": -1,
+          "LeadAccelResponseTF2": -1,
+          "LeadAccelResponseTF3": -1,
+          "LeadAccelResponseTF4": -1,
+          "DynamicTFollowLC": 100,
+          "StopDistanceCarrot": 550,
+          "TrafficStopDistanceAdjust": -150,
+          "StoppingAccel": -50
+        },
+        "source_sha256": "d3b8b78a73366eda592d1d8b58bce9b35b7b7ccf9aca5b2e7d0682ed4ac8a788"
+      }
+    },
+    "TFollowDecelBoost": {
+      "id": "fms-default-one-cycle-TFollowDecelBoost-v1",
+      "kind": "policy_reference",
+      "reference": {
+        "type": "fms_policy_point_preset",
+        "preset_id": "fms_policy_defaults_v1",
+        "version": 1,
+        "settings_raw": {
+          "TFollowGap1": 110,
+          "TFollowGap2": 120,
+          "TFollowGap3": 140,
+          "TFollowGap4": 160,
+          "SpeedTFFactor": 10,
+          "TFollowDecelBoost": 0,
+          "LeadAccelResponse": 0,
+          "LeadAccelResponseTF1": -1,
+          "LeadAccelResponseTF2": -1,
+          "LeadAccelResponseTF3": -1,
+          "LeadAccelResponseTF4": -1,
+          "DynamicTFollowLC": 100,
+          "StopDistanceCarrot": 550,
+          "TrafficStopDistanceAdjust": -150,
+          "StoppingAccel": -50
+        },
+        "source_sha256": "d3b8b78a73366eda592d1d8b58bce9b35b7b7ccf9aca5b2e7d0682ed4ac8a788"
+      }
+    },
+    "LeadAccelResponse": {
+      "id": "fms-default-one-cycle-LeadAccelResponse-v1",
+      "kind": "policy_reference",
+      "reference": {
+        "type": "fms_policy_point_preset",
+        "preset_id": "fms_policy_defaults_v1",
+        "version": 1,
+        "settings_raw": {
+          "TFollowGap1": 110,
+          "TFollowGap2": 120,
+          "TFollowGap3": 140,
+          "TFollowGap4": 160,
+          "SpeedTFFactor": 10,
+          "TFollowDecelBoost": 0,
+          "LeadAccelResponse": 0,
+          "LeadAccelResponseTF1": -1,
+          "LeadAccelResponseTF2": -1,
+          "LeadAccelResponseTF3": -1,
+          "LeadAccelResponseTF4": -1,
+          "DynamicTFollowLC": 100,
+          "StopDistanceCarrot": 550,
+          "TrafficStopDistanceAdjust": -150,
+          "StoppingAccel": -50
+        },
+        "source_sha256": "d3b8b78a73366eda592d1d8b58bce9b35b7b7ccf9aca5b2e7d0682ed4ac8a788"
+      }
+    },
+    "LeadAccelResponseTF1": {
+      "id": "fms-default-one-cycle-LeadAccelResponseTF1-v1",
+      "kind": "policy_reference",
+      "reference": {
+        "type": "fms_policy_point_preset",
+        "preset_id": "fms_policy_defaults_v1",
+        "version": 1,
+        "settings_raw": {
+          "TFollowGap1": 110,
+          "TFollowGap2": 120,
+          "TFollowGap3": 140,
+          "TFollowGap4": 160,
+          "SpeedTFFactor": 10,
+          "TFollowDecelBoost": 0,
+          "LeadAccelResponse": 0,
+          "LeadAccelResponseTF1": -1,
+          "LeadAccelResponseTF2": -1,
+          "LeadAccelResponseTF3": -1,
+          "LeadAccelResponseTF4": -1,
+          "DynamicTFollowLC": 100,
+          "StopDistanceCarrot": 550,
+          "TrafficStopDistanceAdjust": -150,
+          "StoppingAccel": -50
+        },
+        "source_sha256": "d3b8b78a73366eda592d1d8b58bce9b35b7b7ccf9aca5b2e7d0682ed4ac8a788"
+      }
+    },
+    "LeadAccelResponseTF2": {
+      "id": "fms-default-one-cycle-LeadAccelResponseTF2-v1",
+      "kind": "policy_reference",
+      "reference": {
+        "type": "fms_policy_point_preset",
+        "preset_id": "fms_policy_defaults_v1",
+        "version": 1,
+        "settings_raw": {
+          "TFollowGap1": 110,
+          "TFollowGap2": 120,
+          "TFollowGap3": 140,
+          "TFollowGap4": 160,
+          "SpeedTFFactor": 10,
+          "TFollowDecelBoost": 0,
+          "LeadAccelResponse": 0,
+          "LeadAccelResponseTF1": -1,
+          "LeadAccelResponseTF2": -1,
+          "LeadAccelResponseTF3": -1,
+          "LeadAccelResponseTF4": -1,
+          "DynamicTFollowLC": 100,
+          "StopDistanceCarrot": 550,
+          "TrafficStopDistanceAdjust": -150,
+          "StoppingAccel": -50
+        },
+        "source_sha256": "d3b8b78a73366eda592d1d8b58bce9b35b7b7ccf9aca5b2e7d0682ed4ac8a788"
+      }
+    },
+    "LeadAccelResponseTF3": {
+      "id": "fms-default-one-cycle-LeadAccelResponseTF3-v1",
+      "kind": "policy_reference",
+      "reference": {
+        "type": "fms_policy_point_preset",
+        "preset_id": "fms_policy_defaults_v1",
+        "version": 1,
+        "settings_raw": {
+          "TFollowGap1": 110,
+          "TFollowGap2": 120,
+          "TFollowGap3": 140,
+          "TFollowGap4": 160,
+          "SpeedTFFactor": 10,
+          "TFollowDecelBoost": 0,
+          "LeadAccelResponse": 0,
+          "LeadAccelResponseTF1": -1,
+          "LeadAccelResponseTF2": -1,
+          "LeadAccelResponseTF3": -1,
+          "LeadAccelResponseTF4": -1,
+          "DynamicTFollowLC": 100,
+          "StopDistanceCarrot": 550,
+          "TrafficStopDistanceAdjust": -150,
+          "StoppingAccel": -50
+        },
+        "source_sha256": "d3b8b78a73366eda592d1d8b58bce9b35b7b7ccf9aca5b2e7d0682ed4ac8a788"
+      }
+    },
+    "LeadAccelResponseTF4": {
+      "id": "fms-default-one-cycle-LeadAccelResponseTF4-v1",
+      "kind": "policy_reference",
+      "reference": {
+        "type": "fms_policy_point_preset",
+        "preset_id": "fms_policy_defaults_v1",
+        "version": 1,
+        "settings_raw": {
+          "TFollowGap1": 110,
+          "TFollowGap2": 120,
+          "TFollowGap3": 140,
+          "TFollowGap4": 160,
+          "SpeedTFFactor": 10,
+          "TFollowDecelBoost": 0,
+          "LeadAccelResponse": 0,
+          "LeadAccelResponseTF1": -1,
+          "LeadAccelResponseTF2": -1,
+          "LeadAccelResponseTF3": -1,
+          "LeadAccelResponseTF4": -1,
+          "DynamicTFollowLC": 100,
+          "StopDistanceCarrot": 550,
+          "TrafficStopDistanceAdjust": -150,
+          "StoppingAccel": -50
+        },
+        "source_sha256": "d3b8b78a73366eda592d1d8b58bce9b35b7b7ccf9aca5b2e7d0682ed4ac8a788"
+      }
+    },
+    "DynamicTFollowLC": {
+      "id": "fms-default-one-cycle-DynamicTFollowLC-v1",
+      "kind": "policy_reference",
+      "reference": {
+        "type": "fms_policy_point_preset",
+        "preset_id": "fms_policy_defaults_v1",
+        "version": 1,
+        "settings_raw": {
+          "TFollowGap1": 110,
+          "TFollowGap2": 120,
+          "TFollowGap3": 140,
+          "TFollowGap4": 160,
+          "SpeedTFFactor": 10,
+          "TFollowDecelBoost": 0,
+          "LeadAccelResponse": 0,
+          "LeadAccelResponseTF1": -1,
+          "LeadAccelResponseTF2": -1,
+          "LeadAccelResponseTF3": -1,
+          "LeadAccelResponseTF4": -1,
+          "DynamicTFollowLC": 100,
+          "StopDistanceCarrot": 550,
+          "TrafficStopDistanceAdjust": -150,
+          "StoppingAccel": -50
+        },
+        "source_sha256": "d3b8b78a73366eda592d1d8b58bce9b35b7b7ccf9aca5b2e7d0682ed4ac8a788"
+      }
+    },
+    "StopDistanceCarrot": {
+      "id": "fms-default-one-cycle-StopDistanceCarrot-v1",
+      "kind": "policy_reference",
+      "reference": {
+        "type": "fms_policy_point_preset",
+        "preset_id": "fms_policy_defaults_v1",
+        "version": 1,
+        "settings_raw": {
+          "TFollowGap1": 110,
+          "TFollowGap2": 120,
+          "TFollowGap3": 140,
+          "TFollowGap4": 160,
+          "SpeedTFFactor": 10,
+          "TFollowDecelBoost": 0,
+          "LeadAccelResponse": 0,
+          "LeadAccelResponseTF1": -1,
+          "LeadAccelResponseTF2": -1,
+          "LeadAccelResponseTF3": -1,
+          "LeadAccelResponseTF4": -1,
+          "DynamicTFollowLC": 100,
+          "StopDistanceCarrot": 550,
+          "TrafficStopDistanceAdjust": -150,
+          "StoppingAccel": -50
+        },
+        "source_sha256": "d3b8b78a73366eda592d1d8b58bce9b35b7b7ccf9aca5b2e7d0682ed4ac8a788"
+      }
+    },
+    "TrafficStopDistanceAdjust": {
+      "id": "fms-default-one-cycle-TrafficStopDistanceAdjust-v1",
+      "kind": "policy_reference",
+      "reference": {
+        "type": "fms_policy_point_preset",
+        "preset_id": "fms_policy_defaults_v1",
+        "version": 1,
+        "settings_raw": {
+          "TFollowGap1": 110,
+          "TFollowGap2": 120,
+          "TFollowGap3": 140,
+          "TFollowGap4": 160,
+          "SpeedTFFactor": 10,
+          "TFollowDecelBoost": 0,
+          "LeadAccelResponse": 0,
+          "LeadAccelResponseTF1": -1,
+          "LeadAccelResponseTF2": -1,
+          "LeadAccelResponseTF3": -1,
+          "LeadAccelResponseTF4": -1,
+          "DynamicTFollowLC": 100,
+          "StopDistanceCarrot": 550,
+          "TrafficStopDistanceAdjust": -150,
+          "StoppingAccel": -50
+        },
+        "source_sha256": "d3b8b78a73366eda592d1d8b58bce9b35b7b7ccf9aca5b2e7d0682ed4ac8a788"
+      }
+    },
+    "StoppingAccel": {
+      "id": "fms-default-one-cycle-StoppingAccel-v1",
+      "kind": "policy_reference",
+      "reference": {
+        "type": "fms_policy_point_preset",
+        "preset_id": "fms_policy_defaults_v1",
+        "version": 1,
+        "settings_raw": {
+          "TFollowGap1": 110,
+          "TFollowGap2": 120,
+          "TFollowGap3": 140,
+          "TFollowGap4": 160,
+          "SpeedTFFactor": 10,
+          "TFollowDecelBoost": 0,
+          "LeadAccelResponse": 0,
+          "LeadAccelResponseTF1": -1,
+          "LeadAccelResponseTF2": -1,
+          "LeadAccelResponseTF3": -1,
+          "LeadAccelResponseTF4": -1,
+          "DynamicTFollowLC": 100,
+          "StopDistanceCarrot": 550,
+          "TrafficStopDistanceAdjust": -150,
+          "StoppingAccel": -50
+        },
+        "source_sha256": "d3b8b78a73366eda592d1d8b58bce9b35b7b7ccf9aca5b2e7d0682ed4ac8a788"
+      }
+    },
+    "LongActuatorDelay": {
+      "id": "fms-default-frozen-plan-LongActuatorDelay-v1",
+      "kind": "policy_reference",
+      "reference": {
+        "type": "fms_frozen_plan_preset",
+        "preset_id": "fms_plan_defaults_v1",
+        "version": 1,
+        "settings_raw": {
+          "LongActuatorDelay": 20,
+          "VEgoStopping": 50
+        },
+        "source_sha256": "d3b8b78a73366eda592d1d8b58bce9b35b7b7ccf9aca5b2e7d0682ed4ac8a788"
+      }
+    },
+    "VEgoStopping": {
+      "id": "fms-default-frozen-plan-VEgoStopping-v1",
+      "kind": "policy_reference",
+      "reference": {
+        "type": "fms_frozen_plan_preset",
+        "preset_id": "fms_plan_defaults_v1",
+        "version": 1,
+        "settings_raw": {
+          "LongActuatorDelay": 20,
+          "VEgoStopping": 50
+        },
+        "source_sha256": "d3b8b78a73366eda592d1d8b58bce9b35b7b7ccf9aca5b2e7d0682ed4ac8a788"
+      }
+    }
+  }
+}

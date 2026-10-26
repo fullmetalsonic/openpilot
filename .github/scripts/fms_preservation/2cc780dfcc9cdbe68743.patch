@@ -1,0 +1,61 @@
+--- a/openpilot/selfdrive/controls/lib/longcontrol.py
++++ b/openpilot/selfdrive/controls/lib/longcontrol.py
+@@ -10,6 +10,11 @@
+   CruiseCoastingControl, MAX_PLAN_AGE, coasting_relief, no_coasting_lead,
+ )
+ 
++try:
++  from openpilot.selfdrive.carrot.control_advisor.consumer_observer import create_observer, observe, field
++except Exception:
++  create_observer = None
++
+ CONTROL_N_T_IDX = ModelConstants.T_IDXS[:CONTROL_N]
+ 
+ HYUNDAI_LONGITUDINAL_KP = 1.0
+@@ -64,6 +69,7 @@
+ 
+ class LongControl:
+   def __init__(self, CP):
++    self._advisor_longitudinal = create_observer('controls.longitudinal', car_params=CP) if create_observer is not None else None
+     self.CP = CP
+     self.long_control_state = LongCtrlState.off
+     self.pid = PIDController((CP.longitudinalTuning.kpBP, CP.longitudinalTuning.kpV),
+@@ -132,6 +138,13 @@
+ 
+   def update(self, active, CS, long_plan, accel_limits, t_since_plan, radarState):
+ 
++    _advisor_policy_capture = getattr(self, '_advisor_longitudinal', None) is not None
++    if _advisor_policy_capture:
++      try:
++        _advisor_policy_previous_state = int(getattr(self.long_control_state, 'raw', self.long_control_state))
++        _advisor_policy_previous_output = float(self.last_output_accel)
++      except Exception:
++        _advisor_policy_previous_state, _advisor_policy_previous_output = None, None
+     soft_hold_active = CS.softHoldActive > 0
+     a_target_ff = long_plan.aTarget
+     v_target_now = long_plan.vTargetNow
+@@ -206,4 +219,24 @@
+         self.coasting.reset()
+ 
+     self.last_output_accel = np.clip(output_accel, accel_limits[0], accel_limits[1])
++    if getattr(self, '_advisor_longitudinal', None) is not None:
++      observe(self._advisor_longitudinal, lambda: {
++        'fields': {
++          'LongTuningKpV': field(self.pid.k_p, state='used' if active and self.long_control_state == LongCtrlState.pid else 'loaded',
++                                 source='platform_fixed' if self.CP.brand in ('hyundai', 'toyota') else 'unknown'),
++          'LongTuningKiV': field(self.pid.k_i, state='used' if active and self.long_control_state == LongCtrlState.pid else 'loaded',
++                                 source='platform_fixed' if self.CP.brand in ('hyundai', 'toyota') else 'unknown'),
++          'LongTuningKf': field(self.pid.k_f, state='used' if active and self.long_control_state == LongCtrlState.pid else 'loaded',
++                                source='platform_fixed' if self.CP.brand in ('hyundai', 'toyota') else 'unknown'),
++          'StoppingAccel': field(self.stopping_accel, state='used' if active else 'loaded', source='unknown'),
++        },
++        'context': {'active': active, 'brand': self.CP.brand if self.CP.brand in ('hyundai', 'toyota') else 'other',
++                    'long_control_state': str(self.long_control_state), 'fixed_tuning': self.CP.brand in ('hyundai', 'toyota'),
++                    **({'policy_observation_version': 1,
++                        'stopping_input': (int(bool(active)), int(bool(soft_hold_active)),
++                          int(getattr(self.long_control_state, 'raw', self.long_control_state)), int(bool(should_stop)),
++                          _advisor_policy_previous_output, float(self.CP.stoppingDecelRate), float(accel_limits[0]), float(accel_limits[1]),
++                          DT_CTRL, _advisor_policy_previous_state), 'stopping_output': float(self.last_output_accel)}
++                       if _advisor_policy_capture and _advisor_policy_previous_state is not None else {})},
++      })
+     return self.last_output_accel, a_target_ff, j_target_now

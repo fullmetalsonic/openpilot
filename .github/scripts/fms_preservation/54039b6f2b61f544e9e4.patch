@@ -1,0 +1,29 @@
+--- a/openpilot/system/manager/params_check.py
++++ b/openpilot/system/manager/params_check.py
+@@ -1,9 +1,11 @@
+ """Check the native Params registry before trusting a prebuilt checkout."""
+ import re
++import tempfile
+ from pathlib import Path
+ 
+ 
+ PARAMS_HEADER = Path(__file__).resolve().parents[2] / 'common' / 'params_keys.h'
++REQUIRED_METHODS = ('get_raw', 'get_many_raw', 'compare_and_set_raw')
+ 
+ 
+ def check_keys(source: str, compiled_keys) -> None:
+@@ -22,7 +24,13 @@
+     # Import in this fresh process: the old extension must not stay loaded after
+     # SCons rebuilds it. Missing/unloadable bindings also require a rebuild.
+     from openpilot.common.params import Params
+-    check_keys(PARAMS_HEADER.read_text(encoding='utf-8'), Params().all_keys())
++    for method in REQUIRED_METHODS:
++      if not callable(getattr(Params, method, None)):
++        raise AttributeError(f'Params missing callable {method}')
++    with tempfile.TemporaryDirectory() as tmp_dir:
++      params = Params(tmp_dir)
++      compiled_keys = params.all_keys()
++    check_keys(PARAMS_HEADER.read_text(encoding='utf-8'), compiled_keys)
+   except Exception as exc:
+     print(f'Native Params validation failed: {exc}', flush=True)
+     return 1
