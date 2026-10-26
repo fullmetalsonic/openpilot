@@ -123,7 +123,7 @@ class ControlAdvisorApiTests(unittest.IsolatedAsyncioTestCase):
     from openpilot.selfdrive.carrot.control_advisor.goals import goal_options, PROFILE_ENV, OBJECTIVES_ENV
     from openpilot.selfdrive.carrot.control_advisor.runtime_config import BUILTIN_PROFILE_PATH, BUILTIN_OBJECTIVES_PATH
     controller.analysis_goal_options = lambda: goal_options({PROFILE_ENV: BUILTIN_PROFILE_PATH, OBJECTIVES_ENV: BUILTIN_OBJECTIVES_PATH})
-    goal_body = {**body, "request_id": "same-trip-new-goal", "goal_id": "fms_accel_defaults_v1"}
+    goal_body = {**body, "request_id": "same-trip-new-goal", "goal_id": "long_actuator_delay_v1"}
     reply = await client.post("/api/control_advisor/analyze", json=goal_body, headers=self.headers(client))
     self.assertEqual(reply.status, 200)
     self.assertEqual((await reply.json())["session"]["session_id"], body["session_id"])
@@ -220,14 +220,15 @@ class ControlAdvisorApiTests(unittest.IsolatedAsyncioTestCase):
     controller.analysis_goal_options = lambda: deepcopy(options)
     response = await client.get("/api/control_advisor/status")
     public = (await response.json())["analysis_goals"]
-    self.assertEqual(["tracking", "fms_accel_defaults_v1", "torque_pid_experiment_v1", "fms_policy_defaults_v1"], [item["id"] for item in public["options"]])
+    self.assertEqual(["custom_sr_v1", "lateral_torque_kp_v1", "lateral_torque_kf_v1", "steer_actuator_delay_v1",
+                      "lat_smooth_sec_v1", "long_actuator_delay_v1"], [item["id"] for item in public["options"]])
     self.assertNotIn("profile_path", json.dumps(public))
     for goal in ("../../other", None, "unknown"):
       response = await client.post("/api/control_advisor/start", headers=self.headers(client),
                                    json=self.start_body(mode="live", goal_id=goal))
       self.assertEqual(400, response.status)
     self.assertEqual([], controller.starts)
-    body = self.start_body(mode="live", goal_id="fms_accel_defaults_v1")
+    body = self.start_body(mode="live", goal_id="custom_sr_v1")
     denied = await client.post("/api/control_advisor/start", json=body)
     self.assertEqual(403, denied.status)
     response = await client.post("/api/control_advisor/start", headers=self.headers(client), json=body)

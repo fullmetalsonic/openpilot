@@ -73,7 +73,12 @@ def _fields(value, required):
 
 
 def validate_request(body):
-  _fields(body, BODY_FIELDS)
+  trial = type(body) is dict and body.get("purpose") == "manual_trial"
+  _fields(body, BODY_FIELDS | {"purpose", "trial_id"} if trial else BODY_FIELDS)
+  if trial:
+    if body["item_key"] not in {"SteerActuatorDelay", "LatSmoothSec", "LongActuatorDelay"}:
+      raise ValueError("manual_trial_parameter_invalid")
+    _sha(body["trial_id"])
   for name in ("request_id", "target_id", "session_id"):
     _identifier(body[name])
   if body["item_key"] not in KEYS:
@@ -91,7 +96,12 @@ def validate_request_status(value):
   fields = {"request_id", "target_id", "session_id", "artifact_sha256", "result_revision", "item_key", "scope", "state", "reason",
             "created_ns", "expires_at_ns", "current_raw", "candidate_raw", "settings_revision", "store_receipt", "consumer_observed",
             "comparison_ready", "comparison", "request_registration_enabled", "pc_simulation_enabled", "recommendations_enabled", "apply_enabled", "device_qualified"}
-  _fields(value, fields)
+  trial = type(value) is dict and value.get("purpose") == "manual_trial"
+  _fields(value, fields | {"purpose", "trial_id"} if trial else fields)
+  if trial:
+    if value["item_key"] not in {"SteerActuatorDelay", "LatSmoothSec", "LongActuatorDelay"}:
+      raise ValueError("manual_trial_parameter_invalid")
+    _sha(value["trial_id"])
   for key in ("request_id", "target_id", "session_id"):
     _identifier(value[key])
   _sha(value["artifact_sha256"])
@@ -593,6 +603,8 @@ class ApplyRequestController:
   def _public(self, record):
     body, context, receipt = record["body"], record["context"], record["receipt"]
     result = {key: body[key] for key in ("request_id", "target_id", "session_id", "artifact_sha256", "result_revision", "item_key")}
+    if body.get("purpose") == "manual_trial":
+      result.update(purpose="manual_trial", trial_id=body["trial_id"])
     result.update(scope=context["scope"], state=record["state"], reason=record["reason"], created_ns=record["created_ns"], expires_at_ns=record["expires_at_ns"],
       current_raw=context["current_raw"], candidate_raw=context["candidate_raw"], settings_revision=context["settings_revision"],
       store_receipt=None if receipt is None else {key: receipt[key] for key in ("request_id", "revision", "value")},

@@ -17,6 +17,7 @@ INDEPENDENT = {"independent_measurement", "synthetic_truth"}
 TORQUE_SIGNALS = {"sent_torque": "1", "lateral_accel_independent": "m/s^2", "lateral_accel_offset": "m/s^2"}
 RATIO_SIGNALS = {"steering_angle_corrected": "rad", "vm_curvature_factor": "1/m", "live_steer_ratio": "1",
                  "roll_curvature": "1/m", "curvature_independent": "1/m"}
+MANUAL_RATIO_SIGNALS = {**{key: unit for key, unit in RATIO_SIGNALS.items() if key != "live_steer_ratio"}, "v_ego": "m/s"}
 PATH_SIGNALS = {"unshifted_path_y": "m", "reference_path_y": "m"}
 LAG_SIGNALS = {"desired_lateral_accel": "m/s^2", "lateral_accel_independent": "m/s^2"}
 
@@ -30,7 +31,7 @@ def capabilities():
     "LateralTorqueFriction": item("torqued_tls_spread_proxy_v1", "raw_proxy_only", TORQUE_SIGNALS, "1",
                                    reasons=("physical_friction_not_identified",)),
     "SteerRatioRate": item("inverse_vehicle_model_rate_v1", "independent_geometry_calibration", RATIO_SIGNALS, "1/m"),
-    "CustomSR": item("inverse_vehicle_model_manual_ratio_v1", "independent_geometry_calibration", RATIO_SIGNALS, "1/m"),
+    "CustomSR": item("inverse_vehicle_model_manual_ratio_v1", "independent_geometry_calibration", MANUAL_RATIO_SIGNALS, "1/m"),
     "PathOffset": item("external_path_reference_offset_v1", "external_geometry_calibration", PATH_SIGNALS, "m"),
     "SteerActuatorDelay": item("masked_discrete_total_path_lag_v1", "raw_delay_only", LAG_SIGNALS, "m/s^2",
                                 kind="frozen_input_replay", reasons=("effective_delay_mapping_unavailable",)),
@@ -113,7 +114,7 @@ def _ratio_points(context, rows, key, *, reference=False):
   for row in rows:
     angle = _signal(row, "steering_angle_corrected", "rad")
     factor = _signal(row, "vm_curvature_factor", "1/m")
-    live = max(_signal(row, "live_steer_ratio", "1"), .1)
+    live = max(_signal(row, "live_steer_ratio", "1"), .1) if key == "SteerRatioRate" else None
     roll = _signal(row, "roll_curvature", "1/m")
     independent = _signal(row, "curvature_independent", "1/m", independent=True, reference=reference)
     points.append((factor * angle / live if key == "SteerRatioRate" else factor * angle, independent - roll))
@@ -132,6 +133,39 @@ def _positive_inverse_slope(points):
   if not math.isfinite(slope) or slope <= 0:
     raise _Blocked("geometry_sign_or_rank_invalid")
   return slope
+
+
+def _manual_ratio_quality(context, rows):
+  if context.get("dependencies", {}).get("manual_ratio_quality_v1") is not True:
+    return
+  # Identification gates for the manual-ratio goal, not vehicle safety limits.
+  points = _ratio_points(context, rows, "CustomSR")
+  steady = []
+  previous = None
+  for row, point in zip(rows, points):
+    angle = _signal(row, "steering_angle_corrected", "rad")
+    speed = _signal(row, "v_ego", "m/s")
+    stamp = row["mono_ns"]
+    if previous is not None and 0 < stamp - previous[0] <= 250_000_000:
+      rate = abs(angle - previous[1]) / ((stamp - previous[0]) / 1e9)
+      if speed >= 5 and abs(angle) >= .015 and rate <= .05:
+        steady.append((point[0], point[1], speed))
+    previous = (stamp, angle)
+  if len(steady) < 12:
+    raise _Blocked("manual_ratio_steady_curve_insufficient")
+  speed_mid = (min(value[2] for value in steady) + max(value[2] for value in steady)) / 2
+  groups = [[(x, y) for x, y, speed in steady if predicate(x, speed)] for predicate in (
+    lambda x, speed: x < 0, lambda x, speed: x > 0,
+    lambda x, speed: speed <= speed_mid, lambda x, speed: speed > speed_mid)]
+  if any(len(group) < 3 for group in groups):
+    raise _Blocked("manual_ratio_direction_or_speed_coverage_insufficient")
+  slopes = [_positive_inverse_slope(group) for group in groups]
+  if max(slopes) / min(slopes) > 1.2:
+    raise _Blocked("manual_ratio_direction_or_speed_disagreement")
+  xy = [(x, y) for x, y, _ in steady]
+  slope = _positive_inverse_slope(xy)
+  if abs(math.fsum(y - slope * x for x, y in xy) / len(xy)) > .0005:
+    raise _Blocked("manual_ratio_zero_offset_disagreement")
 
 
 def _path_pairs(context, rows, *, reference=False):
@@ -243,6 +277,8 @@ def propose_family(key, context, profile):
       if fit_intercept:
         result["fit_context"] = {"lateral_accel_offset": _number(fit["raw_fit"]["latAccelOffset"])}
     elif key in ("SteerRatioRate", "CustomSR"):
+      if key == "CustomSR":
+        _manual_ratio_quality(context, rows)
       slope = _positive_inverse_slope(_ratio_points(context, rows, key))
       raw = (100. if key == "SteerRatioRate" else 10.) / slope
     elif key == "PathOffset":
@@ -291,6 +327,8 @@ def evaluate_family(key, candidate_raw, context, split, budget):
       else:
         predictions = [raw * .001 * _signal(row, "sent_torque", "1") + _signal(row, "lateral_accel_offset", "m/s^2") for row in rows]
     elif key in ("SteerRatioRate", "CustomSR"):
+      if key == "CustomSR":
+        _manual_ratio_quality(context, rows)
       _ratio_points(context, rows, key, reference=True)
       if key == "CustomSR" and raw * .1 <= 1.:
         raise _Blocked("mode_switch_required")

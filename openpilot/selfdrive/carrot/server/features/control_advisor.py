@@ -615,9 +615,9 @@ def register(app: web.Application, *, controller=None, token=None, live_enabled=
     try:
       if await request_thread(recording_preference):
         goal_options = getattr(controller, "analysis_goal_options", None)
-        preset = callable(goal_options) and any(item["id"] == "fms_accel_defaults_v1" for item in goal_options())
+        preset = callable(goal_options) and any(item["id"] == "custom_sr_v1" for item in goal_options())
         await controller.start(mode="live", interval_seconds=300, request_id="native_background_recording",
-          **({"goal_id": "fms_accel_defaults_v1"} if preset else {}))
+          **({"goal_id": "custom_sr_v1"} if preset else {}))
     except (ValueError, OSError, RuntimeError, SessionConflict):
       native_public["recording_reason"] = "background_recording_unavailable"
 

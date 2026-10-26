@@ -24,7 +24,7 @@ _IDENTIFIER = re.compile(r"^[A-Za-z0-9_.-]{1,128}$")
 _LIMIT = 32 * 1024 * 1024
 _RECORDED = {"LateralTorqueAccelFactor": ("tracking", "lateral_accel_independent", "m/s^2", "torque_response"),
              "SteerRatioRate": ("geometry_reference", "curvature_independent", "1/m", "geometry"),
-             "CustomSR": ("geometry_reference", "curvature_independent", "1/m", "geometry")}
+             "CustomSR": ("geometry_reference", "curvature_independent", "1/m", "manual_geometry")}
 _PID_KEYS = {"LateralTorqueKpV", "LateralTorqueKiV", "LateralTorqueKf"}
 
 
@@ -170,6 +170,13 @@ def _objectives(config, capabilities):
     if type(spec["id"]) is not str or _IDENTIFIER.fullmatch(spec["id"]) is None:
       raise ValueError("log_objective_kind_not_supported")
     reference = spec["reference"]
+    if type(reference) is dict and reference.get("type") == "manual_trial":
+      _fields(reference, {"type", "signal", "unit"})
+      from .calibration_review import TIMING_KEYS
+      if (len(requested) != 1 or key not in TIMING_KEYS or spec["kind"] != "manual_trial" or reference["unit"] != "m/s^2"
+          or reference["signal"] != ("aTarget" if key == "LongActuatorDelay" else "desired_lateral_accel")):
+        raise ValueError("invalid_manual_trial_objective")
+      continue
     if type(reference) is dict and reference.get("type") == "recorded_pid_target":
       _fields(reference, {"type", "signal", "unit", "trace_schema"})
       if (key not in _PID_KEYS or spec["kind"] != "tracking" or reference["signal"] != "desired_lateral_accel"
@@ -532,6 +539,8 @@ def _pack(epoch, extracted, history, config, profile, capabilities):
     source_ids.update(row.get("lateral_observation", {}).get("provenance", {}).get("source_id") for row in epoch["rows"])
   sources = [receipt for receipt in extracted["source_receipts"] if receipt["id"] in source_ids]
   dependencies = copy.deepcopy(epoch["dependencies"])
+  if profile.get("profile_id") == "custom_sr_v1":
+    dependencies["manual_ratio_quality_v1"] = True
   if "LateralTorqueAccelFactor" in recorded:
     dependencies.pop("torque_ff_path", None)
     dependencies.pop("torque_response_alignment", None)
@@ -758,6 +767,7 @@ def calculate_log_candidates(log_paths, profile_path, objectives_path, destinati
     raise ValueError("recorded_host_profile_required")
   config, objective_hash = _read(objectives_path, 64 * 1024)
   pid_mode = bool(config.get("objectives")) and all(spec.get("reference", {}).get("type") == "recorded_pid_target" for spec in config["objectives"].values())
+  manual_mode = any(spec.get("reference", {}).get("type") == "manual_trial" for spec in config["objectives"].values())
   capabilities = candidate_capabilities()
   mask = _objectives(config, capabilities)
   continuous = continuous or _sampling_policy(config) is not None
@@ -826,7 +836,8 @@ def calculate_log_candidates(log_paths, profile_path, objectives_path, destinati
   used = 0
   for number, epoch in enumerate(epochs):
     check_cancelled()
-    evidence, receipt = (_pack_pid if pid_mode else _pack)(epoch, extracted, history, config, profile, capabilities)
+    pack_config = {**config, "objectives": {}} if manual_mode else config
+    evidence, receipt = (_pack_pid if pid_mode else _pack)(epoch, extracted, history, pack_config, profile, capabilities)
     if _prepared is not None:
       # All input bytes and all native masks were checked before bounded time
       # selection. The manifest remains a separately typed collection artifact.
@@ -844,6 +855,8 @@ def calculate_log_candidates(log_paths, profile_path, objectives_path, destinati
         evidence["consumer_evidence_block"] = encode_consumer_evidence(evidence["consumer_evidence"])
         evidence["consumer_evidence"] = []
     receipt["objectives_sha256"] = objective_hash
+    if manual_mode:
+      receipt["objectives"] = copy.deepcopy(config)
     payload = _encoded(evidence)
     if len(payload) > MAX_INPUT_BYTES:
       raise ValueError("generated_log_pack_byte_limit")
@@ -854,7 +867,16 @@ def calculate_log_candidates(log_paths, profile_path, objectives_path, destinati
     name = f"epoch-{number:04d}"
     generated = destination / f"generated-{name}.json"
     used += _write(generated, evidence)
-    calculate_bundle(generated, profile_path, destination / name, log_link=receipt)
+    from .calibration_review import selected_parameter, summarize_diagnostics, build_calibration_review
+    review = None
+    if selected_parameter(config) is not None:
+      if _prepared is not None and "diagnostics" in _prepared:
+        diagnostics = _prepared["diagnostics"](epoch["start_ns"], epoch["end_ns"])
+      else:
+        diagnostics = (item for row in epoch["rows"] for item in row.get("diagnostics", []))
+      summary = summarize_diagnostics(diagnostics, epoch["start_ns"], epoch["end_ns"], mask.max_gap_ns)
+      review = build_calibration_review(evidence, config, profile, summary, input_sha256=hash_file(generated, MAX_INPUT_BYTES)[0], profile_sha256=profile_hash)
+    calculate_bundle(generated, profile_path, destination / name, log_link=receipt, calibration_review=review)
     load_candidate_bundle(destination / name)
     used += sum(path.stat().st_size for path in (destination / name).rglob("*") if path.is_file())
     index["epochs"].append({"epoch_id": epoch["id"], "start_ns": epoch["start_ns"], "end_ns": epoch["end_ns"], "bundle": name, "status": "complete"})

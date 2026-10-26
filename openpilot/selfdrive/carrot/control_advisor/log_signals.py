@@ -21,7 +21,7 @@ from .lateral_observations import LateralObservationBuilder
 
 
 _SELECTED = (*SERVICES, "initData", "selfdriveState", "carOutput", "radarState", "liveParameters", "liveTorqueParameters",
-             "carParams", "livePose", "liveCalibration", "liveDelay")
+             "carParams", "livePose", "liveCalibration", "liveDelay", "sendcan")
 _SEGMENT = re.compile(rf"^(?P<route>{RE.LOG_ID})--(?P<segment>[0-9]+)$")
 SOURCE_FIELDS = {
   "v_ego": {"service": "carState", "field": "vEgo", "unit": "m/s"},
@@ -40,8 +40,14 @@ SOURCE_FIELDS = {
   "yaw_rate_calibrated": {"service": "livePose+liveCalibration", "field": "calib_from_device @ angularVelocityDevice", "unit": "rad/s"},
   "lateral_accel_independent": {"service": "livePose+carState+liveDelay", "field": "aligned_v*yaw-sin(device_roll)*9.81", "unit": "m/s^2"},
   "curvature_independent": {"service": "livePose+carState", "field": "calibrated_yaw/response_time_v", "unit": "1/m"},
+  "lateral_accel_kinematic": {"service": "livePose+carState", "field": "calibrated_yaw*response_time_v_no_gravity_correction", "unit": "m/s^2"},
   "vm_curvature_factor": {"service": "initData+liveParameters+carState", "field": "recorded_CP.VehicleModel.curvature_factor", "unit": "1/m"},
   "roll_curvature": {"service": "initData+liveParameters+carState", "field": "recorded_CP.VehicleModel.roll_compensation", "unit": "1/m"},
+  "scc_a_req_raw": {"service": "sendcan", "field": "SCC_CONTROL.aReqRaw", "unit": "m/s^2"},
+  "scc_a_req_value": {"service": "sendcan", "field": "SCC_CONTROL.aReqValue", "unit": "m/s^2"},
+  "scc_stop_req": {"service": "sendcan", "field": "SCC_CONTROL.StopReq", "unit": "bool"},
+  "scc_jerk_upper": {"service": "sendcan", "field": "SCC_CONTROL.JerkUpperLimit", "unit": "m/s^3"},
+  "scc_jerk_lower": {"service": "sendcan", "field": "SCC_CONTROL.JerkLowerLimit", "unit": "m/s^3"},
 }
 LIMITATIONS = ("host_unqualified", "init_settings_advisory_only", "consumer_path_not_verified", "recording_schema_match_unverified",
                "no_independent_policy_inferred", "independent_lateral_requires_recorded_cp_sensors",
@@ -53,6 +59,7 @@ _WIRE_FIELDS.update(accel_mode_factor="longitudinalPlan.myDrivingMode", sent_tor
                     yaw_rate_calibrated="livePose.angularVelocityDevice_liveCalibration.rpyCalib",
                     lateral_accel_independent="carState.vEgo_liveDelay.lateralDelay_livePose.angularVelocityDevice_orientationNED",
                     curvature_independent="livePose.angularVelocityDevice_liveCalibration.rpyCalib_carState.vEgo",
+                    lateral_accel_kinematic="livePose.original_timestamp_calibrated_yaw_times_carState.response_time_v_no_gravity_correction",
                     vm_curvature_factor="initData.params.CarParams_liveParameters.stiffnessFactor_carState.vEgo",
                     roll_curvature="initData.params.CarParams_liveParameters.roll_stiffnessFactor_carState.vEgo")
 
@@ -131,6 +138,44 @@ def _signals(car, stamp, cache, max_age, include_pid_inputs=False):
     if lead.get("status") is True:
       put("lead_one_speed", lead.get("vLead"), "radar_measurement", radar["mono_ns"])
   return result
+
+
+def _scc_signals(event, recorded_cp):
+  """Decode only recorded Hyundai CANFD SCC output on the CP-derived E bus."""
+  if event is None or event.get("valid") is not True or type(recorded_cp) is not dict or recorded_cp.get("state") != "observed":
+    return {}
+  context = recorded_cp.get("controller_context", {})
+  if context.get("brand") != "hyundai" or context.get("openpilot_longitudinal") is not True:
+    return {}
+  try:
+    from opendbc.car import Bus
+    from opendbc.car.hyundai.values import DBC, HyundaiFlags
+    from opendbc.can.dbc import DBC as Dbc
+    from opendbc.can.parser import get_raw_value
+    flags = context["flags"]
+    if not flags & HyundaiFlags.CANFD or context.get("hyundai_camera_scc") not in (0, 1) or context.get("safety_config_count", 0) < 1:
+      return {}
+    bus = 4 * (context["safety_config_count"] - 1) + int(bool(flags & HyundaiFlags.CANFD_HDA2) and context["hyundai_camera_scc"] == 0)
+    name = DBC[context["car_fingerprint"]][Bus.pt]
+    message = Dbc(name).name_to_msg["SCC_CONTROL"]
+    frames = [frame for frame in event["data"]["frames"] if frame["address"] == message.address and frame["src"] == bus]
+    if not frames:
+      return {}
+    raw = bytes.fromhex(frames[-1]["dat"])
+    if len(raw) != message.size:
+      return {}
+    result = {}
+    for key, field in (("scc_a_req_raw", "aReqRaw"), ("scc_a_req_value", "aReqValue"), ("scc_stop_req", "StopReq"),
+                       ("scc_jerk_upper", "JerkUpperLimit"), ("scc_jerk_lower", "JerkLowerLimit")):
+      signal = message.sigs[field]
+      value = get_raw_value(raw, signal)
+      if signal.is_signed and value & (1 << (signal.size - 1)):
+        value -= 1 << signal.size
+      result[key] = {"value": value * signal.factor + signal.offset, "unit": SOURCE_FIELDS[key]["unit"],
+                     "source": "recorded_sendcan", "source_mono_ns": event["mono_ns"]}
+    return result
+  except (ImportError, ValueError, KeyError, TypeError, AttributeError):
+    return {}
 
 
 class _LateralStream:
@@ -430,7 +475,7 @@ def extract_log_signals(log_paths, *, analysis_profile: AnalysisProfile, budget:
       lateral.feed(event)
       if service != "carState":
         previous = cache.get(service)
-        if previous is None or stamp > previous["mono_ns"]:
+        if (service != "sendcan" or data.get("frames")) and (previous is None or stamp > previous["mono_ns"]):
           cache[service] = event
       normalized = normalizer.feed(service, stamp, event["valid"], data) if service in SERVICES else []
       if not normalized:
@@ -438,12 +483,21 @@ def extract_log_signals(log_paths, *, analysis_profile: AnalysisProfile, budget:
       if len(all_rows) + len(file_rows) >= budget["max_samples"] or (len(all_rows) + len(file_rows) + 1) * 2 > analysis_profile.max_samples:
         raise ValueError("log sample budget exceeded")
       for observation in normalized:
+        # Keep original source clocks for review before projecting mask context.
+        observation["_review_context"] = observation["context"]
         observation["context"] = {key: observation["context"][key] for key in ("saturated", "output_limited")
                                   if key in observation["context"]}
         if not streaming:
-          observations[observation["axis"]].append(Observation(**observation))
+          observations[observation["axis"]].append(Observation(**{key: value for key, value in observation.items() if key != "_review_context"}))
       signals, lateral_observation = lateral.observe(stamp)
       signals = {**_signals(data, stamp, cache, max_age, include_pid_inputs), **signals}
+      sent = cache.get("sendcan")
+      if sent is not None and 0 <= stamp - sent["mono_ns"] <= max_age:
+        signals.update(_scc_signals(sent, lateral.cp))
+      from .calibration_review import diagnostic_row
+      diagnostics = [diagnostic_row({**item, "context": item["_review_context"]}, signals, []) for item in normalized]
+      for observation in normalized:
+        observation.pop("_review_context")
       if include_pid_inputs and "sent_torque_raw" in signals:
         lateral_observation["provenance"]["pid_output_source_id"] = cache["carOutput"].get("source_id")
       if retained_signals is not None:
@@ -452,7 +506,7 @@ def extract_log_signals(log_paths, *, analysis_profile: AnalysisProfile, budget:
         lateral_observation["provenance"].pop("supports", None)
       row = {"mono_ns": stamp, "route_id": route or source_id, "source_id": source_id,
                         "signals": signals,
-                        "lateral_observation": lateral_observation, "excluded_reasons": {}}
+                        "lateral_observation": lateral_observation, "excluded_reasons": {}, "diagnostics": diagnostics}
       if streaming:
         streamed_samples += 1
         if streamed_samples > budget["max_samples"] or streamed_samples * 2 > analysis_profile.max_samples:
@@ -468,6 +522,9 @@ def extract_log_signals(log_paths, *, analysis_profile: AnalysisProfile, budget:
           masks = _mask_axis(values, analysis_profile)
           for row, reasons in zip(file_rows, masks):
             row["excluded_reasons"][axis] = sorted(reasons | ({"unfinalized_tail"} if row["mono_ns"] > finalized else set()))
+            for item in row["diagnostics"]:
+              if item["axis"] == axis:
+                item["excluded_reasons"] = row["excluded_reasons"][axis]
       else:
         finalized = None
     else:
@@ -496,6 +553,9 @@ def extract_log_signals(log_paths, *, analysis_profile: AnalysisProfile, budget:
         masks = _mask_axis(values, analysis_profile)
         for row, reasons in zip(all_rows, masks):
           row["excluded_reasons"][axis] = sorted(reasons | ({"unfinalized_tail"} if row["mono_ns"] > run_finalized else set()))
+          for item in row["diagnostics"]:
+            if item["axis"] == axis:
+              item["excluded_reasons"] = row["excluded_reasons"][axis]
     else:
       run_finalized = None
     for group, receipt in zip(file_row_groups, receipts):
@@ -506,7 +566,7 @@ def extract_log_signals(log_paths, *, analysis_profile: AnalysisProfile, budget:
 
   result = {"schema_version": 1, "rows": all_rows, "source_receipts": receipts, "initial_snapshots": snapshots,
           "source_fields": {**_WIRE_FIELDS, **({"sent_torque_raw": "carOutput.actuatorsOutput.torque_positive_pid_domain",
-            "lateral_accel_kinematic": "livePose.original_timestamp_calibrated_yaw*carState.response_time_v_no_gravity_correction"} if include_pid_inputs else {})}, "limitations": list(LIMITATIONS),
+            "lateral_accel_kinematic": _WIRE_FIELDS["lateral_accel_kinematic"]} if include_pid_inputs else {})}, "limitations": list(LIMITATIONS),
           "join_max_age_ns": max_age, "mask_version": analysis_profile.profile_id,
           "budget_usage": {"input_bytes": used_bytes, "decoded_bytes_charged": used_decode, "events": used_events, "samples": len(all_rows)}}
   if streaming:

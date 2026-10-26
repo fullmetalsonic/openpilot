@@ -153,6 +153,8 @@ def run_trip_analysis(session_directory, profile_path, objectives_path, destinat
   database = sqlite3.connect(destination / "progress.sqlite3")
   database.execute("PRAGMA cache_size=-8192")
   database.executescript("CREATE TABLE IF NOT EXISTS state(value TEXT); CREATE TABLE IF NOT EXISTS obs(stamp INTEGER,axis TEXT,driver INTEGER,reasons TEXT,epoch_start INTEGER,pre INTEGER DEFAULT 0,final TEXT,PRIMARY KEY(axis,stamp)); CREATE INDEX IF NOT EXISTS intervention ON obs(axis,driver,stamp); CREATE TABLE IF NOT EXISTS selected(stamp INTEGER PRIMARY KEY,row TEXT);")
+  if "payload" not in {row[1] for row in database.execute("PRAGMA table_info(obs)")}:
+    database.execute("ALTER TABLE obs ADD COLUMN payload TEXT")
   saved = database.execute("SELECT value FROM state").fetchone()
   state = json.loads(saved[0]) if saved else {"intent": intent, "sources": [], "stream": None, "masks": {}, "receipts": [], "snapshots": [], "fields": {}, "last_bucket": None, "raw_count": 0}
   if state["intent"] != intent or source_refs[:len(state["sources"])] != state["sources"]:
@@ -185,6 +187,8 @@ def run_trip_analysis(session_directory, profile_path, objectives_path, destinat
           reasons, epoch_start = _base_mask(item, state["masks"].setdefault(item.axis, {}), mask)
           database.execute("INSERT INTO obs(stamp,axis,driver,reasons,epoch_start) VALUES(?,?,?,?,?)",
                            (item.mono_ns, item.axis, item.driver_override, _json(reasons), epoch_start))
+          diagnostic = next(value for value in row["diagnostics"] if value["axis"] == item.axis)
+          database.execute("UPDATE obs SET payload=? WHERE axis=? AND stamp=?", (_json(diagnostic), item.axis, item.mono_ns))
         period = 10_000_000 if pid_mode else 200_000_000
         bucket = row["mono_ns"] // period
         selected = any(lo - 2_100_000_000 <= row["mono_ns"] <= hi + 2_100_000_000 for lo, hi in pid_windows.values()) if pid_mode else _in_windows(row["mono_ns"], start, end)
@@ -254,6 +258,13 @@ def run_trip_analysis(session_directory, profile_path, objectives_path, destinat
       "source_fields": state["fields"], "limitations": ["whole_trip_full_rate_mask_time_stratified_candidates"],
       "join_max_age_ns": min(mask.max_gap_ns, profile["max_lag_ns"]), "mask_version": mask.profile_id},
       "history": history, "manifest_sha256": _digest(manifest), "manifest": manifest}
+    def diagnostics(lo, hi):
+      for payload, reasons in database.execute("SELECT payload,final FROM obs WHERE stamp>=? AND stamp<=? ORDER BY stamp,axis", (lo, hi)):
+        if payload is not None:
+          value = json.loads(payload)
+          value["excluded_reasons"] = json.loads(reasons)
+          yield value
+    prepared["diagnostics"] = diagnostics
     calculate_log_candidates([Path(row["path"]) for row in sources], profile_path, objectives_path, job / "window-0000",
       session_directory=session_directory, session_snapshot=snapshot, cancelled=cancelled, continuous=True, _prepared=prepared)
     return outcome("complete", None)

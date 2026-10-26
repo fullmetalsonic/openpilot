@@ -486,6 +486,20 @@ const validDigest = (value) => typeof value === "string" && /^[a-f0-9]{64}$/.tes
 const requestReason = (value) => Object.hasOwn(REQUEST_REASONS, value) ? REQUEST_REASONS[value]
   : typeof value === "string" && /^(native|vehicle)_/.test(value) ? nativeReasonMessage(value) : null;
 
+function requestBindingEligible(payload, itemKey, currentRaw) {
+  const context = payload.current_request_context;
+  const entry = context?.items?.find((item) => item?.item_key === itemKey);
+  return ["vehicle", "pc_simulation"].includes(context?.scope)
+    && (context.scope !== "pc_simulation" || payload.capabilities?.pc_simulation_enabled === true)
+    && validRequestId(context?.target_id) && validRequestId(context?.session_id) && validDigest(context?.artifact_sha256)
+    && validDigest(context?.dependency_digest) && count(context?.result_revision) !== null && context.result_revision > 0
+    && count(context?.settings_revision) !== null && context.artifact_sha256 === payload.candidate_report?.artifact_sha256
+    && (payload.candidate_report?.result_revision === undefined || payload.candidate_report.result_revision === context.result_revision)
+    && (context.scope !== "vehicle" || (context.session_id === payload.session?.session_id && payload.session?.source_mode === "live"
+      && ACTIVE_STATES.has(payload.session?.state) && !["starting", "stopping"].includes(payload.session.state)))
+    && entry?.eligible === true && Number.isSafeInteger(entry.expected_current_raw) && entry.expected_current_raw === currentRaw;
+}
+
 function requestEligibility(payload, itemKey, report) {
   const context = payload?.current_request_context;
   const scope = ["vehicle", "pc_simulation"].includes(context?.scope) ? context.scope : null;
@@ -496,14 +510,7 @@ function requestEligibility(payload, itemKey, report) {
   if (!configured) reason = "요청 등록 기능 미설정";
   else if (!report.available || candidate?.status !== "search_candidate") reason = "등록할 수 있는 검증 후보 없음";
   const eligible = configured && report.available && candidate?.status === "search_candidate"
-    && scope !== null && (scope !== "pc_simulation" || payload.capabilities.pc_simulation_enabled === true)
-    && validRequestId(context?.target_id) && validRequestId(context?.session_id) && validDigest(context?.artifact_sha256)
-    && validDigest(context?.dependency_digest) && count(context?.result_revision) !== null && context.result_revision > 0
-    && count(context?.settings_revision) !== null && context.artifact_sha256 === payload.candidate_report?.artifact_sha256
-    && (payload.candidate_report?.result_revision === undefined || payload.candidate_report.result_revision === context.result_revision)
-    && (scope !== "vehicle" || (context.session_id === payload.session?.session_id && payload.session?.source_mode === "live"
-      && ACTIVE_STATES.has(payload.session?.state) && !["starting", "stopping"].includes(payload.session.state)))
-    && entry?.eligible === true && Number.isSafeInteger(entry.expected_current_raw) && entry.expected_current_raw === candidate.currentRaw;
+    && scope !== null && requestBindingEligible(payload, itemKey, candidate.currentRaw);
   return { eligible: Boolean(eligible), scope, writesVehicle: Boolean(eligible && scope === "vehicle"
     && payload?.capabilities?.vehicle_write_available === true && payload?.native_runtime?.writer_available === true), reason: eligible ? scope === "vehicle"
     ? payload?.capabilities?.vehicle_write_available === true ? "명시적으로 요청하면 차량 설정 저장 조건을 다시 확인합니다. 저장과 실제 소비는 별도입니다." : "차량 쓰기는 보류됩니다. 현재 쓰기 경로 준비 조건을 충족하지 않았습니다."
@@ -520,6 +527,70 @@ export function buildApplyRequestBody(payload, itemKey, requestId) {
     artifact_sha256: context.artifact_sha256, result_revision: context.result_revision, item_key: itemKey,
     expected_current_raw: item.expected_current_raw, expected_settings_revision: context.settings_revision,
     dependency_digest: context.dependency_digest };
+}
+
+export const CALIBRATION_KEYS = Object.freeze(["SteerActuatorDelay", "CustomSR", "LateralTorqueKpV", "LateralTorqueKf", "LatSmoothSec", "LongActuatorDelay"]);
+const TRIAL_KEYS = new Set(["SteerActuatorDelay", "LatSmoothSec", "LongActuatorDelay"]);
+const TRACE_COLUMNS = ["mono_ns", "target", "actual", "target_mono_ns", "actual_mono_ns", "independent_actual", "independent_mono_ns", "sent_request", "sent_mono_ns", "segment", "sent_raw", "stop_req", "jerk_upper", "jerk_lower"];
+
+export function createCalibrationReviewModel(payload = {}) {
+  const raw = payload.candidate_report?.calibration_review;
+  const empty = { available: false, invalid: Boolean(raw), parameterKey: null, state: "held", purpose: null, series: [], trials: [], reasons: [] };
+  if (!raw) return empty;
+  const stamp = (value) => typeof value === "string" && /^(0|[1-9][0-9]{0,18})$/.test(value) && BigInt(value) <= 9223372036854775807n;
+  const number = (value) => value === null || typeof value === "number" && Number.isFinite(value);
+  try {
+    if (raw.schema_version !== 1 || !CALIBRATION_KEYS.includes(raw.parameter_key) || !["ready", "held"].includes(raw.state)
+      || !["numeric_calibration", "manual_trial"].includes(raw.purpose) || payload.candidate_report?.state !== "ready"
+      || payload.candidate_report?.stale === true || payload.candidate_report?.integrity_verified !== true
+      || new TextEncoder().encode(JSON.stringify(raw)).length > 128 * 1024
+      || !Array.isArray(raw.reasons) || raw.reasons.some((reason) => typeof reason !== "string" || !/^[a-z0-9_]{1,128}$/.test(reason))
+      || !raw.baseline || !raw.baseline.settings_raw || !validDigest(raw.baseline.input_sha256) || !validDigest(raw.baseline.profile_sha256)) return empty;
+    const series = [];
+    for (const axis of ["lateral", "longitudinal"]) {
+      const source = raw.series?.[axis];
+      if (!source || JSON.stringify(source.columns) !== JSON.stringify(TRACE_COLUMNS) || source.unit !== "m/s^2"
+        || !Array.isArray(source.points) || source.points.length > 600 || count(source.raw_count) === null || count(source.selected_count) === null) return empty;
+      let previous = null;
+      for (const point of source.points) {
+        if (!Array.isArray(point) || point.length !== 14 || !stamp(point[0]) || previous !== null && BigInt(point[0]) <= previous
+          || ![3, 4, 6, 8].every((index) => point[index] === null || stamp(point[index]))
+          || ![1, 2, 5, 7, 10, 11, 12, 13].every((index) => number(point[index]))
+          || point[9] !== null && (!Number.isSafeInteger(point[9]) || point[9] < 0)) return empty;
+        previous = BigInt(point[0]);
+      }
+      series.push({ axis, unit: source.unit, actualSource: source.actual_source, independentSource: source.independent_source,
+        sentSource: source.sent_source, points: source.points, rawCount: source.raw_count, selectedCount: source.selected_count,
+        metrics: raw.metrics?.[axis] || {}, exclusions: raw.exclusions?.[axis] || {} });
+    }
+    if (!Array.isArray(raw.trial_options) || raw.trial_options.length > 2 || raw.purpose === "numeric_calibration" && raw.trial_options.length) return empty;
+    const currentRaw = raw.baseline.settings_raw[raw.parameter_key];
+    const contextEntry = payload.current_request_context?.items?.find((item) => item.item_key === raw.parameter_key);
+    const trials = raw.trial_options.map((option) => {
+      if (raw.purpose !== "manual_trial" || !TRIAL_KEYS.has(raw.parameter_key) || option.purpose !== "manual_trial"
+        || option.parameter_key !== raw.parameter_key || !validDigest(option.id) || !Number.isSafeInteger(option.candidate_raw)
+        || !Number.isSafeInteger(option.current_raw) || option.current_raw !== currentRaw || option.restore_raw !== currentRaw
+        || option.candidate_raw === currentRaw) throw new Error("invalid_trial_option");
+      const configured = payload.capabilities?.request_registration_enabled === true && payload.request_state?.state === "ready";
+      return { id: option.id, currentRaw, candidateRaw: option.candidate_raw, direction: option.candidate_raw > currentRaw ? "증가" : "감소",
+        eligible: Boolean(configured && raw.state === "ready" && raw.baseline.settings_raw.LateralTorqueKiV === 0 && contextEntry?.purpose === "manual_trial"
+          && contextEntry.trial_ids?.includes(option.id) && requestBindingEligible(payload, raw.parameter_key, currentRaw)) };
+    });
+    return { available: true, invalid: false, parameterKey: raw.parameter_key, state: raw.state, purpose: raw.purpose,
+      currentRaw, series, trials, reasons: raw.reasons, kiRaw: raw.baseline.settings_raw.LateralTorqueKiV };
+  } catch { return empty; }
+}
+
+export function buildTrialRequestBody(payload, itemKey, trialId, requestId) {
+  const review = createCalibrationReviewModel(payload);
+  if (!validRequestId(requestId) || review.parameterKey !== itemKey || !review.trials.some((item) => item.id === trialId && item.eligible)) {
+    throw new Error("manual_trial_evidence_unavailable");
+  }
+  const context = payload.current_request_context;
+  return { request_id: requestId, target_id: context.target_id, session_id: context.session_id,
+    artifact_sha256: context.artifact_sha256, result_revision: context.result_revision, item_key: itemKey,
+    expected_current_raw: review.currentRaw, expected_settings_revision: context.settings_revision,
+    dependency_digest: context.dependency_digest, purpose: "manual_trial", trial_id: trialId };
 }
 
 function comparisonMetric(value) {
@@ -747,10 +818,11 @@ export function createNativeRuntimeModel(value) {
 }
 
 function analysisGoalsModel(value, session) {
-  const ids = new Set(["tracking", "fms_accel_defaults_v1"]);
+  const ids = new Set(["tracking", "fms_accel_defaults_v1", "custom_sr_v1", "lateral_torque_kp_v1", "lateral_torque_kf_v1",
+    "steer_actuator_delay_v1", "lat_smooth_sec_v1", "long_actuator_delay_v1"]);
   const valid = (item) => item && ids.has(item.id) && item.version === 1 && typeof item.label === "string"
     && item.label.length <= 80 && typeof item.description === "string" && item.description.length <= 400;
-  const options = Array.isArray(value?.options) && value.options.length <= 2
+  const options = Array.isArray(value?.options) && value.options.length <= 6
     ? value.options.filter(valid).map(({ id, label, description }) => ({ id, label, description })) : [];
   const selected = valid(session.analysis_goal) ? session.analysis_goal : null;
   return { options, selectedId: selected?.id || null, selectedLabel: selected?.label || null };
@@ -802,7 +874,7 @@ export function createControlAdvisorModel(payload = {}) {
     partialWindow: !diagnosticInvalidated && session.diagnostic?.partial_window === true,
     recording: createRecordingModel(session.recording),
     consumerObservations,
-    candidateReport, applyRequests, analysisGoals: analysisGoalsModel(payload.analysis_goals, session),
+    candidateReport, applyRequests, calibrationReview: createCalibrationReviewModel(payload), analysisGoals: analysisGoalsModel(payload.analysis_goals, session),
     analysisControl: createAnalysisControlModel(payload.analysis_control || session.analysis_control),
     sourceLabel: sourceMode === "synthetic" ? "합성 데모 · 실제 주행 아님"
       : sourceMode === "live" ? "실제 메시지 경로 · 실기기 검증 전" : "수집 세션 없음",
@@ -825,7 +897,7 @@ export function createControlAdvisorModel(payload = {}) {
     reason: typeof session.reason === "string" && session.reason
       ? REASON_LABELS[session.reason] || "수집 상태를 확인해 주세요. 진단 자료는 보류될 수 있습니다." : null,
     technicalReason: typeof session.reason === "string" && Object.hasOwn(REASON_LABELS, session.reason) ? session.reason : null,
-    parameters: parameters.map((item) => {
+    parameters: parameters.filter((item) => !payload.analysis_goals?.options?.some((goal) => goal.id === "custom_sr_v1") || CALIBRATION_KEYS.includes(item?.key)).map((item) => {
       const request = requestEligibility(payload, item?.key, candidateReport);
       return {
       key: typeof item?.key === "string" ? item.key : "알 수 없는 항목",

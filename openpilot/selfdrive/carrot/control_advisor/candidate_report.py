@@ -17,11 +17,13 @@ ENGINE_FILES = ('candidates.py', 'candidate_lateral.py', 'candidate_longitudinal
                 'comparison.py', 'comparison_intervals.py', 'comparison_stream.py',
                 'candidate_report.py', 'parameters.json', 'torque_fit.py',
                 'log_candidates.py', 'log_signals.py', 'lateral_observations.py', 'log_history.py', 'rlog.py',
-                'normalizer.py', 'analysis.py', 'trip_analysis.py', 'trip_history.py', 'settings_history.py',
+                'normalizer.py', 'analysis.py', 'trip_analysis.py', 'trip_history.py', 'settings_history.py', 'calibration_review.py',
                 'journal_snapshot.py', 'journal_segments.py', 'inspection.py', 'periodic.py', 'vehicle_identity.py', 'goals.py')
 SOURCE_FILES = ('openpilot/common/params_keys.h', 'openpilot/selfdrive/carrot/t_follow.py',
                 'openpilot/common/pid.py', 'opendbc_repo/opendbc/car/interfaces.py', 'opendbc_repo/opendbc/car/__init__.py',
                 'opendbc_repo/opendbc/car/hyundai/carcontroller.py', 'opendbc_repo/opendbc/car/hyundai/values.py',
+                'opendbc_repo/opendbc/car/hyundai/hyundaicanfd.py', 'opendbc_repo/opendbc/can/dbc.py',
+                'opendbc_repo/opendbc/can/parser.py', 'opendbc_repo/opendbc/dbc/generator/hyundai/hyundai_canfd.dbc',
                 'openpilot/selfdrive/car/card.py',
                 'openpilot/selfdrive/controls/lib/drive_helpers.py',
                 'openpilot/selfdrive/controls/lib/longitudinal_preview.py',
@@ -154,7 +156,7 @@ def _link_receipt(value):
 
 
 
-def calculate_bundle(input_path, profile_path, destination, *, log_link=None):
+def calculate_bundle(input_path, profile_path, destination, *, log_link=None, calibration_review=None):
   from .candidates import evaluate_candidates, validate_candidate_report
   input_path, profile_path = Path(input_path), Path(profile_path)
   engine_hashes = _code_hashes()
@@ -167,6 +169,13 @@ def calculate_bundle(input_path, profile_path, destination, *, log_link=None):
             'input_sha256': input_hash, 'profile_sha256': profile_hash,
             'analyzer_sha256': engine_hashes, 'recommendations_enabled': False,
             'apply_enabled': False, 'device_qualified': False, 'raw_sources_verified': False}
+  if calibration_review is not None:
+    from .calibration_review import validate_calibration_review
+    if calibration_review['purpose'] == 'numeric_calibration':
+      item = next(row for row in report['items'] if row['key'] == calibration_review['parameter_key'])
+      if item['status'] == 'search_candidate' and calibration_review['reasons'] == ['numeric_candidate_gate_remains_authoritative']:
+        calibration_review = {**calibration_review, 'state': 'ready', 'reasons': []}
+    result['calibration_review'] = validate_calibration_review(calibration_review, evidence=evidence, input_sha256=input_hash, profile_sha256=profile_hash)
   if len(json.dumps(result, ensure_ascii=False, allow_nan=False).encode('utf-8')) > MAX_RESULT_BYTES // 2:
     raise ValueError('candidate_result_limit')
   with tempfile.TemporaryDirectory(prefix='fms-candidate-link-') as temporary:
@@ -201,6 +210,7 @@ def _load_single_bundle(directory, byte_limit=MAX_BUNDLE_BYTES):
     raise ValueError('invalid_candidate_bundle')
   report = validate_candidate_report(result.get('report'))
   input_epoch = None
+  input_evidence = None
   for entry, field in zip(manifest['files'][:2], ('evidence_sha256', 'profile_sha256')):
     source, source_hash = _read(directory / entry['path'], MAX_INPUT_BYTES)
     if type(source) is not dict:
@@ -210,6 +220,7 @@ def _load_single_bundle(directory, byte_limit=MAX_BUNDLE_BYTES):
       raise ValueError('candidate_report_source_binding_mismatch')
     if field == 'evidence_sha256':
       input_epoch = source.get('epoch')
+      input_evidence = source
   if (type(input_epoch) is not dict or input_epoch.get('id') != report['provenance']['epoch_id']
       or type(input_epoch.get('start_ns')) is not int or type(input_epoch.get('end_ns')) is not int
       or not 0 <= input_epoch['start_ns'] <= input_epoch['end_ns']):
@@ -217,6 +228,10 @@ def _load_single_bundle(directory, byte_limit=MAX_BUNDLE_BYTES):
   envelope = {'state': 'ready', 'reason': None, 'report': report, 'artifact_sha256': digest,
               'integrity_verified': True, 'raw_sources_verified': False, 'device_qualified': False, 'apply_enabled': False,
               'latest_epoch': {'start_ns': input_epoch['start_ns'], 'end_ns': input_epoch['end_ns']}}
+  if 'calibration_review' in result:
+    from .calibration_review import validate_calibration_review
+    envelope['calibration_review'] = validate_calibration_review(result['calibration_review'], evidence=input_evidence,
+      input_sha256=result['input_sha256'], profile_sha256=result['profile_sha256'])
   receipt = None
   if len(manifest['files']) == 3:
     entry = manifest['files'][2]
@@ -226,6 +241,8 @@ def _load_single_bundle(directory, byte_limit=MAX_BUNDLE_BYTES):
         or receipt['epoch_id'] != report['provenance']['epoch_id']
         or any(receipt[key] != result[key] for key in ('input_sha256', 'profile_sha256'))):
       raise ValueError('log_link_binding_mismatch')
+    if 'calibration_review' in envelope and envelope['calibration_review']['baseline']['mask_profile_sha256'] != receipt['mask_profile_sha256']:
+      raise ValueError('calibration_mask_binding_mismatch')
     if 'whole_trip' in receipt:
       trip_hash = hashlib.sha256(json.dumps(receipt['whole_trip'], sort_keys=True, separators=(',', ':'), allow_nan=False).encode()).hexdigest()
       if input_epoch.get('dependencies', {}).get('trip_selection_manifest_sha256') != trip_hash:

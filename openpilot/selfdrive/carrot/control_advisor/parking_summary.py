@@ -242,6 +242,8 @@ class ParkingSummaryService:
         summary["candidate"].update(state=candidate.get("state", "unavailable"), profile_id=report.get("profile_id"),
           result_revision=candidate.get("result_revision"),
           candidate_count=sum(row.get("status") == "search_candidate" for row in report.get("items", []) if isinstance(row, dict)))
+        if candidate.get("calibration_review") is not None:
+          summary["candidate"]["calibration_artifact_sha256"] = candidate["artifact_sha256"]
       except (OSError, ValueError, KeyError, TypeError) as error:
         del references[candidate_begin:]
         summary["source_quality"]["omissions"].append("candidate_previous_session" if str(error) == "summary_candidate_previous_session" else "candidate_reference_unavailable")

@@ -157,7 +157,7 @@ def _entry(value):
   _identifier(value["root_id"])
   _relative(value["relative_path"])
   destination = str(_relative(value["export_relative_path"]))
-  if destination in {"review.json", "summary.json", "REVIEW_README.md", "comparison.csv", "comparison.svg"}:
+  if destination in {"review.json", "summary.json", "REVIEW_README.md", "comparison.csv", "comparison.svg", "calibration.csv", "calibration.svg"}:
     raise ValueError("review_reserved_path")
   if not isinstance(value["sha256"], str) or _SHA.fullmatch(value["sha256"]) is None or type(value["bytes"]) is not int or value["bytes"] < 0:
     raise ValueError("review_entry_digest_invalid")
@@ -184,6 +184,8 @@ def _selection(value, limits):
     raise ValueError("review_selection_metadata_invalid")
   has_graph = any(isinstance(row.get("comparison"), dict) for row in value["summary"].get("requests", {}).get("items", [])[:16])
   generated_count = 5 if has_graph else 3
+  if value["summary"].get("candidate", {}).get("calibration_artifact_sha256") is not None:
+    generated_count += 2
   if type(value["files"]) is not list or len(value["files"]) + generated_count > limits.values["max_files"] or len(value["checkpoints"]) > 32:
     raise ValueError("review_file_limit")
   # Metadata is bounded before copying or retaining the frozen selection.
@@ -484,6 +486,86 @@ def _comparison_graph_files(summary):
           ("comparison.svg", "\n".join(svg).encode("utf-8"), "comparison_graph")]
 
 
+def _calibration_graph_files(payload, entries, artifact):
+  """Use the same immutable time series shown by WebCarrot, including held data."""
+  if artifact is None:
+    return []
+  if type(artifact) is not str or _SHA.fullmatch(artifact) is None:
+    raise ValueError("calibration_export_binding_invalid")
+  matches = [entry for entry in entries if entry["sha256"] == artifact and entry["path"].endswith("/result.json")]
+  if len(matches) != 1:
+    raise ValueError("calibration_export_source_missing")
+  from .candidate_report import _read, MAX_RESULT_BYTES
+  from .calibration_review import validate_calibration_review
+  result, actual_hash = _read(payload / matches[0]["path"], MAX_RESULT_BYTES)
+  if actual_hash != artifact:
+    raise ValueError("calibration_export_source_changed")
+  review = validate_calibration_review(result.get("calibration_review"))
+  output = io.StringIO(newline="")
+  writer = csv.writer(output, lineterminator="\n")
+  columns = ["mono_ns", "target", "actual", "target_mono_ns", "actual_mono_ns", "independent_actual", "independent_mono_ns",
+             "sent_request", "sent_mono_ns", "plot_segment", "sent_raw", "stop_req", "jerk_upper", "jerk_lower"]
+  writer.writerow(["parameter", "purpose", "state", "current_raw", "axis", "response_unit", "sent_unit",
+                   "actual_source", "independent_source", "sent_source", *columns])
+  safe = lambda value: "'" + value if isinstance(value, str) and value.startswith(("=", "+", "-", "@", "\t", "\r")) else value
+  panels = []
+  for axis in ("lateral", "longitudinal"):
+    source = review["series"][axis]
+    unit = "normalized torque" if axis == "lateral" else "m/s^2"
+    metadata = [review["parameter_key"], review["purpose"], review["state"],
+                review["baseline"]["settings_raw"][review["parameter_key"]], axis, "m/s^2", unit,
+                source["actual_source"], source["independent_source"], source["sent_source"]]
+    for point in source["points"]:
+      writer.writerow([*[safe(value) for value in metadata], *point])
+    panels.append((axis + " response (m/s^2)", source["points"], [(1, "#2463ac"), (2, "#d05e14"), (5, "#16803c")]))
+    panels.append((axis + " output request (" + unit + ")", source["points"],
+                   [(7, "#7e42bb")] + ([(10, "#bf3977")] if axis == "longitudinal" else [])))
+  svg = ['<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="1080" viewBox="0 0 1000 1080" role="img">',
+         '<title>Frozen calibration time series</title><rect width="100%" height="100%" fill="white"/>',
+         '<g font-family="sans-serif" font-size="14" fill="#111">',
+         f'<text x="20" y="26">{html.escape(review["parameter_key"])} / {html.escape(review["purpose"])} / {html.escape(review["state"])}</text>',
+         '<text x="20" y="49">Blue: target. Orange: controller observation. Green: independent sensor response.</text>',
+         '<text x="20" y="71">Purple: sent request. Pink: raw SCC request. Grey points: excluded observations. Gaps are not joined.</text>',
+         '<text x="20" y="93">Observed data only; neither optimal settings nor causal improvement are asserted.</text>']
+  for index, (title, points, traces) in enumerate(panels):
+    top = 126 + index * 232
+    svg.append(f'<text x="20" y="{top}">{html.escape(title)}</text>')
+    values = [point[column] for point in points for column, _ in traces
+              if type(point[column]) in (int, float) and math.isfinite(point[column])]
+    if not values or not points:
+      svg.append(f'<text x="30" y="{top + 40}">Signal unavailable; inspect the frozen reasons and exclusions.</text>')
+      continue
+    low, high = min(values), max(values)
+    span = max(high - low, 1e-6)
+    first, last = int(points[0][0]), int(points[-1][0])
+    duration = max(1, last - first)
+    for column, color in traces:
+      run, segment, excluded = [], None, []
+      def flush():
+        if len(run) > 1:
+          svg.append(f'<polyline points="{" ".join(run)}" fill="none" stroke="{color}" stroke-width="1.5"/>')
+        run.clear()
+      for point in points:
+        value = point[column]
+        if type(value) not in (int, float) or not math.isfinite(value):
+          flush(); segment = None; continue
+        x = 65 + 905 * (int(point[0]) - first) / duration
+        y = top + 170 - 140 * (value - low) / span
+        if point[9] is None:
+          flush(); segment = None; excluded.append(f'M{x:.2f},{y:.2f}h.1'); continue
+        if segment != point[9]:
+          flush(); segment = point[9]
+        run.append(f'{x:.2f},{y:.2f}')
+      flush()
+      if excluded:
+        svg.append(f'<path d="{" ".join(excluded)}" fill="none" stroke="#94a3b8" stroke-width="2.5" stroke-linecap="round"/>')
+    svg.extend([f'<text x="10" y="{top + 35}">{high:.5g}</text>', f'<text x="10" y="{top + 173}">{low:.5g}</text>',
+                f'<text x="65" y="{top + 198}">0 s</text>', f'<text x="830" y="{top + 198}">{(last-first)/1e9:.3f} s</text>'])
+  svg.append('</g></svg>')
+  return [("calibration.csv", output.getvalue().encode("utf8"), "calibration_timeseries"),
+          ("calibration.svg", "\n".join(svg).encode("utf8"), "calibration_graph")]
+
+
 class ReviewPackBuilder:
   def __init__(self, roots, *, export_root):
     self._export_io = _directory(export_root)
@@ -541,6 +623,7 @@ class ReviewPackBuilder:
     generated = [("summary.json", _json(selection["summary"]) + b"\n", "summary"),
                  ("REVIEW_README.md", REVIEW_README.encode(), "review_instructions")]
     generated.extend(_comparison_graph_files(selection["summary"]))
+    generated.extend(_calibration_graph_files(payload, entries, selection["summary"].get("candidate", {}).get("calibration_artifact_sha256")))
     for name, data, role in generated:
       total += len(data)
       if total * 2 > limits.values["max_bytes"]:

@@ -259,6 +259,20 @@
   padding-left: var(--sp-lg);
 }
 
+.control-advisor__calibration {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  border: 1px solid var(--md-outline-var);
+  border-radius: var(--radius-md, 12px);
+  padding: var(--sp-md);
+  margin-block: var(--sp-md);
+}
+
+.control-advisor__calibration:empty { display: none; }
+.control-advisor__trace-section { min-width: 0; margin-block: var(--sp-md); }
+.control-advisor__trace { min-width: 0; margin-block: var(--sp-sm); }
+.control-advisor__trace svg { display: block; width: 100%; height: auto; max-height: 230px; }
+
 .control-advisor__empty {
   grid-column: 1 / -1;
   color: var(--md-on-surface-var);

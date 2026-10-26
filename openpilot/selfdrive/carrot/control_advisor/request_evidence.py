@@ -588,15 +588,43 @@ class CandidateEvidenceResolver:
     for item in capture["envelope"]["report"]["items"]:
       raw = capture["settings_raw"][item["key"]]
       eligible = item["status"] == "search_candidate" and type(item["candidate_raw"]) is int and type(raw) is int
-      items.append({"item_key": item["key"], "eligible": eligible,
-                    "reason": None if eligible else "request_candidate_not_available", "expected_current_raw": raw})
+      review = capture["envelope"].get("calibration_review")
+      if review is not None:
+        eligible &= review.get("parameter_key") == item["key"] and review.get("state") == "ready"
+      row = {"item_key": item["key"], "eligible": eligible,
+             "reason": None if eligible else "request_candidate_not_available", "expected_current_raw": raw}
+      if review is not None and review.get("parameter_key") == item["key"] and review.get("purpose") == "manual_trial":
+        options = self._trial_options(capture)
+        row.update(eligible=bool(options), reason=None if options else "manual_trial_evidence_incomplete",
+                   purpose="manual_trial", trial_ids=[option["id"] for option in options])
+      items.append(row)
     return {"target_id": target_id, "scope": capture["scope"], "session_id": capture["current"]["session_id"],
             "artifact_sha256": capture["result_hash"], "result_revision": capture["result_revision"],
             "settings_revision": capture["current"]["settings_revision"], "dependency_digest": capture["dependency_digest"], "items": items}
 
+  def _trial_options(self, capture):
+    """Only server-generated, immutable single-setting experiments may be stored."""
+    from .calibration_review import validate_calibration_review
+    review = capture["envelope"].get("calibration_review")
+    if review is None:
+      return []
+    validate_calibration_review(review)
+    baseline = review["baseline"]
+    if (review["purpose"] != "manual_trial" or review["state"] != "ready"
+        or review["parameter_key"] not in {"SteerActuatorDelay", "LatSmoothSec", "LongActuatorDelay"}
+        or baseline["epoch_id"] != capture["evidence"]["epoch"]["id"]
+        or baseline["input_sha256"] != capture["evidence_hash"]
+        or baseline["profile_sha256"] != capture["profile_hash"]
+        or _raw(baseline["settings_raw"]) != capture["settings_raw"]
+        or capture["settings_raw"].get("LateralTorqueKiV") != 0):
+      return []
+    return review["trial_options"]
+
   @_guarded
   def resolve(self, body):
-    if type(body) is not dict or set(body) != BODY_KEYS or body.get("item_key") not in KEYS:
+    trial = type(body) is dict and body.get("purpose") == "manual_trial"
+    allowed = BODY_KEYS | {"purpose", "trial_id"} if trial else BODY_KEYS
+    if type(body) is not dict or set(body) != allowed or body.get("item_key") not in KEYS:
       _fail("request_body_invalid")
     capture = self._capture(body["target_id"])
     if any(body[key] != value for key, value in (("session_id", capture["current"]["session_id"]),
@@ -604,8 +632,19 @@ class CandidateEvidenceResolver:
       _fail("request_candidate_identity_changed")
     item = next(item for item in capture["envelope"]["report"]["items"] if item["key"] == body["item_key"])
     raw = capture["settings_raw"][item["key"]]
-    if item["status"] != "search_candidate" or type(item["candidate_raw"]) is not int or type(raw) is not int:
-      _fail("request_candidate_not_available")
+    if trial:
+      matches = [option for option in self._trial_options(capture)
+                 if option["id"] == body["trial_id"] and option["parameter_key"] == item["key"]]
+      if len(matches) != 1 or matches[0]["current_raw"] != raw or type(raw) is not int:
+        _fail("manual_trial_not_available")
+      candidate_raw = matches[0]["candidate_raw"]
+    else:
+      review = capture["envelope"].get("calibration_review")
+      if (item["status"] != "search_candidate" or type(item["candidate_raw"]) is not int or type(raw) is not int
+          or review is not None and (review["purpose"] == "manual_trial"
+              or review["parameter_key"] != item["key"] or review["state"] != "ready")):
+        _fail("request_candidate_not_available")
+      candidate_raw = item["candidate_raw"]
     self._recheck(capture)
     now = self.clock_ns()
     dependencies = {key: value for key, value in capture["settings_raw"].items() if key != item["key"]}
@@ -618,7 +657,7 @@ class CandidateEvidenceResolver:
     return {"target_id": body["target_id"], "scope": capture["scope"], "session_id": capture["current"]["session_id"],
       "session_generation": capture["current"]["generation"], "artifact_sha256": capture["result_hash"],
       "result_revision": capture["result_revision"], "item_key": item["key"], "current_raw": raw,
-      "candidate_raw": item["candidate_raw"], "settings_revision": capture["current"]["settings_revision"],
+      "candidate_raw": candidate_raw, "settings_revision": capture["current"]["settings_revision"],
       "dependencies": dependencies, "dependency_digest": capture["dependency_digest"], "pointer_token": pointer_token,
       "resolved_at_ns": now, "expires_at_ns": now + self.request_ttl_ns, "provenance": provenance}
 

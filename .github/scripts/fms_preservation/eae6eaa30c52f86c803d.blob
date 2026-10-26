@@ -1,0 +1,22 @@
+{
+  "schema_version": 1,
+  "analysis_profile": {
+    "profile_id": "native-control-mask-host-unqualified-v1",
+    "pre_margin_ns": 100000000,
+    "recovery_ns": 2000000000,
+    "max_gap_ns": 250000000,
+    "dependency_ns": 100000000,
+    "max_samples": 100000
+  },
+  "objectives": {
+    "LatSmoothSec": {
+      "id": "lat_smooth_sec_v1",
+      "kind": "manual_trial",
+      "reference": {
+        "type": "manual_trial",
+        "signal": "desired_lateral_accel",
+        "unit": "m/s^2"
+      }
+    }
+  }
+}

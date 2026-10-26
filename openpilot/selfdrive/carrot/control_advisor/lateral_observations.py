@@ -270,7 +270,7 @@ class LateralObservationBuilder:
       state("pose")
     except (ValueError, OverflowError) as exc:
       reason = str(exc) if isinstance(exc, _Unavailable) else "pose_timestamp_invalid"
-      for branch in ("pose", "torque_response", "geometry"):
+      for branch in ("pose", "torque_response", "geometry", "manual_geometry"):
         state(branch, reason)
       return self._result(signals, availability, provenance, supports)
 
@@ -318,13 +318,13 @@ class LateralObservationBuilder:
       live_event = self._latest("liveParameters", response, supports)
       live = live_event["data"]
       if (any(live.get(key) is not True for key in ("valid", "sensorValid", "posenetValid"))
-          or any(key in live and live[key] is not True for key in ("angleOffsetValid", "steerRatioValid", "stiffnessFactorValid"))):
+          or any(key in live and live[key] is not True for key in ("angleOffsetValid", "stiffnessFactorValid"))):
         raise _Unavailable("live_parameters_invalid")
       speed, speed_stamp = self._interpolate("carState", "vEgo", response, anchor, 0, supports)
       angle, angle_stamp = self._interpolate("carState", "steeringAngleDeg", response, anchor, 0, supports)
-      ratio, stiffness = _number(live.get("steerRatio")), _number(live.get("stiffnessFactor"))
+      stiffness = _number(live.get("stiffnessFactor"))
       road_roll, offset = _number(live.get("roll")), _number(live.get("angleOffsetDeg"))
-      if min(speed, ratio, stiffness) <= 0:
+      if min(speed, stiffness) <= 0:
         raise _Unavailable("geometry_positive_values_required")
       cp = self._cp
       front, rear = stiffness * cp["tireStiffnessFront"], stiffness * cp["tireStiffnessRear"]
@@ -337,16 +337,25 @@ class LateralObservationBuilder:
       corrected = _number(math.radians(angle - offset))
       # Prepare all values before publishing: failed geometry never leaves partial signals.
       values = (("curvature_independent", calibrated_yaw / speed, "1/m", "independent_measurement", response),
+                ("lateral_accel_kinematic", speed * calibrated_yaw, "m/s^2", "independent_measurement", response),
                 ("steering_angle_corrected", corrected, "rad", "derived_input", max(angle_stamp, live_event["mono_ns"])),
-                ("live_steer_ratio", ratio, "1", "learned_estimate", live_event["mono_ns"]),
                 ("vm_curvature_factor", factor, "1/m", "derived_input", max(speed_stamp, live_event["mono_ns"])),
                 ("roll_curvature", roll_curvature, "1/m", "derived_input", max(speed_stamp, live_event["mono_ns"])))
       for args in values:
         _number(args[1])
       for args in values:
         signal(*args)
+      state("manual_geometry")
+      if live.get("steerRatioValid", True) is not True:
+        raise _Unavailable("live_parameters_invalid")
+      ratio = _number(live.get("steerRatio"))
+      if ratio <= 0:
+        raise _Unavailable("geometry_positive_values_required")
+      signal("live_steer_ratio", ratio, "1", "learned_estimate", live_event["mono_ns"])
       state("geometry")
     except (ValueError, OverflowError, ZeroDivisionError) as exc:
+      if "manual_geometry" not in availability:
+        state("manual_geometry", str(exc) if isinstance(exc, _Unavailable) else "vehicle_model_numeric_invalid")
       state("geometry", str(exc) if isinstance(exc, _Unavailable) else "vehicle_model_numeric_invalid")
     return self._result(signals, availability, provenance, supports)
 

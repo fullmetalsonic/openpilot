@@ -1,6 +1,15 @@
 import { advisorControlState, formatAdvisorBytes, formatAdvisorNumber, formatConsumerValue } from "./model.js";
 
 const AXES = { lateral: "횡방향", longitudinal: "종방향" };
+const CALIBRATION_REASONS = {
+  settings_epoch_unlinked: "설정 구간 연결 미확인", fixed_settings_unobserved: "고정할 설정의 기록 부족",
+  fixed_ki_zero_required: "Ki=0 기준과 다른 기록", recorded_cp_unavailable: "차량 구성 기록 부족",
+  source_binding_unavailable: "원본 연결 근거 부족", current_raw_special_or_unobserved: "현재 값이 자동 모드이거나 미확인",
+  manual_steer_ratio_mode_required: "CustomSR 수동 모드 필요", usable_baseline_insufficient: "사용 가능한 관측 부족",
+  recorded_source_required: "실제 기록 형식 필요", consumer_cp_binding_unavailable: "실제 소비와 차량 구성 연결 미확인",
+  independent_lateral_response_unavailable: "독립 횡반응 기록 부족", matching_scc_control_sendcan_unavailable: "차량에 맞는 SCC 출력 기록 부족",
+  no_single_step_trial_available: "설정 범위 안의 시험값 없음", numeric_candidate_gate_remains_authoritative: "수치 후보의 기존 품질 조건 미충족",
+};
 let viewSerial = 0;
 
 function node(document, tag, className, text) {
@@ -21,6 +30,91 @@ function metric(document, label, value, hook) {
   box.dataset.caMetric = hook;
   box.append(node(document, "span", "control-advisor__muted", label), node(document, "strong", "", value));
   return box;
+}
+
+function calibrationGraph(document, source, traces, title, unit) {
+  const box = node(document, "div", "control-advisor__trace");
+  box.append(node(document, "strong", "", `${title} (${unit})`));
+  const points = source.points;
+  const values = points.flatMap((point) => traces.map((trace) => point[trace.column]).filter(Number.isFinite));
+  if (!points.length || !values.length) {
+    box.append(node(document, "p", "control-advisor__muted", "이 구간에 사용할 수 있는 신호가 없습니다."));
+    return box;
+  }
+  const makeSvg = (name, attributes = {}) => {
+    const element = document.createElementNS("http://www.w3.org/2000/svg", name);
+    for (const [key, value] of Object.entries(attributes)) element.setAttribute(key, String(value));
+    return element;
+  };
+  const svg = makeSvg("svg", { viewBox: "0 0 680 190", role: "img", "aria-label": title });
+  const minimum = Math.min(...values), maximum = Math.max(...values), span = Math.max(maximum - minimum, 1e-6);
+  const first = BigInt(points[0][0]), duration = BigInt(points.at(-1)[0]) - first;
+  svg.append(makeSvg("line", { x1: 42, y1: 162, x2: 670, y2: 162, stroke: "#64748b" }));
+  for (const trace of traces) {
+    let run = [], segment = null, excluded = [];
+    const flush = () => {
+      if (run.length > 1) svg.append(makeSvg("polyline", { points: run.join(" "), fill: "none", stroke: trace.color, "stroke-width": 1.8 }));
+      run = [];
+    };
+    for (const point of points) {
+      const value = point[trace.column];
+      if (!Number.isFinite(value)) { flush(); segment = null; continue; }
+      const x = 42 + 628 * (duration ? Number(BigInt(point[0]) - first) / Number(duration) : 0);
+      const y = 152 - 138 * (value - minimum) / span;
+      if (point[9] === null) { flush(); segment = null; excluded.push(`M${x.toFixed(2)},${y.toFixed(2)}h.1`); continue; }
+      if (segment !== point[9]) { flush(); segment = point[9]; }
+      run.push(`${x.toFixed(2)},${y.toFixed(2)}`);
+    }
+    flush();
+    if (excluded.length) svg.append(makeSvg("path", { d: excluded.join(" "), fill: "none", stroke: "#94a3b8", "stroke-width": 2.5, "stroke-linecap": "round" }));
+  }
+  const ticks = [[5, 20, maximum.toPrecision(4)], [5, 153, minimum.toPrecision(4)], [42, 181, "0 s"],
+    [570, 181, `${(Number(duration) / 1e9).toFixed(1)} s`]];
+  for (const [x, y, label] of ticks) {
+    const text = makeSvg("text", { x, y, fill: "currentColor", "font-size": 11 });
+    text.textContent = label; svg.append(text);
+  }
+  box.append(svg, node(document, "p", "control-advisor__muted", `${traces.map((trace) => trace.label).join(" · ")} · 회색 점: 계산 제외 관측`));
+  return box;
+}
+
+function calibrationPanel(document, review, controls) {
+  const panel = node(document, "section", "control-advisor__calibration");
+  panel.dataset.caCalibration = "";
+  if (!review?.available) {
+    if (review?.invalid) panel.append(node(document, "p", "control-advisor__notice is-error", "보정 근거 형식을 확인할 수 없어 시험값과 그래프를 보류했습니다."));
+    return panel;
+  }
+  panel.append(node(document, "h3", "", `${review.parameterKey} · ${review.purpose === "manual_trial" ? "한 항목 수동 비교" : "보정 근거"}`),
+    node(document, "p", "control-advisor__muted", `현재 저장값 ${review.currentRaw ?? "—"} · Ki ${review.kiRaw ?? "—"} 유지 · 다른 설정은 같은 기준으로 비교합니다.`));
+  if (review.purpose === "manual_trial") {
+    panel.append(node(document, "p", "control-advisor__notice", "시험값은 최적값이나 개선 예측이 아닙니다. 한 방향을 선택해 정차 상태에서 적용하고, 실제 소비 확인 후 전후 결과를 비교합니다."));
+    const buttons = node(document, "div", "control-advisor__actions");
+    for (const option of review.trials) {
+      const button = node(document, "button", "btn", `${option.direction} 시험: ${formatAdvisorNumber(option.currentRaw * .01, 2)}초 → ${formatAdvisorNumber(option.candidateRaw * .01, 2)}초`);
+      button.type = "button"; button.dataset.caTrial = option.id;
+      button.disabled = !controls.authorized || !option.eligible;
+      button.addEventListener("click", () => controls.handlers.onTrialRequest(review.parameterKey, option.id));
+      buttons.append(button);
+    }
+    panel.append(buttons);
+  }
+  if (review.reasons.length) panel.append(node(document, "p", "control-advisor__reason", `근거 상태: ${[...new Set(review.reasons.map((reason) => CALIBRATION_REASONS[reason] || "실제 소비·설정 일치 조건 미충족"))].join(", ")}`));
+  for (const source of review.series) {
+    const section = node(document, "div", "control-advisor__trace-section");
+    section.append(node(document, "h4", "", `${AXES[source.axis]} · 원본 관측 ${source.rawCount}개 / 표시 ${source.selectedCount}개`),
+      pair(document, "계산 사용 / 추적 오차 RMSE", `${formatAdvisorNumber(source.metrics.usable_count)}개 / ${formatAdvisorNumber(source.metrics.rmse, 3)} m/s²`),
+      pair(document, "양수 / 음수 목표 관측", `${formatAdvisorNumber(source.metrics.positive_target_count)} / ${formatAdvisorNumber(source.metrics.negative_target_count)}`),
+      node(document, "p", "control-advisor__muted", "표시 자료만 축약합니다. 개입·누락·제외 구간을 이어 그리지 않습니다."),
+      calibrationGraph(document, source, [{ column: 1, color: "#3b82f6", label: "파랑: 목표" },
+        { column: 2, color: "#f59e0b", label: "주황: 제어기 관측" }, { column: 5, color: "#22c55e", label: "초록: 독립 센서 반응" }], "목표·반응", "m/s²"),
+      calibrationGraph(document, source, [{ column: 7, color: "#a78bfa", label: "보라: 실제 기록된 출력 요청" },
+        ...(source.axis === "longitudinal" ? [{ column: 10, color: "#f472b6", label: "분홍: 제한 전 SCC 요청" }] : [])],
+      "출력 요청", source.axis === "lateral" ? "정규화 토크" : "m/s²"),
+      node(document, "p", "control-advisor__muted", `실측 출처: ${source.actualSource || "없음"} · 독립 반응: ${source.independentSource || "없음"} · 출력: ${source.sentSource || "없음"}`));
+    panel.append(section);
+  }
+  return panel;
 }
 
 function registrationButton(document, item, controls, location = "offline") {
@@ -679,6 +773,7 @@ export function createControlAdvisorView(container, handlers) {
       && model.applyRequests.registrationEnabled && (model.auth.authorized || token.value.trim().length > 0) };
     offline.replaceChildren(nativeRuntimePanel(document, model, ui, handlers, ui.connected && !ui.pending && model.controlConfigured
       && (model.auth.authorized || token.value.trim().length > 0)), requestPanel(document, model.applyRequests, requestControls),
+      calibrationPanel(document, model.calibrationReview, requestControls),
       offlineCandidatePanel(document, model.candidateReport, ui.connected, requestControls));
     if (offlineExpanded) offline.querySelector("[data-ca-offline-items]")?.setAttribute("open", "");
     if (requestsExpanded) offline.querySelector("[data-ca-request-history]")?.setAttribute("open", "");
@@ -700,7 +795,7 @@ export function createControlAdvisorView(container, handlers) {
       invalidated.dataset.caInvalidated = "";
       panel.append(invalidated);
     } else if (model.partialWindow) {
-      const partial = node(document, "p", "control-advisor__notice", "종료 시점의 부분 구간 진단입니다. 선택한 3분·5분 분석 구간을 채웠다는 뜻은 아닙니다.");
+      const partial = node(document, "p", "control-advisor__notice", "기록 종료 시점의 부분 구간 진단입니다. 이번 주행 전체 분석의 완료 상태를 따로 확인해 주세요.");
       partial.dataset.caPartial = "";
       panel.append(partial);
     }

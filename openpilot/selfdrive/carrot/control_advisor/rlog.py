@@ -19,7 +19,7 @@ from .normalizer import EventNormalizer, SERVICES
 
 
 SELECTABLE_SERVICES = frozenset((*SERVICES, "initData", "carParams", "selfdriveState", "carOutput", "radarState",
-                                 "liveParameters", "liveTorqueParameters", "livePose", "liveCalibration", "liveDelay"))
+                                 "liveParameters", "liveTorqueParameters", "livePose", "liveCalibration", "liveDelay", "sendcan"))
 _SAFE_FIELDS = {
   "carParams": ("brand", "steerControlType", "openpilotLongitudinalControl", "mass", "wheelbase", "centerToFront",
                 "rotationalInertia", "tireStiffnessFront", "tireStiffnessRear", "steerRatioRear", "steerRatio",
@@ -58,7 +58,8 @@ def decode_recorded_car_params(raw):
     with schema.CarParams.from_bytes(raw, traversal_limit_in_words=MAX_CP_BYTES // 8) as message:
       values = {key: float(getattr(message, key)) for key in CP_FIELDS}
       controller_context = {"brand": str(message.brand), "steer_control_type": str(message.steerControlType),
-                            "flags": int(message.flags), "openpilot_longitudinal": bool(message.openpilotLongitudinalControl)}
+                            "flags": int(message.flags), "openpilot_longitudinal": bool(message.openpilotLongitudinalControl),
+                            "car_fingerprint": str(message.carFingerprint), "safety_config_count": len(message.safetyConfigs)}
     if (any(not math.isfinite(value) for value in values.values())
         or any(values[key] <= 0 for key in ("mass", "rotationalInertia", "wheelbase", "tireStiffnessFront", "tireStiffnessRear", "steerRatio"))
         or not 0 < values["centerToFront"] < values["wheelbase"] or abs(values["steerRatioRear"]) >= 1):
@@ -72,17 +73,26 @@ def decode_recorded_car_params(raw):
 
 
 def _selected_data(service, data):
+  if service == "sendcan":
+    if len(data) > 1024:
+      raise ValueError("rlog_sendcan_message_limit")
+    return {"frames": [{"address": int(frame.address), "src": int(frame.src), "dat": bytes(frame.dat).hex()}
+                       for frame in data if frame.address == 0x1a0 and len(frame.dat) == 32]}
   if service in SERVICES:
     return data.to_dict()  # Preserve the existing four-service normalizer contract.
   if service == "initData":
     from .registry import load_registry
     keys = {item["key"] for item in load_registry()["items"]}
     settings, seen, invalid = {}, set(), set()
-    recorded_cp, cp_seen = None, False
+    recorded_cp, cp_seen, camera_scc, camera_seen = None, False, None, False
     if len(data.params.entries) > 4096:
       raise ValueError("rlog initData parameter count limit exceeded")
     for entry in data.params.entries:
       key = str(entry.key)
+      if key == "HyundaiCameraSCC":
+        value = bytes(entry.value) if len(entry.value) <= 8 else b""
+        camera_scc = int(value) if not camera_seen and re.fullmatch(rb"[01]", value) else None
+        camera_seen = True
       if key == "CarParams":
         if cp_seen:
           recorded_cp = {**decode_recorded_car_params(None), "reason": "recorded_cp_duplicate"}
@@ -109,6 +119,8 @@ def _selected_data(service, data):
     for key in invalid:
       settings.pop(key, None)
     commits = {name: str(getattr(data, name)) for name in ("gitCommit", "gitSrcCommit")}
+    if recorded_cp is not None and recorded_cp.get("state") == "observed":
+      recorded_cp["controller_context"]["hyundai_camera_scc"] = camera_scc
     commits = {name: value.lower() if re.fullmatch(r"[a-fA-F0-9]{40}", value) else None for name, value in commits.items()}
     return {**commits, "dirty": bool(data.dirty),
             "settings_raw": settings, "invalid_setting_keys": sorted(invalid), "advisory_only": True,

@@ -1,0 +1,23 @@
+{
+  "schema_version": 1,
+  "analysis_profile": {
+    "profile_id": "native-pid-mask-host-unqualified-v1",
+    "pre_margin_ns": 100000000,
+    "recovery_ns": 2000000000,
+    "max_gap_ns": 250000000,
+    "dependency_ns": 100000000,
+    "max_samples": 100000
+  },
+  "objectives": {
+    "LateralTorqueKf": {
+      "id": "native-recorded-pid-target-v1",
+      "kind": "tracking",
+      "reference": {
+        "type": "recorded_pid_target",
+        "signal": "desired_lateral_accel",
+        "unit": "m/s^2",
+        "trace_schema": "torque_pid_cycle_v1"
+      }
+    }
+  }
+}

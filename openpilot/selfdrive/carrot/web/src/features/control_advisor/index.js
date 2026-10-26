@@ -1,4 +1,4 @@
-import { buildApplyRequestBody, buildReviewExportBody, buildReviewRegistrationBody, createControlAdvisorModel, nativeReasonMessage } from "./model.js";
+import { buildApplyRequestBody, buildTrialRequestBody, buildReviewExportBody, buildReviewRegistrationBody, createControlAdvisorModel, nativeReasonMessage } from "./model.js";
 import { createControlAdvisorView } from "./view.js";
 
 const STATUS_PATH = "/api/control_advisor/status";
@@ -133,7 +133,7 @@ export function mountControlAdvisor(container, { fetchImpl = globalThis.fetch, p
   const reviewFiles = new Map();
   const fileReads = new Map();
   const restoreIds = new Map();
-  const ui = { tab: "live", axis: "all", goalId: "tracking", goalTouched: false, includeRaw: false, vehicleGroup: "", lastRestore: null,
+  const ui = { tab: "live", axis: "all", goalId: "custom_sr_v1", goalTouched: false, includeRaw: false, vehicleGroup: "", lastRestore: null,
     reviewFiles: {}, selectedReviews: {}, pending: false, connected: false, error: null, actionError: null };
 
   function render() {
@@ -209,7 +209,7 @@ export function mountControlAdvisor(container, { fetchImpl = globalThis.fetch, p
     }
   }
 
-  async function applyRequestAction(kind, key) {
+  async function applyRequestAction(kind, key, trialId = null) {
     const model = createControlAdvisorModel(payload);
     if (disposed || ui.pending || !ui.connected || !controlAuthorized(model, token) || !model.controlConfigured || !model.applyRequests.registrationEnabled) return;
     ui.pending = true;
@@ -223,13 +223,13 @@ export function mountControlAdvisor(container, { fetchImpl = globalThis.fetch, p
       if (kind === "register_request") {
         const context = payload.current_request_context || {};
         const bindingKey = JSON.stringify([context.target_id, context.session_id, context.artifact_sha256, context.result_revision,
-          context.settings_revision, context.dependency_digest, key]);
+          context.settings_revision, context.dependency_digest, key, trialId]);
         const previous = requestIds.get(bindingKey);
         const summary = previous && payload.apply_requests?.find((item) => item.request_id === previous);
         id = previous && !["expired", "cancelled", "rejected"].includes(summary?.state) ? previous : requestId();
         if (!requestIds.has(bindingKey) && requestIds.size >= 128) requestIds.delete(requestIds.keys().next().value);
         requestIds.set(bindingKey, id);
-        body = buildApplyRequestBody(payload, key, id);
+        body = trialId ? buildTrialRequestBody(payload, key, trialId, id) : buildApplyRequestBody(payload, key, id);
       } else {
         if (!model.applyRequests.items.some((item) => item.requestId === key && item.canCancel)) throw new Error("request_evidence_unavailable");
         id = key;
@@ -394,6 +394,7 @@ export function mountControlAdvisor(container, { fetchImpl = globalThis.fetch, p
     onStop() { void action("stop"); },
     onAnalyze() { void action("analyze"); },
     onApplyRequest(key) { void applyRequestAction("register_request", key); },
+    onTrialRequest(key, id) { void applyRequestAction("register_request", key, id); },
     onCancelRequest(id) { void applyRequestAction("cancel_request", id); },
     onExportRaw(value) { ui.includeRaw = value === true; render(); },
     onCreateExport() { void reviewExportAction("create_export_job"); },

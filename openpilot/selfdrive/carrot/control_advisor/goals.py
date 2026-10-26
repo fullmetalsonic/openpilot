@@ -11,6 +11,14 @@ FMS_PRESET_RAW = {"CruiseMaxVals0": 160, "CruiseMaxVals1": 200, "CruiseMaxVals2"
                   "CruiseMaxVals3": 130, "CruiseMaxVals4": 110, "CruiseMaxVals5": 95, "CruiseMaxVals6": 80}
 FMS_PRESET_SOURCE_SHA256 = "d3b8b78a73366eda592d1d8b58bce9b35b7b7ccf9aca5b2e7d0682ed4ac8a788"
 _DEFAULTS = Path(__file__).resolve().parent / "defaults"
+SIX_PARAMETER_GOALS = {
+  "custom_sr_v1": ("CustomSR", "수동 조향비", "numeric_calibration"),
+  "lateral_torque_kp_v1": ("LateralTorqueKpV", "조향 P 게인", "numeric_calibration"),
+  "lateral_torque_kf_v1": ("LateralTorqueKf", "조향 FF 게인", "numeric_calibration"),
+  "steer_actuator_delay_v1": ("SteerActuatorDelay", "조향 지연 시험", "manual_trial"),
+  "lat_smooth_sec_v1": ("LatSmoothSec", "조향 평활화 시험", "manual_trial"),
+  "long_actuator_delay_v1": ("LongActuatorDelay", "종방향 지연 시험", "manual_trial"),
+}
 _GOALS = {
   "tracking": {"id": "tracking", "label": "추적·횡방향 보정", "version": 1,
     "description": "기록된 독립 응답으로 기존 횡방향 보정 목표를 분석합니다.", "settings_raw": {}, "source_sha256": None},
@@ -30,7 +38,10 @@ _GOAL_FILES = {
 
 def _goals():
   from .policy_observations import POLICY_DEFAULTS, SOURCE_SHA256
-  return {**_GOALS, "fms_policy_defaults_v1": {
+  return {**_GOALS, **{goal: {"id": goal, "label": label, "version": 1,
+    "description": "한 설정만 분석합니다. 수동 시험은 최적값이나 개선 예측이 아닙니다.",
+    "parameter_key": key, "purpose": purpose, "settings_raw": {}, "source_sha256": None}
+    for goal, (key, label, purpose) in SIX_PARAMETER_GOALS.items()}, "fms_policy_defaults_v1": {
     "id": "fms_policy_defaults_v1", "label": "FMS 기본 정책 비교", "version": 1,
     "description": "같은 실제 초기 상태와 입력에서 FMS 기본 정책의 한 cycle 출력과 비교합니다. 지속 궤적이나 차량 개선 예측이 아닙니다.",
     "settings_raw": dict(POLICY_DEFAULTS), "source_sha256": SOURCE_SHA256}}
@@ -56,7 +67,7 @@ def goal_options(environment):
   if (type(environment) is not dict or environment.get(PROFILE_ENV) != BUILTIN_PROFILE_PATH
       or environment.get(OBJECTIVES_ENV) != BUILTIN_OBJECTIVES_PATH):
     return []
-  return deepcopy(list(_goals().values()))
+  return deepcopy([_goals()[goal] for goal in SIX_PARAMETER_GOALS])
 
 
 def goal_configuration(goal_id, environment):
@@ -65,7 +76,9 @@ def goal_configuration(goal_id, environment):
     raise ValueError("invalid_analysis_goal")
   if not goal_options(environment):
     raise ValueError("analysis_goal_requires_builtin_configuration")
-  if goal_id == "tracking":
+  if goal_id in SIX_PARAMETER_GOALS:
+    profile, objectives = (str(_DEFAULTS / f"{goal_id}_{kind}.json") for kind in ("profile", "objectives"))
+  elif goal_id == "tracking":
     profile, objectives = BUILTIN_PROFILE_PATH, BUILTIN_OBJECTIVES_PATH
   else:
     profile, objectives = (str(_DEFAULTS / name) for name in _GOAL_FILES[goal_id])
