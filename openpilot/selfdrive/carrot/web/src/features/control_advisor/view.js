@@ -594,6 +594,17 @@ export function createControlAdvisorView(container, handlers) {
   const goal = node(document, "select");
   goal.dataset.caGoal = "";
   goalLabel.append(goal);
+  const executorLabel = node(document, "label", "control-advisor__field", "분석 위치");
+  const executor = node(document, "select");
+  executor.dataset.caExecutor = "";
+  for (const [value, label] of [["device", "콤마 자체 분석"], ["remote_pc", "원격 PC 분석 · Codex"]]) {
+    const option = node(document, "option", "", label);
+    option.value = value; executor.append(option);
+  }
+  executor.addEventListener("change", () => handlers.onExecutor(executor.value));
+  executorLabel.append(executor);
+  const executorNote = node(document, "p", "control-advisor__muted");
+  executorNote.dataset.caExecutorNote = "";
   const goalNote = node(document, "p", "control-advisor__muted");
   goalNote.dataset.caGoalNote = "";
   let goalOptionsSignature = null;
@@ -607,7 +618,7 @@ export function createControlAdvisorView(container, handlers) {
     button.dataset.caAction = action;
     actions.append(button);
   }
-  controls.append(keyLabel, goalLabel, actions);
+  controls.append(keyLabel, goalLabel, executorLabel, actions);
   const controlsNote = node(document, "p", "control-advisor__muted");
   const offline = node(document, "div");
   const tabs = node(document, "div", "control-advisor__tabs c-segmented-control c-segmented-control--equal");
@@ -644,7 +655,7 @@ export function createControlAdvisorView(container, handlers) {
     handlers.onTab(tabButtons[next].dataset.caTab);
   });
   const footer = node(document, "p", "control-advisor__muted", "화면을 닫아도 수집 세션은 유지됩니다. 수집 종료 버튼으로 종료해 주세요. 설정 자동 적용은 없습니다.");
-  root.append(status, connection, controls, goalNote, analysisStatus, controlsNote, offline, tabs, panel, footer);
+  root.append(status, connection, controls, goalNote, executorNote, analysisStatus, controlsNote, offline, tabs, panel, footer);
   container.replaceChildren(root);
   token.addEventListener("input", () => handlers.onToken(token.value));
   goal.addEventListener("change", () => handlers.onGoal(goal.value));
@@ -731,6 +742,14 @@ export function createControlAdvisorView(container, handlers) {
     analysisStatus.textContent = [model.analysisControl.label, model.analysisControl.scopeLabel,
       model.analysisControl.progress, "분석 버튼 또는 P 전환 시 실행 · 설정은 수동 적용"].filter(Boolean).join(" · ");
     goalLabel.hidden = model.analysisGoals.options.length === 0;
+    executorLabel.hidden = !model.executorAvailable;
+    executor.value = model.analysisExecutor;
+    executor.disabled = !model.executorAvailable || !model.active || model.sourceMode !== "live" || ui.pending
+      || !model.controlConfigured || !ui.connected || !(model.auth.authorized || token.value.trim().length > 0);
+    executorNote.hidden = !model.executorAvailable;
+    executorNote.textContent = model.analysisExecutor === "remote_pc"
+      ? `원격 PC가 기존 분석기를 실행합니다. 콤마 기록·소비 관측·설정 적용은 유지하며 연결이 끊기면 대기합니다.${model.remoteJob ? " PC 분석 결과 대기 중." : ""}`
+      : "기존 콤마 자체 분석을 사용합니다. 기록 중 분석 위치를 바꿔도 주행 기록은 유지됩니다.";
     goalNote.hidden = goalLabel.hidden;
     const nextGoals = JSON.stringify(model.analysisGoals.options);
     if (goalOptionsSignature !== nextGoals) {

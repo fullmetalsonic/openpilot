@@ -133,6 +133,12 @@ def main(argv=None) -> int:
   parser = argparse.ArgumentParser(description=__doc__)
   commands = parser.add_subparsers(dest="command", required=True)
   commands.add_parser("inventory", help="Display all planned parameters and implementation readiness")
+  for name, help_text in (("remote-export", "On comma: freeze inputs for the PC using the existing authenticated file connection"),
+                          ("remote-run", "On PC: run the existing analyzer on a frozen remote input directory"),
+                          ("remote-publish", "On comma: validate a returned result; the live publisher seals it")):
+    command = commands.add_parser(name, help=help_text)
+    command.add_argument("directory", type=Path)
+    command.add_argument("--output" if name != "remote-publish" else "--result", required=True, type=Path)
   verify = commands.add_parser("verify", help="Verify an existing local evidence bundle")
   verify.add_argument("directory", type=Path)
   verify.add_argument("--byte-limit", type=int, default=DEFAULT_FILE_BUDGET)
@@ -171,7 +177,18 @@ def main(argv=None) -> int:
       command.add_argument("--synthetic", action="store_true", help="Label generated test logs explicitly")
   args = parser.parse_args(argv)
   try:
-    if args.command == "inventory":
+    if args.command.startswith("remote-"):
+      from .remote_analysis import export_input, run_input, publish_result
+      if args.command == "remote-export":
+        value = export_input(args.directory, args.output)
+        result = {"state": value.get("state", "exported"), "files": len(value["files"]), "job_id": value["ticket"]["job_id"]}
+      elif args.command == "remote-run":
+        value = run_input(args.directory, args.output)
+        result = {"state": "analyzed_on_pc", "files": len(value["files"]), "job_id": value["ticket"]["job_id"],
+                  "result_directory": str(args.output / "result")}
+      else:
+        result = publish_result(args.directory, args.result)
+    elif args.command == "inventory":
       result = {"schema_version": 1, "items": readiness(), "apply_enabled": False}
     elif args.command == "verify":
       result = verify_bundle(args.directory, byte_limit=args.byte_limit)

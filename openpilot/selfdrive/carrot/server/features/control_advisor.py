@@ -512,7 +512,8 @@ def register(app: web.Application, *, controller=None, token=None, live_enabled=
       if native_runtime is not None and comparison_provider is None:
         from openpilot.selfdrive.carrot.control_advisor.native_runtime import comparison_profile
         from openpilot.selfdrive.carrot.control_advisor.request_evidence import make_comparison_provider
-        comparison_provider = make_comparison_provider(request_resolver, comparison_profile(), source_kind="recorded")
+        comparison_provider = make_comparison_provider(request_resolver, comparison_profile(), source_kind="recorded",
+          execution_provider=lambda: (controller.status().get("analysis_execution") or {}).get("executor"))
       owned_store = pc_store if pc_store is not None else native_runtime
       clock_options = {"clock_ns": owned_store.clock_ns} if owned_store is not None else {}
       creation = asyncio.create_task(asyncio.to_thread(ApplyRequestController, root, request_resolver, pc_store=pc_store,
@@ -637,6 +638,7 @@ def register(app: web.Application, *, controller=None, token=None, live_enabled=
                               "apply_enabled": False, "recommendations_enabled": False}
     from openpilot.selfdrive.carrot.control_advisor.analysis_control import initial_control
     result["analysis_control"] = deepcopy(session.get("analysis_control", initial_control()))
+    result["analysis_execution"] = deepcopy(session.get("analysis_execution"))
     goals = getattr(controller, "analysis_goal_options", None)
     result["analysis_goals"] = {"options": goals() if callable(goals) else [], "selected": deepcopy(session.get("analysis_goal"))}
     if request is not None:
@@ -783,6 +785,26 @@ def register(app: web.Application, *, controller=None, token=None, live_enabled=
       return response(session)
     except SessionConflict as exc:
       return _failure(str(exc), 409)
+
+  async def set_analysis_executor(request):
+    body, error = await read_control(request)
+    if error is not None:
+      return error
+    if (set(body) != {"session_id", "executor"} or type(body["session_id"]) is not str
+        or re.fullmatch(r"[A-Za-z0-9_-]{1,80}", body["session_id"]) is None
+        or type(body["executor"]) is not str or body["executor"] not in {"device", "remote_pc"}):
+      return _failure("invalid_analysis_executor", 400)
+    setter = getattr(controller, "set_analysis_executor", None)
+    if not callable(setter):
+      return _failure("analysis_executor_unavailable", 409)
+    try:
+      # Finish an already-running comparison before acknowledging its new
+      # execution location. Subsequent refreshes see the worker-confirmed mode.
+      async with request_lock:
+        result = await setter(**body)
+      return response(result)
+    except (ValueError, OSError, RuntimeError, SessionConflict):
+      return _failure("analysis_executor_unavailable", 409)
 
   async def analyze(request):
     body, error = await read_control(request)
@@ -1250,6 +1272,7 @@ def register(app: web.Application, *, controller=None, token=None, live_enabled=
   app.router.add_post("/api/control_advisor/start", start)
   app.router.add_post("/api/control_advisor/stop", stop)
   app.router.add_post("/api/control_advisor/analyze", analyze)
+  app.router.add_post("/api/control_advisor/analysis-executor", set_analysis_executor)
   app.router.add_post("/api/control_advisor/apply-requests", create_apply_request)
   app.router.add_get("/api/control_advisor/apply-requests/{request_id}", get_apply_request)
   app.router.add_post("/api/control_advisor/apply-requests/{request_id}/cancel", cancel_apply_request)

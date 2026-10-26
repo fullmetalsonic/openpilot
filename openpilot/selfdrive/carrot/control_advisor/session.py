@@ -290,6 +290,21 @@ class SessionController:
       "trip_binding": {"vehicle_id": vehicle, "boot_id": boot_id}})
     return True
 
+  async def set_analysis_executor(self, *, session_id, executor):
+    from .execution import validate_executor
+    validate_executor(executor)
+    await self._command(session_id, {"kind": "executor", "executor": executor})
+    loop = asyncio.get_running_loop()
+    deadline = loop.time() + min(2., self.heartbeat_timeout)
+    while loop.time() < deadline:
+      status = self.status()
+      if status.get("analysis_execution", {}).get("executor") == executor:
+        return status
+      if status.get("session_id") != session_id or status.get("state") not in ACTIVE_STATES:
+        raise SessionConflict("analysis_executor_session_changed")
+      await asyncio.sleep(.02)
+    raise SessionConflict("analysis_executor_ack_timeout")
+
   def request_binding(self):
     """Capture on the owning event loop; a repeated heartbeat never renews a poll."""
     now = self._monotonic()
@@ -498,6 +513,10 @@ class SessionController:
         from .analysis_control import validate_binding
         self._analysis_binding = validate_binding(payload["analysis_binding"])
     selection = payload.get("analysis_goal")
+    execution = None
+    if payload.get("analysis_execution") is not None:
+      from .execution import validate_execution
+      execution = validate_execution(payload["analysis_execution"])
     if selection is not None:
       if selection not in self.analysis_goal_options() or self._snapshot["source_mode"] != "live":
         raise ValueError("invalid_worker_analysis_goal")
@@ -592,6 +611,10 @@ class SessionController:
       self._snapshot["analysis_control"] = analysis
     if selection is not None:
       self._snapshot["analysis_goal"] = deepcopy(selection)
+    if execution is not None:
+      self._snapshot["analysis_execution"] = execution
+    elif "analysis_execution" in payload:
+      self._snapshot.pop("analysis_execution", None)
     if consumers is not None:
       self._snapshot["consumer_observations"] = consumers
       received_at = self._monotonic()

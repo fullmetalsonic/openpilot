@@ -260,6 +260,8 @@ class PeriodicAnalyzer:
     self.clock, self.timeout = clock, wall_timeout_seconds
     self._pending = self._process = self._job = self._lease = None
     self._intent = self._active_intent = None
+    self._executor, self._executor_revision = "device", uuid.uuid4().hex
+    self._remote_pending = False
     self._waiting_sequence = None
     self._resume_job = False
     self._current_context = None
@@ -292,6 +294,18 @@ class PeriodicAnalyzer:
 
   def snapshot(self):
     return validate_periodic_status(self.status)
+
+  def execution_snapshot(self):
+    return {"executor": self._executor, "revision": self._executor_revision,
+            "pending_job": self._job.name if self._remote_pending and self._job is not None else None}
+
+  def set_executor(self, executor):
+    from .execution import validate_executor
+    validate_executor(executor)
+    if executor != self._executor:
+      self.invalidate_analysis("analysis_executor_changed")
+      self._executor, self._executor_revision = executor, uuid.uuid4().hex
+    return self.execution_snapshot()
 
   def request_analysis(self, intent):
     if not self._configured or self._closed:
@@ -406,6 +420,9 @@ class PeriodicAnalyzer:
       self.status["attempt"]["state"] = state
 
   def _stop_child(self, timeout=2.):
+    if self._remote_pending:
+      _atomic(self._job / "remote-cancelled.json", {"revision": self._executor_revision}, durable=True)
+      self._remote_pending = False
     process = self._process
     if process is None:
       return
@@ -431,6 +448,15 @@ class PeriodicAnalyzer:
     self._process = None
 
   def _start_child(self, *, resume=False):
+    if self._executor == "remote_pc":
+      request, request_hash = _read(self._job / "request.json", 64 * 1024)
+      ticket = {"schema_version": 1, "kind": "remote_analysis", "job_id": request["job_id"],
+                "executor_revision": self._executor_revision, "request_sha256": request_hash,
+                "nonce": uuid.uuid4().hex, "resume": resume}
+      _atomic(self._job / "remote-ticket.json", ticket, durable=True)
+      self._remote_pending = True
+      self._started = self.clock()
+      return
     mode = "ab" if resume else "xb"
     with (self._job / "stdout.txt").open(mode) as stdout, (self._job / "stderr.txt").open(mode) as stderr:
       self._process = subprocess.Popen([sys.executable, "-m", __name__, "--request", str(self._job / "request.json")],
@@ -446,17 +472,36 @@ class PeriodicAnalyzer:
     try:
       if not self._initialized:
         self._initialize()
-      if self._process is not None:
-        if any((self._job / name).stat().st_size > 64 * 1024 for name in ("stdout.txt", "stderr.txt")):
+      if self._process is not None or self._remote_pending:
+        if self._remote_pending and (self._job / "remote-input-waiting.json").is_file():
+          from .remote_analysis import _ticket
+          ticket, request = _ticket(self._job)
+          waiting, _ = _read(self._job / "remote-input-waiting.json", 64 * 1024)
+          if waiting != {"ticket": ticket, "reason": "snapshot_no_committed_archive"}:
+            raise ValueError("remote_waiting_binding_changed")
+          self._remote_pending = False
+          self._intent = deepcopy(self._active_intent)
+          self._waiting_sequence = request["identity"]["checkpoint"]["sequence"]
+          self.status.update(state="waiting", reason="waiting_for_new_closed_archive",
+                             stale=self.status["last_success"] is not None)
+          self._persist(force=True)
+          return self.snapshot()
+        remote_done = self._remote_pending and (self._job / "remote-complete.json").is_file()
+        if remote_done:
+          from .remote_analysis import verify_completion
+          verify_completion(self._job)
+        if self._process is not None and any((self._job / name).stat().st_size > 64 * 1024 for name in ("stdout.txt", "stderr.txt")):
           self._stop_child()
           self._failure("periodic_child_output_limit")
-        elif self.clock() - self._started > self.timeout:
+        elif self._process is not None and self.clock() - self._started > self.timeout:
           self._stop_child()
           self._failure("periodic_job_timeout", "timeout")
-        elif self._process.poll() is not None:
-          code = self._process.returncode
-          self._process.stdin.close()
+        elif remote_done or self._process is not None and self._process.poll() is not None:
+          code = 0 if remote_done else self._process.returncode
+          if self._process is not None:
+            self._process.stdin.close()
           self._process = None
+          self._remote_pending = False
           if code != 0:
             self._failure("periodic_child_failed")
           else:
@@ -503,11 +548,11 @@ class PeriodicAnalyzer:
               else:
                 request, _ = _read(self._job / "request.json", 64 * 1024)
                 self._settling_sequences[self._eligibility] = request["identity"]["checkpoint"]["sequence"]
-      if self._process is None and self._resume_job:
+      if self._process is None and not self._remote_pending and self._resume_job:
         self._resume_job = False
         self._start_child(resume=True)
-      if (self._process is None and self._pending is not None and self._intent is not None
-          and self._pending[0]["sequence"] != self._waiting_sequence):
+      if (self._process is None and not self._remote_pending and self._pending is not None and self._intent is not None
+          and (self._waiting_sequence is None or self._pending[0]["sequence"] > self._waiting_sequence)):
         checkpoint, watermark = self._pending
         intent, self._intent = self._intent, None
         self._active_intent = intent
@@ -516,6 +561,8 @@ class PeriodicAnalyzer:
         if profile_hash != intent["profile_sha256"] or objective_hash != intent["objectives_sha256"] or checkpoint["session_id"] != intent["session_id"]:
           raise ValueError("analysis_intent_binding_changed")
         identity = {"checkpoint": checkpoint, "profile_sha256": profile_hash, "objectives_sha256": objective_hash, "code_hashes": _code_hashes(), "analysis_intent": intent}
+        if self._executor == "remote_pc":
+          identity["analysis_execution"] = {"executor": "remote_pc", "revision": self._executor_revision}
         job_id = _hash(identity)
         eligibility = _hash({"archive_watermark": watermark or _hash(checkpoint), "session_id": checkpoint["session_id"], "analysis_intent": intent,
                              **{key: identity[key] for key in ("profile_sha256", "objectives_sha256", "code_hashes")}})
@@ -540,7 +587,7 @@ class PeriodicAnalyzer:
                      "source_start_ns": None, "source_end_ns": None, "source_count": 0, "processed_windows": 0, "blocked_windows": 0, "windows": []})
       self._persist()
     except (OSError, ValueError, TypeError, KeyError, RuntimeError) as error:
-      if self._process is not None:
+      if self._process is not None or self._remote_pending:
         self._stop_child()
       reason = str(error)
       self._failure(reason if _ID.fullmatch(reason) else "periodic_processing_failed")
@@ -561,7 +608,7 @@ class PeriodicAnalyzer:
     return self.snapshot()
 
 
-def _child(request_path):
+def _child(request_path, *, detached=False):
   stop, finished = threading.Event(), threading.Event()
   def parent_pipe():
     try:
@@ -584,7 +631,8 @@ def _child(request_path):
     stop.set()
     if not finished.wait(2.):
       os._exit(75)
-  threading.Thread(target=parent_pipe, daemon=True, name="advisor-analysis-parent").start()
+  if not detached:
+    threading.Thread(target=parent_pipe, daemon=True, name="advisor-analysis-parent").start()
   try:
     request, _ = _read(request_path, 64 * 1024)
     identity = request["identity"]

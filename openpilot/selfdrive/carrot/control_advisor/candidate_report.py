@@ -18,7 +18,8 @@ ENGINE_FILES = ('candidates.py', 'candidate_lateral.py', 'candidate_longitudinal
                 'candidate_report.py', 'parameters.json', 'torque_fit.py',
                 'log_candidates.py', 'log_signals.py', 'lateral_observations.py', 'log_history.py', 'rlog.py',
                 'normalizer.py', 'analysis.py', 'trip_analysis.py', 'trip_history.py', 'settings_history.py', 'calibration_review.py',
-                'journal_snapshot.py', 'journal_segments.py', 'inspection.py', 'periodic.py', 'vehicle_identity.py', 'goals.py')
+                'journal_snapshot.py', 'journal_segments.py', 'inspection.py', 'periodic.py', 'vehicle_identity.py', 'goals.py',
+                'execution.py', 'remote_analysis.py')
 SOURCE_FILES = ('openpilot/common/params_keys.h', 'openpilot/selfdrive/carrot/t_follow.py',
                 'openpilot/common/pid.py', 'opendbc_repo/opendbc/car/interfaces.py', 'opendbc_repo/opendbc/car/__init__.py',
                 'opendbc_repo/opendbc/car/hyundai/carcontroller.py', 'opendbc_repo/opendbc/car/hyundai/values.py',

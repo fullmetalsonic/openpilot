@@ -104,6 +104,28 @@ class RequestResolverFixture:
 
 
 class ControlAdvisorApiTests(unittest.IsolatedAsyncioTestCase):
+  async def test_executor_selection_uses_existing_auth_and_keeps_recording_session(self):
+    client, controller = await self.make_client()
+    await client.post('/api/control_advisor/start', json=self.start_body(mode='live'), headers=self.headers(client))
+    session_id = controller.status()['session_id']
+    calls = []
+    async def setter(**body):
+      calls.append(body)
+      controller.snapshot['analysis_execution'] = {'executor': body['executor'], 'revision': 'a' * 32, 'pending_job': None}
+      return controller.status()
+    controller.set_analysis_executor = setter
+    body = {'session_id': session_id, 'executor': 'remote_pc'}
+    reply = await client.post('/api/control_advisor/analysis-executor', json=body)
+    self.assertEqual(reply.status, 403)
+    reply = await client.post('/api/control_advisor/analysis-executor', json={**body, 'path': 'private'}, headers=self.headers(client))
+    self.assertEqual(reply.status, 400)
+    reply = await client.post('/api/control_advisor/analysis-executor', json=body, headers=self.headers(client))
+    self.assertEqual(reply.status, 200)
+    self.assertEqual((await reply.json())['analysis_execution']['executor'], 'remote_pc')
+    self.assertEqual(controller.status()['session_id'], session_id)
+    self.assertEqual(len(controller.starts), 1)
+    self.assertEqual(calls, [body])
+
   async def test_manual_analysis_is_authenticated_bounded_and_returns_pollable_ack(self):
     client, controller = await self.make_client()
     await client.post("/api/control_advisor/start", json=self.start_body(mode="live"), headers=self.headers(client))

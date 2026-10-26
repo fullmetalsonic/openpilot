@@ -664,7 +664,7 @@ class CandidateEvidenceResolver:
   __call__ = resolve
 
 
-def make_comparison_provider(resolver, profile, *, source_kind="recorded"):
+def make_comparison_provider(resolver, profile, *, source_kind="recorded", execution_provider=None):
   """Server-only source declaration; unchanged immutable pairs decode once."""
   resolver.bind_comparison_profile(profile)
   cache = {}
@@ -675,6 +675,13 @@ def make_comparison_provider(resolver, profile, *, source_kind="recorded"):
   def provider(application, token=None):
     try:
       from .comparison import evaluate_comparison
+      executor = execution_provider() if execution_provider is not None else "device"
+      if executor != "device":
+        reason = "comparison_on_remote_pc" if executor == "remote_pc" else "analysis_executor_unconfirmed"
+        held = evaluate_comparison(application, {}, profile)
+        held.update(state="held", reason_codes=[reason], receipt=None)
+        held["comparison"].update(state="held", reason_codes=[reason])
+        return held
       frozen = application["baseline"].get("comparison_profile")
       if type(frozen) is not dict or _digest(frozen) != application["baseline"].get("comparison_profile_sha256"):
         _fail("comparison_request_profile_unbound")

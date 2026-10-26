@@ -60,6 +60,23 @@ class PeriodicRecordingTests(unittest.TestCase):
   setUp = recording_fixture.RecordingTests.setUp
   environment = recording_fixture.RecordingTests.environment
 
+  def test_executor_switch_keeps_recording_threads_and_persists_separate_preference(self):
+    class LocationAnalyzer(FakeAnalyzer):
+      def set_executor(self, executor):
+        self.location = {'executor': executor, 'revision': 'a' * 32, 'pending_job': None}
+      def execution_snapshot(self):
+        return deepcopy(self.location)
+    environment = self.auto_environment()
+    recorder = self.start_recorder(environment=environment, factory=LocationAnalyzer)
+    wait_for(lambda: recorder.execution_snapshot() is not None)
+    threads = tuple(recorder._threads)
+    recorder.request_executor('remote_pc')
+    wait_for(lambda: recorder.execution_snapshot()['executor'] == 'remote_pc')
+    self.assertEqual(tuple(recorder._threads), threads)
+    self.assertNotIn(recorder.snapshot()['state'], {'failed', 'stopped'})
+    from openpilot.selfdrive.carrot.control_advisor.execution import preference
+    self.assertEqual(preference(Path(environment['CARROT_CONTROL_ADVISOR_AUTO_OUTPUT_ROOT'])), 'remote_pc')
+
   def auto_environment(self, *, enabled=True, **changes):
     for name in ("explicit-profile.json", "explicit-objectives.json"):
       (self.root / name).write_text("{}")

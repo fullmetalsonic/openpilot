@@ -50,3 +50,16 @@ test("the current six-goal catalogue shows exactly the six agreed parameters", (
   payload.analysis_goals.options = goals.map((id) => ({ id, version: 1, label: id, description: id }));
   assert.deepEqual(createControlAdvisorModel(payload).analysisGoals.options.map((item) => item.id), goals);
 });
+
+test("analysis location is independent of recording source mode and old payloads stay on device", () => {
+  const payload = fixture();
+  payload.session = { state: "running", source_mode: "live", session_id: "same-recording" };
+  assert.equal(createControlAdvisorModel(payload).analysisExecutor, "device");
+  payload.analysis_execution = { executor: "remote_pc", revision: "a".repeat(32), pending_job: "b".repeat(64) + "-12345678" };
+  const remote = createControlAdvisorModel(payload);
+  assert.equal(remote.analysisExecutor, "remote_pc");
+  assert.equal(remote.executorAvailable, true);
+  assert.equal(remote.sessionId, "same-recording");
+  assert.equal(remote.sourceMode, "live");
+  assert.equal(remote.remoteJob, payload.analysis_execution.pending_job);
+});

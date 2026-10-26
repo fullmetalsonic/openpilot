@@ -101,6 +101,21 @@ class FakeProcess:
 
 
 class SessionTests(unittest.IsolatedAsyncioTestCase):
+  async def test_executor_change_waits_for_worker_ack_without_restarting_recording(self):
+    controller = await self.make_controller()
+    started = await controller.start(mode="live", interval_seconds=300, request_id="record")
+    self.processes[0].emit(started)
+    await self.state(controller, "running")
+    task = asyncio.create_task(controller.set_analysis_executor(session_id=started["session_id"], executor="remote_pc"))
+    await asyncio.sleep(.02)
+    self.assertFalse(task.done())
+    self.assertEqual(self.processes[0].stdin.commands[-1]["executor"], "remote_pc")
+    self.processes[0].emit(started, analysis_execution={"executor": "remote_pc", "revision": "a" * 32, "pending_job": None})
+    acknowledged = await task
+    self.assertEqual(acknowledged["analysis_execution"]["executor"], "remote_pc")
+    self.assertEqual(acknowledged["session_id"], started["session_id"])
+    self.assertEqual(len(self.spawned), 1)
+
   async def test_explicit_analysis_uses_same_owned_pipe_and_idempotent_ack(self):
     from openpilot.selfdrive.carrot.control_advisor.analysis_control import initial_control
     controller = await self.make_controller()
@@ -129,18 +144,18 @@ class SessionTests(unittest.IsolatedAsyncioTestCase):
     from openpilot.selfdrive.carrot.control_advisor.runtime_config import BUILTIN_PROFILE_PATH, BUILTIN_OBJECTIVES_PATH
     controller = await self.make_controller(live_environment={"CARROT_CONTROL_ADVISOR_AUTO_PROFILE": BUILTIN_PROFILE_PATH,
       "CARROT_CONTROL_ADVISOR_AUTO_OBJECTIVES": BUILTIN_OBJECTIVES_PATH})
-    started = await controller.start(mode="live", interval_seconds=300, request_id="record", goal_id="tracking")
+    started = await controller.start(mode="live", interval_seconds=300, request_id="record", goal_id="custom_sr_v1")
     process = self.processes[0]
     process.emit(started, analysis_control={**initial_control(), "can_analyze": True, "reason_codes": []})
     await self.state(controller, "running")
-    switched = await controller.analyze(session_id=started["session_id"], request_id="new-goal", goal_id="fms_accel_defaults_v1")
+    switched = await controller.analyze(session_id=started["session_id"], request_id="new-goal", goal_id="long_actuator_delay_v1")
     self.assertEqual(switched["session_id"], started["session_id"])
     self.assertIs(controller._process, process)
     self.assertEqual(len(self.spawned), 1)
-    self.assertEqual(process.stdin.commands[-1]["goal_id"], "fms_accel_defaults_v1")
+    self.assertEqual(process.stdin.commands[-1]["goal_id"], "long_actuator_delay_v1")
     self.assertEqual(self.spawned[0][1]["env"]["CARROT_CONTROL_ADVISOR_BUILTIN_GOALS"], "1")
     with self.assertRaises(SessionConflict):
-      await controller.analyze(session_id=started["session_id"], request_id="new-goal", goal_id="tracking")
+      await controller.analyze(session_id=started["session_id"], request_id="new-goal", goal_id="custom_sr_v1")
     with self.assertRaises(ValueError):
       await controller.analyze(session_id=started["session_id"], request_id="path", goal_id="../../other")
 

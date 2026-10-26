@@ -4,7 +4,7 @@ import { createControlAdvisorView } from "./view.js";
 const STATUS_PATH = "/api/control_advisor/status";
 const REQUEST_PATH = "/api/control_advisor/apply-requests";
 const EXPORT_PATH = "/api/control_advisor/export-jobs";
-const ACTION_PATHS = Object.freeze({ start: "/api/control_advisor/start", stop: "/api/control_advisor/stop", analyze: "/api/control_advisor/analyze", register_request: REQUEST_PATH,
+const ACTION_PATHS = Object.freeze({ start: "/api/control_advisor/start", stop: "/api/control_advisor/stop", analyze: "/api/control_advisor/analyze", set_executor: "/api/control_advisor/analysis-executor", register_request: REQUEST_PATH,
   create_export_job: EXPORT_PATH, redeem_access: "/api/control_advisor/access/redeem",
   confirm_vehicle: "/api/control_advisor/vehicle/confirm", backup_vehicle: "/api/control_advisor/vehicle/backup", restore_vehicle: "/api/control_advisor/vehicle/restore" });
 
@@ -184,6 +184,7 @@ export function mountControlAdvisor(container, { fetchImpl = globalThis.fetch, p
     if (kind === "start" && (model.active || !(mode === "live" ? model.liveEnabled : model.syntheticEnabled))) return;
     if (kind === "stop" && (!model.active || !model.sessionId || model.state === "stopping")) return;
     if (kind === "analyze" && (!model.sessionId || !model.analysisControl.canAnalyze)) return;
+    if (kind === "set_executor" && (!model.sessionId || model.sourceMode !== "live" || !["device", "remote_pc"].includes(mode))) return;
     ui.pending = true;
     ui.actionError = null;
     clearTimeout(timer);
@@ -194,6 +195,7 @@ export function mountControlAdvisor(container, { fetchImpl = globalThis.fetch, p
       const body = kind === "start" ? { mode, interval_seconds: 300, request_id: requestId() } : { session_id: model.sessionId };
       if (kind === "start" && mode === "live" && model.analysisGoals.options.some((goal) => goal.id === ui.goalId)) body.goal_id = ui.goalId;
       if (kind === "analyze") body.request_id = requestId();
+      if (kind === "set_executor") body.executor = mode;
       if (kind === "analyze" && model.analysisGoals.options.some((goal) => goal.id === ui.goalId)) body.goal_id = ui.goalId;
       const data = await client.request(kind, { token: token.trim(), body });
       if (!disposed && sequence === serial) accept(data);
@@ -393,6 +395,7 @@ export function mountControlAdvisor(container, { fetchImpl = globalThis.fetch, p
     onStart(mode) { void action("start", mode); },
     onStop() { void action("stop"); },
     onAnalyze() { void action("analyze"); },
+    onExecutor(value) { void action("set_executor", value); },
     onApplyRequest(key) { void applyRequestAction("register_request", key); },
     onTrialRequest(key, id) { void applyRequestAction("register_request", key, id); },
     onCancelRequest(id) { void applyRequestAction("cancel_request", id); },

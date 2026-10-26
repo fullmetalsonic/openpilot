@@ -154,6 +154,8 @@ def run(*, mode, session_id, interval_seconds, parent_pid=None):
         session.bookmark(partial=True)
         recording.submit_diagnostic(session.preservation_bookmark)
         recording.request_analysis(command["request_id"], command.get("goal_id"))
+      elif command.get("kind") == "executor":
+        recording.request_executor(command["executor"])
       elif command.get("kind") == "successful_apply":
         recording.successful_apply(command["receipt"], command["trip_binding"])
       else:
@@ -175,7 +177,8 @@ def run(*, mode, session_id, interval_seconds, parent_pid=None):
         return
       time.sleep(max(0.0, 1.0 - (now - last_emitted)))
     _emit({**session.snapshot(), "automatic_analysis": recording.automatic_snapshot(), "analysis_control": recording.analysis_snapshot(),
-           "analysis_binding": recording.analysis_binding(), "analysis_goal": recording.analysis_goal()})
+           "analysis_binding": recording.analysis_binding(), "analysis_goal": recording.analysis_goal(),
+           "analysis_execution": recording.execution_snapshot()})
     last_emitted = time.monotonic()
 
   try:

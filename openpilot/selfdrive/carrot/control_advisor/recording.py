@@ -254,6 +254,7 @@ class RecordingSession:
     self._analysis_observation = None
     from .analysis_control import initial_control
     self._analysis_public = initial_control()
+    self._analysis_execution = None  # Not a device-mode acknowledgement yet.
     self._analysis_binding = None
     if environment.get(prefix + "AUTO_ENABLED") == "1":
       raw = [environment.get(prefix + name, "") for name in ("AUTO_PROFILE", "AUTO_OBJECTIVES", "AUTO_OUTPUT_ROOT")]
@@ -310,6 +311,20 @@ class RecordingSession:
   def analysis_goal(self):
     with self._lock:
       return deepcopy(self._analysis_goal)
+
+  def execution_snapshot(self):
+    with self._lock:
+      return deepcopy(self._analysis_execution)
+
+  def request_executor(self, executor):
+    from .execution import validate_executor
+    validate_executor(executor)
+    if self._automatic_config is None:
+      raise ValueError("analysis_not_configured")
+    try:
+      self._analysis_commands.put_nowait({"kind": "executor", "executor": executor})
+    except queue.Full as error:
+      raise ValueError("analysis_command_queue_full") from error
 
   def observe_analysis(self, stamp, parking, nonpark_ns=None):
     if type(stamp) is not int or not 0 <= self.source_clock_ns() - stamp <= 2_000_000_000:
@@ -377,6 +392,9 @@ class RecordingSession:
           return
       analyzer = factory(self._session_dir, profile, objectives, output,
                          interval_seconds=self._automatic_public["interval_seconds"], source_mode=self.source_mode)
+      from .execution import preference
+      if hasattr(analyzer, "set_executor"):
+        analyzer.set_executor(preference(output))
       from .analysis_control import AnalysisControl
       from .consumer_observer import _read_boot_id
       from .evidence import hash_file
@@ -409,7 +427,16 @@ class RecordingSession:
           except queue.Empty:
             break
           try:
-            if command["kind"] == "analyze":
+            if command["kind"] == "executor":
+              if not hasattr(analyzer, "set_executor"):
+                raise ValueError("analysis_executor_unavailable")
+              previous_executor = analyzer.execution_snapshot()["executor"]
+              preference(output, command["executor"])
+              analyzer.set_executor(command["executor"])
+              if previous_executor != command["executor"]:
+                control.change_goal(control.profile_hash, control.objective_hash, control.goal_id)
+                control.public["reason_codes"] = ["analysis_executor_changed"]
+            elif command["kind"] == "analyze":
               goal_id = command.get("goal_id")
               if goal_id is not None:
                 from .goals import goal_configuration
@@ -463,6 +490,8 @@ class RecordingSession:
         with self._lock:
           self._automatic_public = deepcopy(analyzer.snapshot())
           self._analysis_public = control.snapshot()
+          if hasattr(analyzer, "execution_snapshot"):
+            self._analysis_execution = analyzer.execution_snapshot()
           self._analysis_binding = None if not control.binding_valid else {"trip_binding": deepcopy(control.trip), "cut_revision": control.cut_revision}
         self._stop.wait(0.1)
     except Exception:

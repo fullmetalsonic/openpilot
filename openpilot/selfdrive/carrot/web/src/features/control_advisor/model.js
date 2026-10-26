@@ -634,7 +634,8 @@ function requestComparison(value) {
   const labels = { required_consumer_observation_missing: "별도 소비 관측 근거 부족", consumer_sample_not_time_aligned: "소비 관측 시각 불일치",
     comparison_eligible_exposure_insufficient: "사용 가능한 비교 구간 부족", comparison_matched_exposure_insufficient: "같은 조건의 비교 구간 부족",
     comparison_dependencies_changed_or_unknown: "의존 설정 변경 또는 미확인", comparison_not_a_single_parameter_change: "단일 항목 변경 조건 미충족",
-    comparison_windows_overlap_transition_or_settling: "전환·회복 구간과 비교 창 겹침", comparison_evidence_invalid: "비교 근거 검증 미충족" };
+    comparison_windows_overlap_transition_or_settling: "전환·회복 구간과 비교 창 겹침", comparison_evidence_invalid: "비교 근거 검증 미충족",
+    comparison_on_remote_pc: "원격 모드 · Codex가 PC에서 전후 자료를 비교합니다" };
   return { state: value.state, before: comparisonSummary(value.before), after: comparisonSummary(value.after),
     scopeLabel: value.scope === "observational_generated" ? "생성 자료의 관측 비교 · 실제 주행 아님"
       : value.scope === "observational_model_derived" ? "모델 유래 반응의 관측 비교" : "차량 가속 반응의 관측 비교",
@@ -875,6 +876,9 @@ export function createControlAdvisorModel(payload = {}) {
     recording: createRecordingModel(session.recording),
     consumerObservations,
     candidateReport, applyRequests, calibrationReview: createCalibrationReviewModel(payload), analysisGoals: analysisGoalsModel(payload.analysis_goals, session),
+    analysisExecutor: ["device", "remote_pc"].includes(payload.analysis_execution?.executor) ? payload.analysis_execution.executor : "device",
+    executorAvailable: ["device", "remote_pc"].includes(payload.analysis_execution?.executor),
+    remoteJob: typeof payload.analysis_execution?.pending_job === "string" && /^[a-f0-9]{64}-[a-f0-9]{8}$/.test(payload.analysis_execution.pending_job) ? payload.analysis_execution.pending_job : null,
     analysisControl: createAnalysisControlModel(payload.analysis_control || session.analysis_control),
     sourceLabel: sourceMode === "synthetic" ? "합성 데모 · 실제 주행 아님"
       : sourceMode === "live" ? "실제 메시지 경로 · 실기기 검증 전" : "수집 세션 없음",
