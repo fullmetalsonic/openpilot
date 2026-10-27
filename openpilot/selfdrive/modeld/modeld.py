@@ -93,7 +93,8 @@ def get_lat_smooth_seconds_dynamic(model_output: dict[str, np.ndarray],
 
 
 def get_action_from_model(model_output: dict[str, np.ndarray], prev_action: log.ModelDataV2.Action,
-                          lat_action_t: float, long_action_t: float, v_ego: float, lat_smooth_seconds: float, vEgoStopping: float) -> log.ModelDataV2.Action:
+                          lat_action_t: float, long_action_t: float, v_ego: float, lat_smooth_seconds: float, vEgoStopping: float,
+                          _advisor_diagnostics: dict | None = None) -> log.ModelDataV2.Action:
   plan = model_output['plan'][0]
   desired_accel, should_stop, _, desired_velocity_now = get_accel_from_plan(plan[:,Plan.VELOCITY][:,0],
                                                    plan[:,Plan.ACCELERATION][:,0],
@@ -118,10 +119,18 @@ def get_action_from_model(model_output: dict[str, np.ndarray], prev_action: log.
   desired_accel = smooth_value(desired_accel, prev_action.desiredAcceleration, LONG_SMOOTH_SECONDS)
   desired_velocity_now = smooth_value(desired_velocity_now, prev_action.desiredVelocity, LONG_SMOOTH_SECONDS)
 
+  if _advisor_diagnostics is not None:
+    _advisor_diagnostics['lat_pre_smooth_curvature'] = desired_curvature
+    _advisor_diagnostics['lat_previous_curvature'] = prev_action.desiredCurvature
+    _advisor_diagnostics['v_ego'] = v_ego
+    _advisor_diagnostics['lat_smoothing_applied'] = bool(v_ego > MIN_LAT_CONTROL_SPEED)
   if v_ego > MIN_LAT_CONTROL_SPEED:
     desired_curvature = smooth_value(desired_curvature, prev_action.desiredCurvature, lat_smooth_seconds)
   else:
     desired_curvature = prev_action.desiredCurvature
+
+  if _advisor_diagnostics is not None:
+    _advisor_diagnostics['lat_post_smooth_curvature'] = desired_curvature
 
   return log.ModelDataV2.Action(desiredCurvature=float(desired_curvature),
                                 desiredAcceleration=float(desired_accel),
@@ -572,7 +581,9 @@ def main(demo=False):
         if _advisor_action is not None:
           _advisor_next_lat_component, _advisor_next_lat_source = _advisor_live_delay, 'learned'
 
-      action = get_action_from_model(model_output, prev_action, lat_action_t, long_action_t, v_ego, lat_smooth_seconds_dynamic, vEgoStopping)
+      _advisor_smoothing = {} if _advisor_action is not None else None
+      action = get_action_from_model(model_output, prev_action, lat_action_t, long_action_t, v_ego, lat_smooth_seconds_dynamic, vEgoStopping,
+                                     _advisor_diagnostics=_advisor_smoothing)
       if _advisor_action is not None:
         observe(_advisor_action, lambda: {
           'fields': {
@@ -587,7 +598,9 @@ def main(demo=False):
           },
           'context': {'frame': frame, 'lat_action_t': lat_action_t, 'long_action_t': long_action_t,
                       'lat_delay_used_s': _advisor_used_lat_delay, 'next_lat_delay_s': lat_delay_dynamic,
-                      'lat_smooth_dynamic_s': lat_smooth_seconds_dynamic, 'model_action_head': 'action' in model_output},
+                      'lat_smooth_dynamic_s': lat_smooth_seconds_dynamic, 'model_action_head': 'action' in model_output,
+                      'lat_smooth_y_std': y_std_1s,
+                      **_advisor_smoothing},
         }, cycle_id=frame)
       prev_action = action
       fill_model_msg(modelv2_send, model_output, action,

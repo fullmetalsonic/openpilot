@@ -7,7 +7,6 @@ from opendbc.car.carlog import carlog
 from opendbc.car.crc import CRC16_XMODEM
 from opendbc.car.hyundai.values import HyundaiFlags, HyundaiExtFlags
 from opendbc.car.hyundai.stopping import MOVING_SPEED
-from openpilot.common.params import Params
 from openpilot.common.filter_simple import FirstOrderFilter
 from opendbc.car.common.conversions import Conversions as CV
 from openpilot.cereal import log
@@ -17,6 +16,12 @@ LaneChangeDirection = log.LaneChangeDirection
 TurnDirection = log.Desire
 
 ACC_CONTROL_DT = 1.0 / 50.0
+
+
+def Params(*args, **kwargs):
+  # Offline DBC decoding needs checksums, not the device's native Params module.
+  from openpilot.common.params import Params as NativeParams
+  return NativeParams(*args, **kwargs)
 
 
 def longitudinal_interlock_active(CS) -> bool:

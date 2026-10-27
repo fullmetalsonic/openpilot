@@ -156,9 +156,34 @@ def export_input(job_directory, destination):
       return {"state": "waiting_for_closed_archive", "ticket": ticket, "files": []}
   else:
     loaded = load_journal_snapshot(session, snapshot)
-    sealed = _archive_summary(session, snapshot, request["identity"]["checkpoint"], loaded["history"], committed_archives(loaded["history"]))
+    if loaded["marker"]["schema_version"] == 3:
+      from .trip_history import trip_archive_summary
+      sealed = trip_archive_summary(session, snapshot, request["identity"]["checkpoint"], loaded["history"])
+    else:
+      sealed = _archive_summary(session, snapshot, request["identity"]["checkpoint"], loaded["history"], committed_archives(loaded["history"]))
+  loaded = load_journal_snapshot(session, snapshot)
   target.mkdir(parents=True)
   shutil.copytree(snapshot, target / "session")
+  # Native inspection binds each archive to its journal-referenced diagnostic.
+  # Copy that frozen closure only, never unrelated/newer session diagnostics.
+  references = loaded["history"]["diagnostic_references"]
+  if len(references) > MAX_FILES:
+    raise ValueError("remote_transfer_limit")
+  for diagnostic in references.values():
+    revision, digest = diagnostic.get("revision"), diagnostic.get("sha256")
+    if (type(revision) is not int or not 1 <= revision <= 2**63 - 1
+        or type(digest) is not str or re.fullmatch(r"[a-f0-9]{64}", digest) is None):
+      raise ValueError("remote_diagnostic_reference_invalid")
+    relative = Path("diagnostics") / f"{revision}-{digest[:16]}.json"
+    source = _root(session / relative)
+    before = hash_file(source, 256 * 1024)
+    if before[0] != digest:
+      raise ValueError("remote_diagnostic_changed")
+    copied = target / "session" / relative
+    copied.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copyfile(source, copied)
+    if hash_file(source, 256 * 1024) != before or hash_file(copied, 256 * 1024) != before:
+      raise ValueError("remote_diagnostic_changed")
   for item in sealed["archive_sources"]:
     source = _root(item["path"])
     relative = source.relative_to(session)

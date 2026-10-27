@@ -140,13 +140,13 @@ def _signals(car, stamp, cache, max_age, include_pid_inputs=False):
   return result
 
 
-def _scc_signals(event, recorded_cp):
+def _scc_signals(event, recorded_cp, *, distinguish_invalid=False):
   """Decode only recorded Hyundai CANFD SCC output on the CP-derived E bus."""
   if event is None or event.get("valid") is not True or type(recorded_cp) is not dict or recorded_cp.get("state") != "observed":
-    return {}
+    return None if distinguish_invalid else {}
   context = recorded_cp.get("controller_context", {})
   if context.get("brand") != "hyundai" or context.get("openpilot_longitudinal") is not True:
-    return {}
+    return None if distinguish_invalid else {}
   try:
     from opendbc.car import Bus
     from opendbc.car.hyundai.values import DBC, HyundaiFlags
@@ -154,7 +154,7 @@ def _scc_signals(event, recorded_cp):
     from opendbc.can.parser import get_raw_value
     flags = context["flags"]
     if not flags & HyundaiFlags.CANFD or context.get("hyundai_camera_scc") not in (0, 1) or context.get("safety_config_count", 0) < 1:
-      return {}
+      return None if distinguish_invalid else {}
     bus = 4 * (context["safety_config_count"] - 1) + int(bool(flags & HyundaiFlags.CANFD_HDA2) and context["hyundai_camera_scc"] == 0)
     name = DBC[context["car_fingerprint"]][Bus.pt]
     message = Dbc(name).name_to_msg["SCC_CONTROL"]
@@ -163,7 +163,7 @@ def _scc_signals(event, recorded_cp):
       return {}
     raw = bytes.fromhex(frames[-1]["dat"])
     if len(raw) != message.size:
-      return {}
+      return None if distinguish_invalid else {}
     result = {}
     for key, field in (("scc_a_req_raw", "aReqRaw"), ("scc_a_req_value", "aReqValue"), ("scc_stop_req", "StopReq"),
                        ("scc_jerk_upper", "JerkUpperLimit"), ("scc_jerk_lower", "JerkLowerLimit")):
@@ -175,7 +175,29 @@ def _scc_signals(event, recorded_cp):
                      "source": "recorded_sendcan", "source_mono_ns": event["mono_ns"]}
     return result
   except (ImportError, ValueError, KeyError, TypeError, AttributeError):
-    return {}
+    return None if distinguish_invalid else {}
+
+
+class SccOutputCache:
+  """Keep fresh SCC samples across unrelated CAN batches without retiming them."""
+  def __init__(self, max_age_ns):
+    self.max_age_ns = max_age_ns
+    self.cp, self.signals, self.last_ns = None, {}, None
+
+  def feed(self, event, recorded_cp):
+    stamp = event["mono_ns"]
+    if self.cp != recorded_cp or self.last_ns is not None and stamp <= self.last_ns:
+      self.signals = {}
+    self.cp, self.last_ns = deepcopy(recorded_cp), stamp
+    signals = _scc_signals(event, recorded_cp, distinguish_invalid=True)
+    if signals is None:
+      self.signals = {}
+    elif signals:
+      self.signals = signals
+
+  def observe(self, stamp):
+    signal = self.signals.get("scc_a_req_value")
+    return self.signals if signal is not None and 0 <= stamp - signal["source_mono_ns"] <= self.max_age_ns else {}
 
 
 class _LateralStream:
@@ -445,6 +467,7 @@ def extract_log_signals(log_paths, *, analysis_profile: AnalysisProfile, budget:
       cache, observations = {}, {axis: [] for axis in AXES}
 
     file_rows, regressions = [], 0
+    scc_output = SccOutputCache(max_age)
     for event in iter_events(path, services=_SELECTED, max_event_bytes=budget["max_event_bytes"],
                              max_events=coverage["event_count"], max_decompressed_bytes=coverage["decompressed_bytes"], cancelled=cancelled):
       _check_cancelled(cancelled)
@@ -456,6 +479,7 @@ def extract_log_signals(log_paths, *, analysis_profile: AnalysisProfile, budget:
         prev_cp = lateral.cp
         prev_builder = lateral.builder
         lateral.header(event)
+        scc_output = SccOutputCache(max_age)
         snapshots.append({"source_id": source_id, "mono_ns": stamp, "event_valid": event["valid"], **data})
         if len(snapshots) > 64:
           raise ValueError("log init snapshot count limit exceeded")
@@ -473,6 +497,8 @@ def extract_log_signals(log_paths, *, analysis_profile: AnalysisProfile, budget:
         continue
 
       lateral.feed(event)
+      if service == "sendcan":
+        scc_output.feed(event, lateral.cp)
       if service != "carState":
         previous = cache.get(service)
         if (service != "sendcan" or data.get("frames")) and (previous is None or stamp > previous["mono_ns"]):
@@ -491,9 +517,7 @@ def extract_log_signals(log_paths, *, analysis_profile: AnalysisProfile, budget:
           observations[observation["axis"]].append(Observation(**{key: value for key, value in observation.items() if key != "_review_context"}))
       signals, lateral_observation = lateral.observe(stamp)
       signals = {**_signals(data, stamp, cache, max_age, include_pid_inputs), **signals}
-      sent = cache.get("sendcan")
-      if sent is not None and 0 <= stamp - sent["mono_ns"] <= max_age:
-        signals.update(_scc_signals(sent, lateral.cp))
+      signals.update(scc_output.observe(stamp))
       from .calibration_review import diagnostic_row
       diagnostics = [diagnostic_row({**item, "context": item["_review_context"]}, signals, []) for item in normalized]
       for observation in normalized:

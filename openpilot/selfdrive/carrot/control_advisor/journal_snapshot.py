@@ -173,10 +173,22 @@ def _selected_files(root, token, selection):
   return result
 
 
-def select_pid_references(references, analysis_range):
-  """Choose complete bursts by time only, one inside each frozen third."""
+def _time_selected(items, limit):
+  if len(items) <= limit:
+    return items
+  return [items[index * (len(items) - 1) // (limit - 1)] for index in range(limit)]
+
+
+def select_pid_references(references, analysis_range, *, selection_version=3):
+  return _select_pid_references(references, analysis_range, selection_version)[0]
+
+
+def _select_pid_references(references, analysis_range, selection_version):
+  """Time-only complete bursts; sealed old snapshots retain their selection."""
+  if type(selection_version) is not int or selection_version not in (1, 2, 3):
+    raise ValueError("invalid_pid_selection_version")
   if analysis_range is None:
-    return references
+    return references, None
   start, end = analysis_range["start_ns"], analysis_range["end_ns"]
   if type(start) is not int or type(end) is not int or not 0 <= start <= end:
     raise ValueError("invalid_pid_selection_range")
@@ -194,12 +206,16 @@ def select_pid_references(references, analysis_range):
       continue
     candidates.append((lo, hi, burst_id, parts))
   cuts = [start, start + (end - start) // 3, start + 2 * (end - start) // 3, end]
-  chosen = []
-  for lo, hi in zip(cuts, cuts[1:]):
+  chosen, audit = [], []
+  limit = {1: 1, 2: 2, 3: 4}[selection_version]
+  for split, lo, hi in zip(("fit", "select", "holdout"), cuts, cuts[1:]):
     eligible = sorted((row for row in candidates if lo + 2_100_000_000 <= row[0] and row[1] <= hi - 2_100_000_000), key=lambda row: (row[0], row[2]))
-    if eligible:
-      chosen.extend(eligible[0][3])
-  return chosen
+    selected = eligible[:1] if limit == 1 else _time_selected(eligible, limit)
+    for item in selected:
+      chosen.extend(item[3])
+    audit.append({"split": split, "row_budget": limit * 1000, "max_bursts": limit, "eligible_count": len(eligible),
+      "selected_burst_ids": [item[2] for item in selected], "excluded_counts": {"time_budget": max(0, len(eligible) - len(selected))}})
+  return chosen, audit
 
 
 def _pin_pid_chunks(source, target, history, *, copy_files=False, analysis_range=None):
@@ -222,7 +238,16 @@ def _pin_pid_chunks(source, target, history, *, copy_files=False, analysis_range
     if rounds[key] > MAX_ROUND_BYTES:
       raise ValueError("snapshot_pid_payload_budget")
   all_references = [references[path] for path in sorted(references)]
-  ordered = sorted(select_pid_references(all_references, analysis_range), key=lambda row: row["path"])
+  # Sealed old snapshots retain their original one-burst selection contract.
+  version = 3
+  marker_path = target / "snapshot.json"
+  if marker_path.exists():
+    marker = _object(_read(marker_path, 64 * 1024))
+    policy = (marker.get("pid_burst_inventory") or {}).get("selection_policy")
+    version = {"complete_two_bursts_each_frozen_time_third_v2": 2,
+      "complete_four_bursts_each_frozen_time_third_v3": 3}.get(policy, 1)
+  selected, audit = _select_pid_references(all_references, analysis_range, version)
+  ordered = sorted(selected, key=lambda row: row["path"])
   if len(ordered) > PID_SNAPSHOT_MAX_FILES or sum(item["bytes"] for item in ordered) > PID_SNAPSHOT_MAX_BYTES:
     raise ValueError("snapshot_pid_payload_budget")
   for reference in ordered:
@@ -236,9 +261,13 @@ def _pin_pid_chunks(source, target, history, *, copy_files=False, analysis_range
   inventory = {"file_count": len(ordered), "bytes": sum(item["bytes"] for item in ordered),
                "sha256": hashlib.sha256(_canonical(ordered)).hexdigest()}
   if analysis_range is not None:
-    inventory.update(selection_policy="complete_burst_each_frozen_time_third_v1", selection_range=analysis_range,
+    policy = {1: "complete_burst_each_frozen_time_third_v1", 2: "complete_two_bursts_each_frozen_time_third_v2",
+      3: "complete_four_bursts_each_frozen_time_third_v3"}[version]
+    inventory.update(selection_policy=policy, selection_range=analysis_range,
       burst_ids=sorted({row["burst_id"] for row in ordered}), original_reference_count=len(all_references),
       original_reference_sha256=hashlib.sha256(_canonical(all_references)).hexdigest())
+    if version >= 2:
+      inventory["split_selection"] = audit
   return inventory
 
 

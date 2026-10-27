@@ -75,6 +75,14 @@ class WithoutObservation(ast.NodeTransformer):
   def visit_Call(self, node):
     if isinstance(node.func, ast.Name) and node.func.id == 'LanePlanner':
       node.keywords = [keyword for keyword in node.keywords if keyword.arg != 'CP']
+    if isinstance(node.func, ast.Name) and node.func.id == 'get_action_from_model':
+      node.keywords = [keyword for keyword in node.keywords if keyword.arg != '_advisor_diagnostics']
+    return self.generic_visit(node)
+
+  def visit_FunctionDef(self, node):
+    if node.name == 'get_action_from_model' and node.args.args[-1].arg == '_advisor_diagnostics':
+      node.args.args.pop()
+      node.args.defaults.pop()
     return self.generic_visit(node)
 
 
@@ -196,7 +204,7 @@ class ConsumerControlHooksTests(unittest.TestCase):
       self.assertEqual(results[0], results[1])
       self.assertEqual(['SteerRatioRate', 'CustomSR'], results[0][1])
 
-  def lateral_target(self, enabled, *, lane, active=True, capture=None, bad_factory=False):
+  def lateral_target(self, enabled, *, lane, active=True, capture=None, bad_factory=False, empty_lane=False, vw=False):
     captured = capture if capture is not None else (Capture() if enabled else None)
     original = method('openpilot/selfdrive/controls/controlsd.py', 'state_control')
     begin = next(index for index, node in enumerate(original.body) if isinstance(node, ast.Assign)
@@ -205,10 +213,12 @@ class ConsumerControlHooksTests(unittest.TestCase):
                and isinstance(node.value, ast.Call) and isinstance(node.value.func, ast.Name) and node.value.func.id == 'clip_curvature')
     env = self.drive_helpers(self.base(captured, bad_factory=bad_factory))
     plan = NS(useLaneLines=lane, curvatures=[.001] * 17, psis=[.001 * i for i in range(17)], distances=list(range(17)))
+    if empty_lane:
+      plan.curvatures = []
     sm = type('Messages', (dict,), {'frame': 12})(lateralPlan=plan, carrotMan=NS(vTurnSpeed=100), liveDelay=NS(lateralDelay=.2))
     params = Parameters({'LatSmoothSec': 13, 'SteerActuatorDelay': 0})
     params.get_int = lambda _: 0
-    control = NS(sm=sm, CP=NS(), params=params, is_vw_meb=False, desired_curvature=.0001, curvature=.0002)
+    control = NS(sm=sm, CP=NS(), params=params, is_vw_meb=vw, desired_curvature=.0001, curvature=.0002)
     if captured:
       control._advisor_lateral_target = captured.create('controls.lateral_target')
     env.update(self=control, CC=NS(latActive=active), CS=NS(vEgo=15.), lp=NS(roll=0.), model_v2=NS(action=NS(desiredCurvature=.002)))
@@ -238,6 +248,15 @@ class ConsumerControlHooksTests(unittest.TestCase):
     self.assertEqual(baseline, failed)
     self.assertGreater(capture.observers[0].dropped, 0)
 
+  def test_model_selection_distinguishes_empty_lane_hold_from_actual_model_target(self):
+    for lane, empty, vw, active, expected in ((True, True, False, True, False),
+        (True, True, True, True, True), (False, False, False, True, True),
+        (True, False, True, True, False), (False, False, False, False, False)):
+      with self.subTest(lane=lane, empty=empty, vw=vw, active=active):
+        before, _ = self.lateral_target(False, lane=lane, empty_lane=empty, vw=vw, active=active)
+        after, captured = self.lateral_target(True, lane=lane, empty_lane=empty, vw=vw, active=active)
+        self.assertEqual(before, after)
+        self.assertEqual(expected, captured.events[0]['context']['model_target_selected'])
   def long_run(self, brand, enabled):
     from openpilot.selfdrive.controls.lib.cruise_coasting import CruiseCoastingControl, MAX_PLAN_AGE, coasting_relief, no_coasting_lead
     captured = Capture() if enabled else None
@@ -442,6 +461,13 @@ class ConsumerControlHooksTests(unittest.TestCase):
     self.assertAlmostEqual(1., event['context']['next_lat_delay_s'])
     self.assertEqual(.08, event['fields']['SteerActuatorDelay']['effective_value'])
     self.assertAlmostEqual(.6, event['fields']['LatSmoothSec']['effective_value'])
+    self.assertAlmostEqual(.2 / 15.**2, event['context']['lat_pre_smooth_curvature'])
+    self.assertEqual(.001, event['context']['lat_previous_curvature'])
+    self.assertEqual(new[0]['desiredCurvature'], event['context']['lat_post_smooth_curvature'])
+    self.assertTrue(event['context']['lat_smoothing_applied'])
+    self.assertEqual(.25, event['context']['lat_smooth_y_std'])
+    self.assertEqual(15., event['context']['v_ego'])
+    observer._payload('modeld.action', {'fields': event['fields'], 'context': event['context']})
 
   def test_real_sender_failure_is_contained_after_valid_source_factory(self):
     class Sender:

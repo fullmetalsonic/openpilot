@@ -513,7 +513,8 @@ def register(app: web.Application, *, controller=None, token=None, live_enabled=
         from openpilot.selfdrive.carrot.control_advisor.native_runtime import comparison_profile
         from openpilot.selfdrive.carrot.control_advisor.request_evidence import make_comparison_provider
         comparison_provider = make_comparison_provider(request_resolver, comparison_profile(), source_kind="recorded",
-          execution_provider=lambda: (controller.status().get("analysis_execution") or {}).get("executor"))
+          execution_provider=lambda: controller.status().get("analysis_execution") or {},
+          remote_directory=root / "remote-comparisons")
       owned_store = pc_store if pc_store is not None else native_runtime
       clock_options = {"clock_ns": owned_store.clock_ns} if owned_store is not None else {}
       creation = asyncio.create_task(asyncio.to_thread(ApplyRequestController, root, request_resolver, pc_store=pc_store,

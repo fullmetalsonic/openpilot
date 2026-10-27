@@ -1,5 +1,6 @@
 """Six single-setting goals and evidence-bound manual trials on host fixtures."""
 from copy import deepcopy
+from functools import lru_cache
 import json
 from pathlib import Path
 import tempfile
@@ -40,6 +41,13 @@ def diagnostics(count=40):
         "excluded_reasons": []}
 
 
+@lru_cache(maxsize=1)
+def identified_diagnostic_fixture():
+  from .response_diagnostic_fixtures import response_rows
+  rows = response_rows()
+  return rows[-1]["mono_ns"], review.summarize_diagnostics(rows, rows[0]["mono_ns"], rows[-1]["mono_ns"], 250_000_000)
+
+
 def manual_fixture(key):
   registry = {row["key"]: row for row in load_registry()["items"]}
   settings = {name: (registry[name]["ui"] or {}).get("min", 0) for name in review.FIXED_KEYS}
@@ -57,14 +65,32 @@ def manual_fixture(key):
       "produced_mono_ns": 900_000_000, "cycle_id": 1, "phase": "sampled_use", "fields": {
         key: {"read_value": value, "effective_value": value, "state": "used", "source": "stored", "read_mono_ns": 900_000_000}},
       "context": {}, "dropped_events": 0, "source_hashes": source, "identity_version": 1, "vehicle_identity": identity}))
-  evidence = {"source_kind": "recorded", "epoch": {"id": "fixture", "start_ns": 1_000_000_000, "end_ns": 1_390_000_000,
+  end, summary = identified_diagnostic_fixture()
+  from .response_diagnostic_fixtures import smoothing_context
+  templates, events = events, []
+  for template in templates:
+    for second in range(73):
+      event = deepcopy(template)
+      stamp = 900_000_000 if second == 0 else 1_000_000_000 + (second - 1) * 1_000_000_000
+      event.update(sequence=second+1, produced_mono_ns=stamp, cycle_id=second*20)
+      event["fields"][key]["read_mono_ns"] = stamp
+      if template["consumer_id"] == "modeld.action":
+        event["context"] = smoothing_context(max(0, second-1), y_std=.2)
+        if key == "LatSmoothSec":
+          event["fields"][key].update(source="derived", effective_value=event["context"]["lat_smooth_dynamic_s"])
+      elif template["consumer_id"] == "controls.lateral_target":
+        event["context"] = {"active": True, "path": "lane", "lane_selected": True, "model_target_selected": False}
+      elif template["consumer_id"] == "controls.torque" and key == "SteerActuatorDelay":
+        event["context"] = {"active": True, "nnff": False, "nnff_lite": False}
+        event["fields"][key].update(state="bypassed", read_value=None, effective_value=None)
+      events.append(validate_event(event))
+  evidence = {"source_kind": "recorded", "epoch": {"id": "fixture", "start_ns": 1_000_000_000, "end_ns": end,
     "settings_raw": settings, "completeness": "observed", "boot_id": events[0]["boot_id"]},
     "vehicle_context": {"code_hashes": hashes, "context": {"vehicle_identity": identity}},
     "artifacts": [{"id": "log", "sha256": "e" * 64}], "consumer_evidence": events}
   goal = next(goal for goal, row in review.SIX_PARAMETER_GOALS.items() if row[0] == key)
   host, config, _ = config_for(goal)
-  summary = review.summarize_diagnostics(diagnostics(), evidence["epoch"]["start_ns"], evidence["epoch"]["end_ns"], 250_000_000)
-  return evidence, host, config, summary
+  return evidence, host, config, deepcopy(summary)
 
 
 class SixParameterBackendTests(unittest.TestCase):
@@ -103,13 +129,16 @@ class SixParameterBackendTests(unittest.TestCase):
       next(row["data"] for row in bad if row["service"] == "liveParameters")[field] = False
       self.assertFalse(builder(bad).observe(ANCHOR)["availability"]["manual_geometry"]["available"])
 
-  def test_three_timing_goals_use_only_bound_single_step_options(self):
+  def test_three_timing_goals_require_response_evidence_before_bounded_experiments(self):
     for key in review.TIMING_KEYS:
       evidence, host, config, summary = manual_fixture(key)
       original = deepcopy(evidence)
       value = review.build_calibration_review(evidence, config, host, summary, input_sha256="f" * 64, profile_sha256="1" * 64)
       self.assertEqual("ready", value["state"], value["reasons"])
       self.assertEqual(2, len(value["trial_options"]))
+      self.assertEqual(2, value["schema_version"])
+      self.assertEqual("experiment_required", value["diagnostics"]["timing"][key]["state"])
+      self.assertEqual("unconfirmed", value["diagnostics"]["timing"][key]["trial_plan"]["direction_effect"])
       self.assertEqual(original, evidence)
       for option in value["trial_options"]:
         self.assertEqual(option["current_raw"], option["restore_raw"])
@@ -118,9 +147,26 @@ class SixParameterBackendTests(unittest.TestCase):
       changed["baseline"]["settings_raw"]["CustomSR"] += 1
       with self.assertRaises(ValueError):
         review.validate_calibration_review(changed, evidence=evidence)
+      changed = deepcopy(value)
+      changed["diagnostics"]["timing"][key]["trial_plan"]["minimum_effect"]["value"] *= 2
+      with self.assertRaisesRegex(ValueError, "minimum_effect_unreconciled"):
+        review.validate_calibration_review(changed)
       evidence["consumer_evidence"] = []
       held = review.build_calibration_review(evidence, config, host, summary, input_sha256="f" * 64, profile_sha256="1" * 64)
       self.assertEqual(("held", []), (held["state"], held["trial_options"]))
+
+  def test_old_unexcited_summary_no_longer_creates_unconditional_timing_trials(self):
+    evidence, host, config, _ = manual_fixture("LongActuatorDelay")
+    summary = review.summarize_diagnostics(diagnostics(), evidence["epoch"]["start_ns"], evidence["epoch"]["end_ns"], 250_000_000)
+    value = review.build_calibration_review(evidence, config, host, summary, input_sha256="f"*64, profile_sha256="1"*64)
+    self.assertEqual(("held", []), (value["state"], value["trial_options"]))
+
+  def test_previous_schema_one_review_remains_readable(self):
+    evidence, host, config, summary = manual_fixture("LongActuatorDelay")
+    value = review.build_calibration_review(evidence, config, host, summary, input_sha256="f"*64, profile_sha256="1"*64)
+    value["schema_version"] = 1
+    value.pop("diagnostics")
+    self.assertEqual(value, review.validate_calibration_review(value, evidence=evidence))
 
   def test_manual_geometry_quality_reaches_each_split_with_speed_and_rejects_conflict(self):
     self.assertIn("v_ego", capabilities()["CustomSR"]["required_signals"])

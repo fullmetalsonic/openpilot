@@ -157,7 +157,8 @@ def _pid_traces(pack, profile):
     raise ValueError("invalid_pid_trace_blocks")
   if not traces:
     return []
-  from .pid_burst import COLUMNS, MAX_BLOCK_ROWS, MAX_ROUND_ROWS, STEP_NS, validate_header, validate_reference
+  from .pid_burst import COLUMNS, MAX_BLOCK_ROWS, STEP_NS, validate_header, validate_reference
+  from .candidate_report import MAX_PID_ANALYSIS_ROWS
   blocks = {block["id"]: block for block in pack["blocks"]}
   settings = pack["epoch"]["settings_raw"]
   identity = pack["vehicle_context"].get("context", {}).get("vehicle_identity", {})
@@ -197,7 +198,7 @@ def _pid_traces(pack, profile):
     if type(rows) is not list or not 1 <= len(rows) <= MAX_BLOCK_ROWS or type(joins) is not list or len(joins) != len(rows):
       raise ValueError("invalid_pid_dense_rows")
     total += len(rows)
-    if total > min(MAX_ROUND_ROWS, profile["max_rows"]):
+    if total > min(MAX_PID_ANALYSIS_ROWS, profile["max_rows"]):
       raise ValueError("pid_trace_row_budget")
     previous = None
     signature = [config[name] for name in ("effective_kp", "effective_ki", "effective_kf", "factor", "friction")]
@@ -657,6 +658,9 @@ def _fit_context(value, key):
   if key in _PID_KEYS:
     from .candidate_pid import validate_fit_context
     return validate_fit_context(value)
+  if key == "CustomSR":
+    from .candidate_lateral import validate_manual_ratio_context
+    return validate_manual_ratio_context(value)
   if key != "LateralTorqueAccelFactor":
     raise ValueError("unsupported_fit_context")
   _keys(value, {"lateral_accel_offset"})
@@ -664,7 +668,91 @@ def _fit_context(value, key):
   return copy.deepcopy(value)
 
 
-def _context(pack, records, objective, split, fit_context=None):
+def _strict_event_inference(profile, key):
+  return profile["profile_id"] == {"CustomSR": "custom_sr_v1", "LateralTorqueKf": "lateral_torque_kf_v1",
+                                  "LateralTorqueKpV": "lateral_torque_kp_v1"}.get(key)
+
+
+def _event_records(records, key):
+  """Keep complete manoeuvres together across the existing time partitions."""
+  from .candidate_pid import EVENT_INFERENCE_CONFIG as config
+  ordered = sorted(((row["route_id"], row["mono_ns"], split, row)
+                   for split, rows in records.items() for row in rows), key=lambda item: item[:3])
+  events, active, buffer, quiet, previous = [], [], [], None, None
+  left_censored = False
+  incomplete = set()
+  threshold = .015 if key == "CustomSR" else .02
+  trigger = "steering_angle_corrected" if key == "CustomSR" else "desired_lateral_accel"
+  def finish(completed=False):
+    nonlocal active, quiet, left_censored
+    if active:
+      events.append(active)
+      if not completed or left_censored:
+        incomplete.add(len(events) - 1)
+    active, quiet, left_censored = [], None, False
+  for route, stamp, split, row in ordered:
+    if previous is not None and (route != previous[0] or stamp - previous[1] > config["correlation_ns"]):
+      finish()
+      buffer = []
+    value = row["signals"].get(trigger, {}).get("value")
+    if type(value) not in (int, float) or not math.isfinite(value):
+      raise ValueError("event_trigger_unavailable")
+    entry = (split, row)
+    if not active:
+      if abs(value) >= threshold:
+        left_censored = not buffer or stamp - buffer[0][1]["mono_ns"] < config["quiet_ns"]
+        active, buffer = [*buffer, entry], []
+      else:
+        buffer.append(entry)
+        buffer = [item for item in buffer if stamp - item[1]["mono_ns"] <= config["quiet_ns"]]
+    else:
+      active.append(entry)
+      quiet = stamp if abs(value) < threshold and quiet is None else quiet if abs(value) < threshold else None
+      if quiet is not None and stamp - quiet >= config["correlation_ns"]:
+        finish(True)
+    previous = (route, stamp)
+  finish()
+  rejected = set(incomplete)
+  owners = [set(split for split, row in event) for event in events]
+  for index, event in enumerate(events):
+    if len(owners[index]) != 1 or event[-1][1]["mono_ns"] - event[0][1]["mono_ns"] < config["minimum_event_ns"]:
+      rejected.add(index)
+    if index and owners[index] != owners[index - 1] and event[0][1]["route_id"] == events[index - 1][0][1]["route_id"] and event[0][1]["mono_ns"] - events[index - 1][-1][1]["mono_ns"] <= config["correlation_ns"]:
+      rejected.update((index - 1, index))
+  result = {split: [] for split in records}
+  counts = {split: 0 for split in records}
+  excluded = sum(len(event) for index, event in enumerate(events) if index in rejected)
+  for index, event in enumerate(events):
+    if index in rejected:
+      continue
+    split = next(iter(owners[index]))
+    event_id = "event-" + _digest([event[0][1]["route_id"], event[0][1]["mono_ns"], event[-1][1]["mono_ns"]])[:24]
+    kept, previous = [], None
+    for _, source in event:
+      row = copy.deepcopy(source)
+      if key == "CustomSR":
+        angle = row["signals"]["steering_angle_corrected"]["value"]
+        speed = row["signals"].get("v_ego", {}).get("value")
+        steady = (previous is not None and 0 < row["mono_ns"] - previous[0] <= 250_000_000
+                  and abs(angle - previous[1]) / ((row["mono_ns"] - previous[0]) / 1e9) <= .05
+                  and type(speed) in (int, float) and speed >= 5 and abs(angle) >= .015)
+        previous = (row["mono_ns"], angle)
+        if not steady:
+          excluded += 1
+          continue
+      row.update(block_id=event_id, event_id=event_id)
+      kept.append(row)
+    if len(kept) >= 3:
+      result[split].extend(kept)
+      counts[split] += 1
+    else:
+      excluded += len(kept)
+  if any(count > config["max_events_per_split"] for count in counts.values()):
+    raise ValueError("event_budget_exceeded")
+  return result, {"event_counts": counts, "split_excluded_rows": excluded}
+
+
+def _context(pack, records, objective, split, fit_context=None, inference_config=None):
   # Full source metadata never includes held-out sample values in an engine call.
   metadata = {key: copy.deepcopy(pack[key]) for key in ("source_kind", "evidence_id", "artifacts", "vehicle_context", "epoch")}
   selected = {name: copy.deepcopy(rows) if name == split else [] for name, rows in records.items()}
@@ -673,11 +761,13 @@ def _context(pack, records, objective, split, fit_context=None):
           "records": selected, "objective": copy.deepcopy(objective)}
   if fit_context is not None:
     result["fit_context"] = copy.deepcopy(fit_context)
+  if inference_config is not None:
+    result["inference_config"] = copy.deepcopy(inference_config)
   return result
 
 
 def _metric(evaluation, rows, expected_kind):
-  _keys(evaluation, {"status", "prediction_kind", "predictions", "reason_codes"})
+  _keys(evaluation, {"status", "prediction_kind", "predictions", "reason_codes"}, {"event_metrics"})
   if evaluation["status"] != "evaluated":
     return None
   if evaluation["prediction_kind"] != expected_kind:
@@ -695,6 +785,133 @@ def _metric(evaluation, rows, expected_kind):
   for key in ("rmse", "max_absolute_error", "max_absolute_prediction"):
     _number(values[key], 0)
   return values
+
+
+class _InferenceBlocked(ValueError):
+  pass
+
+
+_EVENT_GUARDS = {"peak_error": "paired_change", "tail_rmse": "paired_change",
+                 "command_peak": "absolute_training_support", "command_rate": "absolute_training_support",
+                 "saturation_fraction": "absolute_training_support"}
+
+
+def _event_policy(events, profile, fitted):
+  import numpy as np
+  from .candidate_pid import EVENT_INFERENCE_CONFIG as config
+  if len(events) < 4:
+    raise _InferenceBlocked("independent_events_insufficient")
+  pairs = [(first, second) for index, first in enumerate(events) for second in events[index + 1:]
+           if first["direction"] == second["direction"] and abs(first["speed"] - second["speed"]) <= config["cohort_speed_span_mps"]
+           and abs(first["amplitude"] - second["amplitude"]) <= config["cohort_amplitude_relative_span"] * max(first["amplitude"], second["amplitude"])]
+  if not pairs:
+    raise _InferenceBlocked("baseline_repeat_variation_unavailable")
+  resolution = max(128 * math.ulp(max(1., *(event["rmse"] for event in events))),
+                   (fitted or {}).get("identification", {}).get("numeric_resolution", 0.))
+  repeat = float(np.quantile([abs(first["rmse"] - second["rmse"]) for first, second in pairs], .95))
+  model_floor = fitted.get("model_error_floor", 0.) if fitted else 0.
+  threshold = max(profile["minimum_improvement"], repeat, resolution, model_floor * (fitted.get("options", {}).get("noise_multiplier", 1.) if fitted else 1.))
+  guards = {name: max(event[name] for event in events) if mode == "absolute_training_support" else
+            max(resolution, float(np.quantile([abs(first[name] - second[name]) for first, second in pairs], .95)))
+            for name, mode in _EVENT_GUARDS.items()}
+  return threshold, guards
+
+
+def _observed_pid_events(rows):
+  """Freeze repeatability from original independent responses, not fitted replay."""
+  from .candidate_pid import event_metrics
+  groups = {}
+  for row in rows:
+    groups.setdefault(row["block_id"], []).append(row)
+  results = []
+  for event_id, event in groups.items():
+    clocks = [row["mono_ns"] for row in event]
+    seen, errors, targets, speeds = set(), [], [], []
+    for row in event:
+      response = row["signals"]["lateral_accel_kinematic"]
+      stamp = response["source_mono_ns"]
+      if stamp in seen:
+        continue
+      seen.add(stamp)
+      index = bisect_right(clocks, stamp) - 1
+      if index < 0:
+        continue
+      target = event[index]["signals"]["desired_lateral_accel"]["value"]
+      errors.append(response["value"] - target)
+      targets.append(target)
+      speeds.append(event[index]["signals"]["v_ego"]["value"])
+    commands = [row["signals"]["sent_torque_raw"]["value"] for row in event]
+    results.append(event_metrics(event_id, errors, targets, speeds, commands, clocks))
+  return results
+
+
+def _event_comparison(baseline, candidate, raw, minimum, guards):
+  from .candidate_pid import event_bootstrap
+  old = {event["event_id"]: event for event in baseline}
+  new = {event["event_id"]: event for event in candidate}
+  if set(old) != set(new) or len(old) != len(baseline) or len(new) != len(candidate):
+    raise _InferenceBlocked("event_metric_binding_mismatch")
+  effect = event_bootstrap([old[event]["rmse"] - new[event]["rmse"] for event in old])
+  guard_results = {name: event_bootstrap([new[event][name] - (old[event][name] if mode == "paired_change" else 0.) for event in old], seed_offset=index + 1)
+                   for index, (name, mode) in enumerate(_EVENT_GUARDS.items())}
+  passed = effect["lower"] > minimum + effect["convergence_error"] and all(
+    interval["upper"] <= guards[name] + 128 * math.ulp(max(1., guards[name])) for name, interval in guard_results.items())
+  return {"candidate_raw": raw, "effect": effect, "guards": guard_results, "passed": passed}
+
+
+def _validate_event_inference(value):
+  from .candidate_pid import EVENT_INFERENCE_CONFIG
+  fields = {"schema_version", "method", "configuration", "event_counts", "split_excluded_rows", "primary_metric", "minimum_effect",
+            "guard_tolerances", "guard_modes", "fit_uncertainty", "ranked_candidates", "selection", "holdout", "holdout_evaluations", "causal_improvement_proven"}
+  _keys(value, fields)
+  if (type(value["schema_version"]) is not int or value["schema_version"] != 1 or value["method"] != "event_bootstrap_v1"
+      or value["configuration"] != EVENT_INFERENCE_CONFIG or value["primary_metric"] != "event_rmse"
+      or value["guard_modes"] != _EVENT_GUARDS or value["causal_improvement_proven"] is not False):
+    raise ValueError("invalid_event_inference")
+  _keys(value["event_counts"], {"fit", "select", "holdout"})
+  for count in value["event_counts"].values():
+    _integer(count, 0, EVENT_INFERENCE_CONFIG["max_events_per_split"])
+  _integer(value["split_excluded_rows"], 0, 100000)
+  _integer(value["holdout_evaluations"], 0, 1)
+  if type(value["ranked_candidates"]) is not list or len(value["ranked_candidates"]) > 2 or len(set(value["ranked_candidates"])) != len(value["ranked_candidates"]):
+    raise ValueError("invalid_event_candidates")
+  for raw in value["ranked_candidates"]:
+    _integer(raw, 0, 1000000)
+  if value["minimum_effect"] is not None:
+    _number(value["minimum_effect"], 0)
+    _keys(value["guard_tolerances"], set(_EVENT_GUARDS))
+    for number in value["guard_tolerances"].values():
+      _number(number, 0)
+  elif value["guard_tolerances"]:
+    raise ValueError("invalid_event_policy")
+  def interval(item, count):
+    _keys(item, {"mean", "lower", "upper", "convergence_error", "event_count"})
+    for name in ("mean", "lower", "upper", "convergence_error"):
+      _number(item[name])
+    if item["lower"] > item["upper"] or item["convergence_error"] < 0 or type(item["event_count"]) is not int or item["event_count"] != count or count < EVENT_INFERENCE_CONFIG["min_events_per_split"]:
+      raise ValueError("invalid_event_interval")
+  for phase, split in (("selection", "select"), ("holdout", "holdout")):
+    item = value[phase]
+    if item is None:
+      continue
+    _keys(item, {"candidate_raw", "effect", "guards", "passed"})
+    _integer(item["candidate_raw"], 0, 1000000)
+    if type(item["passed"]) is not bool or not value["ranked_candidates"] or item["candidate_raw"] != value["ranked_candidates"][0] or value["minimum_effect"] is None:
+      raise ValueError("invalid_event_decision")
+    interval(item["effect"], value["event_counts"][split])
+    _keys(item["guards"], set(_EVENT_GUARDS))
+    for measured in item["guards"].values():
+      interval(measured, value["event_counts"][split])
+    expected = item["effect"]["lower"] > value["minimum_effect"] + item["effect"]["convergence_error"] and all(
+      measured["upper"] <= value["guard_tolerances"][name] + 128 * math.ulp(max(1., value["guard_tolerances"][name]))
+      for name, measured in item["guards"].items())
+    if expected != item["passed"]:
+      raise ValueError("event_decision_mismatch")
+  if value["holdout"] is not None and (value["selection"] is None or value["holdout_evaluations"] != 1):
+    raise ValueError("holdout_without_frozen_selection")
+  if len(json.dumps(value, allow_nan=False).encode()) > 32 * 1024:
+    raise ValueError("event_inference_budget_exceeded")
+  return value
 
 
 def _physical(item, raw):
@@ -746,10 +963,15 @@ def _consumer_gate(pack, profile, item, records):
       read = field["read_value"] if field else None
       effective = field["effective_value"] if field else None
       hashes_match = all(sha is not None and pack["vehicle_context"]["code_hashes"].get(path) == sha for path, sha in event["source_hashes"].items())
+      from .consumer_mapping import special_field_matches
+      special = special_field_matches(event, item["key"], expected)
       allowed_states = {"loaded"} if consumer_id == "planner.carrot" else {"used", "latched"}
-      if not contiguous or event["boot_id"] != pack["epoch"]["boot_id"] or not hashes_match or not field or field["state"] not in allowed_states or (selected_identity is not None and identity != selected_identity):
+      if not contiguous or event["boot_id"] != pack["epoch"]["boot_id"] or not hashes_match or not field or special is False or special is None and field["state"] not in allowed_states or (selected_identity is not None and identity != selected_identity):
         valid = False
         break
+      if special is True:
+        selected_identity = identity
+        continue
       # Read values describe storage/cache observations. Only a reconciled
       # effective value can establish the baseline used by this experiment.
       if type(effective) not in (int, float) or not math.isclose(effective, expected, rel_tol=1e-9, abs_tol=1e-12) or field["source"] in {"unknown", "platform_fixed"}:
@@ -834,11 +1056,37 @@ def evaluate_candidates(evidence: dict, profile: dict) -> dict:
     if not independent:
       block("split_dependency_overlap")
       continue
-    records, counts = _records(evidence, profile, objective, cap.get("required_signals", {}), key)
+    required_signals = cap.get("required_signals", {})
+    if key == "CustomSR" and not _strict_event_inference(profile, key) and evidence["epoch"]["dependencies"].get("manual_ratio_quality_v1") is not True:
+      required_signals = {name: unit for name, unit in required_signals.items() if name != "v_ego"}
+    records, counts = _records(evidence, profile, objective, required_signals, key)
     row["provenance"].update(excluded_rows=counts["excluded"], provisional_rows=counts["provisional"])
     if counts["missing_fit"]:
       block("missing_stale_or_mismatched_signal_units")
       continue
+    inference = None
+    if _strict_event_inference(profile, key):
+      from .candidate_pid import EVENT_INFERENCE_CONFIG
+      inference = {"schema_version": 1, "method": "event_bootstrap_v1", "configuration": copy.deepcopy(EVENT_INFERENCE_CONFIG),
+        "event_counts": {split: 0 for split in records}, "split_excluded_rows": 0, "primary_metric": "event_rmse",
+        "minimum_effect": None, "guard_tolerances": {}, "guard_modes": dict(_EVENT_GUARDS), "fit_uncertainty": None,
+        "ranked_candidates": [], "selection": None, "holdout": None, "holdout_evaluations": 0, "causal_improvement_proven": False}
+      row["provenance"]["inference"] = inference
+      if evidence["epoch"]["settings_raw"].get("LateralTorqueKiV") != 0:
+        block("fixed_ki_zero_required")
+        continue
+      if evidence["epoch"]["settings_raw"].get("CustomSR", 0) <= 10:
+        block("manual_steer_ratio_mode_required")
+        continue
+      try:
+        records, summary = _event_records(records, key)
+        inference.update(summary)
+      except ValueError as error:
+        block(str(error))
+        continue
+      if any(count < EVENT_INFERENCE_CONFIG["min_events_per_split"] for count in summary["event_counts"].values()):
+        block("independent_events_insufficient")
+        continue
     def exposure(rows):
       return len(rows) >= profile["min_samples_per_split"] and len({r["block_id"] for r in rows}) >= profile["min_blocks_per_split"]
     if not exposure(records["fit"]):
@@ -855,7 +1103,8 @@ def evaluate_candidates(evidence: dict, profile: dict) -> dict:
       ui = item["ui"]
       engine_profile["parameter"] = {"key": key, "current_raw": current, **ui, "raw_scale": item["raw_scale"],
                                      "max_delta_raw": (profile["per_key_change_limits"] or {}).get(key)}
-      proposal = engine.propose_family(key, _context(evidence, records, objective, "fit"), engine_profile)
+      inference_config = inference["configuration"] if inference is not None else None
+      proposal = engine.propose_family(key, _context(evidence, records, objective, "fit", inference_config=inference_config), engine_profile)
       _keys(proposal, {"raw_estimate", "candidate_raw_values", "method_id", "reason_codes"}, {"fit_context"})
       if proposal["method_id"] != row["method_id"]:
         raise ValueError("proposal_method_changed")
@@ -871,12 +1120,14 @@ def evaluate_candidates(evidence: dict, profile: dict) -> dict:
         continue
       fit_context = _fit_context(proposal["fit_context"], key) if "fit_context" in proposal else None
       options = profile.get("method_options", {}).get(key, {})
-      expects_fit_context = (key in _PID_KEYS or key == "LateralTorqueAccelFactor"
+      expects_fit_context = (key in _PID_KEYS or key == "CustomSR" and inference is not None or key == "LateralTorqueAccelFactor"
                              and type(options) is dict and options.get("offset_policy") == "fit_intercept")
       if expects_fit_context != (fit_context is not None):
         raise ValueError("proposal_fit_context_mismatch")
       if fit_context is not None:
         row["provenance"]["fit_context"] = copy.deepcopy(fit_context)
+        if inference is not None:
+          inference["fit_uncertainty"] = copy.deepcopy(fit_context.get("identification", fit_context))
       if cap.get("backend") in {"raw_proxy_only", "raw_delay_only"}:
         block(*(cap.get("reason_codes") or ["diagnostic_proxy_only"]))
         continue
@@ -939,11 +1190,18 @@ def evaluate_candidates(evidence: dict, profile: dict) -> dict:
         candidates.extend(current + index * ui["step"] for index in {math.floor(position), math.ceil(position)})
         candidates = sorted({value for value in candidates if lower <= value <= upper and value != current},
                             key=lambda value: (abs(value - target), abs(value - current), value))[:profile["max_candidates_per_key"]]
+      event_outputs = {}
       def evaluate(value, split):
         if budget["remaining_evaluations"] <= 0:
           raise ValueError("evaluation_budget_exhausted")
         budget["remaining_evaluations"] -= 1
-        output = engine.evaluate_family(key, value, _context(evidence, records, objective, split, fit_context), split, copy.deepcopy(budget))
+        output = engine.evaluate_family(key, value, _context(evidence, records, objective, split, fit_context, inference_config), split, copy.deepcopy(budget))
+        if inference is not None:
+          if output.get("status") != "evaluated":
+            raise _InferenceBlocked((output.get("reason_codes") or ["engine_evaluation_unavailable"])[0])
+          if type(output.get("event_metrics")) is not list:
+            raise _InferenceBlocked("independent_event_metrics_unavailable")
+          event_outputs[(value, split)] = output["event_metrics"]
         if pid_grid and output.get("status") == "blocked":
           reasons = output.get("reason_codes", [])
           if type(reasons) is list and len(reasons) == 1 and reasons[0] in {
@@ -953,14 +1211,29 @@ def evaluate_candidates(evidence: dict, profile: dict) -> dict:
         if metric is None:
           raise ValueError("engine_evaluation_unavailable")
         return metric
+      if inference is not None:
+        evaluate(current, "fit")
+        observed_events = _observed_pid_events(records["fit"]) if key in _PID_KEYS else event_outputs[(current, "fit")]
+        minimum_effect, event_guards = _event_policy(observed_events, profile, fit_context)
+        inference.update(minimum_effect=minimum_effect, guard_tolerances=event_guards)
       baseline_select = evaluate(current, "select")
       row["metrics"]["baseline"]["select"] = baseline_select
       scored = []
+      select_comparisons = {}
       candidate_rejections = {"candidate_outside_observed_actuation", "candidate_outside_observed_rate",
                               "candidate_integral_guard", "model_uncertainty_no_candidate"}
       for value in candidates:
         try:
-          scored.append((evaluate(value, "select"), value))
+          metric = evaluate(value, "select")
+          if inference is not None:
+            comparison = _event_comparison(event_outputs[(current, "select")], event_outputs[(value, "select")], value, minimum_effect, event_guards)
+            if not comparison["passed"]:
+              persistent_reasons.append("event_effect_interval_inconclusive" if comparison["effect"]["lower"] <= minimum_effect + comparison["effect"]["convergence_error"] else "event_guard_worsened")
+              continue
+            select_comparisons[value] = comparison
+          scored.append((metric, value))
+        except _InferenceBlocked as exc:
+          persistent_reasons.append(str(exc))
         except ValueError as exc:
           if not pid_grid or str(exc) not in candidate_rejections:
             raise
@@ -970,7 +1243,11 @@ def evaluate_candidates(evidence: dict, profile: dict) -> dict:
         scored = [(metric, value) for metric, value in scored
                   if metric["rmse"] < baseline_select["rmse"] - profile["minimum_improvement"]
                   and metric["max_absolute_error"] <= baseline_select["max_absolute_error"]]
-      best = min(scored, key=lambda pair: (pair[0]["rmse"], abs(pair[1] - current), pair[1])) if scored else None
+      def rank(pair):
+        return (-select_comparisons[pair[1]]["effect"]["mean"] if inference is not None else pair[0]["rmse"], abs(pair[1] - current), pair[1])
+      best = min(scored, key=rank) if scored else None
+      if inference is not None:
+        inference["ranked_candidates"] = [value for metric, value in sorted(scored, key=rank)[:2]]
       row["validation"]["numerical_checks_pass"] = True
       if best is None or best[0]["rmse"] >= baseline_select["rmse"] - profile["minimum_improvement"]:
         row["status"] = "keep_current"
@@ -978,6 +1255,9 @@ def evaluate_candidates(evidence: dict, profile: dict) -> dict:
         continue
       selected, candidate = best
       row["metrics"]["selection"] = selected
+      if inference is not None:
+        inference["selection"] = select_comparisons[candidate]
+        inference["holdout_evaluations"] = 1
       baseline_holdout = evaluate(current, "holdout")
       holdout = evaluate(candidate, "holdout")
       row["metrics"]["baseline"]["holdout"] = baseline_holdout
@@ -985,13 +1265,20 @@ def evaluate_candidates(evidence: dict, profile: dict) -> dict:
       checks = (holdout["max_absolute_error"] <= baseline_holdout["max_absolute_error"] if baseline_bounded else
                 all(metric["max_absolute_error"] <= guard["max_absolute_error"] and metric["max_absolute_prediction"] <= guard["max_absolute_prediction"] for metric in (selected, holdout)))
       passed = checks and holdout["rmse"] < baseline_holdout["rmse"] - profile["minimum_improvement"]
+      if inference is not None:
+        inference["holdout"] = _event_comparison(event_outputs[(current, "holdout")], event_outputs[(candidate, "holdout")], candidate, minimum_effect, event_guards)
+        passed = passed and inference["holdout"]["passed"]
       row["validation"]["holdout_objective_pass"] = passed
       if passed:
         row.update(status="search_candidate", candidate_raw=candidate, candidate_physical=_physical(item, candidate))
         block("host_objective_only_not_vehicle_validation")
       else:
         row["status"] = "keep_current"
-        block("holdout_or_objective_guard_failed")
+        block("holdout_event_inference_failed" if inference is not None else "holdout_or_objective_guard_failed")
+    except _InferenceBlocked as error:
+      row["status"] = "keep_current" if inference is not None and inference["holdout_evaluations"] else "blocked"
+      row["candidate_raw"] = row["candidate_physical"] = None
+      block(*(["holdout_event_inference_failed"] if inference is not None and inference["holdout_evaluations"] else []), str(error))
     except (ValueError, TypeError, KeyError, OverflowError, ArithmeticError):
       row["status"] = "blocked"
       row["candidate_raw"] = row["candidate_physical"] = None
@@ -1094,7 +1381,15 @@ def validate_candidate_report(report: dict) -> dict:
     binding = row["provenance"]
     _keys(binding, {"epoch_id", "objective_id", "consumer_ids", "excluded_rows", "provisional_rows"},
           {"fit_context", "evaluation_scope", "candidate_semantics", "model_provenance", "causal_improvement_proven",
-           "plant_improvement_proven", "trajectory_prediction"})
+           "plant_improvement_proven", "trajectory_prediction", "inference"})
+    if "inference" in binding:
+      inference = _validate_event_inference(binding["inference"])
+      if row["key"] not in {"CustomSR", "LateralTorqueKpV", "LateralTorqueKf"}:
+        raise ValueError("event_inference_wrong_parameter")
+      if row["status"] == "search_candidate" and (inference["selection"] is None or inference["holdout"] is None
+          or not inference["selection"]["passed"] or not inference["holdout"]["passed"]
+          or row["candidate_raw"] != inference["holdout"]["candidate_raw"]):
+        raise ValueError("event_candidate_without_independent_holdout")
     if "evaluation_scope" in binding:
       if binding["evaluation_scope"] in {"one_cycle_policy_effect", "frozen_plan_projection"}:
         expected_method = _POLICY_METHOD if binding["evaluation_scope"] == "one_cycle_policy_effect" else _PROJECTION_METHOD
@@ -1114,7 +1409,9 @@ def validate_candidate_report(report: dict) -> dict:
                                           "plant_improvement_proven", "trajectory_prediction")):
       raise ValueError("unbound_evaluation_scope")
     if "fit_context" in binding:
-      _fit_context(binding["fit_context"], row["key"])
+      fitted = _fit_context(binding["fit_context"], row["key"])
+      if "inference" in binding and binding["inference"]["fit_uncertainty"] != fitted.get("identification", fitted):
+        raise ValueError("event_fit_uncertainty_binding_mismatch")
     if binding["epoch_id"] != provenance["epoch_id"]:
       raise ValueError("report_epoch_binding_mismatch")
     if binding["objective_id"] is not None:

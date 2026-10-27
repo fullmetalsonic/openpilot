@@ -253,13 +253,14 @@ class Controls:
                                                 source='learned' if _advisor_stored_delay == 0.0 else 'stored'),
                      'LatSmoothSec': field(lat_smooth_seconds, read_value=lat_smooth_seconds, source='stored')},
           'context': {'active': CC.latActive, 'path': 'vw_lane' if self.is_vw_meb else 'lane',
-                      'lane_selected': True, 'live_delay_used': _advisor_stored_delay == 0.0},
+                      'lane_selected': True, 'model_target_selected': False, 'live_delay_used': _advisor_stored_delay == 0.0},
         }, cycle_id=self.sm.frame)
       else:
         observe(self._advisor_lateral_target, lambda: {
           'fields': {'SteerActuatorDelay': field(state='bypassed'), 'LatSmoothSec': field(state='bypassed')},
           'context': {'active': CC.latActive, 'path': 'inactive' if not CC.latActive else ('vw_model' if self.is_vw_meb else 'model'),
-                      'lane_selected': False, 'live_delay_used': False},
+                      'lane_selected': False, 'live_delay_used': False,
+                      'model_target_selected': bool(CC.latActive and (self.is_vw_meb or not self.lanefull_mode_enabled))},
         }, cycle_id=self.sm.frame)
     self.desired_curvature, curvature_limited = clip_curvature(CS.vEgo, self.desired_curvature, new_desired_curvature, lp.roll)
 

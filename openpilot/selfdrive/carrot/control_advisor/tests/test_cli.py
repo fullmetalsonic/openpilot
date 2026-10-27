@@ -66,6 +66,30 @@ class CliTests(unittest.TestCase):
     status, _, errors = self.invoke("verify", str(self.output))
     self.assertEqual(status, 0, errors)
 
+  def test_compare_cli_creates_verified_offline_result_without_overwriting_sources(self):
+    from .test_comparison import comparison_fixture
+    application, cohort, profile = comparison_fixture()
+    paths = [self.root / name for name in ("application.json", "cohort.json", "comparison-profile.json")]
+    for path, value in zip(paths, (application, cohort, profile)):
+      path.write_text(json.dumps(value), encoding="utf8")
+    before = [path.read_bytes() for path in paths]
+    status, stdout, stderr = self.invoke("compare", str(paths[0]), "--cohort", str(paths[1]),
+                                        "--profile", str(paths[2]), "--output", str(self.output))
+    self.assertEqual(0, status, stderr)
+    self.assertEqual("comparison_ready", json.loads(stdout)["state"])
+    result = json.loads((self.output / "result.json").read_text())
+    self.assertEqual("offline_comparison_diagnostic", result["scope"])
+    self.assertFalse(result["apply_enabled"])
+    self.assertFalse(result["runtime_connected"])
+    self.assertFalse(result["raw_sources_verified"])
+    self.assertNotIn("receipt", result)
+    self.assertEqual(before, [path.read_bytes() for path in paths])
+    status, _, errors = self.invoke("verify", str(self.output))
+    self.assertEqual(0, status, errors)
+    status, _, _ = self.invoke("compare", str(paths[0]), "--cohort", str(paths[1]),
+                               "--profile", str(paths[2]), "--output", str(self.output))
+    self.assertEqual(2, status)
+
   def test_actual_module_entrypoint_and_new_output_only(self):
     process = subprocess.run([sys.executable, "-m", "openpilot.selfdrive.carrot.control_advisor", "analyze-jsonl", str(self.source),
                               "--profile", str(PROFILE), "--output", str(self.output)], cwd=ROOT,

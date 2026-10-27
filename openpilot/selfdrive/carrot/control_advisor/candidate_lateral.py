@@ -6,6 +6,9 @@ producer. Factor uses declared callback offsets, or an explicitly fit-only froze
 """
 import math
 from numbers import Real
+from statistics import median
+import hashlib
+import json
 
 from .torque_fit import estimate_torque
 from . import candidate_pid
@@ -168,6 +171,103 @@ def _manual_ratio_quality(context, rows):
     raise _Blocked("manual_ratio_zero_offset_disagreement")
 
 
+def _ratio_binding(context):
+  value = {name: context.get(name) for name in ("settings_raw", "dependencies", "vehicle_context", "evidence", "objective", "inference_config")}
+  return hashlib.sha256(json.dumps(value, sort_keys=True, separators=(",", ":"), allow_nan=False).encode()).hexdigest()
+
+
+def _robust_origin(points):
+  usable = [(x, y) for x, y in points if abs(x) > 64 * math.ulp(1.)]
+  if len(usable) < 3:
+    raise _Blocked("ratio_uncertainty_unavailable")
+  slope = median(y / x for x, y in usable)
+  for _ in range(12):
+    residual = [y - slope * x for x, y in usable]
+    centre = median(residual)
+    scale = max(1.4826 * median(abs(value - centre) for value in residual), 128 * math.ulp(max(1., *(abs(y) for _, y in usable))))
+    weights = [min(1., 1.345 * scale / abs(value - centre)) if value != centre else 1. for value in residual]
+    denominator = math.fsum(weight * x * x for weight, (x, y) in zip(weights, usable))
+    updated = math.fsum(weight * x * y for weight, (x, y) in zip(weights, usable)) / denominator
+    if abs(updated - slope) < 1e-12:
+      slope = updated
+      break
+    slope = updated
+  if not math.isfinite(slope) or slope <= 0:
+    raise _Blocked("geometry_sign_or_rank_invalid")
+  return slope
+
+
+def _fit_manual_ratio(context, rows):
+  import numpy as np
+  config = candidate_pid.EVENT_INFERENCE_CONFIG
+  groups = {}
+  for row, point in zip(rows, _ratio_points(context, rows, "CustomSR")):
+    groups.setdefault(row["block_id"], []).append((row, point))
+  if not config["min_events_per_split"] <= len(groups) <= config["max_events_per_split"]:
+    raise _Blocked("independent_events_insufficient")
+  summaries = []
+  for event_id, group in groups.items():
+    slope = _robust_origin([point for row, point in group])
+    summaries.append({"event_id": event_id, "slope": slope,
+      "direction": 1 if median(point[0] for row, point in group) > 0 else -1,
+      "speed": median(_signal(row, "v_ego", "m/s") for row, point in group)})
+  rng = np.random.default_rng(config["seed"])
+  def agree(first, second):
+    if min(len(first), len(second)) < 2:
+      raise _Blocked("ratio_uncertainty_unavailable")
+    delta = (np.asarray(first)[rng.integers(0, len(first), size=(config["bootstrap_repetitions"], len(first)))].mean(axis=1)
+             - np.asarray(second)[rng.integers(0, len(second), size=(config["bootstrap_repetitions"], len(second)))].mean(axis=1))
+    low, high = np.quantile(delta, [.025, .975])
+    resolution = 128 * math.ulp(max(1., *first, *second))
+    if low > resolution or high < -resolution:
+      raise _Blocked("ratio_direction_or_speed_disagreement")
+  agree([item["slope"] for item in summaries if item["direction"] < 0], [item["slope"] for item in summaries if item["direction"] > 0])
+  speeds = [item["speed"] for item in summaries]
+  if max(speeds) - min(speeds) > .5:
+    mid = (max(speeds) + min(speeds)) / 2
+    agree([item["slope"] for item in summaries if item["speed"] <= mid], [item["slope"] for item in summaries if item["speed"] > mid])
+  interval = candidate_pid.event_bootstrap([item["slope"] for item in summaries])
+  slope = median(item["slope"] for item in summaries)
+  event_offsets = [median(point[1] - slope * point[0] for row, point in group) for group in groups.values()]
+  offset = candidate_pid.event_bootstrap(event_offsets)
+  resolution = 128 * math.ulp(max(1., *(abs(point[1]) for group in groups.values() for row, point in group)))
+  if offset["lower"] > resolution or offset["upper"] < -resolution:
+    raise _Blocked("ratio_zero_offset_uncertain")
+  if interval["lower"] <= 0:
+    raise _Blocked("ratio_uncertainty_unavailable")
+  angles = [_signal(row, "steering_angle_corrected", "rad") for row in rows]
+  speeds = [_signal(row, "v_ego", "m/s") for row in rows]
+  return {"version": 2, "kind": "manual_ratio_robust_v2", "binding_sha256": _ratio_binding(context),
+    "configuration": dict(config), "slope": slope, "raw_interval_95": [10 / interval["upper"], 10 / interval["lower"]],
+    "bootstrap": interval, "zero_offset_interval": offset, "fit_event_ids": list(groups),
+    "angle_support": [min(angles), max(angles)], "speed_support": [min(speeds), max(speeds)],
+    "interpretation": "effective_ratio_conditional_on_recorded_stiffness"}
+
+
+def validate_manual_ratio_context(value):
+  names = {"version", "kind", "binding_sha256", "configuration", "slope", "raw_interval_95", "bootstrap", "zero_offset_interval",
+           "fit_event_ids", "angle_support", "speed_support", "interpretation"}
+  if (type(value) is not dict or set(value) != names or value["version"] != 2 or value["kind"] != "manual_ratio_robust_v2"
+      or value["configuration"] != candidate_pid.EVENT_INFERENCE_CONFIG or type(value["binding_sha256"]) is not str
+      or len(value["binding_sha256"]) != 64 or any(char not in "abcdef0123456789" for char in value["binding_sha256"])
+      or value["interpretation"] != "effective_ratio_conditional_on_recorded_stiffness"):
+    raise ValueError("invalid_manual_ratio_fit_context")
+  if (_number(value["slope"]) <= 0 or type(value["fit_event_ids"]) is not list or not 4 <= len(value["fit_event_ids"]) <= 64
+      or any(type(identifier) is not str or not 1 <= len(identifier) <= 96 for identifier in value["fit_event_ids"])
+      or len(set(value["fit_event_ids"])) != len(value["fit_event_ids"])):
+    raise ValueError("invalid_manual_ratio_fit_context")
+  for name in ("raw_interval_95", "angle_support", "speed_support"):
+    if type(value[name]) is not list or len(value[name]) != 2 or _number(value[name][0]) > _number(value[name][1]):
+      raise ValueError("invalid_manual_ratio_fit_context")
+  for name in ("bootstrap", "zero_offset_interval"):
+    if type(value[name]) is not dict or set(value[name]) != {"mean", "lower", "upper", "convergence_error", "event_count"}:
+      raise ValueError("invalid_manual_ratio_fit_context")
+    if _number(value[name]["lower"]) > _number(value[name]["upper"]) or _number(value[name]["convergence_error"]) < 0 or value[name]["event_count"] != len(value["fit_event_ids"]):
+      raise ValueError("invalid_manual_ratio_fit_context")
+    _number(value[name]["mean"])
+  return json.loads(json.dumps(value, allow_nan=False))
+
+
 def _path_pairs(context, rows, *, reference=False):
   if context.get("dependencies", {}).get("path_offset_selected") is not True:
     raise _Blocked("consumer_bypassed_or_unobserved")
@@ -277,9 +377,14 @@ def propose_family(key, context, profile):
       if fit_intercept:
         result["fit_context"] = {"lateral_accel_offset": _number(fit["raw_fit"]["latAccelOffset"])}
     elif key in ("SteerRatioRate", "CustomSR"):
-      if key == "CustomSR":
-        _manual_ratio_quality(context, rows)
-      slope = _positive_inverse_slope(_ratio_points(context, rows, key))
+      if key == "CustomSR" and context.get("inference_config") is not None:
+        fitted = validate_manual_ratio_context(_fit_manual_ratio(context, rows))
+        result["fit_context"] = fitted
+        slope = fitted["slope"]
+      else:
+        if key == "CustomSR":
+          _manual_ratio_quality(context, rows)
+        slope = _positive_inverse_slope(_ratio_points(context, rows, key))
       raw = (100. if key == "SteerRatioRate" else 10.) / slope
     elif key == "PathOffset":
       pairs = _path_pairs(context, rows)
@@ -327,7 +432,18 @@ def evaluate_family(key, candidate_raw, context, split, budget):
       else:
         predictions = [raw * .001 * _signal(row, "sent_torque", "1") + _signal(row, "lateral_accel_offset", "m/s^2") for row in rows]
     elif key in ("SteerRatioRate", "CustomSR"):
-      if key == "CustomSR":
+      if key == "CustomSR" and context.get("inference_config") is not None:
+        fitted = validate_manual_ratio_context(context.get("fit_context"))
+        if fitted["binding_sha256"] != _ratio_binding(context):
+          raise _Blocked("manual_ratio_mapping_or_epoch_changed")
+        if split != "fit" and set(row["block_id"] for row in rows) & set(fitted["fit_event_ids"]):
+          raise _Blocked("event_split_dependency_overlap")
+        for row in rows:
+          for signal_name, unit, support in (("v_ego", "m/s", "speed_support"), ("steering_angle_corrected", "rad", "angle_support")):
+            value = _signal(row, signal_name, unit)
+            if value < fitted[support][0] - 64 * math.ulp(max(1., abs(value))) or value > fitted[support][1] + 64 * math.ulp(max(1., abs(value))):
+              raise _Blocked("ratio_outside_fit_support")
+      elif key == "CustomSR":
         _manual_ratio_quality(context, rows)
       _ratio_points(context, rows, key, reference=True)
       if key == "CustomSR" and raw * .1 <= 1.:
@@ -344,7 +460,15 @@ def evaluate_family(key, candidate_raw, context, split, budget):
       raise _Blocked("backend_unavailable")
     if any(not math.isfinite(value) for value in predictions):
       raise _Blocked("numerical_failure")
-    return {**result, "status": "evaluated", "predictions": predictions}
+    details = {}
+    if context.get("inference_config") is not None:
+      for row, prediction in zip(rows, predictions):
+        details.setdefault(row["block_id"], []).append((row, prediction))
+      details = [candidate_pid.event_metrics(event_id,
+        [predicted - row["reference"] for row, predicted in event], [row["reference"] for row, predicted in event],
+        [_signal(row, "v_ego", "m/s") for row, predicted in event]) for event_id, event in details.items()]
+    return {**result, "status": "evaluated", "predictions": predictions,
+            **({"event_metrics": details} if context.get("inference_config") is not None else {})}
   except _Blocked as exc:
     return {**result, "reason_codes": [str(exc)]}
   except (ValueError, TypeError, OverflowError, ZeroDivisionError):

@@ -2,6 +2,20 @@ import { advisorControlState, formatAdvisorBytes, formatAdvisorNumber, formatCon
 
 const AXES = { lateral: "횡방향", longitudinal: "종방향" };
 const CALIBRATION_REASONS = {
+  independent_response_events_insufficient: "독립 응답 사건 부족", independent_smoothing_samples_insufficient: "독립 평활 관측 부족",
+  pre_smoothing_target_unavailable: "평활 전 실제 목표 기록 없음", smoothing_independent_response_support_unavailable: "평활과 연결할 독립 응답 근거 부족",
+  smoothing_sample_outside_usable_mask: "평활 관측이 사용 가능한 구간 밖", smoothing_independent_event_support_unavailable: "평활 관측의 독립 사건 연결 부족",
+  smoothing_current_mapping_unreconciled: "기록 설정과 실제 평활 계산 불일치", smoothing_output_parity_failed: "실제 평활 출력 검산 불일치",
+  smoothing_excitation_insufficient: "평활 효과를 구분할 목표 변화 부족", smoothing_effect_below_resolution: "평활 효과가 측정 해상도 이하",
+  bidirectional_smoothing_support_insufficient: "양방향 평활 근거 부족", bidirectional_recovery_support_insufficient: "양방향 회복 사건 부족",
+  completed_recovery_events_insufficient: "끝까지 관측한 회복 사건 부족", recovery_delay_below_resolution: "회복 지연이 측정 해상도 이하",
+  diagnostic_model_budget_exhausted: "사전 응답 모델 계산 예산 소진", diagnostic_row_budget_exhausted: "응답 분석 입력 예산 초과",
+  stage_signal_or_original_clock_missing: "응답 신호 또는 원본 시각 누락", stage_source_clock_conflict: "같은 원본 시각의 신호 값 충돌",
+  masked_saturated_or_stopping_response: "개입·포화·정차 구간 제외", input_clock_resolution_insufficient: "입력 시각 해상도 부족",
+  response_clock_resolution_or_jitter: "응답 시각 해상도 또는 주기 불안정", response_excitation_insufficient: "응답 계수를 구분할 입력 변화 부족",
+  event_response_right_censored: "사건 종료까지 기록되지 않음", event_bootstrap_unstable: "사건 재표본화 결과 불안정",
+  response_interval_too_wide: "응답 추정 범위가 넓어 판정 보류", response_direction_inconsistent: "사건별 응답 방향 불일치",
+  response_delay_profile_unidentified: "지연과 다른 응답 계수를 구분하지 못함",
   settings_epoch_unlinked: "설정 구간 연결 미확인", fixed_settings_unobserved: "고정할 설정의 기록 부족",
   fixed_ki_zero_required: "Ki=0 기준과 다른 기록", recorded_cp_unavailable: "차량 구성 기록 부족",
   source_binding_unavailable: "원본 연결 근거 부족", current_raw_special_or_unobserved: "현재 값이 자동 모드이거나 미확인",
@@ -11,6 +25,31 @@ const CALIBRATION_REASONS = {
   no_single_step_trial_available: "설정 범위 안의 시험값 없음", numeric_candidate_gate_remains_authoritative: "수치 후보의 기존 품질 조건 미충족",
 };
 let viewSerial = 0;
+const RESPONSE_STAGES = {
+  lateral_target_to_output: "횡방향 목표 → 조향 출력", lateral_output_to_steering: "조향 출력 → 조향각",
+  lateral_steering_to_yaw: "조향각 → 회전 반응", longitudinal_target_to_scc: "종방향 목표 → SCC 요청",
+  longitudinal_scc_to_acceleration: "SCC 요청 → 가속 반응",
+};
+const intervalLabel = (value, unit = "") => value ? `${formatAdvisorNumber(value.lower, 4)} ~ ${formatAdvisorNumber(value.upper, 4)}${unit}` : "판정할 근거 부족";
+
+function responsePanel(document, diagnostics) {
+  const section = node(document, "section", "control-advisor__card");
+  section.dataset.caResponseDiagnostics = "";
+  section.append(node(document, "h4", "", "단계별 반응 분석"),
+    node(document, "p", "control-advisor__muted", "원본 신호의 사건별 응답 범위입니다. 설정 최적값이나 인과적 개선을 뜻하지 않습니다."));
+  for (const stage of diagnostics.stages) {
+    section.append(pair(document, RESPONSE_STAGES[stage.id] || "응답 단계", stage.state === "held" ? "판정 보류" : `${stage.events}개 사건`),
+      pair(document, "응답 지연 · 명목 95% 범위", intervalLabel(stage.lag, "초")),
+      pair(document, "응답 시정수 · 명목 95% 범위", intervalLabel(stage.timeConstant, "초")));
+  }
+  if (diagnostics.smoothing) section.append(
+    pair(document, "평활 관측 프레임", formatAdvisorNumber(diagnostics.smoothing.count, 0)),
+    pair(document, "평활 전후 차이 범위", intervalLabel(diagnostics.smoothing.gap, " 1/m")),
+    node(document, "p", "control-advisor__muted", "1Hz로 관측한 개별 프레임의 평활 기여입니다. 연속 회복 시간이나 주파수 응답은 측정하지 않습니다."));
+  if (diagnostics.plan) section.append(node(document, "strong", "control-advisor__reason", "효과 확인 시험 필요 · 증감 방향 미확정"),
+    node(document, "p", "", `한 항목씩 최대 2개 후보, 후보당 ${diagnostics.plan.events}개 사건 또는 최대 ${diagnostics.plan.seconds}초에서 판정합니다. 결론이 없으면 현재값 유지로 종료합니다.`));
+  return section;
+}
 
 function node(document, tag, className, text) {
   const element = document.createElement(tag);
@@ -88,7 +127,7 @@ function calibrationPanel(document, review, controls) {
   panel.append(node(document, "h3", "", `${review.parameterKey} · ${review.purpose === "manual_trial" ? "한 항목 수동 비교" : "보정 근거"}`),
     node(document, "p", "control-advisor__muted", `현재 저장값 ${review.currentRaw ?? "—"} · Ki ${review.kiRaw ?? "—"} 유지 · 다른 설정은 같은 기준으로 비교합니다.`));
   if (review.purpose === "manual_trial") {
-    panel.append(node(document, "p", "control-advisor__notice", "시험값은 최적값이나 개선 예측이 아닙니다. 한 방향을 선택해 정차 상태에서 적용하고, 실제 소비 확인 후 전후 결과를 비교합니다."));
+    panel.append(node(document, "p", "control-advisor__notice", "시험값은 최적값이나 개선 예측이 아닙니다. 현재 적용 조건이 충족될 때 한 값만 적용하고, 실제 소비 확인 후 전후 결과를 비교합니다."));
     const buttons = node(document, "div", "control-advisor__actions");
     for (const option of review.trials) {
       const button = node(document, "button", "btn", `${option.direction} 시험: ${formatAdvisorNumber(option.currentRaw * .01, 2)}초 → ${formatAdvisorNumber(option.candidateRaw * .01, 2)}초`);
@@ -99,6 +138,7 @@ function calibrationPanel(document, review, controls) {
     }
     panel.append(buttons);
   }
+  if (review.diagnostics) panel.append(responsePanel(document, review.diagnostics));
   if (review.reasons.length) panel.append(node(document, "p", "control-advisor__reason", `근거 상태: ${[...new Set(review.reasons.map((reason) => CALIBRATION_REASONS[reason] || "실제 소비·설정 일치 조건 미충족"))].join(", ")}`));
   for (const source of review.series) {
     const section = node(document, "div", "control-advisor__trace-section");
@@ -292,6 +332,14 @@ function offlineCandidatePanel(document, report, connected, requestControls) {
         pair(document, "최대 절대 예측값", formatAdvisorNumber(score?.max_absolute_prediction, 6)));
       card.append(evidence);
     }
+    if (item.inference) {
+      const inference = item.inference;
+      card.append(pair(document, "독립 사건 · 학습 / 선택 / 검증", `${inference.counts.fit} / ${inference.counts.select} / ${inference.counts.holdout}`),
+        pair(document, "최소 유효 개선량 (사건 RMSE)", formatAdvisorNumber(inference.minimumEffect, 4)),
+        pair(document, "선택 구간 개선 · 명목 95% 범위", intervalLabel(inference.selection)),
+        pair(document, "최종 검증 개선 · 명목 95% 범위", intervalLabel(inference.holdout)),
+        pair(document, "최종 검증 평가 횟수", `${inference.holdoutEvaluations} / 1`));
+    }
     card.append(pair(document, "피팅·계산 수치 검사", item.numericalChecksPass ? "통과 · 차량 검증 아님" : "미충족·미확인"),
       pair(document, "분할 독립성", item.splitIndependent ? "보고서 조건 통과" : "미충족·미확인"),
       pair(document, "보류 분할 목적함수", item.holdoutObjectivePass ? "보고서 조건 통과" : "미충족·미확인"),
@@ -390,6 +438,20 @@ function comparisonCard(document, request) {
         node(document, "p", "control-advisor__muted", "전체 제외 구간은 로그·그래프 내보내기 묶음에 포함됩니다."));
     }
     summaries.append(card);
+  }
+  if (comparison.assessment) {
+    const assessment = comparison.assessment;
+    const box = node(document, "div", "control-advisor__card");
+    box.dataset.caAssessment = assessment.state;
+    box.append(node(document, "strong", "control-advisor__reason", assessment.label),
+      pair(document, "독립 사건 쌍", `${assessment.pairs} / 8`),
+      pair(document, "관찰 시간 / 최대", `${formatAdvisorNumber(assessment.seconds, 1)} / 900초`),
+      pair(document, "개선량 · 명목 95% 범위", intervalLabel(assessment.effect, ` ${assessment.unit}`)),
+      pair(document, "사전 최소 유효 개선", `${formatAdvisorNumber(assessment.minimumEffect, 4)} ${assessment.unit}`),
+      node(document, "p", "control-advisor__muted", assessment.ended
+        ? "이 시험의 판정이 끝났습니다. 같은 시험의 기간을 늘려 유리한 결과를 다시 고르지 않습니다. 관측상 차이이며 인과적 개선 보장은 아닙니다."
+        : "적용 후 첫 8개 완결 사건 또는 900초에서 종료합니다. 조건이 맞는 8쌍이 부족하면 판정 불가이며, 유리한 사건을 추가로 고르지 않습니다."));
+    section.append(box);
   }
   section.append(summaries, pair(document, "공통 조건 묶음", formatAdvisorNumber(comparison.matched?.commonBins)),
     pair(document, "맞춘 RMSE (전 / 후)", `${formatAdvisorNumber(comparison.matched?.before?.rmse, 4)} / ${formatAdvisorNumber(comparison.matched?.after?.rmse, 4)}`),

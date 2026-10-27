@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { buildTrialRequestBody, CALIBRATION_KEYS, createCalibrationReviewModel, createControlAdvisorModel } from "../src/features/control_advisor/model.js";
+import { buildTrialRequestBody, CALIBRATION_KEYS, createCalibrationReviewModel, createControlAdvisorModel, eventInferenceModel, comparisonAssessment } from "../src/features/control_advisor/model.js";
 
 function fixture() {
   const columns = ["mono_ns", "target", "actual", "target_mono_ns", "actual_mono_ns", "independent_actual", "independent_mono_ns", "sent_request", "sent_mono_ns", "segment", "sent_raw", "stop_req", "jerk_upper", "jerk_lower"];
@@ -17,6 +17,47 @@ function fixture() {
       result_revision: 1, settings_revision: 0, dependency_digest: "e".repeat(64),
       items: [{ item_key: "LongActuatorDelay", eligible: true, purpose: "manual_trial", expected_current_raw: 30, trial_ids: [option.id] }] } };
 }
+
+test("identified timing evidence exposes bounded experiments without presenting a software optimum", () => {
+  const payload = fixture(), review = payload.candidate_report.calibration_review;
+  review.schema_version = 2;
+  review.diagnostics = { version: 1, method_id: "signal_stage_event_response_v1", causal_effect_proven: false, software_optimum_identified: false,
+    stages: [{ id: "longitudinal_scc_to_acceleration", state: "identified_response", event_count: 8,
+      lag_s: { estimate: .2, lower: .15, upper: .25 }, time_constant_s: { estimate: .4, lower: .3, upper: .5 } }],
+    timing: { LongActuatorDelay: { state: "experiment_required", trial_plan: {
+      max_candidates: 2, direction_effect: "unconfirmed", event_count_per_candidate: 8, max_observation_s: 900 } } } };
+  const model = createCalibrationReviewModel(payload);
+  assert.equal(model.available, true);
+  assert.equal(model.diagnostics.stages[0].lag.upper, .25);
+  assert.deepEqual(model.diagnostics.plan, { events: 8, seconds: 900 });
+  assert.equal(model.trials[0].eligible, true);
+  review.diagnostics.timing.LongActuatorDelay.trial_plan = null;
+  assert.equal(createCalibrationReviewModel(payload).available, false);
+  review.diagnostics.software_optimum_identified = true;
+  assert.equal(createCalibrationReviewModel(payload).available, false);
+});
+
+test("event inference shows independent validation uncertainty and rejects reused holdout", () => {
+  const source = { schema_version: 1, method: "event_bootstrap_v1", causal_improvement_proven: false,
+    configuration: { confidence: .95, bootstrap_repetitions: 256 }, event_counts: { fit: 8, select: 6, holdout: 4 },
+    holdout_evaluations: 1, minimum_effect: .03, selection: { effect: { lower: .04, upper: .08 } },
+    holdout: { effect: { lower: -.01, upper: .09 } } };
+  assert.equal(eventInferenceModel(source).holdout.lower, -.01);
+  assert.equal(eventInferenceModel(source).counts.holdout, 4);
+  assert.equal(eventInferenceModel({ ...source, holdout_evaluations: 2 }), null);
+  assert.equal(eventInferenceModel({ ...source, causal_improvement_proven: true }), null);
+});
+
+test("comparison exposes a finite inconclusive result without enabling application", () => {
+  const value = { schema_version: 1, method: "matched_event_bootstrap_v1", state: "inconclusive", ended: true,
+    causal_improvement_proven: false, events_required: 8, observation_limit_s: 900, policy_sha256: "a".repeat(64),
+    counts: { before_events: 8, after_events: 3, matched_pairs: 3 }, observed_after_s: 900, minimum_effect: .1,
+    effect: null, unit: "s" };
+  assert.equal(comparisonAssessment(value).ended, true);
+  assert.equal(comparisonAssessment(value).state, "inconclusive");
+  assert.equal(comparisonAssessment({ ...value, state: "improved", causal_improvement_proven: true }), null);
+  assert.equal(comparisonAssessment({ ...value, state: "observing" }), null);
+});
 
 test("calibration preserves original int64 timestamps and sends only the opaque trial selector", () => {
   const payload = fixture(), model = createCalibrationReviewModel(payload);

@@ -9,17 +9,20 @@ from .evidence import create_bundle, hash_file, verify_bundle
 
 MAX_BUNDLE_BYTES = 8 * 1024 * 1024
 MAX_INPUT_BYTES = 4 * 1024 * 1024
+MAX_PID_ANALYSIS_ROWS = 12000
+MAX_PID_INPUT_BYTES = 16 * 1024 * 1024
+MAX_PID_BUNDLE_BYTES = 24 * 1024 * 1024
 MAX_RESULT_BYTES = 1024 * 1024
 MAX_COLLECTION_BYTES = 32 * 1024 * 1024
 MAX_LINK_BYTES = 256 * 1024
 ENGINE_FILES = ('candidates.py', 'candidate_lateral.py', 'candidate_longitudinal.py',
-                'candidate_pid.py', 'pid_burst.py', 'policy_observations.py',
+                'candidate_pid.py', 'pid_burst.py', 'policy_observations.py', 'response_diagnostics.py', 'consumer_mapping.py',
                 'comparison.py', 'comparison_intervals.py', 'comparison_stream.py',
                 'candidate_report.py', 'parameters.json', 'torque_fit.py',
                 'log_candidates.py', 'log_signals.py', 'lateral_observations.py', 'log_history.py', 'rlog.py',
                 'normalizer.py', 'analysis.py', 'trip_analysis.py', 'trip_history.py', 'settings_history.py', 'calibration_review.py',
                 'journal_snapshot.py', 'journal_segments.py', 'inspection.py', 'periodic.py', 'vehicle_identity.py', 'goals.py',
-                'execution.py', 'remote_analysis.py')
+                'execution.py', 'remote_analysis.py', 'remote_comparison.py', 'request_evidence.py', '__main__.py')
 SOURCE_FILES = ('openpilot/common/params_keys.h', 'openpilot/selfdrive/carrot/t_follow.py',
                 'openpilot/common/pid.py', 'opendbc_repo/opendbc/car/interfaces.py', 'opendbc_repo/opendbc/car/__init__.py',
                 'opendbc_repo/opendbc/car/hyundai/carcontroller.py', 'opendbc_repo/opendbc/car/hyundai/values.py',
@@ -65,6 +68,18 @@ def _read(path, limit):
   if len(value) > limit or hashlib.sha256(value).hexdigest() != before[0] or hash_file(path, limit) != before:
     raise ValueError('candidate_input_changed')
   return _json(value), before[0]
+
+
+def _pid_input(value):
+  return (type(value) is dict and value.get('source_kind') == 'recorded'
+          and type(value.get('pid_trace_blocks')) is list and bool(value['pid_trace_blocks']))
+
+
+def _read_candidate_input(path):
+  value, digest = _read(path, MAX_PID_INPUT_BYTES)
+  if not _pid_input(value) and Path(path).stat().st_size > MAX_INPUT_BYTES:
+    raise ValueError('candidate_input_byte_limit')
+  return value, digest
 
 
 def _link_receipt(value):
@@ -161,7 +176,7 @@ def calculate_bundle(input_path, profile_path, destination, *, log_link=None, ca
   from .candidates import evaluate_candidates, validate_candidate_report
   input_path, profile_path = Path(input_path), Path(profile_path)
   engine_hashes = _code_hashes()
-  evidence, input_hash = _read(input_path, MAX_INPUT_BYTES)
+  evidence, input_hash = _read_candidate_input(input_path)
   profile, profile_hash = _read(profile_path, MAX_INPUT_BYTES)
   report = validate_candidate_report(evaluate_candidates(evidence, profile))
   if engine_hashes != _code_hashes():
@@ -190,16 +205,17 @@ def calculate_bundle(input_path, profile_path, destination, *, log_link=None, ca
       result['log_link_sha256'] = hash_file(path, MAX_LINK_BYTES)[0]
       sources.append(path)
       hashes.append(result['log_link_sha256'])
-    create_bundle(Path(destination), sources, result, byte_limit=MAX_BUNDLE_BYTES, expected_sha256=hashes)
+    create_bundle(Path(destination), sources, result,
+      byte_limit=MAX_PID_BUNDLE_BYTES if _pid_input(evidence) else MAX_BUNDLE_BYTES, expected_sha256=hashes)
   loaded = load_candidate_bundle(destination)
   return {'state': 'complete', 'scope': result['scope'], 'output': str(destination),
           'parameter_count': len(loaded['report']['items']), 'apply_enabled': False, 'device_qualified': False}
 
 
-def _load_single_bundle(directory, byte_limit=MAX_BUNDLE_BYTES):
+def _load_single_bundle(directory, byte_limit=MAX_PID_BUNDLE_BYTES):
   from .candidates import validate_candidate_report
   directory = Path(directory)
-  manifest = verify_bundle(directory, byte_limit=min(byte_limit, MAX_BUNDLE_BYTES), max_files=3)
+  manifest = verify_bundle(directory, byte_limit=min(byte_limit, MAX_PID_BUNDLE_BYTES), max_files=3)
   if len(manifest['files']) not in (2, 3):
     raise ValueError('candidate_sources_required')
   result, digest = _read(directory / 'result.json', MAX_RESULT_BYTES)
@@ -213,7 +229,8 @@ def _load_single_bundle(directory, byte_limit=MAX_BUNDLE_BYTES):
   input_epoch = None
   input_evidence = None
   for entry, field in zip(manifest['files'][:2], ('evidence_sha256', 'profile_sha256')):
-    source, source_hash = _read(directory / entry['path'], MAX_INPUT_BYTES)
+    source, source_hash = (_read_candidate_input(directory / entry['path']) if field == 'evidence_sha256'
+                           else _read(directory / entry['path'], MAX_INPUT_BYTES))
     if type(source) is not dict:
       raise ValueError('invalid_candidate_source_object')
     canonical = hashlib.sha256(json.dumps(source, sort_keys=True, separators=(',', ':'), allow_nan=False).encode()).hexdigest()
@@ -258,6 +275,8 @@ def _load_single_bundle(directory, byte_limit=MAX_BUNDLE_BYTES):
   elif 'log_link_sha256' in result:
     raise ValueError('log_link_receipt_missing')
   total = manifest['result']['bytes'] + sum(entry['bytes'] for entry in manifest['files'])
+  if not _pid_input(input_evidence) and total > MAX_BUNDLE_BYTES:
+    raise ValueError('candidate_bundle_byte_limit')
   return envelope, input_epoch, receipt, total
 
 

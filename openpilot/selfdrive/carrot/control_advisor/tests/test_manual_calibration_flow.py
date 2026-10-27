@@ -113,6 +113,8 @@ class ManualCalibrationFlowTests(unittest.TestCase):
     payload = self.root / "exports/pack/payload"
     self.assertIn("LongActuatorDelay", (payload / "calibration.csv").read_text())
     self.assertIn("lateral response", (payload / "calibration.svg").read_text())
+    analysis = json.loads((payload / "analysis.json").read_text())
+    self.assertEqual(envelope["calibration_review"]["diagnostics"], analysis["diagnostics"])
     directory.rename(self.root / "source-offline")
     self.assertEqual("verified", verify_review_pack(result["download_path"])["state"])
 

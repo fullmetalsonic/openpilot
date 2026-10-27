@@ -8,7 +8,7 @@ import re
 import time
 from pathlib import Path
 
-from .candidate_report import MAX_INPUT_BYTES, MAX_RESULT_BYTES, _code_hashes, _load_reports, _read
+from .candidate_report import MAX_INPUT_BYTES, MAX_RESULT_BYTES, MAX_PID_BUNDLE_BYTES, _read_candidate_input, _code_hashes, _load_reports, _read
 from .evidence import hash_file, verify_bundle
 from .registry import load_registry
 
@@ -114,8 +114,8 @@ def _bundle(directory):
     index, _ = _read(directory / "index.json", 256 * 1024)
     bundle_name = index["latest"]
     selected = _directory(directory / bundle_name)
-  manifest = verify_bundle(selected, byte_limit=8 * 1024 * 1024, max_files=3)
-  evidence, evidence_hash = _read(selected / manifest["files"][0]["path"], MAX_INPUT_BYTES)
+  manifest = verify_bundle(selected, byte_limit=MAX_PID_BUNDLE_BYTES, max_files=3)
+  evidence, evidence_hash = _read_candidate_input(selected / manifest["files"][0]["path"])
   profile, profile_hash = _read(selected / manifest["files"][1]["path"], MAX_INPUT_BYTES)
   result, result_hash = _read(selected / "result.json", MAX_RESULT_BYTES)
   code = _code_hashes()
@@ -158,7 +158,7 @@ def _controller_source(item):
 
 class CandidateEvidenceResolver:
   def __init__(self, targets, current_context, *, clock_ns=time.monotonic_ns, max_age_ns=600_000_000_000,
-               request_ttl_ns=30_000_000_000):
+               request_ttl_ns=30_000_000_000, portable_sessions=None):
     if type(targets) is not dict or len(targets) > 32 or not callable(current_context):
       raise ValueError("invalid_request_targets")
     for identifier, target in targets.items():
@@ -175,6 +175,9 @@ class CandidateEvidenceResolver:
     self.targets, self.current_context = deepcopy(targets), current_context
     self.clock_ns, self.max_age_ns, self.request_ttl_ns = clock_ns, max_age_ns, request_ttl_ns
     self._comparison_profile = None
+    # Only the verified PC packet adapter supplies these exact job/original
+    # path bindings. Original sealed request bytes are never rewritten.
+    self._portable_sessions = deepcopy(portable_sessions or {})
 
   def bind_comparison_profile(self, profile):
     from .comparison import _profile
@@ -367,9 +370,15 @@ class CandidateEvidenceResolver:
     checkpoint = validate_checkpoint(reference.get("checkpoint"))
     if request.get("identity", {}).get("checkpoint") != checkpoint or _digest(request["identity"]) != request.get("job_id") or not job_name.startswith(request["job_id"] + "-"):
       _fail("comparison_checkpoint_binding_changed")
-    session = _session_directory(target["session_root"], checkpoint["session_id"])
-    if _directory(request["session_directory"]) != session:
-      _fail("comparison_session_root_mismatch")
+    portable = self._portable_sessions.get(job_name)
+    if portable is None:
+      session = _session_directory(target["session_root"], checkpoint["session_id"])
+      if _directory(request["session_directory"]) != session:
+        _fail("comparison_session_root_mismatch")
+    else:
+      if request["session_directory"] != portable["original"]:
+        _fail("comparison_session_root_mismatch")
+      session = _session_directory(portable["root"], checkpoint["session_id"])
     result, _, _ = _verify_job(job, request["job_id"])
     if not any(window["directory"] == window_name and window["state"] == "ready" for window in result["windows"]):
       _fail("comparison_window_unavailable")
@@ -385,6 +394,7 @@ class CandidateEvidenceResolver:
     from .log_history import load_log_history
     from .normalizer import EventNormalizer, SERVICES
     from .rlog import iter_events, validate_closed_log
+    from .log_signals import _signals, SccOutputCache, _LateralStream
     item = next(row for row in load_registry()["items"] if row["key"] == item_key)
     pack, token = capture["evidence"], capture["checkpoint"]
     disk_mode = force_disk or "source_collection" in pack
@@ -453,9 +463,34 @@ class CandidateEvidenceResolver:
           _fail("comparison_decode_budget")
         decoded_bytes += coverage["decompressed_bytes"] * 2
         normalizer = EventNormalizer(epoch=epoch["id"], max_age_ns=profile["analysis_profile"]["max_gap_ns"])
+        output_events, recorded_cp = {}, None
+        max_age = profile["analysis_profile"]["max_gap_ns"]
+        scc_output = SccOutputCache(max_age)
+        lateral = _LateralStream(max_age, 1_000_000_000, 4096)
+        lateral.begin(receipt["id"], receipt["route"], receipt["segment"], coverage["services"].get("carState", {}))
         # The same bounded event decoder and normalizer retain source timestamps;
         # no candidate objective is substituted for the native response.
-        for event in iter_events(source, services=SERVICES, max_events=coverage["event_count"], max_decompressed_bytes=coverage["decompressed_bytes"]):
+        for event in iter_events(source, services=(*SERVICES, "initData", "carOutput", "sendcan", "liveParameters", "livePose", "liveCalibration", "liveDelay"), max_events=coverage["event_count"], max_decompressed_bytes=coverage["decompressed_bytes"]):
+          service, stamp = event["service"], event["mono_ns"]
+          if service == "initData":
+            cp = event["data"].get("recorded_car_params")
+            identity = pack["vehicle_context"].get("context", {}).get("vehicle_identity", {})
+            recorded_cp = cp if (event["valid"] and isinstance(cp, dict) and cp.get("state") == "observed"
+                                and cp.get("config_sha256") == identity.get("config_sha256")) else None
+            output_events.clear()
+            scc_output = SccOutputCache(max_age)
+            lateral.header({**event, "valid": event["valid"] and recorded_cp is not None})
+            continue
+          lateral.feed(event)
+          if service == "sendcan":
+            scc_output.feed(event, recorded_cp)
+          if service in {"carOutput", "sendcan"}:
+            previous = output_events.get(service)
+            if (service != "sendcan" or event["data"].get("frames")) and (previous is None or stamp > previous["mono_ns"]):
+              output_events[service] = event
+            continue
+          if service not in SERVICES:
+            continue
           if event["service"] == "longitudinalPlan" and event["valid"] and start <= event["mono_ns"] <= end:
             mode = event["data"].get("myDrivingMode")
             if type(mode) is int and mode in (1, 2, 3, 4):
@@ -464,6 +499,16 @@ class CandidateEvidenceResolver:
               inconsistent.add("log.accel_mode_factor")
           for observation in normalizer.feed(event["service"], event["mono_ns"], event["valid"], event["data"]):
             if observation["axis"] == item["axis"]:
+              if item["axis"] == "lateral":
+                signal = _signals(event["data"], stamp, output_events, max_age).get("sent_torque")
+                independent = lateral.observe(stamp)[0].get("lateral_accel_kinematic")
+                if independent is not None:
+                  observation["context"].update(independent_actual=independent["value"],
+                    independent_mono_ns=independent["source_mono_ns"], independent_response_kind="yaw_speed_kinematic")
+              else:
+                signal = scc_output.observe(stamp).get("scc_a_req_value")
+              if signal is not None:
+                observation["context"].update(sent_request=signal["value"], sent_mono_ns=signal["source_mono_ns"])
               last_observed = observation["mono_ns"]
               if writer is not None:
                 writer.append(observation)
@@ -664,19 +709,30 @@ class CandidateEvidenceResolver:
   __call__ = resolve
 
 
-def make_comparison_provider(resolver, profile, *, source_kind="recorded", execution_provider=None):
+def make_comparison_provider(resolver, profile, *, source_kind="recorded", execution_provider=None, remote_directory=None):
   """Server-only source declaration; unchanged immutable pairs decode once."""
   resolver.bind_comparison_profile(profile)
   cache = {}
+  remote_store = None
   def captured_identity(after):
     value = {key: after[key] for key in ("target_id", "session_id", "session_generation", "settings_revision", "artifact_sha256", "result_revision")}
     value["provenance"] = {key: after["provenance"][key] for key in ("evidence_sha256", "profile_sha256", "code_hashes", "evidence_reference", "route", "boot_id")}
     return value
   def provider(application, token=None):
+    nonlocal remote_store
     try:
       from .comparison import evaluate_comparison
       executor = execution_provider() if execution_provider is not None else "device"
+      if isinstance(executor, dict):
+        executor = executor.get("executor")
       if executor != "device":
+        if executor == "remote_pc" and remote_directory is not None:
+          from .remote_comparison import RemoteComparisonStore
+          if remote_store is None:
+            remote_store = RemoteComparisonStore(remote_directory, resolver, execution_provider, source_kind=source_kind)
+          result = remote_store.result(application)
+          if result is not None:
+            return result
         reason = "comparison_on_remote_pc" if executor == "remote_pc" else "analysis_executor_unconfirmed"
         held = evaluate_comparison(application, {}, profile)
         held.update(state="held", reason_codes=[reason], receipt=None)

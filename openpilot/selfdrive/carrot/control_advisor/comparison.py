@@ -10,7 +10,9 @@ import hashlib
 import json
 import math
 import re
+import random
 import sqlite3
+from collections import deque
 
 from .analysis import AnalysisProfile, Observation, _error, _mask_axis, _merge_intervals, _metrics, _summarize_epoch, _validate_observation
 from .consumer_observer import CONTEXT_KEYS, consumer_ids_for_key, validate_event
@@ -32,6 +34,18 @@ _LANE = {"planner.lateral.lane_mode", "planner.lateral.lanes_active", "planner.l
          "controls.lateral_target.path", "controls.lateral_target.lane_selected"}
 _LONG = {"controls.longitudinal.brand", "controls.longitudinal.fixed_tuning", "controls.longitudinal.long_control_state",
          "planner.longitudinal.mode", "planner.longitudinal.source"}
+
+# Frozen with the comparison engine in each candidate's source fingerprint.
+# Thresholds use baseline repeat variation in their own units, never menu steps.
+ASSESSMENT_POLICY = {"version": 1, "events_required": 8, "observation_limit_s": 900, "max_candidates": 2,
+  "primary_metric": "target_tracking_rmse", "minimum_effect_floor": 1e-9,
+  "minimum_effect_basis": "repeated_event_tracking_variability_numeric_floor",
+  "seed": 1729, "bootstrap_repetitions": 256, "confidence": .95, "quiet_ns": 2_000_000_000,
+  "correlation_ns": 2_000_000_000, "minimum_event_ns": 500_000_000, "maximum_event_ns": 60_000_000_000,
+  "max_event_rows": 8192, "target_quiet_accel": .02,
+  "speed_match_mps": 2., "amplitude_match_fraction": .1}
+_ASSESSMENT_KEYS = {"CustomSR", "LateralTorqueKf", "LateralTorqueKpV", "SteerActuatorDelay", "LatSmoothSec", "LongActuatorDelay"}
+_ASSESSMENT_GUARDS = ("overshoot", "output_rate", "saturation_fraction", "intervention_fraction")
 
 
 class _Hold(ValueError):
@@ -176,6 +190,10 @@ def _contexts(before, after, item, profile, cohort):
 
 
 def _field_matches(event, key, expected):
+  from .consumer_mapping import special_field_matches
+  special = special_field_matches(event, key, expected)
+  if special is not None:
+    return special
   field = event["fields"].get(key)
   states = {"loaded"} if event["consumer_id"] == "planner.carrot" else {"used", "latched"}
   if (field is None or field["state"] not in states or field["source"] not in {"stored", "retained_previous"}
@@ -404,6 +422,234 @@ def _matched(before, after, records, profile, mask):
           "after_minus_before": {key: summaries[1][key] - summaries[0][key] for key in ("bias", "rmse", "p95_absolute_error")}}
 
 
+def _quantile(values, probability):
+  ordered = sorted(values)
+  index = (len(ordered) - 1) * probability
+  lo = int(index)
+  fraction = index - lo
+  return ordered[lo] * (1 - fraction) + ordered[min(lo + 1, len(ordered) - 1)] * fraction
+
+
+def _event_interval(values, seed_offset=0):
+  """Only complete independent event pairs are resampled, never log rows."""
+  rng = random.Random(ASSESSMENT_POLICY["seed"] + seed_offset)
+  draws = [math.fsum(value / len(values) for value in rng.choices(values, k=len(values)))
+           for _ in range(ASSESSMENT_POLICY["bootstrap_repetitions"])]
+  lo, hi = _quantile(draws, .025), _quantile(draws, .975)
+  half = len(draws) // 2
+  convergence = max(abs(_quantile(part, p) - endpoint) for part in (draws[:half], draws[half:])
+                    for p, endpoint in ((.025, lo), (.975, hi)))
+  return {"estimate": math.fsum(value / len(values) for value in values), "lower": lo, "upper": hi, "convergence_error": convergence}
+
+
+def _assessment_events(records, eligible, common, profile, mask, end_ns):
+  policy = ASSESSMENT_POLICY
+  selected = iter(eligible)
+  next_selected = next(selected, None)
+  quiet, active, events, rejected = deque(), [], [], set()
+  quiet_start = previous = None
+  last_end = -policy["correlation_ns"]
+  def finish(points):
+    if not points or points[0][0].mono_ns < last_end + policy["correlation_ns"]:
+      return None
+    moving = [row for row, _ in points if abs(row.target) >= policy["target_quiet_accel"]]
+    usable = [row for row, allowed in points if allowed]
+    if (not moving or moving[-1].mono_ns - moving[0].mono_ns < policy["minimum_event_ns"] or len(usable) < 3):
+      rejected.add("assessment_event_exposure_insufficient")
+      return None
+    peak = max(moving, key=lambda row: abs(row.target))
+    if len({1 if row.target > 0 else -1 for row in moving}) != 1:
+      rejected.add("assessment_event_direction_mixed")
+      return None
+    speed = _quantile([row.context["v_ego"] for row in moving if type(row.context.get("v_ego")) in (int, float)
+                       and math.isfinite(row.context["v_ego"])], .5) if any(type(row.context.get("v_ego")) in (int, float)
+                       and math.isfinite(row.context["v_ego"]) for row in moving) else None
+    cell = (_bin(speed, profile["speed_bins_mps"]) if speed is not None else None, _bin(peak.target, profile["target_bins"]))
+    if cell not in common:
+      rejected.add("assessment_event_condition_unmatched")
+      return None
+    direction = 1 if peak.target > 0 else -1
+    rows = [row for row, _ in points]
+    guards = {"overshoot": max(0., *(direction * (row.actual - row.target) for row in usable))}
+    if any(type(row.context.get("saturated")) is not bool or type(row.driver_override) is not bool for row in rows):
+      rejected.add("assessment_guard_signal_unavailable")
+      return None
+    durations = [b.mono_ns - a.mono_ns for a, b in zip(rows, rows[1:])]
+    duration = sum(durations)
+    guards.update(saturation_fraction=sum(dt * row.context["saturated"] for row, dt in zip(rows, durations)) / duration,
+                  intervention_fraction=sum(dt * row.driver_override for row, dt in zip(rows, durations)) / duration)
+    commands, previous_command, rate = {}, None, []
+    for row in rows:
+      value, stamp = row.context.get("sent_request"), row.context.get("sent_mono_ns")
+      if (type(value) not in (int, float) or not math.isfinite(value) or type(stamp) is not int
+          or not 0 <= row.mono_ns - stamp <= mask.max_gap_ns or stamp in commands and commands[stamp] != value):
+        rejected.add("assessment_output_source_unavailable")
+        return None
+      if stamp not in commands:
+        if previous_command is not None:
+          if stamp <= previous_command[0]:
+            rejected.add("assessment_output_clock_conflict")
+            return None
+          rate.append(abs(value - previous_command[1]) * 1e9 / (stamp - previous_command[0]))
+        previous_command = stamp, value
+        commands[stamp] = value
+    if not rate:
+      rejected.add("assessment_output_source_unavailable")
+      return None
+    guards["output_rate"] = max(rate)
+    if not math.isfinite(guards["output_rate"]):
+      rejected.add("assessment_output_source_unavailable")
+      return None
+    metric = _metrics([row.actual - row.target for row in usable])["rmse"]
+    identity = _hash([[row.mono_ns, row.epoch, row.target, row.actual, allowed, row.driver_override,
+                       row.context.get("saturated"), row.context.get("sent_request"), row.context.get("sent_mono_ns")]
+                      for row, allowed in points])
+    return {"id": identity, "start_ns": rows[0].mono_ns, "end_ns": rows[-1].mono_ns,
+            "cell": (*cell, direction), "speed": speed, "amplitude": abs(peak.target), "primary": metric, "guards": guards}
+  for row, _ in records:
+    if row.mono_ns > end_ns:
+      break
+    while next_selected is not None and next_selected.mono_ns < row.mono_ns:
+      next_selected = next(selected, None)
+    allowed = next_selected is not None and next_selected.mono_ns == row.mono_ns
+    if row.axis == "lateral":
+      value, stamp = row.context.get("independent_actual"), row.context.get("independent_mono_ns")
+      if (row.context.get("independent_response_kind") != "yaw_speed_kinematic" or type(value) not in (int, float)
+          or not math.isfinite(value) or type(stamp) is not int or not 0 <= row.mono_ns - stamp <= mask.max_gap_ns):
+        if active or allowed:
+          rejected.add("assessment_independent_response_required")
+        active, quiet, quiet_start = [], deque(), None
+        previous = row
+        continue
+      row = replace(row, actual=value, context={**row.context, "actual_mono_ns": stamp})
+    if (not row.valid or not row.active or _error(row)[1] is not None
+        or previous is not None and (row.epoch != previous.epoch or row.mono_ns - previous.mono_ns > mask.max_gap_ns)):
+      active, quiet, quiet_start = [], deque(), None
+      rejected.add("assessment_event_invalid_or_gap")
+      previous = row
+      continue
+    previous = row
+    entry = row, allowed
+    if not active:
+      if abs(row.target) < policy["target_quiet_accel"]:
+        quiet.append(entry)
+        while quiet and row.mono_ns - quiet[0][0].mono_ns > policy["quiet_ns"]:
+          quiet.popleft()
+      elif quiet and row.mono_ns - quiet[0][0].mono_ns >= policy["quiet_ns"]:
+        active, quiet = [*quiet, entry], deque()
+      else:
+        quiet.clear()
+    else:
+      active.append(entry)
+      quiet_start = row.mono_ns if abs(row.target) < policy["target_quiet_accel"] and quiet_start is None else quiet_start if abs(row.target) < policy["target_quiet_accel"] else None
+      if quiet_start is not None and row.mono_ns - quiet_start >= policy["quiet_ns"]:
+        event = finish(active)
+        if event is not None:
+          events.append(event)
+          last_end = event["end_ns"]
+        active, quiet_start = [], None
+        if len(events) >= policy["events_required"]:
+          break
+    if len(active) > policy["max_event_rows"] or active and row.mono_ns - active[0][0].mono_ns > policy["maximum_event_ns"] or len(quiet) > policy["max_event_rows"]:
+      active, quiet, quiet_start = [], deque(), None
+      rejected.add("assessment_event_budget")
+  if active:
+    rejected.add("assessment_event_right_censored")
+  return events, rejected
+
+
+def _assessment(application, cohort, profile, mask, before, after, records, matched):
+  primary = "target_tracking_rmse"
+  policy = ASSESSMENT_POLICY
+  elapsed = max(0., (cohort["after"]["window"]["end_ns"] - application["stored_mono_ns"]) / 1e9)
+  result = {"schema_version": 1, "method": "matched_event_bootstrap_v1", "state": "observing", "primary_metric": primary,
+    "unit": "m/s^2", "policy_sha256": _hash(policy),
+    "events_required": 8, "observation_limit_s": 900, "observed_after_s": min(900., elapsed),
+    "counts": {"before_events": 0, "after_events": 0, "matched_pairs": 0}, "minimum_effect": None,
+    "baseline_repeat_variation": None, "effect": None, "guards": {}, "event_pairs": [], "reason_codes": [],
+    "ended": False, "causal_improvement_proven": False}
+  for rows in (before, after):
+    first = next(iter(rows), None)
+    if first is not None and first.axis == "lateral":
+      value, stamp = first.context.get("independent_actual"), first.context.get("independent_mono_ns")
+      if (first.context.get("independent_response_kind") != "yaw_speed_kinematic" or type(value) not in (int, float)
+          or not math.isfinite(value) or type(stamp) is not int or not 0 <= first.mono_ns - stamp <= mask.max_gap_ns):
+        result.update(state="inconclusive", ended=True, reason_codes=["assessment_independent_response_required"])
+        return result
+    value = first.context.get("sent_request") if first else None
+    stamp = first.context.get("sent_mono_ns") if first else None
+    if first is None or type(value) not in (int, float) or not math.isfinite(value) or type(stamp) is not int or not 0 <= first.mono_ns - stamp <= mask.max_gap_ns:
+      result.update(state="inconclusive", ended=True, reason_codes=["assessment_output_source_unavailable"])
+      return result
+  common = {(cell["speed_bin"], cell["target_bin"]) for cell in matched["bins"]}
+  baseline_cells = {(speed, target) for speed in range(len(profile["speed_bins_mps"]) - 1)
+                    for target in range(len(profile["target_bins"]) - 1)}
+  limits = [cohort["before"]["window"]["finalized_through_ns"], min(cohort["after"]["window"]["finalized_through_ns"],
+    application["stored_mono_ns"] + policy["observation_limit_s"] * 1_000_000_000)]
+  # Baseline events and repeat thresholds cannot be chosen using after data.
+  old, rejected_old = _assessment_events(records[0], before, baseline_cells, profile, mask, limits[0])
+  # Freeze the first complete events before looking at shared conditions. An
+  # unmatched event consumes its slot; a later convenient event cannot replace it.
+  new, rejected_new = _assessment_events(records[1], after, baseline_cells, profile, mask, limits[1])
+  result["counts"].update(before_events=len(old), after_events=len(new))
+  if len(new) == policy["events_required"]:
+    result["observed_after_s"] = min(900., max(0., (new[-1]["end_ns"] - application["stored_mono_ns"]) / 1e9))
+  available, pairs = {}, []
+  def comparable(a, b):
+    return (a["cell"] == b["cell"] and abs(a["speed"] - b["speed"]) <= policy["speed_match_mps"]
+      and abs(a["amplitude"] - b["amplitude"]) <= policy["amplitude_match_fraction"] * max(a["amplitude"], b["amplitude"]))
+  for event in old:
+    available.setdefault(event["cell"], deque()).append(event)
+  for event in new:
+    if event["cell"][:2] in common and available.get(event["cell"]):
+      other = next((item for item in available[event["cell"]] if comparable(item, event)), None)
+      if other is not None:
+        available[event["cell"]].remove(other)
+        pairs.append((other, event))
+  result["counts"]["matched_pairs"] = len(pairs)
+  result["ended"] = len(new) == policy["events_required"] or elapsed >= policy["observation_limit_s"]
+  if len(pairs) < policy["events_required"]:
+    result["reason_codes"] = ["assessment_independent_events_insufficient", *sorted(rejected_old | rejected_new)][:16]
+    if result["ended"] or {"assessment_independent_response_required", "assessment_guard_signal_unavailable", "assessment_output_source_unavailable", "assessment_output_clock_conflict", "assessment_event_budget"} & (rejected_old | rejected_new):
+      result["ended"] = True
+      result["state"] = "inconclusive"
+    return result
+  if {"assessment_independent_response_required", "assessment_guard_signal_unavailable", "assessment_output_source_unavailable", "assessment_output_clock_conflict", "assessment_event_budget"} & (rejected_old | rejected_new):
+    result.update(state="inconclusive", reason_codes=["assessment_required_event_evidence_missing"])
+    return result
+  repeats = [(a, b) for index, a in enumerate(old) for b in old[index + 1:] if comparable(a, b)]
+  if not repeats:
+    result.update(state="inconclusive", reason_codes=["assessment_baseline_repeat_unavailable"])
+    return result
+  deviations = [abs(event["primary"] - _quantile([other["primary"] for other in old if comparable(event, other)], .5))
+                for event in old if sum(comparable(event, other) for other in old) >= 2]
+  repeat = 1.4826 * _quantile(deviations, .5)
+  result.update(minimum_effect=max(repeat, policy["minimum_effect_floor"]), baseline_repeat_variation=repeat,
+                effect=_event_interval([a["primary"] - b["primary"] for a, b in pairs]))
+  for index, name in enumerate(_ASSESSMENT_GUARDS):
+    tolerance = max(128 * math.ulp(max(1., *(event["guards"][name] for event in old))),
+                    _quantile([abs(a["guards"][name] - b["guards"][name]) for a, b in repeats], .95))
+    interval = _event_interval([b["guards"][name] - a["guards"][name] for a, b in pairs], index + 1)
+    state = "safe" if interval["upper"] + interval["convergence_error"] <= tolerance else "worsened" if interval["lower"] - interval["convergence_error"] > tolerance else "uncertain"
+    result["guards"][name] = {"effect": interval, "tolerance": tolerance, "state": state}
+  result["event_pairs"] = [{"before_id": a["id"], "after_id": b["id"], "speed_bin": a["cell"][0], "target_bin": a["cell"][1],
+    "direction": a["cell"][2], "before": a["primary"], "after": b["primary"]} for a, b in pairs]
+  effect, threshold = result["effect"], result["minimum_effect"]
+  by_cell = {}
+  for a, b in pairs:
+    by_cell.setdefault(a["cell"], []).append(a["primary"] - b["primary"])
+  directions = [math.fsum(values) / len(values) for values in by_cell.values()]
+  if min(directions) < -threshold and max(directions) > threshold:
+    result.update(state="inconclusive", reason_codes=["assessment_condition_effect_reversal"])
+  elif effect["upper"] + effect["convergence_error"] < -threshold or any(guard["state"] == "worsened" for guard in result["guards"].values()):
+    result.update(state="worsened", reason_codes=["assessment_primary_or_guard_worsened"])
+  elif effect["lower"] - effect["convergence_error"] > threshold and all(guard["state"] == "safe" for guard in result["guards"].values()):
+    result.update(state="improved")
+  else:
+    result.update(state="inconclusive", reason_codes=["assessment_effect_or_guard_uncertain"])
+  return result
+
+
 def evaluate_comparison(application, cohort, profile):
   """Return a held result rather than manufacturing evidence at a missing gate."""
   public = {"schema_version": 1, "state": "held", "axis": None, "scope": "observational_generated", "target_unit": "m/s^2",
@@ -502,6 +748,9 @@ def evaluate_comparison(application, cohort, profile):
     if min(matched["before"]["count"], matched["after"]["count"]) < profile["min_samples"] or min(matched["before_duration_ns"], matched["after_duration_ns"]) < profile["min_duration_ns"]:
       raise _Hold("comparison_matched_exposure_insufficient")
     public["state"] = "comparison_ready"
+    if item["key"] in _ASSESSMENT_KEYS:
+      public["assessment"] = _assessment(application, cohort, profile, mask, eligible_before, eligible_after,
+        (records_before, records_after), matched)
   except (OSError, ValueError, TypeError, KeyError, OverflowError, RecursionError, sqlite3.Error) as error:
     reason = str(error)
     public["reason_codes"] = [reason if re.fullmatch(r"[a-z_]{1,128}", reason) else "comparison_evidence_invalid"]
@@ -510,6 +759,7 @@ def evaluate_comparison(application, cohort, profile):
       resource.close()
     except (OSError, ValueError, sqlite3.Error):
       public.update(state="held", before=None, after=None, matched=None, boundary=None, reason_codes=["comparison_disk_source_changed"])
+      public.pop("assessment", None)
   try:
     if any(isinstance(public[name], dict) and isinstance(public[name].get("exclusions"), dict) and public[name]["exclusions"].get("encoding") == "reason-indexed-pages-v1" for name in ("before", "after")):
       public = {**public, "schema_version": 3}
@@ -521,6 +771,7 @@ def evaluate_comparison(application, cohort, profile):
     validate_public_comparison(public)
   except (ValueError, TypeError, OverflowError, RecursionError):
     public.update(state="held", before=None, after=None, matched=None, boundary=None, reason_codes=["comparison_public_budget_or_schema"])
+    public.pop("assessment", None)
   if public["state"] in {"consumer_observed", "comparison_ready"}:
     receipt = {"request_id": application["request_id"], "request_sha256": application["request_sha256"],
                "application_receipt_sha256": application["receipt_sha256"], "state": public["state"],
@@ -531,16 +782,87 @@ def evaluate_comparison(application, cohort, profile):
   return {"state": public["state"], "reason_codes": public["reason_codes"], "receipt": receipt, "comparison": public}
 
 
+def _validate_assessment(value):
+  fields = {"schema_version", "method", "state", "primary_metric", "unit", "policy_sha256", "events_required", "observation_limit_s",
+    "observed_after_s", "counts", "minimum_effect", "baseline_repeat_variation", "effect", "guards", "event_pairs", "reason_codes", "ended", "causal_improvement_proven"}
+  if (type(value) is not dict or set(value) != fields or type(value["schema_version"]) is not int or value["schema_version"] != 1
+      or value["method"] != "matched_event_bootstrap_v1" or type(value["state"]) is not str or value["state"] not in {"observing", "improved", "worsened", "inconclusive"}
+      or value["primary_metric"] != "target_tracking_rmse" or value["unit"] != "m/s^2"
+      or not _sha(value["policy_sha256"]) or type(value["events_required"]) is not int or value["events_required"] != 8
+      or type(value["observation_limit_s"]) is not int or value["observation_limit_s"] != 900
+      or not 0 <= _finite(value["observed_after_s"]) <= 900 or type(value["ended"]) is not bool
+      or value["causal_improvement_proven"] is not False or value["state"] == "observing" and value["ended"]
+      or value["state"] != "observing" and not value["ended"]):
+    raise ValueError("invalid_public_assessment")
+  if type(value["counts"]) is not dict or set(value["counts"]) != {"before_events", "after_events", "matched_pairs"}:
+    raise ValueError("invalid_public_assessment_counts")
+  for count in value["counts"].values():
+    if type(count) is not int or not 0 <= count <= 8:
+      raise ValueError("invalid_public_assessment_counts")
+  if value["counts"]["matched_pairs"] > min(value["counts"]["before_events"], value["counts"]["after_events"]):
+    raise ValueError("invalid_public_assessment_counts")
+  for name in ("minimum_effect", "baseline_repeat_variation"):
+    if value[name] is not None and _finite(value[name]) < 0:
+      raise ValueError("invalid_public_assessment_threshold")
+  def interval(data):
+    if type(data) is not dict or set(data) != {"estimate", "lower", "upper", "convergence_error"}:
+      raise ValueError("invalid_public_assessment_interval")
+    for number in data.values():
+      _finite(number)
+    if data["lower"] > data["upper"] or data["convergence_error"] < 0:
+      raise ValueError("invalid_public_assessment_interval")
+  if value["effect"] is not None:
+    interval(value["effect"])
+  if type(value["guards"]) is not dict or set(value["guards"]) not in (set(), set(_ASSESSMENT_GUARDS)):
+    raise ValueError("invalid_public_assessment_guards")
+  for guard in value["guards"].values():
+    if (type(guard) is not dict or set(guard) != {"effect", "tolerance", "state"} or _finite(guard["tolerance"]) < 0
+        or type(guard["state"]) is not str or guard["state"] not in {"safe", "worsened", "uncertain"}):
+      raise ValueError("invalid_public_assessment_guards")
+    interval(guard["effect"])
+    data = guard["effect"]
+    expected = "safe" if data["upper"] + data["convergence_error"] <= guard["tolerance"] else "worsened" if data["lower"] - data["convergence_error"] > guard["tolerance"] else "uncertain"
+    if guard["state"] != expected:
+      raise ValueError("invalid_public_assessment_guards")
+  if type(value["event_pairs"]) is not list or len(value["event_pairs"]) not in (0, value["counts"]["matched_pairs"]):
+    raise ValueError("invalid_public_assessment_pairs")
+  ids = set()
+  for pair in value["event_pairs"]:
+    if (type(pair) is not dict or set(pair) != {"before_id", "after_id", "speed_bin", "target_bin", "direction", "before", "after"}
+        or not _sha(pair["before_id"]) or not _sha(pair["after_id"]) or type(pair["direction"]) is not int or pair["direction"] not in (-1, 1)
+        or any(pair[name] in ids for name in ("before_id", "after_id")) or pair["before_id"] == pair["after_id"]):
+      raise ValueError("invalid_public_assessment_pairs")
+    ids.update((pair["before_id"], pair["after_id"]))
+    for name in ("speed_bin", "target_bin"):
+      _integer(pair[name])
+    for name in ("before", "after"):
+      if _finite(pair[name]) < 0:
+        raise ValueError("invalid_public_assessment_pairs")
+  if (type(value["reason_codes"]) is not list or len(value["reason_codes"]) > 16 or any(type(code) is not str
+      or re.fullmatch(r"[a-z_]{1,128}", code) is None for code in value["reason_codes"])):
+    raise ValueError("invalid_public_assessment_reasons")
+  if value["state"] in {"improved", "worsened"} and (value["counts"]["matched_pairs"] != 8 or len(value["event_pairs"]) != 8
+      or value["effect"] is None or value["minimum_effect"] is None or set(value["guards"]) != set(_ASSESSMENT_GUARDS)):
+    raise ValueError("invalid_public_assessment_conclusion")
+  if value["state"] == "improved" and (value["effect"]["lower"] - value["effect"]["convergence_error"] <= value["minimum_effect"]
+      or any(guard["state"] != "safe" for guard in value["guards"].values()) or value["reason_codes"]):
+    raise ValueError("invalid_public_assessment_conclusion")
+
+
 def validate_public_comparison(value):
   required = {"schema_version", "state", "axis", "scope", "target_unit", "before", "after", "matched", "boundary", "reason_codes",
               "consumer_application_ack", "causal_improvement_proven", "apply_enabled", "device_qualified"}
-  if (not isinstance(value, dict) or set(value) != required or type(value["schema_version"]) is not int or value["schema_version"] not in (1, 2, 3)
+  if (not isinstance(value, dict) or set(value) not in (required, required | {"assessment"}) or type(value["schema_version"]) is not int or value["schema_version"] not in (1, 2, 3)
       or type(value["state"]) is not str or value["state"] not in {"held", "consumer_observed", "comparison_ready"}
       or (value["axis"] is not None and type(value["axis"]) is not str) or value["axis"] not in {None, "lateral", "longitudinal"}
       or type(value["scope"]) is not str or value["scope"] not in {"observational_generated", "observational_model_derived", "observational_vehicle_acceleration"}
       or value["target_unit"] != "m/s^2" or any(value[key] is not False for key in (
         "consumer_application_ack", "causal_improvement_proven", "apply_enabled", "device_qualified"))):
     raise ValueError("invalid_public_comparison")
+  if "assessment" in value:
+    if value["state"] != "comparison_ready":
+      raise ValueError("invalid_public_assessment_binding")
+    _validate_assessment(value["assessment"])
   if type(value["reason_codes"]) is not list or len(value["reason_codes"]) > 32 or any(
       not isinstance(code, str) or re.fullmatch(r"[a-z_]{1,128}", code) is None for code in value["reason_codes"]):
     raise ValueError("invalid_public_comparison_reasons")

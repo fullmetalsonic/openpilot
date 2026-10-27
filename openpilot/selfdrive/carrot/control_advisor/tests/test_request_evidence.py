@@ -123,6 +123,7 @@ class GeneratedRequestFixture:
         event("carState", stamp, {"canValid": True, "gearShifter": "drive", "vEgo": 0., "aEgo": measured})])
     start, end = base + 100_000_000, base + 9_900_000_000
     chunks.append(event("sentinel", end + 1, {"type": "endOfSegment"}))
+    chunks = self.native_chunks(chunks)
     folder = self.logs / f"{self.route}--{self.phase}"
     folder.mkdir()
     source = folder / "rlog.bz2"
@@ -176,6 +177,10 @@ class GeneratedRequestFixture:
       self._status = status
     self.refresh_publisher()
     return {"job": job, "checkpoint": checkpoint, "source": payload, "start_ns": start, "end_ns": end}
+
+  def native_chunks(self, chunks):
+    """Allow generated source variants before preservation; defaults stay exact."""
+    return chunks
 
   def refresh_publisher(self):
     from openpilot.selfdrive.carrot.control_advisor.periodic import _atomic

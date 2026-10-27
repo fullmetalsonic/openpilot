@@ -16,6 +16,46 @@ class RemoteAnalysisTests(unittest.TestCase):
     self.addCleanup(self.temporary.cleanup)
     self.root = Path(self.temporary.name)
 
+  def test_native_export_preserves_only_referenced_diagnostics_and_rejects_changes(self):
+    import hashlib
+    from .test_native_calibration_flow import NativeCalibrationFixture
+    from .test_log_candidates import BOOT, ROUTE
+    from openpilot.selfdrive.carrot.control_advisor.remote_analysis import export_input
+    from openpilot.selfdrive.carrot.control_advisor.runtime_config import BUILTIN_PROFILE_PATH, BUILTIN_OBJECTIVES_PATH
+    fixture = NativeCalibrationFixture(self.root / 'input', keep_open=True, consumer_samples=60)
+    self.addCleanup(fixture.close)
+    analyzer = PeriodicAnalyzer(fixture.session, BUILTIN_PROFILE_PATH, BUILTIN_OBJECTIVES_PATH, self.root / 'device')
+    self.addCleanup(analyzer.close)
+    analyzer.set_executor('remote_pc')
+    intent = {'schema_version': 1, 'session_id': fixture.session_id, 'request_id': 'diagnostic-closure',
+      'trigger': 'manual', 'range_start_ns': 2_000_000_000, 'requested_end_ns': 61_900_000_000,
+      'cut_revision': 0, 'trip_binding': {'vehicle_id': None, 'boot_id': BOOT, 'route': ROUTE},
+      'profile_sha256': hashlib.sha256(Path(BUILTIN_PROFILE_PATH).read_bytes()).hexdigest(),
+      'objectives_sha256': hashlib.sha256(Path(BUILTIN_OBJECTIVES_PATH).read_bytes()).hexdigest()}
+    analyzer.request_analysis(intent)
+    analyzer.offer(fixture.checkpoint)
+    with patch('openpilot.selfdrive.carrot.control_advisor.periodic.subprocess.Popen', side_effect=AssertionError('remote child')):
+      self.assertEqual('running', analyzer.tick()['state'])
+    source = next((fixture.session / 'diagnostics').glob('*.json'))
+    before = source.read_bytes()
+    (source.parent / 'unrelated.json').write_text('{}')
+    target = self.root / 'transfer'
+    export_input(analyzer._job, target)
+    self.assertEqual(before, (target / 'session/diagnostics' / source.name).read_bytes())
+    self.assertFalse((target / 'session/diagnostics/unrelated.json').exists())
+    for label in ('changed', 'missing'):
+      with self.subTest(label=label):
+        try:
+          if label == 'changed':
+            source.write_bytes(before + b' ')
+          else:
+            source.unlink()
+          with self.assertRaises((ValueError, OSError)):
+            export_input(analyzer._job, self.root / label)
+          self.assertFalse((self.root / label / 'remote-manifest.json').exists())
+        finally:
+          source.write_bytes(before)
+
   def test_remote_queue_never_spawns_and_cancels_on_explicit_mode_switch(self):
     analyzer = PeriodicAnalyzer(self.root / 'session', self.root / 'profile.json', self.root / 'objectives.json', self.root / 'output')
     analyzer.set_executor('remote_pc')

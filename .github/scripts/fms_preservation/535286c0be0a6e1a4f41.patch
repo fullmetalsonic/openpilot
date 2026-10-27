@@ -1,0 +1,29 @@
+--- a/openpilot/selfdrive/carrot/web/generated/asset-manifest.json
++++ b/openpilot/selfdrive/carrot/web/generated/asset-manifest.json
+@@ -27,7 +27,7 @@
+       "kind": "bundle",
+       "source": "src/entries/settings.js",
+       "path": "js/generated/settings.js",
+-      "hash": "c9fd92152d42443b1ca3ada1f9ab129f8b7470d0b863f24a81f24b2db661ace4"
++      "hash": "b869456b0274c455c5550278d94c2f749d8d1c8a03984f37624316766a0f7bd1"
+     },
+     {
+       "id": "tools.runtime",
+@@ -41,7 +41,7 @@
+       "kind": "bundle",
+       "source": "src/entries/logs.js",
+       "path": "js/generated/logs.js",
+-      "hash": "aa3f48bc3d5957a6959157f870fa6758d135fa94346a76109a2087057fd5cecc"
++      "hash": "5e1a08725da8bf99d347bde281fa4927a576edad2009cbdb28e34020d8adbf66"
+     },
+     {
+       "id": "terminal.runtime",
+@@ -125,7 +125,7 @@
+       "kind": "bundle",
+       "source": "src/entries/logs.css",
+       "path": "css/generated/logs.css",
+-      "hash": "e2403fbad519badab15a06e827f442fb40e4a7ffe2f05970fcf0de4b05e848a3"
++      "hash": "77fd9e93a78fcecb06158a0e78e7c719727261c7656aa43842ecaa19b2c4e05e"
+     },
+     {
+       "id": "terminal.styles",

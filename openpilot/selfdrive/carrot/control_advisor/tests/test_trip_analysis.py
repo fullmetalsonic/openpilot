@@ -84,8 +84,10 @@ class WholeTripTests(unittest.TestCase):
           "mono_start_ns": frame * 10_000_000, "mono_end_ns": (frame + 7) * 10_000_000})
     chosen = select_pid_references(refs, {"start_ns": 0, "end_ns": 1200_000_000_000})
     self.assertEqual(len(refs), 5000)
-    self.assertEqual(len(chosen), 375)
-    self.assertEqual(len({row["burst_id"] for row in chosen}), 3)
+    self.assertEqual(len(chosen), 1500)
+    self.assertEqual(len({row["burst_id"] for row in chosen}), 12)
+    self.assertEqual(len(select_pid_references(refs, {"start_ns": 0, "end_ns": 1200_000_000_000}, selection_version=2)), 750)
+    self.assertEqual(len(select_pid_references(refs, {"start_ns": 0, "end_ns": 1200_000_000_000}, selection_version=1)), 375)
 
   def test_disk_masks_equal_original_across_driver_gap_invalid_and_epoch_boundaries(self):
     profile = AnalysisProfile("parity", 300, 200, 150, 100, 2000)

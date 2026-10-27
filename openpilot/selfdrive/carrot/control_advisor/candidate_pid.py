@@ -45,6 +45,25 @@ _MODEL_KEYS = {"delay_steps", "independent", "feedback", "fit_rmse", "fit_max_er
 _BUNDLE_KEYS = {"version", "kind", "candidate_semantics", "causal_improvement_proven", "trace_schema", "period_ns",
                 "binding_sha256", "gains_raw", "factor", "friction", "pos_limit", "neg_limit", "fit_blocks", "options",
                 "models", "command_support", "speed_support", "model_error_floor", "transport_contract", "transport"}
+EVENT_INFERENCE_CONFIG = {"schema_version": 1, "seed": 1729, "bootstrap_repetitions": 256, "confidence": .95,
+  "min_events_per_split": 4, "max_events_per_split": 64, "max_bootstrap_draws": 16384,
+  "quiet_ns": 500_000_000, "correlation_ns": 2_000_000_000, "minimum_event_ns": 500_000_000,
+  "pem_iterations": 12, "residual_lags": 5, "cohort_speed_span_mps": 2., "cohort_amplitude_relative_span": .1}
+
+
+def event_bootstrap(values, *, seed_offset=0):
+  """Percentile interval resamples whole independent events, never log rows."""
+  data = np.asarray(values, dtype=float)
+  config = EVENT_INFERENCE_CONFIG
+  if (data.ndim != 1 or not config["min_events_per_split"] <= len(data) <= config["max_events_per_split"]
+      or not np.isfinite(data).all() or len(data) * config["bootstrap_repetitions"] > config["max_bootstrap_draws"]):
+    raise ValueError("independent_event_bootstrap_unavailable")
+  rng = np.random.default_rng(config["seed"] + seed_offset)
+  draws = data[rng.integers(0, len(data), size=(config["bootstrap_repetitions"], len(data)))].mean(axis=1)
+  lower, upper = np.quantile(draws, [.025, .975])
+  halves = [np.quantile(part, [.025, .975]) for part in np.array_split(draws, 2)]
+  return {"mean": float(data.mean()), "lower": float(lower), "upper": float(upper),
+          "convergence_error": float(np.max(np.abs(halves[0] - halves[1]))), "event_count": len(data)}
 
 
 class _Blocked(ValueError):
@@ -133,6 +152,10 @@ def _binding(context):
               "transport_contract": transport,
               "epoch": context.get("evidence", {}).get("epoch"), "vehicle": context.get("vehicle_context"),
               "source_kind": context.get("evidence", {}).get("source_kind")}
+  if "inference_config" in context:
+    if context["inference_config"] != EVENT_INFERENCE_CONFIG:
+      raise _Blocked("event_inference_configuration_changed")
+    identity["inference_config"] = context["inference_config"]
   try:
     digest = hashlib.sha256(json.dumps(identity, sort_keys=True, separators=(",", ":"), allow_nan=False).encode()).hexdigest()
   except (TypeError, ValueError, OverflowError):
@@ -454,7 +477,24 @@ def _roundoff(*values):
   return 32 * math.ulp(max(1., *(abs(value) for value in values)))
 
 
-def _candidate_predictions(groups, candidate, bundle):
+def event_metrics(event_id, errors, targets, speeds, commands=None, clocks=None, limit=1.):
+  errors = list(errors)
+  if not errors:
+    raise ValueError("independent_event_metrics_unavailable")
+  tail = errors[-max(1, len(errors) // 5):]
+  commands = list(commands) if commands is not None else []
+  rates = [abs(commands[index] - commands[index - 1]) * 1e9 / (clocks[index] - clocks[index - 1])
+           for index in range(1, len(commands))] if commands and clocks else []
+  peak_target = max(targets, key=abs)
+  return {"event_id": event_id, "direction": 1 if peak_target > 0 else -1 if peak_target < 0 else 0,
+    "speed": float(np.mean(speeds)), "amplitude": abs(float(peak_target)),
+    "rmse": math.sqrt(math.fsum(error * error for error in errors) / len(errors)), "peak_error": max(map(abs, errors)),
+    "tail_rmse": math.sqrt(math.fsum(error * error for error in tail) / len(tail)),
+    "command_peak": max(map(abs, commands), default=0.), "command_rate": max(rates, default=0.),
+    "saturation_fraction": sum(abs(command) >= limit - _roundoff(limit) for command in commands) / len(commands) if commands else 0.}
+
+
+def _candidate_predictions(groups, candidate, bundle, event_details=None):
   options = bundle["options"]
   all_members = []
   current = bundle["gains_raw"]
@@ -486,11 +526,156 @@ def _candidate_predictions(groups, candidate, bundle):
         noise = max(options["minimum_improvement"], bundle["model_error_floor"] * options["noise_multiplier"])
         if old - new <= noise or max(map(abs, new_errors)) > max(map(abs, old_errors)) + options["max_error_growth"]:
           raise _Blocked("model_uncertainty_no_candidate")
+      if event_details is not None:
+        measured = event_metrics(group[0]["block_id"], _objective_error(group, trace),
+          [row["desired_lateral_accel"] for row in group[start:]], [row["v_ego"] for row in group[start:]],
+          trace["commands"][start:], [row["mono_ns"] for row in group[start:]], min(bundle["pos_limit"], -bundle["neg_limit"]))
+        existing = event_details.setdefault(measured["event_id"], measured)
+        for name in ("rmse", "peak_error", "tail_rmse", "command_peak", "command_rate", "saturation_fraction"):
+          existing[name] = max(existing[name], measured[name])
       member.extend(trace["predictions"])
     all_members.append(member)
   if any(max(column) - min(column) > options["max_prediction_disagreement"] for column in zip(*all_members)):
     raise _Blocked("model_uncertainty_no_candidate")
   return [math.fsum(column) / len(column) for column in zip(*all_members)]
+
+
+def _prediction_error_fit(group, key, delay_ns, options):
+  initial, _, _ = _fit_channel(group, key, delay_ns, options)
+  points, period, segments = _weighted_series(group, key, delay_ns, options)
+  theta = np.array(initial[:3], dtype=float)
+  def simulate(parameters, jacobian=False):
+    return _prediction_errors(parameters, points, period, segments, jacobian)
+  for _ in range(EVENT_INFERENCE_CONFIG["pem_iterations"]):
+    errors, matrix = simulate(theta, True)
+    delta, _, rank, _ = np.linalg.lstsq(matrix, -errors, rcond=None)
+    if rank < 3:
+      raise _Blocked("pid_identification_uncertain")
+    cost, accepted = float(errors @ errors), False
+    for power in range(8):
+      proposed = theta + delta * .5 ** power
+      if not options["pole_min"] < proposed[0] < options["pole_max"] or proposed[1] <= 0:
+        continue
+      candidate_errors, _ = simulate(proposed)
+      if float(candidate_errors @ candidate_errors) <= cost:
+        theta, accepted = proposed, True
+        break
+    if not accepted or float(np.max(np.abs(delta))) < 1e-10:
+      break
+  residual, _ = simulate(theta)
+  numerical_floor = 128 * math.ulp(max(1., *(abs(point[2]) for point in points)))
+  centered = residual - residual.mean()
+  bound, maximum_auto, maximum_input = 3. / math.sqrt(len(residual)), 0., 0.
+  if float(np.std(centered)) > numerical_floor:
+    inputs = np.asarray([point[1] for point in points])
+    for lag in range(1, min(EVENT_INFERENCE_CONFIG["residual_lags"] + 1, len(residual) // 4)):
+      def correlation(left, right):
+        return abs(float(np.corrcoef(left, right)[0, 1])) if min(float(np.std(left)), float(np.std(right))) > numerical_floor else 0.
+      maximum_auto = max(maximum_auto, correlation(centered[lag:], centered[:-lag]))
+      maximum_input = max(maximum_input, correlation(centered[lag:], inputs[:-lag]))
+    if maximum_auto > bound:
+      raise _Blocked("pid_prediction_error_not_white")
+    if maximum_input > bound:
+      raise _Blocked("pid_residual_input_dependence")
+  rmse, maximum = float(np.sqrt(np.mean(residual ** 2))), float(np.max(np.abs(residual)))
+  if rmse > options["model_rmse_bound"] or maximum > options["model_max_error_bound"]:
+    raise _Blocked("response_model_mismatch")
+  return [*(float(value) for value in theta), period], rmse, maximum, {
+    "max_residual_autocorrelation": maximum_auto, "max_past_input_correlation": maximum_input,
+    "correlation_bound": bound, "unique_response_points": len(points), "numeric_resolution": numerical_floor}
+
+
+def _weighted_series(group, key, delay_ns, options):
+  points, period = _series(group, key, delay_ns, options)
+  stamps, controls, _ = _input(group)
+  segments = []
+  values = _observations(group, key)
+  for previous, current in zip(values, values[1:]):
+    start, end = previous[0] - delay_ns, current[0] - delay_ns
+    if start < stamps[0]:
+      continue
+    first, last = bisect_right(stamps, start), bisect_right(stamps, end)
+    cuts = [start, *[stamp for stamp in stamps[first:last] if stamp < end], end]
+    segments.append([(controls[bisect_right(stamps, lo) - 1], (lo - start) / period, (hi - start) / period)
+                     for lo, hi in zip(cuts, cuts[1:])])
+  return points, period, segments
+
+
+def _prediction_errors(parameters, points, period, segments, jacobian=False):
+  a, b, c = parameters
+  prediction, derivative = points[0][0], np.zeros(3)
+  errors, matrix = [], []
+  for point, pieces in zip(points, segments):
+    elapsed = point[3] / period
+    pole, pole_derivative = a ** elapsed, elapsed * a ** (elapsed - 1)
+    total = math.fsum(control * (a ** (elapsed - hi) - a ** (elapsed - lo)) for control, lo, hi in pieces)
+    change = math.fsum(control * ((elapsed - hi) * a ** (elapsed - hi - 1) - (elapsed - lo) * a ** (elapsed - lo - 1)) for control, lo, hi in pieces)
+    weighted, derivative_input = total / (1 - a), (change * (1 - a) + total) / (1 - a) ** 2
+    intercept_scale = (1 - pole) / (1 - a)
+    derivative_scale = (-pole_derivative * (1 - a) + 1 - pole) / (1 - a) ** 2
+    derivative = pole * derivative + np.array([pole_derivative * prediction + b * derivative_input + c * derivative_scale, weighted, intercept_scale])
+    prediction = pole * prediction + b * weighted + c * intercept_scale
+    errors.append(prediction - point[2])
+    if jacobian:
+      matrix.append(derivative.copy())
+  return np.asarray(errors), np.asarray(matrix)
+
+
+def _fit_event_models(groups, context, binding, options):
+  if len(groups) < EVENT_INFERENCE_CONFIG["min_events_per_split"]:
+    raise _Blocked("independent_events_insufficient")
+  choices, rejected = [], []
+  for delay in options["delay_grid_steps"]:
+    try:
+      fitted = [[_prediction_error_fit(group, key, delay * binding["period_ns"], options)
+                 for key in ("lateral_accel_kinematic", "actual_lateral_accel")] for group in groups]
+      tensor = np.asarray([[fit[0][:3] for fit in event] for event in fitted])
+      periods = [fitted[0][channel][0][3] for channel in range(2)]
+      if any(event[channel][0][3] != periods[channel] for event in fitted for channel in range(2)):
+        raise _Blocked("pid_response_cadence_gap")
+      validation = []
+      for index, group in enumerate(groups):
+        coefficients = np.delete(tensor, index, axis=0).mean(axis=0)
+        for channel, key in enumerate(("lateral_accel_kinematic", "actual_lateral_accel")):
+          points, period, segments = _weighted_series(group, key, delay * binding["period_ns"], options)
+          errors, _ = _prediction_errors(coefficients[channel], points, period, segments)
+          rmse = math.sqrt(math.fsum(error * error for error in errors) / len(errors))
+          if rmse > options["model_rmse_bound"] or max(map(abs, errors)) > options["model_max_error_bound"]:
+            raise _Blocked("pid_internal_validation_failed")
+          validation.append(rmse)
+      rng = np.random.default_rng(EVENT_INFERENCE_CONFIG["seed"])
+      draws = tensor[rng.integers(0, len(groups), size=(EVENT_INFERENCE_CONFIG["bootstrap_repetitions"], len(groups)))].mean(axis=1)
+      interval = np.quantile(draws, [.025, .975], axis=0)
+      indices = np.argsort(draws[:, 0, 1] / (1 - draws[:, 0, 0]))
+      members = [tensor.mean(axis=0), draws[indices[round(.025 * (len(indices) - 1))]], draws[indices[round(.975 * (len(indices) - 1))]]]
+      models = []
+      for member in members:
+        model = {"delay_steps": delay, "independent": [*map(float, member[0]), periods[0]],
+          "feedback": [*map(float, member[1]), periods[1]],
+          "fit_rmse": [max(event[channel][1] for event in fitted) for channel in range(2)],
+          "fit_max_error": [max(event[channel][2] for event in fitted) for channel in range(2)]}
+        if not any(np.allclose(member, np.asarray([existing["independent"][:3], existing["feedback"][:3]]), rtol=1e-10, atol=1e-12) for existing in models):
+          models.append(model)
+      choices.append({"score": float(np.mean(validation)), "variation": float(np.std(validation)), "models": models,
+        "parameter_interval": interval.tolist(), "residual_diagnostics": [event[channel][3] for event in fitted for channel in range(2)]})
+    except _Blocked as error:
+      rejected.append(str(error))
+  if not choices:
+    raise _Blocked(rejected[-1] if rejected else "pid_identification_uncertain")
+  best = min(choices, key=lambda choice: choice["score"])
+  plausible = [choice for choice in choices if choice["score"] <= best["score"] + best["variation"] + _roundoff(best["score"])]
+  models = [model for choice in plausible for model in choice["models"]]
+  if len(models) > options["max_models"]:
+    raise _Blocked("pid_model_budget_exceeded")
+  diagnostics = [item for choice in plausible for item in choice["residual_diagnostics"]]
+  identification = {"schema_version": 1, "method": "event_prediction_error_v1", "configuration": deepcopy(EVENT_INFERENCE_CONFIG),
+    "fit_event_count": len(groups), "coefficient_interval_95": best["parameter_interval"],
+    "delay_steps_interval": [min(model["delay_steps"] for model in models), max(model["delay_steps"] for model in models)],
+    "max_residual_autocorrelation": max(item["max_residual_autocorrelation"] for item in diagnostics),
+    "max_past_input_correlation": max(item["max_past_input_correlation"] for item in diagnostics),
+    "internal_validation_rmse": best["score"], "internal_validation_variation": best["variation"],
+    "numeric_resolution": max(item["numeric_resolution"] for item in diagnostics)}
+  return models, identification
 
 
 def _fit(groups, context, binding, options):
@@ -501,6 +686,14 @@ def _fit(groups, context, binding, options):
   if float(np.std(controls)) < options["min_torque_std"] or not rates:
     raise _Blocked("insufficient_pid_excitation")
   transport = _transport(groups, binding, options)
+  if context.get("inference_config") is not None:
+    models, identification = _fit_event_models(groups, context, binding, options)
+    speeds = [row["v_ego"] for group in groups for row in group]
+    return {"version": 1, "kind": KIND, "candidate_semantics": "manual_experiment", "causal_improvement_proven": False,
+      "trace_schema": SCHEMA, **binding, "fit_blocks": [group[0]["block_id"] for group in groups], "options": options,
+      "models": models, "transport": transport, "command_support": [min(controls), max(controls), max(rates)],
+      "speed_support": [min(speeds), max(speeds)], "model_error_floor": max(max(model["fit_rmse"]) for model in models),
+      "identification": identification}
   models = []
   rejected = []
   for group in groups:
@@ -527,7 +720,7 @@ def _fit(groups, context, binding, options):
 
 
 def validate_fit_context(value):
-  if type(value) is not dict or set(value) != _BUNDLE_KEYS or type(value["version"]) is not int or value["version"] != 1 or value["kind"] != KIND:
+  if type(value) is not dict or set(value) not in (_BUNDLE_KEYS, _BUNDLE_KEYS | {"identification"}) or type(value["version"]) is not int or value["version"] != 1 or value["kind"] != KIND:
     raise ValueError("invalid_pid_fit_context")
   try:
     options = _options(value["options"])
@@ -590,6 +783,22 @@ def validate_fit_context(value):
     error_floor = max(max(model["fit_rmse"]) for model in models)
     if abs(value["model_error_floor"] - error_floor) > _roundoff(value["model_error_floor"], error_floor):
       raise _Blocked("invalid_pid_model_error_floor")
+    if "identification" in value:
+      identification = value["identification"]
+      fields = {"schema_version", "method", "configuration", "fit_event_count", "coefficient_interval_95", "delay_steps_interval",
+                "max_residual_autocorrelation", "max_past_input_correlation", "internal_validation_rmse", "internal_validation_variation", "numeric_resolution"}
+      if (type(identification) is not dict or set(identification) != fields or identification["schema_version"] != 1
+          or identification["method"] != "event_prediction_error_v1" or identification["configuration"] != EVENT_INFERENCE_CONFIG
+          or identification["fit_event_count"] != len(value["fit_blocks"])):
+        raise _Blocked("invalid_pid_identification")
+      interval = np.asarray(identification["coefficient_interval_95"], dtype=float)
+      if interval.shape != (2, 2, 3) or not np.isfinite(interval).all() or (interval[0] > interval[1]).any():
+        raise _Blocked("invalid_pid_identification")
+      if identification["delay_steps_interval"] != [min(model["delay_steps"] for model in models), max(model["delay_steps"] for model in models)]:
+        raise _Blocked("invalid_pid_identification")
+      for name in fields - {"schema_version", "method", "configuration", "coefficient_interval_95", "delay_steps_interval"}:
+        if _number(identification[name]) < 0:
+          raise _Blocked("invalid_pid_identification")
     json.dumps(value, allow_nan=False)
   except (_Blocked, TypeError, OverflowError) as error:
     raise ValueError(str(error)) from None
@@ -650,9 +859,11 @@ def evaluate_family(key, candidate_raw, context, split, budget):
     groups = _prepare(context, split, bundle)
     gains = list(bundle["gains_raw"])
     gains[KEYS.index(key)] = raw
-    predictions = _candidate_predictions(groups, gains, bundle)
+    details = {} if context.get("inference_config") is not None else None
+    predictions = _candidate_predictions(groups, gains, bundle, details)
     if any(not math.isfinite(value) for value in predictions):
       raise _Blocked("pid_numerical_failure")
-    return {**result, "status": "evaluated", "predictions": predictions}
+    return {**result, "status": "evaluated", "predictions": predictions,
+            **({"event_metrics": list(details.values())} if details is not None else {})}
   except (_Blocked, ValueError, TypeError, OverflowError, ZeroDivisionError) as error:
     return {**result, "reason_codes": [str(error) if isinstance(error, _Blocked) else "pid_fit_context_invalid"]}

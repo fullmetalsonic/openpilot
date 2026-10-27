@@ -1,0 +1,108 @@
+--- a/openpilot/selfdrive/controls/controlsd.py
++++ b/openpilot/selfdrive/controls/controlsd.py
+@@ -35,7 +35,11 @@
+ 
+ from openpilot.selfdrive.carrot.carrot_controls import CarrotControls
+ from openpilot.selfdrive.carrot.carrot_man_input import get_carrot_man
+-from openpilot.selfdrive.monitoring.dm_alerts import driver_monitoring_hud_alert
++
++try:
++  from openpilot.selfdrive.carrot.control_advisor.consumer_observer import create_observer, observe, field
++except Exception:
++  create_observer = None
+ 
+ State = log.SelfdriveState.OpenpilotState
+ LaneChangeState = log.LaneChangeState
+@@ -58,6 +62,8 @@
+     self.params = Params()
+     cloudlog.info("controlsd is waiting for CarParams")
+     self.CP = messaging.log_from_bytes(self.params.get("CarParams", block=True), car.CarParams)
++    self._advisor_vehicle_model = create_observer('controls.vehicle_model', car_params=self.CP) if create_observer is not None else None
++    self._advisor_lateral_target = create_observer('controls.lateral_target', car_params=self.CP) if create_observer is not None else None
+     cloudlog.info("controlsd got CarParams")
+ 
+     self.CI = interfaces[self.CP.carFingerprint](self.CP)
+@@ -120,10 +126,26 @@
+     x = max(lp.stiffnessFactor, 0.1)
+     # All platforms, including VW MEB, honor the manual ratio and live scaling.
+     # Invalid persisted rates still fall back to the unscaled learned ratio.
+-    sr = resolve_vehicle_model_steer_ratio(lp.steerRatio,
+-                                           self.params.get_float("SteerRatioRate"),
+-                                           self.params.get_float("CustomSR"))
++    _advisor_live_sr = lp.steerRatio
++    _advisor_sr_rate = self.params.get_float("SteerRatioRate")
++    _advisor_custom_sr = self.params.get_float("CustomSR")
++    sr = resolve_vehicle_model_steer_ratio(_advisor_live_sr, _advisor_sr_rate, _advisor_custom_sr)
+     self.VM.update_params(x, sr)
++    if getattr(self, '_advisor_vehicle_model', None) is not None:
++      observe(self._advisor_vehicle_model, lambda: {
++        'fields': {
++          'SteerRatioRate': field(None if math.isfinite(_advisor_custom_sr) and _advisor_custom_sr * 0.1 > 1.0 else
++                                  (_advisor_sr_rate * 0.01 if math.isfinite(_advisor_sr_rate) and 30 <= _advisor_sr_rate <= 200 else 1.0),
++                                  read_value=_advisor_sr_rate * 0.01 if math.isfinite(_advisor_sr_rate) else None,
++                                  state='bypassed' if math.isfinite(_advisor_custom_sr) and _advisor_custom_sr * 0.1 > 1.0 else 'used',
++                                  source='stored' if math.isfinite(_advisor_sr_rate) and 30 <= _advisor_sr_rate <= 200 else 'platform_fixed'),
++          'CustomSR': field(_advisor_custom_sr * 0.1 if math.isfinite(_advisor_custom_sr) and _advisor_custom_sr * 0.1 > 1.0 else None,
++                            read_value=_advisor_custom_sr * 0.1 if math.isfinite(_advisor_custom_sr) else None,
++                            state='used' if math.isfinite(_advisor_custom_sr) and _advisor_custom_sr * 0.1 > 1.0 else 'bypassed', source='stored'),
++        },
++        'context': {'resolved_steer_ratio': sr, 'live_steer_ratio': _advisor_live_sr, 'stiffness_factor': x,
++                    'manual_override': math.isfinite(_advisor_custom_sr) and _advisor_custom_sr * 0.1 > 1.0},
++      }, cycle_id=self.sm.frame)
+ 
+     steer_angle_without_offset = math.radians(CS.steeringAngleDeg - lp.angleOffsetDeg)
+     self.curvature = -self.VM.calc_curvature(steer_angle_without_offset, CS.vEgo, lp.roll)
+@@ -194,6 +216,8 @@
+     if CC.latActive and len(lat_plan.curvatures) > 0 and (lat_plan.useLaneLines if self.is_vw_meb else self.lanefull_mode_enabled):
+       lat_smooth_seconds = self.params.get_float("LatSmoothSec") * 0.01
+       steer_actuator_delay = self.params.get_float("SteerActuatorDelay") * 0.01
++      if getattr(self, '_advisor_lateral_target', None) is not None:
++        _advisor_stored_delay = steer_actuator_delay
+       if steer_actuator_delay == 0.0:
+         steer_actuator_delay = self.sm['liveDelay'].lateralDelay
+     
+@@ -222,6 +246,22 @@
+     else:      
+       new_desired_curvature = smooth_value(model_v2.action.desiredCurvature, self.desired_curvature, 0.1)
+ 
++    if getattr(self, '_advisor_lateral_target', None) is not None:
++      if CC.latActive and len(lat_plan.curvatures) > 0 and (lat_plan.useLaneLines if self.is_vw_meb else self.lanefull_mode_enabled):
++        observe(self._advisor_lateral_target, lambda: {
++          'fields': {'SteerActuatorDelay': field(steer_actuator_delay, read_value=_advisor_stored_delay,
++                                                source='learned' if _advisor_stored_delay == 0.0 else 'stored'),
++                     'LatSmoothSec': field(lat_smooth_seconds, read_value=lat_smooth_seconds, source='stored')},
++          'context': {'active': CC.latActive, 'path': 'vw_lane' if self.is_vw_meb else 'lane',
++                      'lane_selected': True, 'model_target_selected': False, 'live_delay_used': _advisor_stored_delay == 0.0},
++        }, cycle_id=self.sm.frame)
++      else:
++        observe(self._advisor_lateral_target, lambda: {
++          'fields': {'SteerActuatorDelay': field(state='bypassed'), 'LatSmoothSec': field(state='bypassed')},
++          'context': {'active': CC.latActive, 'path': 'inactive' if not CC.latActive else ('vw_model' if self.is_vw_meb else 'model'),
++                      'lane_selected': False, 'live_delay_used': False,
++                      'model_target_selected': bool(CC.latActive and (self.is_vw_meb or not self.lanefull_mode_enabled))},
++        }, cycle_id=self.sm.frame)
+     self.desired_curvature, curvature_limited = clip_curvature(CS.vEgo, self.desired_curvature, new_desired_curvature, lp.roll)
+ 
+     actuators.curvature = float(self.desired_curvature)
+@@ -368,7 +408,6 @@
+     hudControl.leadVisible = self.sm['longitudinalPlan'].hasLead
+     hudControl.leadDistanceBars = self.sm['selfdriveState'].personality.raw + 1
+     hudControl.visualAlert = self.sm['selfdriveState'].alertHudVisual
+-    hudControl.driverMonitoringAlert = driver_monitoring_hud_alert(self.sm)
+ 
+     radarState = self.sm['radarState']
+     leadOne = radarState.leadOne
+@@ -434,9 +473,10 @@
+     cs.upAccelCmd = float(self.LoC.pid.p)
+     cs.uiAccelCmd = float(self.LoC.pid.i)
+     cs.ufAccelCmd = float(self.LoC.pid.f)
+-    cs.forceDecel = bool((not self.sm['driverMonitoringState'].dm2Disabled and
+-                          self.sm['driverMonitoringState'].alertLevel == log.DriverMonitoringState.AlertLevel.three) or
+-                         (self.sm['selfdriveState'].state == State.softDisabling))
++    cs.forceDecel = False
++    if self.params.get_int("DisableDM") == 0:
++      cs.forceDecel = bool((self.sm['driverMonitoringState'].alertLevel == log.DriverMonitoringState.AlertLevel.three) or
++                           (self.sm['selfdriveState'].state == State.softDisabling))
+ 
+ 
+     lat_tuning = self.CP.lateralTuning.which()

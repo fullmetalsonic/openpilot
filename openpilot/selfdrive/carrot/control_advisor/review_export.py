@@ -157,7 +157,7 @@ def _entry(value):
   _identifier(value["root_id"])
   _relative(value["relative_path"])
   destination = str(_relative(value["export_relative_path"]))
-  if destination in {"review.json", "summary.json", "REVIEW_README.md", "comparison.csv", "comparison.svg", "calibration.csv", "calibration.svg"}:
+  if destination in {"review.json", "summary.json", "REVIEW_README.md", "comparison.csv", "comparison.svg", "calibration.csv", "calibration.svg", "analysis.json"}:
     raise ValueError("review_reserved_path")
   if not isinstance(value["sha256"], str) or _SHA.fullmatch(value["sha256"]) is None or type(value["bytes"]) is not int or value["bytes"] < 0:
     raise ValueError("review_entry_digest_invalid")
@@ -562,8 +562,15 @@ def _calibration_graph_files(payload, entries, artifact):
     svg.extend([f'<text x="10" y="{top + 35}">{high:.5g}</text>', f'<text x="10" y="{top + 173}">{low:.5g}</text>',
                 f'<text x="65" y="{top + 198}">0 s</text>', f'<text x="830" y="{top + 198}">{(last-first)/1e9:.3f} s</text>'])
   svg.append('</g></svg>')
-  return [("calibration.csv", output.getvalue().encode("utf8"), "calibration_timeseries"),
-          ("calibration.svg", "\n".join(svg).encode("utf8"), "calibration_graph")]
+  files = [("calibration.csv", output.getvalue().encode("utf8"), "calibration_timeseries"),
+           ("calibration.svg", "\n".join(svg).encode("utf8"), "calibration_graph")]
+  if review.get("diagnostics") is not None:
+    analysis = {"schema_version": 1, "artifact_sha256": artifact, "parameter_key": review["parameter_key"],
+                "diagnostics": review["diagnostics"], "numeric_inference": {
+                  row["key"]: row["provenance"]["inference"] for row in result["report"]["items"]
+                  if row.get("provenance", {}).get("inference") is not None}}
+    files.append(("analysis.json", json.dumps(analysis, ensure_ascii=False, allow_nan=False, indent=2).encode("utf8"), "calibration_analysis"))
+  return files
 
 
 class ReviewPackBuilder:

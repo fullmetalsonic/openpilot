@@ -76,8 +76,10 @@ def _selected_data(service, data):
   if service == "sendcan":
     if len(data) > 1024:
       raise ValueError("rlog_sendcan_message_limit")
-    return {"frames": [{"address": int(frame.address), "src": int(frame.src), "dat": bytes(frame.dat).hex()}
-                       for frame in data if frame.address == 0x1a0 and len(frame.dat) == 32]}
+    # Retain malformed SCC lengths so the downstream cache invalidates old data.
+    # Cap retained bytes; 65 still distinguishes oversized frames from valid CAN FD.
+    return {"frames": [{"address": int(frame.address), "src": int(frame.src), "dat": bytes(frame.dat)[:65].hex()}
+                       for frame in data if frame.address == 0x1a0]}
   if service in SERVICES:
     return data.to_dict()  # Preserve the existing four-service normalizer contract.
   if service == "initData":

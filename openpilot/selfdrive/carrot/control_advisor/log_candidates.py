@@ -15,7 +15,8 @@ from pathlib import Path
 import re
 
 from .analysis import AnalysisProfile
-from .candidate_report import MAX_INPUT_BYTES, _code_hashes, _read, calculate_bundle, load_candidate_bundle
+from .candidate_report import (MAX_INPUT_BYTES, MAX_PID_ANALYSIS_ROWS, MAX_PID_INPUT_BYTES,
+                               _code_hashes, _read, calculate_bundle, load_candidate_bundle)
 from .candidates import _profile, candidate_capabilities
 from .evidence import hash_file
 
@@ -583,8 +584,9 @@ def _pack(epoch, extracted, history, config, profile, capabilities):
 
 
 def _pack_pid(epoch, extracted, history, config, profile, capabilities):
-  """Select complete bursts by time and retain native dense rows under v1 limits."""
+  """Select full original bursts under the separate offline analysis budget."""
   from .pid_burst import COLUMNS, STEP_NS, SOURCE_PATHS, validate_header
+  from .journal_snapshot import _time_selected
   from .candidates import _pid_use_receipt
   begin, end = epoch["start_ns"], epoch["end_ns"]
   margin = max(profile["dependency_margin_ns"], config["analysis_profile"]["dependency_ns"])
@@ -611,6 +613,7 @@ def _pack_pid(epoch, extracted, history, config, profile, capabilities):
   reasons = Counter()
   finalized = {item["id"]: item["finalized_through_ns"] for item in extracted["source_receipts"]}
   source_ids = [item["id"] for item in extracted["source_receipts"]]
+  partitions = []
   for split, left, right in zip(pack["splits"], cuts, cuts[1:]):
     partition = [row for row in rows if left <= row["mono_ns"] <= right
                  and (left == begin or row["mono_ns"] > left + margin)
@@ -624,9 +627,24 @@ def _pack_pid(epoch, extracted, history, config, profile, capabilities):
                "excluded_reasons": list(row["excluded_reasons"]["lateral"])} for row in partition]}
     pack["blocks"].append(block)
     pack["splits"][split].append(block_id)
-    for burst in history.get("pid_blocks", []):
-      if burst["state"] != "complete" or not burst["rows"]:
-        continue
+    partitions.append((split, block, partition))
+  row_budget = min(MAX_PID_ANALYSIS_ROWS, profile["max_rows"]) // 3
+  byte_budget = max(0, (MAX_PID_INPUT_BYTES - len(_encoded(pack)) - 64 * 1024) // 3)
+  selection = {"version": 3, "policy": "balanced_time_ordinals", "row_budget": min(MAX_PID_ANALYSIS_ROWS, profile["max_rows"]),
+               "max_input_bytes": MAX_PID_INPUT_BYTES, "splits": {}}
+  for split, block, partition in partitions:
+    block_id = block["id"]
+    eligible = sorted((burst for burst in history.get("pid_blocks", []) if burst["state"] == "complete" and burst["rows"]
+      and burst["rows"][0]["mono_ns"] >= block["start_ns"] + margin
+      and burst["rows"][-1]["mono_ns"] <= block["finalized_through_ns"] - margin),
+      key=lambda burst: (burst["rows"][0]["mono_ns"], burst["burst_id"]))
+    chosen = _time_selected(eligible, 4)
+    audit = {"row_budget": row_budget, "byte_budget": byte_budget, "eligible_count": len(eligible), "selected_burst_ids": [],
+             "selected_rows": 0, "selected_bytes": 0, "excluded_counts": {"time_budget": max(0, len(eligible) - len(chosen))}}
+    selection["splits"][split] = audit
+    if len(chosen) < 2:
+      reasons["pid_split_burst_insufficient"] += 2 - len(chosen)
+    for burst in chosen:
       native = burst["rows"]
       if native[0]["mono_ns"] < block["start_ns"] + margin or native[-1]["mono_ns"] > block["finalized_through_ns"] - margin:
         continue
@@ -672,8 +690,20 @@ def _pack_pid(epoch, extracted, history, config, profile, capabilities):
       for join in trace["joins"]:
         join[-2:] = [remap[index] for index in join[-2:]]
       trace["use_receipt"] = _pid_use_receipt(pack, trace)
+      trace_bytes = len(_encoded(trace)) + 1
+      if audit["selected_rows"] + len(dense) > row_budget:
+        reasons["pid_split_row_budget"] += 1
+        audit["excluded_counts"]["row_budget"] = audit["excluded_counts"].get("row_budget", 0) + 1
+        continue
+      if audit["selected_bytes"] + trace_bytes > byte_budget:
+        reasons["pid_split_byte_budget"] += 1
+        audit["excluded_counts"]["byte_budget"] = audit["excluded_counts"].get("byte_budget", 0) + 1
+        continue
       pack["pid_trace_blocks"].append(trace)
-      break
+      audit["selected_burst_ids"].append(burst["burst_id"])
+      audit["selected_rows"] += len(dense)
+      audit["selected_bytes"] += trace_bytes
+  pack["epoch"]["dependencies"]["pid_selection"] = selection
   # Transport quantization is supplied only by the verified native output-pair
   # adapter. An absent contract stays absent and the PID backend blocks it.
   transport = _native_pid_transport(epoch, extracted)
@@ -734,7 +764,7 @@ def calculate_log_candidates(log_paths, profile_path, objectives_path, destinati
                              session_snapshot=None, cancelled=None, continuous=False,
                              max_files=32, max_events=200000, max_samples=100000,
                              max_decompressed_bytes=256 * 1024 * 1024, max_input_bytes=256 * 1024 * 1024,
-                             max_epochs=32, max_output_bytes=_LIMIT, _prepared=None):
+                             max_epochs=32, max_output_bytes=None, _prepared=None):
   """Build a new bounded collection; select latest source time, never best score."""
   def check_cancelled():
     if cancelled is not None and cancelled():
@@ -744,7 +774,7 @@ def calculate_log_candidates(log_paths, profile_path, objectives_path, destinati
     raise ValueError("invalid_continuous_mode")
   for value, name, cap in ((max_files, "max_files", 32), (max_events, "max_events", 2000000), (max_samples, "max_samples", 100000),
                            (max_decompressed_bytes, "max_decompressed_bytes", 2**31), (max_input_bytes, "max_input_bytes", 2**31),
-                           (max_epochs, "max_epochs", 32), (max_output_bytes, "max_output_bytes", _LIMIT)):
+                           (max_epochs, "max_epochs", 32)):
     _positive(value, name, cap)
   if isinstance(log_paths, (str, bytes, Path)):
     raise ValueError("log_paths_must_be_a_collection")
@@ -767,6 +797,10 @@ def calculate_log_candidates(log_paths, profile_path, objectives_path, destinati
     raise ValueError("recorded_host_profile_required")
   config, objective_hash = _read(objectives_path, 64 * 1024)
   pid_mode = bool(config.get("objectives")) and all(spec.get("reference", {}).get("type") == "recorded_pid_target" for spec in config["objectives"].values())
+  output_limit = 48 * 1024 * 1024 if pid_mode else _LIMIT
+  max_output_bytes = output_limit if max_output_bytes is None else max_output_bytes
+  _positive(max_output_bytes, "max_output_bytes", output_limit)
+  pack_limit = MAX_PID_INPUT_BYTES if pid_mode else MAX_INPUT_BYTES
   manual_mode = any(spec.get("reference", {}).get("type") == "manual_trial" for spec in config["objectives"].values())
   capabilities = candidate_capabilities()
   mask = _objectives(config, capabilities)
@@ -858,7 +892,7 @@ def calculate_log_candidates(log_paths, profile_path, objectives_path, destinati
     if manual_mode:
       receipt["objectives"] = copy.deepcopy(config)
     payload = _encoded(evidence)
-    if len(payload) > MAX_INPUT_BYTES:
+    if len(payload) > pack_limit:
       raise ValueError("generated_log_pack_byte_limit")
     # Reserve a complete bounded result/manifest in addition to copied inputs.
     upper = 2 * len(payload) + Path(profile_path).stat().st_size + len(_encoded(receipt)) + 1024 * 1024 + 64 * 1024
@@ -875,7 +909,7 @@ def calculate_log_candidates(log_paths, profile_path, objectives_path, destinati
       else:
         diagnostics = (item for row in epoch["rows"] for item in row.get("diagnostics", []))
       summary = summarize_diagnostics(diagnostics, epoch["start_ns"], epoch["end_ns"], mask.max_gap_ns)
-      review = build_calibration_review(evidence, config, profile, summary, input_sha256=hash_file(generated, MAX_INPUT_BYTES)[0], profile_sha256=profile_hash)
+      review = build_calibration_review(evidence, config, profile, summary, input_sha256=hash_file(generated, pack_limit)[0], profile_sha256=profile_hash)
     calculate_bundle(generated, profile_path, destination / name, log_link=receipt, calibration_review=review)
     load_candidate_bundle(destination / name)
     used += sum(path.stat().st_size for path in (destination / name).rglob("*") if path.is_file())

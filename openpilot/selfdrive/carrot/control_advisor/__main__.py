@@ -133,12 +133,24 @@ def main(argv=None) -> int:
   parser = argparse.ArgumentParser(description=__doc__)
   commands = parser.add_subparsers(dest="command", required=True)
   commands.add_parser("inventory", help="Display all planned parameters and implementation readiness")
+  comparison = commands.add_parser("compare", help="PC-only before/after analysis of an archived application and cohort; no settings writes or result registration")
+  comparison.add_argument("application", type=Path)
+  comparison.add_argument("--cohort", required=True, type=Path)
+  comparison.add_argument("--profile", required=True, type=Path)
+  comparison.add_argument("--output", required=True, type=Path)
   for name, help_text in (("remote-export", "On comma: freeze inputs for the PC using the existing authenticated file connection"),
                           ("remote-run", "On PC: run the existing analyzer on a frozen remote input directory"),
                           ("remote-publish", "On comma: validate a returned result; the live publisher seals it")):
     command = commands.add_parser(name, help=help_text)
     command.add_argument("directory", type=Path)
     command.add_argument("--output" if name != "remote-publish" else "--result", required=True, type=Path)
+  for action in ("status", "export", "run", "publish"):
+    command = commands.add_parser("remote-comparison-" + action, help="Owner-operated remote comparison: " + action)
+    command.add_argument("directory", type=Path)
+    if action in {"export", "run"}:
+      command.add_argument("--output", required=True, type=Path)
+    elif action == "publish":
+      command.add_argument("--result", required=True, type=Path)
   verify = commands.add_parser("verify", help="Verify an existing local evidence bundle")
   verify.add_argument("directory", type=Path)
   verify.add_argument("--byte-limit", type=int, default=DEFAULT_FILE_BUDGET)
@@ -177,7 +189,40 @@ def main(argv=None) -> int:
       command.add_argument("--synthetic", action="store_true", help="Label generated test logs explicitly")
   args = parser.parse_args(argv)
   try:
-    if args.command.startswith("remote-"):
+    if args.command == "compare":
+      from .candidate_report import _read, _code_hashes
+      from .comparison import evaluate_comparison
+      sources = [args.application, args.cohort, args.profile]
+      loaded = [_read(path, 32 * 1024 * 1024) for path in sources]
+      hashes = _code_hashes()
+      comparison_result = evaluate_comparison(*(entry[0] for entry in loaded))
+      if hashes != _code_hashes():
+        raise ValueError("analyzer_changed_during_analysis")
+      result = {"schema_version": 1, "scope": "offline_comparison_diagnostic", "state": comparison_result["state"],
+                "comparison": comparison_result["comparison"], "analyzer_sha256": hashes,
+                "apply_enabled": False, "runtime_connected": False, "raw_sources_verified": False,
+                "limitations": ["input_json_is_not_independent_archive_verification", "no_vehicle_effect_qualification"]}
+      create_bundle(args.output, sources, result, byte_limit=96 * 1024 * 1024, expected_sha256=[entry[1] for entry in loaded])
+      verify_bundle(args.output, byte_limit=96 * 1024 * 1024)
+      result = {"state": result["state"], "scope": result["scope"], "output": str(args.output), "apply_enabled": False}
+    elif args.command.startswith("remote-comparison-"):
+      from .remote_comparison import comparison_status, export_comparison, run_comparison, publish_comparison
+      action = args.command.removeprefix("remote-comparison-")
+      if action == "status":
+        value = comparison_status(args.directory)
+      elif action == "export":
+        value = export_comparison(args.directory, args.output)
+        value = {"state": "exported", "files": len(value["files"]), "input_directory": str(args.output),
+                 "request_id": value["ticket"]["application"]["request_id"]}
+      elif action == "run":
+        value = run_comparison(args.directory, args.output)
+        value = {"state": "compared_on_pc", "files": len(value["files"]), "result_directory": str(args.output / "result"),
+                 "request_id": value["ticket"]["application"]["request_id"]}
+      else:
+        value = publish_comparison(args.directory, args.result)
+      print(json.dumps(value, ensure_ascii=False, allow_nan=False))
+      return 0
+    elif args.command.startswith("remote-"):
       from .remote_analysis import export_input, run_input, publish_result
       if args.command == "remote-export":
         value = export_input(args.directory, args.output)

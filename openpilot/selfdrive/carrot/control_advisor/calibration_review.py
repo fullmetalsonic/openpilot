@@ -1,7 +1,4 @@
-"""Bounded presentation of existing normalized observations and masked evidence.
-
-Manual trials deliberately do not estimate a parameter or predict improvement.
-"""
+"""Full-rate observational diagnostics and evidence-bound manual experiments."""
 from collections import Counter
 from copy import deepcopy
 import hashlib
@@ -39,12 +36,21 @@ def diagnostic_row(observation, signals, reasons):
     "independent_actual": independent.get("value"), "independent_mono_ns": independent.get("source_mono_ns"),
     "sent_request": sent.get("value"), "sent_mono_ns": sent.get("source_mono_ns"), "excluded_reasons": list(reasons),
     **{name: signals.get(key, {}).get("value") for name, key in (("sent_raw", "scc_a_req_raw"), ("stop_req", "scc_stop_req"),
-      ("jerk_upper", "scc_jerk_upper"), ("jerk_lower", "scc_jerk_lower"))}}
+      ("jerk_upper", "scc_jerk_upper"), ("jerk_lower", "scc_jerk_lower"))},
+    "steering_angle_deg": signals.get("steering_angle_deg", {}).get("value"),
+    "steering_mono_ns": signals.get("steering_angle_deg", {}).get("source_mono_ns"),
+    "yaw_rate": signals.get("yaw_rate_calibrated", {}).get("value"),
+    "yaw_mono_ns": signals.get("yaw_rate_calibrated", {}).get("source_mono_ns"),
+    "v_ego": signals.get("v_ego", {}).get("value", context.get("v_ego")),
+    "v_ego_mono_ns": signals.get("v_ego", {}).get("source_mono_ns"),
+    "saturated": context.get("saturated"), "should_stop": context.get("should_stop"), "standstill": context.get("standstill")}
 
 
 def summarize_diagnostics(rows, start, end, max_gap):
   """All raw masked observations determine statistics; only display is reduced."""
+  from .response_diagnostics import DiagnosticWindows, build_diagnostics
   series, metrics, exclusions = {}, {}, {}
+  full_rate = DiagnosticWindows(start)
   states = {axis: {"errors": [], "counts": Counter(), "points": [], "intervals": [], "raw": 0,
     "positive": 0, "negative": 0, "independent": 0, "sent": 0, "previous": None, "segment": 0,
     "bucket": None, "range": None, "truncated": False, "positive_errors": [], "negative_errors": [], "usable_times": []} for axis in ("lateral", "longitudinal")}
@@ -52,6 +58,7 @@ def summarize_diagnostics(rows, start, end, max_gap):
     stamp, axis = row["mono_ns"], row["axis"]
     if not start <= stamp <= end:
       continue
+    full_rate.add(row)
     state = states[axis]
     reasons = sorted(set(row["excluded_reasons"]))
     state["raw"] += 1
@@ -83,7 +90,7 @@ def summarize_diagnostics(rows, start, end, max_gap):
     bucket = min(599, (stamp - start) * 600 // (end - start + 1))
     if bucket != state["bucket"]:
       state["bucket"] = bucket
-      point = [row.get(name) if name != "segment" else state["segment"] for name in COLUMNS]
+      point = [row.get(name) if name != "segment" else None if reasons else state["segment"] for name in COLUMNS]
       for index in (0, 3, 4, 6, 8):
         point[index] = str(point[index]) if type(point[index]) is int else None
       state["points"].append(point)
@@ -99,7 +106,8 @@ def summarize_diagnostics(rows, start, end, max_gap):
       "independent_count": state["independent"], "sent_count": state["sent"],
       "positive_target": _metrics(state["positive_errors"]), "negative_target": _metrics(state["negative_errors"])}
     exclusions[axis] = {"counts": dict(state["counts"]), "intervals": state["intervals"], "intervals_truncated": state["truncated"]}
-  return {"series": series, "metrics": metrics, "exclusions": exclusions,
+  full_rate_rows, selection = full_rate.finish()
+  return {"series": series, "metrics": metrics, "exclusions": exclusions, "diagnostics": build_diagnostics(full_rate_rows, selection=selection),
           "_consumer_times": {axis: state["usable_times"] for axis, state in states.items()}}
 
 
@@ -139,6 +147,10 @@ def build_calibration_review(evidence, config, profile, summary, *, input_sha256
   if not baseline["code_hashes"] or not evidence["artifacts"]:
     reasons.append("source_binding_unavailable")
   current = baseline["settings_raw"].get(key)
+  from .response_diagnostics import attach_smoothing, build_diagnostics, compact_diagnostics
+  diagnostics = attach_smoothing(summary.get("diagnostics") or build_diagnostics([]), consumer_events(evidence),
+    summary["_consumer_times"]["lateral"], baseline["settings_raw"].get("LatSmoothSec"), epoch["start_ns"], epoch["end_ns"])
+  diagnostics = compact_diagnostics(diagnostics)
   if type(current) is not int or str(current) in item.get("special_values", {}) or not item["ui"]["min"] <= current <= item["ui"]["max"]:
     reasons.append("current_raw_special_or_unobserved")
   if baseline["settings_raw"].get("CustomSR", 0) <= 10:
@@ -160,6 +172,9 @@ def build_calibration_review(evidence, config, profile, summary, *, input_sha256
       # Reuse the existing exact effective-value, epoch, hash and all-consumer gate.
       records = {"fit": [{"mono_ns": stamp} for stamp in summary["_consumer_times"][axis]], "select": [], "holdout": []}
       reasons.extend(_consumer_gate(evidence, profile, item, records)[0])
+    timing = diagnostics["timing"][key]
+    if timing["state"] != "experiment_required":
+      reasons.extend(timing["reasons"])
     if not reasons:
       ui = item["ui"]
       for candidate in (current - ui["step"], current + ui["step"]):
@@ -167,12 +182,12 @@ def build_calibration_review(evidence, config, profile, summary, *, input_sha256
           options.append({"id": trial_option_id(baseline, key, current, candidate), "purpose": "manual_trial",
             "parameter_key": key, "current_raw": current, "candidate_raw": candidate, "restore_raw": current})
       if not options:
-        reasons.append("no_single_step_trial_available")
+        reasons.append("no_bounded_experiment_value_available")
   else:
     reasons.append("numeric_candidate_gate_remains_authoritative")
-  value = {"schema_version": 1, "parameter_key": key, "purpose": purpose, "state": "ready" if options else "held",
+  value = {"schema_version": 2, "parameter_key": key, "purpose": purpose, "state": "ready" if options else "held",
     "baseline": baseline, **{name: deepcopy(summary[name]) for name in ("series", "metrics", "exclusions")},
-    "reasons": list(dict.fromkeys(reasons)), "trial_options": options}
+    "reasons": list(dict.fromkeys(reasons)), "trial_options": options, "diagnostics": diagnostics}
   # The full-rate statistics and intervals stay intact; reduce only plot points.
   while len(json.dumps(value, ensure_ascii=False, allow_nan=False, separators=(",", ":")).encode()) > MAX_REVIEW_BYTES:
     reducible = [series for series in value["series"].values() if len(series["points"]) > 2]
@@ -187,7 +202,8 @@ def build_calibration_review(evidence, config, profile, summary, *, input_sha256
 
 def validate_calibration_review(value, *, evidence=None, input_sha256=None, profile_sha256=None):
   required = {"schema_version", "parameter_key", "purpose", "state", "baseline", "series", "metrics", "exclusions", "reasons", "trial_options"}
-  if (type(value) is not dict or set(value) != required or type(value["schema_version"]) is not int or value["schema_version"] != 1
+  if (type(value) is not dict or type(value.get("schema_version")) is not int or value["schema_version"] not in (1, 2)
+      or set(value) != required | ({"diagnostics"} if value["schema_version"] == 2 else set())
       or value["parameter_key"] not in {row[0] for row in SIX_PARAMETER_GOALS.values()}
       or value["purpose"] != ("manual_trial" if value["parameter_key"] in TIMING_KEYS else "numeric_calibration")
       or value["state"] not in {"ready", "held"}):
@@ -209,6 +225,9 @@ def validate_calibration_review(value, *, evidence=None, input_sha256=None, prof
     raise ValueError("invalid_calibration_settings")
   if input_sha256 is not None and baseline["input_sha256"] != input_sha256 or profile_sha256 is not None and baseline["profile_sha256"] != profile_sha256:
     raise ValueError("calibration_source_binding_mismatch")
+  if value["schema_version"] == 2:
+    from .response_diagnostics import validate_diagnostics
+    validate_diagnostics(value["diagnostics"], baseline["start_ns"], baseline["end_ns"])
   if evidence is not None:
     from .candidates import consumer_events
     epoch = evidence["epoch"]
@@ -239,7 +258,8 @@ def validate_calibration_review(value, *, evidence=None, input_sha256=None, prof
       if (not baseline["start_ns"] <= previous <= baseline["end_ns"]
           or any(point[index] is not None and int(point[index]) > previous for index in (3, 4, 6, 8))):
         raise ValueError("calibration_timestamp_outside_support")
-      if any(point[index] is not None and (type(point[index]) not in (int, float) or not math.isfinite(point[index])) for index in (1, 2, 5, 7, 10, 11, 12, 13)) or type(point[9]) is not int or point[9] < 0:
+      if (any(point[index] is not None and (type(point[index]) not in (int, float) or not math.isfinite(point[index])) for index in (1, 2, 5, 7, 10, 11, 12, 13))
+          or point[9] is not None and (type(point[9]) is not int or point[9] < 0)):
         raise ValueError("invalid_calibration_measurement")
     if series["selected_count"] != len(series["points"]) or type(series["raw_count"]) is not int or series["raw_count"] < len(series["points"]):
       raise ValueError("invalid_calibration_count")
@@ -279,6 +299,8 @@ def validate_calibration_review(value, *, evidence=None, input_sha256=None, prof
   if type(value["reasons"]) is not list or len(value["reasons"]) > 32 or any(type(reason) is not str or not re.fullmatch("[a-z0-9_]{1,128}", reason) for reason in value["reasons"]):
     raise ValueError("invalid_calibration_reasons")
   options, key = value["trial_options"], value["parameter_key"]
+  if options and value["schema_version"] == 2 and value["diagnostics"]["timing"][key]["state"] != "experiment_required":
+    raise ValueError("calibration_experiment_evidence_required")
   if (type(options) is not list or len(options) > 2 or value["purpose"] == "manual_trial" and (value["state"] == "ready") != bool(options)
       or options and value["purpose"] != "manual_trial"):
     raise ValueError("invalid_calibration_trials")

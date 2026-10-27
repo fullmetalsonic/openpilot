@@ -56,10 +56,12 @@ CONSUMER_PATHS = {
 }
 CONTEXT_KEYS = {
   "controls.vehicle_model": {"resolved_steer_ratio", "live_steer_ratio", "stiffness_factor", "manual_override"},
-  "controls.lateral_target": {"active", "path", "lane_selected", "live_delay_used"},
+  "controls.lateral_target": {"active", "path", "lane_selected", "live_delay_used", "model_target_selected"},
   "controls.torque": {"active", "torque_custom_mode", "nnff", "nnff_lite", "nnff_model_selected", "nnff_jerk_lookahead_s", "derivative_effective", "torque_ff_path"},
   "controls.longitudinal": {"active", "brand", "long_control_state", "fixed_tuning"},
-  "modeld.action": {"frame", "lat_action_t", "long_action_t", "lat_delay_used_s", "next_lat_delay_s", "lat_smooth_dynamic_s", "model_action_head"},
+  "modeld.action": {"frame", "lat_action_t", "long_action_t", "lat_delay_used_s", "next_lat_delay_s", "lat_smooth_dynamic_s", "model_action_head",
+                    "lat_pre_smooth_curvature", "lat_post_smooth_curvature", "lat_previous_curvature", "v_ego",
+                    "lat_smoothing_applied", "lat_smooth_y_std"},
   "planner.lateral": {"lane_mode", "lanes_active", "model_valid"},
   "planner.lane_path": {"lanefull_mode", "lanes_active", "time_warp_factor"},
   "planner.longitudinal": {"mode", "driving_mode", "v_ego", "a_ego", "accel_limit_base", "accel_limit_final", "source",

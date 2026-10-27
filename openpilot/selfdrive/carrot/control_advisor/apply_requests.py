@@ -315,7 +315,9 @@ def _context(value):
     _sha(provenance["comparison_profile_sha256"])
     if type(comparison_profile) is not dict or len(_canonical(comparison_profile)) > 16 * 1024 or _hash(comparison_profile) != provenance["comparison_profile_sha256"]:
       raise ValueError("comparison_profile_binding_invalid")
-  if type(provenance["code_hashes"]) is not dict or not 1 <= len(provenance["code_hashes"]) <= 64:
+  # Analyzer and actual-consumer manifests together exceed 64 source files.
+  # Keep the path/digest checks and the overall 32 KiB context budget below.
+  if type(provenance["code_hashes"]) is not dict or not 1 <= len(provenance["code_hashes"]) <= 128:
     raise ValueError("invalid_request_code_provenance")
   for path, digest in provenance["code_hashes"].items():
     if type(path) is not str or len(path) > 180 or ".." in path or "\\" in path:

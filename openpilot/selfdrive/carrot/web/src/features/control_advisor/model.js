@@ -245,6 +245,24 @@ const CANDIDATE_STATUSES = Object.freeze({ raw_estimate: "진단용 관계식 �
 const PREDICTION_LABELS = Object.freeze({ static_formula: "정적 관계식", frozen_input_replay: "고정 입력 재생",
   closed_loop_model: "폐루프 모델" });
 const CANDIDATE_REASONS = Object.freeze({
+  baseline_repeat_variation_unavailable: "기존값의 반복 사건 변동을 계산할 근거 부족",
+  event_metric_binding_mismatch: "사건 지표와 원본 연결이 일치하지 않음",
+  independent_events_insufficient: "학습·선택·검증에 필요한 독립 사건 부족",
+  event_split_dependency_overlap: "서로 다른 분할의 사건이 시간상 겹침",
+  event_budget_exceeded: "사전 사건 분석 예산 초과",
+  event_trigger_unavailable: "회전·가감속 사건 기준 신호 부족",
+  ratio_direction_or_speed_disagreement: "좌우·속도별 조향비 추정이 일치하지 않음",
+  ratio_zero_offset_uncertain: "조향 영점과 조향비 효과를 구분하지 못함",
+  ratio_outside_fit_support: "학습한 조향·속도 범위 밖",
+  ratio_uncertainty_unavailable: "조향비 추정 범위를 확인할 근거 부족",
+  pid_prediction_error_not_white: "응답 모델에 설명되지 않은 시간 패턴이 남음",
+  pid_residual_input_dependence: "모델 잔차가 입력과 연관되어 변경 효과 불확실",
+  pid_identification_uncertain: "PID 응답 계수를 독립적으로 식별하지 못함",
+  pid_internal_validation_failed: "학습 내부의 독립 구간 검증 미통과",
+  event_effect_below_repeat_variation: "예상 개선이 기존값 반복 변동보다 작음",
+  event_effect_interval_inconclusive: "개선 범위가 불확실하여 현재값 유지",
+  event_guard_worsened: "오버슈트·출력 등 보호 지표 악화",
+  holdout_event_inference_failed: "최종 독립 사건 검증 미통과 · 재선택하지 않음",
   independent_objective_missing: "독립 목적함수 근거 없음", objective_unit_mismatch: "목적함수 단위 불일치",
   split_dependency_overlap: "분할 사이 의존 구간 겹침", insufficient_independent_split_exposure: "독립 분할의 사용 근거 부족",
   single_change_limit_missing: "단일 변경 한도 근거 없음", objective_guard_missing: "목적함수 보호 조건 없음",
@@ -456,7 +474,7 @@ export function createCandidateReportModel(value, parameters = []) {
       reasons: [...new Set((Array.isArray(row.reason_codes) ? row.reason_codes : []).slice(0, 24)
         .filter((reason) => Object.hasOwn(CANDIDATE_REASONS, reason)).map((reason) => CANDIDATE_REASONS[reason]))],
       baselineSelection: candidateMetric(metrics.baseline?.select), baselineHoldout: candidateMetric(metrics.baseline?.holdout),
-      selection, holdout,
+      selection, holdout, inference: eventInferenceModel(row.provenance?.inference),
       numericalChecksPass: validation.numerical_checks_pass === true, splitIndependent: validation.split_independent === true,
       holdoutObjectivePass: validation.holdout_objective_pass === true,
       deviceQualified: false, applyEnabled: false });
@@ -533,6 +551,46 @@ export const CALIBRATION_KEYS = Object.freeze(["SteerActuatorDelay", "CustomSR",
 const TRIAL_KEYS = new Set(["SteerActuatorDelay", "LatSmoothSec", "LongActuatorDelay"]);
 const TRACE_COLUMNS = ["mono_ns", "target", "actual", "target_mono_ns", "actual_mono_ns", "independent_actual", "independent_mono_ns", "sent_request", "sent_mono_ns", "segment", "sent_raw", "stop_req", "jerk_upper", "jerk_lower"];
 
+function confidenceInterval(value) {
+  if (!value || ![value.lower, value.upper].every(Number.isFinite) || value.lower > value.upper) return null;
+  return { lower: value.lower, upper: value.upper };
+}
+
+export function eventInferenceModel(value) {
+  if (!value || value.schema_version !== 1 || value.method !== "event_bootstrap_v1"
+      || value.causal_improvement_proven !== false || value.configuration?.confidence !== .95
+      || !["fit", "select", "holdout"].every((key) => Number.isSafeInteger(value.event_counts?.[key]) && value.event_counts[key] >= 0)
+      || ![0, 1].includes(value.holdout_evaluations)) return null;
+  return { counts: value.event_counts, minimumEffect: finiteNumber(value.minimum_effect),
+    selection: confidenceInterval(value.selection?.effect), holdout: confidenceInterval(value.holdout?.effect),
+    holdoutEvaluations: value.holdout_evaluations, repetitions: count(value.configuration.bootstrap_repetitions) };
+}
+
+function responseDiagnostics(value, key) {
+  if (!value || value.version !== 1 || value.method_id !== "signal_stage_event_response_v1"
+      || value.causal_effect_proven !== false || value.software_optimum_identified !== false
+      || !Array.isArray(value.stages) || value.stages.length > 8) return null;
+  const stages = [];
+  for (const stage of value.stages) {
+    if (!stage || typeof stage.id !== "string" || !["identified_response", "held"].includes(stage.state)
+        || !Number.isSafeInteger(stage.event_count) || stage.event_count < 0) return null;
+    stages.push({ id: stage.id, state: stage.state, events: stage.event_count,
+      lag: confidenceInterval(stage.lag_s), timeConstant: confidenceInterval(stage.time_constant_s) });
+  }
+  const timing = value.timing?.[key];
+  if (TRIAL_KEYS.has(key) && (!timing || !["held", "experiment_required"].includes(timing.state))) return null;
+  const plan = timing?.trial_plan;
+  if (plan && (plan.max_candidates !== 2 || plan.direction_effect !== "unconfirmed"
+      || !Number.isSafeInteger(plan.event_count_per_candidate) || plan.event_count_per_candidate <= 0
+      || !Number.isFinite(plan.max_observation_s) || plan.max_observation_s <= 0)) return null;
+  const smoothing = value.sampled_smoothing;
+  return { stages, state: timing?.state || null,
+    plan: plan ? { events: plan.event_count_per_candidate, seconds: plan.max_observation_s } : null,
+    smoothing: smoothing?.continuous_response_identified === false ? {
+      count: count(smoothing.sample_count), gap: confidenceInterval(smoothing.filter_gap_curvature),
+      change: confidenceInterval(smoothing.one_cycle_change_curvature) } : null };
+}
+
 export function createCalibrationReviewModel(payload = {}) {
   const raw = payload.candidate_report?.calibration_review;
   const empty = { available: false, invalid: Boolean(raw), parameterKey: null, state: "held", purpose: null, series: [], trials: [], reasons: [] };
@@ -540,12 +598,16 @@ export function createCalibrationReviewModel(payload = {}) {
   const stamp = (value) => typeof value === "string" && /^(0|[1-9][0-9]{0,18})$/.test(value) && BigInt(value) <= 9223372036854775807n;
   const number = (value) => value === null || typeof value === "number" && Number.isFinite(value);
   try {
-    if (raw.schema_version !== 1 || !CALIBRATION_KEYS.includes(raw.parameter_key) || !["ready", "held"].includes(raw.state)
+    if (![1, 2].includes(raw.schema_version) || !CALIBRATION_KEYS.includes(raw.parameter_key) || !["ready", "held"].includes(raw.state)
       || !["numeric_calibration", "manual_trial"].includes(raw.purpose) || payload.candidate_report?.state !== "ready"
       || payload.candidate_report?.stale === true || payload.candidate_report?.integrity_verified !== true
       || new TextEncoder().encode(JSON.stringify(raw)).length > 128 * 1024
       || !Array.isArray(raw.reasons) || raw.reasons.some((reason) => typeof reason !== "string" || !/^[a-z0-9_]{1,128}$/.test(reason))
       || !raw.baseline || !raw.baseline.settings_raw || !validDigest(raw.baseline.input_sha256) || !validDigest(raw.baseline.profile_sha256)) return empty;
+    const diagnostics = raw.schema_version === 2 ? responseDiagnostics(raw.diagnostics, raw.parameter_key) : null;
+    if (raw.schema_version === 2 && !diagnostics) return empty;
+    if (raw.schema_version === 2 && raw.purpose === "manual_trial" && raw.state === "ready"
+        && (diagnostics.state !== "experiment_required" || !diagnostics.plan)) return empty;
     const series = [];
     for (const axis of ["lateral", "longitudinal"]) {
       const source = raw.series?.[axis];
@@ -577,7 +639,7 @@ export function createCalibrationReviewModel(payload = {}) {
           && contextEntry.trial_ids?.includes(option.id) && requestBindingEligible(payload, raw.parameter_key, currentRaw)) };
     });
     return { available: true, invalid: false, parameterKey: raw.parameter_key, state: raw.state, purpose: raw.purpose,
-      currentRaw, series, trials, reasons: raw.reasons, kiRaw: raw.baseline.settings_raw.LateralTorqueKiV };
+      currentRaw, series, trials, reasons: raw.reasons, diagnostics, kiRaw: raw.baseline.settings_raw.LateralTorqueKiV };
   } catch { return empty; }
 }
 
@@ -608,6 +670,18 @@ function comparisonSummary(value) {
     detailIntervals: value.exclusions?.encoding === "reason-indexed-pages-v1" ? count(value.exclusions.interval_count) : null };
 }
 
+export function comparisonAssessment(value) {
+  const labels = { observing: "사전 예산 안에서 관찰 중", improved: "관측상 개선", worsened: "관측상 악화 · 원복 검토", inconclusive: "판정 불가 · 현재 시험 종료" };
+  if (!value || value.schema_version !== 1 || value.method !== "matched_event_bootstrap_v1"
+      || !Object.hasOwn(labels, value.state) || value.causal_improvement_proven !== false
+      || value.events_required !== 8 || value.observation_limit_s !== 900 || !validDigest(value.policy_sha256)
+      || !["before_events", "after_events", "matched_pairs"].every((key) => Number.isSafeInteger(value.counts?.[key]) && value.counts[key] >= 0)
+      || value.ended !== (value.state !== "observing") || !["s", "m/s^2"].includes(value.unit)) return null;
+  return { state: value.state, label: labels[value.state], ended: value.ended, pairs: value.counts.matched_pairs,
+    seconds: finiteNumber(value.observed_after_s), minimumEffect: finiteNumber(value.minimum_effect),
+    effect: confidenceInterval(value.effect), unit: value.unit };
+}
+
 function requestComparison(value) {
   if (!value || ![1, 2, 3].includes(value.schema_version) || !["held", "consumer_observed", "comparison_ready"].includes(value.state)
       || !["observational_generated", "observational_model_derived", "observational_vehicle_acceleration"].includes(value.scope)
@@ -636,7 +710,7 @@ function requestComparison(value) {
     comparison_dependencies_changed_or_unknown: "의존 설정 변경 또는 미확인", comparison_not_a_single_parameter_change: "단일 항목 변경 조건 미충족",
     comparison_windows_overlap_transition_or_settling: "전환·회복 구간과 비교 창 겹침", comparison_evidence_invalid: "비교 근거 검증 미충족",
     comparison_on_remote_pc: "원격 모드 · Codex가 PC에서 전후 자료를 비교합니다" };
-  return { state: value.state, before: comparisonSummary(value.before), after: comparisonSummary(value.after),
+  return { state: value.state, before: comparisonSummary(value.before), after: comparisonSummary(value.after), assessment: comparisonAssessment(value.assessment),
     scopeLabel: value.scope === "observational_generated" ? "생성 자료의 관측 비교 · 실제 주행 아님"
       : value.scope === "observational_model_derived" ? "모델 유래 반응의 관측 비교" : "차량 가속 반응의 관측 비교",
     matched: value.matched && typeof value.matched === "object" ? { commonBins: count(value.matched.common_bin_count),
