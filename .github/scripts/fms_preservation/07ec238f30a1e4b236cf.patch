@@ -1,6 +1,48 @@
 --- a/openpilot/selfdrive/carrot/web/js/translations/en.js
 +++ b/openpilot/selfdrive/carrot/web/js/translations/en.js
-@@ -226,6 +226,7 @@
+@@ -5,6 +5,41 @@
+   nativeName: "English",
+   shortName: "EN",
+   strings: {
++    pc_logs_phone_help: "Turn on Tailscale on the phone and the PC receiver, and keep this web page open. Closing the page or phone sleep pauses transfer; reopen it to resume.",
++    pc_logs_other_page: "Another page is transferring. Close it and wait briefly to resume here.",
++    pc_logs_stale_page: "Another page owns this transfer. Reopen this page to check its status.",
++    pc_logs_active_requests: "{count} requests remaining",
++    pc_logs_cleanup: "Waiting to release receiver resources",
++    pc_logs_retry_after_cleanup: "Retries automatically after cleanup",
++    pc_logs_send: "Send logs to fullmetalsonic",
++    pc_logs_queued: "Waiting for receiver",
++    pc_logs_transferring: "Sending to PC",
++    pc_logs_verifying: "Verifying PC storage",
++    pc_logs_completed: "Saved on PC",
++    pc_logs_failed: "Transfer failed",
++    pc_logs_canceled: "Canceled",
++    pc_logs_wait: "Checking",
++    pc_logs_selected: "Original logs from {count} selected segments",
++    pc_logs_latest: "All completed segments from the latest drive · original logs only",
++    pc_logs_recipient: "Recipient: fullmetalsonic's personal PC",
++    pc_logs_manifest: "{count} files · {bytes} bytes total · drive start dates: {dates}",
++    pc_logs_disclosure: "Original driving logs may contain location and vehicle information. Videos and qlogs are excluded. Pressing the send button consents to sending these logs to this recipient. Requests remain queued while the PC is offline and resume when it reconnects.",
++    pc_logs_queue: "Confirm and send",
++    pc_logs_unknown_date: "Date unknown",
++    pc_logs_retry: "Retry",
++    pc_logs_no_jobs: "No transfers requested yet.",
++    pc_logs_preparing: "Checking logs and saving the request…",
++    pc_logs_waiting_pc: "Request saved. Transfer begins when the receiver is available.",
++    pc_logs_offline: "The receiving PC is offline or temporarily unable to receive. Transfer retries automatically when it is ready.",
++    pc_logs_disk_full: "Waiting for free space on the receiving PC. Transfer retries automatically.",
++    pc_logs_source_missing: "The original device log is missing or unreadable.",
++    pc_logs_source_changed: "The source log changed. Queue it again after recording finishes.",
++    pc_logs_source_locked: "This log is still recording. Retry after recording finishes.",
++    pc_logs_busy: "Waiting due to receiver limits. Transfer retries automatically.",
++    pc_logs_auth_failed: "The receiver could not verify this device. The failed request is retained.",
++    pc_logs_legacy: "Legacy test registration exists. Its destination was not silently changed.",
++    pc_logs_changed: "The confirmed log selection changed. Reopen the window and check it again.",
++    pc_logs_error: "Unable to continue. Check the connection and recording status, then retry.",
+     egpu_model_recovering: "eGPU reconnecting",
+     egpu_model_recovering_detail: "The internal model remains in use while eGPU recovery is attempted, up to three times.",
+     egpu_model_recovery_ready: "eGPU READY",
+@@ -226,6 +261,7 @@
      onnx_vision_summary_starting: "Waiting for the ONNX service to start.",
      onnx_vision_summary_unavailable: "The ONNX service is not responding.",
      onnx_vision_summary_waiting: "Models are ready; waiting for road cameras.",
@@ -8,7 +50,7 @@
      onnx_vision_summary_ready: "Lane and blindspot detection are ready.",
      onnx_vision_summary_attention: "Check the ONNX model or its configuration.",
      onnx_vision_open_diagnostics: "Open diagnostics",
-@@ -549,7 +550,7 @@
+@@ -549,7 +585,7 @@
      git_update_output: "Git output",
      git_update_up_to_date: "Already up to date",
      git_result_pull_done: "Update check complete",
@@ -17,7 +59,7 @@
      git_result_reset_done: "Reset complete: {mode} {target}",
      git_result_checkout_done: "Branch changed: {branch}",
      git_result_remote_set_done: "Repository changed. Branch list is ready.",
-@@ -594,7 +595,7 @@
+@@ -594,7 +630,7 @@
      confirm_reboot: "Reboot now?",
      reboot_later: "Selected. Reboot later to apply.",
      rebooting: "Rebooting...",
@@ -26,7 +68,7 @@
      git_reset_confirm: "Connect to the remote repository to check branch tracking and repair broken links. Reset will stop if verification fails.\nThen revert code changes. Your modifications may be lost. Continue?",
      git_reset_mode_prompt: "Select reset mode\n\n• hard: discard all changes\n• soft: undo commit only\n• mixed: unstage only",
      git_reset_target_prompt: "Enter reset target\ne.g. HEAD (current), origin/master (remote)",
-@@ -806,10 +807,11 @@
+@@ -806,10 +842,11 @@
      video_track_lost_reconnecting: "Reconnecting video",
      video_stalled_reconnecting: "Reconnecting video",
      no_initial_frame_reconnecting: "Waiting for first frame",
@@ -41,7 +83,7 @@
      vision_step_unavailable: "Check the setting.",
      vision_step_inactive: "Waiting to start",
      vision_step_starting: "Preparing camera",
-@@ -1392,8 +1394,6 @@
+@@ -1392,8 +1429,6 @@
      update_ago_seconds: "{s}s ago",
      update_ago_now: "just now",
      git_reset_head_prompt: "Select reset mode based on HEAD.",

@@ -1,0 +1,12 @@
+--- a/openpilot/selfdrive/carrot/web/index.html
++++ b/openpilot/selfdrive/carrot/web/index.html
+@@ -498,6 +498,9 @@
+         </div>
+ 
+         <section id="logsDashcamPanel" class="logs-panel" role="tabpanel" aria-labelledby="logsTabDashcam">
++          <div class="pc-log-actions">
++          <button id="pcLogTransferButton" class="smallBtn btn--filled" type="button">fullmetalsonic에게 로그 보내기</button>
++          </div>
+           <div id="dashcamStatus" class="dashcam-status" hidden></div>
+           <div id="dashcamRoutes" class="dashcam-routes"></div>
+         </section>

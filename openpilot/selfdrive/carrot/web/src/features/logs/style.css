@@ -46,6 +46,38 @@
   backdrop-filter: blur(18px);
 }
 
+.pc-log-actions {
+  display: flex;
+  flex: 0 0 auto;
+  justify-content: flex-end;
+  padding: 4px var(--logs-content-inline) 8px;
+}
+
+.pc-log-actions > button {
+  max-width: 100%;
+  white-space: normal;
+}
+
+.pc-log-dialog {
+  width: min(520px, calc(100vw - 28px));
+  max-height: calc(100dvh - 32px);
+  box-sizing: border-box;
+  overflow: auto;
+  border: 1px solid var(--md-outline-var);
+  border-radius: var(--r-md, 16px);
+  padding: 20px;
+  color: var(--md-on-surface);
+  background: var(--md-surface);
+}
+
+.pc-log-dialog::backdrop { background: rgb(0 0 0 / 60%); }
+.pc-log-dialog h2 { margin: 0 0 12px; font-size: 20px; }
+.pc-log-dialog p { overflow-wrap: anywhere; line-height: 1.5; }
+.pc-log-help { color: var(--md-on-surface-var); font-size: 13px; }
+.pc-log-dialog-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 16px; }
+.pc-log-job { border-top: 1px solid var(--md-outline-var); padding: 12px 0; }
+.pc-log-job > button { margin-inline-end: 8px; }
+
 /* Segments, states, and keyboard affordances come from the shared segmented
    control; logs only re-points its tokens to the primary-pill look. */
 .logs-tabs {

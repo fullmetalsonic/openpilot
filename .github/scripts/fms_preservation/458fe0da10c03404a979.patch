@@ -1,6 +1,48 @@
 --- a/openpilot/selfdrive/carrot/web/js/translations/zh.js
 +++ b/openpilot/selfdrive/carrot/web/js/translations/zh.js
-@@ -187,6 +187,7 @@
+@@ -5,6 +5,41 @@
+   nativeName: "中文",
+   shortName: "ZH",
+   strings: {
++    pc_logs_phone_help: "请开启手机 Tailscale 和电脑接收程序，并保持此网页打开。关闭页面或手机休眠会暂停，重新打开后继续。",
++    pc_logs_other_page: "另一页面正在传输，关闭该页面并稍等后可在此继续。",
++    pc_logs_stale_page: "传输权限已交给另一页面，请重新打开此页面确认。",
++    pc_logs_active_requests: "剩余 {count} 个请求",
++    pc_logs_cleanup: "等待释放接收资源",
++    pc_logs_retry_after_cleanup: "清理后自动重试",
++    pc_logs_send: "向 fullmetalsonic 发送日志",
++    pc_logs_queued: "等待接收电脑",
++    pc_logs_transferring: "正在发送至电脑",
++    pc_logs_verifying: "正在验证电脑存储",
++    pc_logs_completed: "已保存至电脑",
++    pc_logs_failed: "传输失败",
++    pc_logs_canceled: "已取消",
++    pc_logs_wait: "检查中",
++    pc_logs_selected: "所选 {count} 个片段的原始日志",
++    pc_logs_latest: "最近一次行程的所有已完成片段 · 仅原始日志",
++    pc_logs_recipient: "接收方：fullmetalsonic 的个人电脑",
++    pc_logs_manifest: "{count} 个文件 · 共 {bytes} 字节 · 行程开始日期：{dates}",
++    pc_logs_disclosure: "原始行车日志可能包含位置和车辆信息，不含视频和 qlog。点击发送即表示同意将这些日志发送至此接收方。电脑离线时会保留请求，恢复连接后继续发送。",
++    pc_logs_queue: "确认并发送",
++    pc_logs_unknown_date: "日期未知",
++    pc_logs_retry: "重试",
++    pc_logs_no_jobs: "尚无传输请求。",
++    pc_logs_preparing: "正在检查日志并保存请求…",
++    pc_logs_waiting_pc: "请求已保存，接收电脑可用时将开始传输。",
++    pc_logs_offline: "接收电脑离线或暂时无法接收，准备就绪后将自动重试。",
++    pc_logs_disk_full: "接收电脑存储空间不足，释放空间后将自动重试。",
++    pc_logs_source_missing: "设备上的原始日志缺失或无法读取。",
++    pc_logs_source_changed: "原始日志已改变，请在记录完成后重新请求。",
++    pc_logs_source_locked: "日志仍在记录，请在完成后重试。",
++    pc_logs_busy: "受接收限制，正在等待，稍后将自动重试。",
++    pc_logs_auth_failed: "接收电脑无法验证此设备，失败的请求将保留。",
++    pc_logs_legacy: "存在旧的测试注册信息，未自动更改接收方。",
++    pc_logs_changed: "已确认的日志列表发生变化，请重新打开窗口并确认。",
++    pc_logs_error: "无法继续，请检查连接和记录状态后重试。",
+     egpu_model_title: "eGPU 大模型",
+     egpu_model_checking: "正在检查模型",
+     egpu_model_downloading: "正在下载",
+@@ -187,6 +222,7 @@
      onnx_vision_summary_starting: "正在等待 ONNX 服务启动。",
      onnx_vision_summary_unavailable: "ONNX 服务没有响应。",
      onnx_vision_summary_waiting: "模型已就绪，正在等待道路摄像头。",
@@ -8,7 +50,7 @@
      onnx_vision_summary_ready: "车道与盲点识别服务已就绪。",
      onnx_vision_summary_attention: "请检查 ONNX 模型或配置。",
      onnx_vision_open_diagnostics: "打开诊断",
-@@ -509,7 +510,7 @@
+@@ -509,7 +545,7 @@
      git_update_output: "Git 输出",
      git_update_up_to_date: "已是最新版本",
      git_result_pull_done: "更新检查完成",
@@ -17,7 +59,7 @@
      git_result_reset_done: "重置完成：{mode} {target}",
      git_result_checkout_done: "分支已切换：{branch}",
      git_result_remote_set_done: "仓库已更改 · 分支列表已准备好",
-@@ -554,7 +555,7 @@
+@@ -554,7 +590,7 @@
      confirm_reboot: "现在重启？",
      reboot_later: "已选择。请稍后重启以应用更改。",
      rebooting: "正在重启...",
@@ -26,7 +68,7 @@
      git_reset_confirm: "连接远程仓库检查分支跟踪并自动修复失效的关联。验证失败时不会重置。\n然后还原代码更改，你的修改可能会丢失。继续？",
      git_reset_mode_prompt: "选择重置模式\n\n• hard: 删除所有更改\n• soft: 仅撤消提交\n• mixed: 仅取消暂存",
      git_reset_target_prompt: "输入重置目标\n例如: HEAD (当前), origin/master (远程)",
-@@ -764,10 +765,11 @@
+@@ -764,10 +800,11 @@
      video_track_lost_reconnecting: "重新连接视频",
      video_stalled_reconnecting: "重新连接视频",
      no_initial_frame_reconnecting: "等待首帧",
@@ -41,7 +83,7 @@
      vision_step_unavailable: "请检查设置。",
      vision_step_inactive: "等待启动",
      vision_step_starting: "准备摄像头",
-@@ -1287,8 +1289,6 @@
+@@ -1287,8 +1324,6 @@
      update_ago_seconds: "{s}秒前",
      update_ago_now: "刚刚",
      git_reset_head_prompt: "请选择基于 HEAD 的重置模式。",
