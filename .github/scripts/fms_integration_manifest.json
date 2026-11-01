@@ -1,11 +1,11 @@
 {
   "format": 1,
-  "upstream": "441d71e330471a46d6207218a97d9937f68026e3",
-  "reviewed_through_upstream": "441d71e330471a46d6207218a97d9937f68026e3",
+  "upstream": "4a555c75b81c4ba80bfbf2260007a6baa645fcac",
+  "reviewed_through_upstream": "4a555c75b81c4ba80bfbf2260007a6baa645fcac",
   "policy": "Latest pinned upstream is the default; only explicit FMS personal contracts are exceptions. Replaces old fixed0389 selective-adoption and blanket GPS/SPAS/Tesla exclusion policies. No automatic publication or device activation.",
-  "before_fms": "e0f14004a52061895eae47d230327bf03f05065c",
-  "source_start": "published e0f1400 plus validated uncommitted Nov1 lever/driver-HOLD candidate; source snapshot retained",
-  "git_history": "Existing FMS HEAD remains e0f1400; source reconstruction baseline is not Git parent/merge/install SHA. No commit or push authorized.",
+  "before_fms": "f283533d3243416a83aef89654d8c1b810f4840c",
+  "source_start": "Published f283533 incl441 integration and both repaired protections; adopt two upstream commits441..4a",
+  "git_history": "Git parent f283533; pinned source/reconstruction4a555c7 is not final FMS commit/install SHA. Current user requests this WIP-only update and ordinary fast-forward publication.",
   "contracts": [
     "독립 SoftHold/CANFD 정차 호환",
     "패들 모드4 간격/회생 분리",
@@ -35,253 +35,246 @@
   ],
   "operations": [
     {
-      "path": ".gitattributes",
-      "before_sha256": "c56ca7e79aeed1beea0754084ec94d8b001ef41952d385081ff19bf402b8a42e",
-      "after_sha256": "60d10a7dfba6eb42f7a33a7075b43b6271c73f655c3ea3d7b87a54c877085e7a",
-      "kind": "hunks",
-      "asset": "fms_preservation/618cd5b83d62060ba3d0.patch",
-      "asset_sha256": "e68b6399bb0baf3f93fbbf4741abcbc47c7832df76303fee3de400fb7b7d1f63",
-      "review_bundle": "fms_dm_shared_preservation.patch",
       "contract_exceptions": [
         {
           "reason": "Preserve offline hash/EOL and intentional unified-patch context syntax while keeping upstream PEAK attributes"
         }
-      ]
-    },
-    {
-      "path": "AGENTS.md",
-      "before_sha256": "4f9c17f0ac219a348d413f5180f09bf3751e0e594c48b8dc8f8e1c5a6594d41e",
-      "after_sha256": "8eb56d086325223f929ac386ef5e4c6a555a423849d145e932789531c507e83b",
+      ],
+      "path": ".gitattributes",
+      "before_sha256": "c56ca7e79aeed1beea0754084ec94d8b001ef41952d385081ff19bf402b8a42e",
+      "after_sha256": "60d10a7dfba6eb42f7a33a7075b43b6271c73f655c3ea3d7b87a54c877085e7a",
       "kind": "hunks",
       "review_bundle": "fms_dm_shared_preservation.patch",
-      "asset": "fms_preservation/a54ff182c7e8acf56acf.patch",
-      "asset_sha256": "0340ae233dc9368591ee47a1ea777aa3dd09eedc94cdd3cbee2ab3e52844598c",
+      "asset": "fms_preservation/618cd5b83d62060ba3d0.patch",
+      "asset_sha256": "e68b6399bb0baf3f93fbbf4741abcbc47c7832df76303fee3de400fb7b7d1f63"
+    },
+    {
       "contract_exceptions": [
         {
           "reason": "Approved repair or regression/documentation of seven personal exceptions and common protections; preserve gesture origin/CANCEL boundary and explicit normal-completion HOLD detector retirement only",
           "source_contract": "docs/fms_integration_contract.md"
         }
-      ]
+      ],
+      "path": "AGENTS.md",
+      "before_sha256": "7aaf46707ca659c6003cd7a6163e1949bf8ee4d555413b05acbcbc07569d82ba",
+      "after_sha256": "a79a487155ac9265f865d99f4a5fc9ca30b64e4891e2ed5de12b7041ba996000",
+      "kind": "hunks",
+      "review_bundle": "fms_dm_shared_preservation.patch",
+      "asset": "fms_preservation/a54ff182c7e8acf56acf.patch",
+      "asset_sha256": "e00b915688c5beaf9a65d72ef725aa72f27b91195ae472dbbdd28d05b1e2b751"
     },
     {
+      "contract_exceptions": [
+        {
+          "reason": "Explicit personal behavior or its aligned tests/docs; detailed owner evidence and current integration contract define boundaries"
+        }
+      ],
       "path": "docs/branch_catalog.md",
       "before_sha256": null,
       "after_sha256": "c7fce87ce34c17c804d5696089f9f6b88861c27d788b566dbf171d6e509ba4a0",
       "kind": "blob",
       "review_bundle": "fms_dm_shared_preservation.patch",
       "asset": "fms_preservation/a15bbfb70c8e84bb51d0.blob",
-      "asset_sha256": "c7fce87ce34c17c804d5696089f9f6b88861c27d788b566dbf171d6e509ba4a0",
-      "contract_exceptions": [
-        {
-          "reason": "Explicit personal behavior or its aligned tests/docs; detailed owner evidence and current integration contract define boundaries"
-        }
-      ]
+      "asset_sha256": "c7fce87ce34c17c804d5696089f9f6b88861c27d788b566dbf171d6e509ba4a0"
     },
     {
-      "path": "docs/fms_integration_contract.md",
-      "before_sha256": null,
-      "after_sha256": "5f79c43ec336b9a3dae9f1e10cd8770cdf8fff334dfb283b9edc32b08dfef8ce",
-      "kind": "blob",
-      "review_bundle": "fms_dm_shared_preservation.patch",
-      "asset": "fms_preservation/a24dd8e36e1f59ba0523.blob",
-      "asset_sha256": "5f79c43ec336b9a3dae9f1e10cd8770cdf8fff334dfb283b9edc32b08dfef8ce",
       "contract_exceptions": [
         {
           "reason": "Approved repair or regression/documentation of seven personal exceptions and common protections; preserve gesture origin/CANCEL boundary and explicit normal-completion HOLD detector retirement only",
           "source_contract": "docs/fms_integration_contract.md"
         }
-      ]
+      ],
+      "path": "docs/fms_integration_contract.md",
+      "before_sha256": null,
+      "after_sha256": "a04192dad91ad96e2a8c44b6bc1d46bf8fee29b014f82fceb20749ef0fcffaf8",
+      "kind": "blob",
+      "review_bundle": "fms_dm_shared_preservation.patch",
+      "asset": "fms_preservation/a24dd8e36e1f59ba0523.blob",
+      "asset_sha256": "a04192dad91ad96e2a8c44b6bc1d46bf8fee29b014f82fceb20749ef0fcffaf8"
     },
     {
+      "contract_exceptions": [
+        {
+          "reason": "Explicit personal behavior or its aligned tests/docs; detailed owner evidence and current integration contract define boundaries"
+        }
+      ],
       "path": "docs/fms_pc_log_transfer.md",
       "before_sha256": null,
       "after_sha256": "0d3a85c32fd0728660c3e742d2cf0432a290079c2d05becbb8209e5ce70f0b56",
       "kind": "blob",
       "review_bundle": "fms_dm_shared_preservation.patch",
       "asset": "fms_preservation/5af8a631be783dca7123.blob",
-      "asset_sha256": "0d3a85c32fd0728660c3e742d2cf0432a290079c2d05becbb8209e5ce70f0b56",
+      "asset_sha256": "0d3a85c32fd0728660c3e742d2cf0432a290079c2d05becbb8209e5ce70f0b56"
+    },
+    {
       "contract_exceptions": [
         {
           "reason": "Explicit personal behavior or its aligned tests/docs; detailed owner evidence and current integration contract define boundaries"
         }
-      ]
-    },
-    {
+      ],
       "path": "docs/paddle_mode4.md",
       "before_sha256": null,
       "after_sha256": "bdae7e8d8867a61f2763a543f9362dbba1c61256efc1a295205f1be9f3915be8",
       "kind": "blob",
       "review_bundle": "paddle_regen_isolation.patch",
       "asset": "fms_preservation/fa3f0fa7227ab7d8c307.blob",
-      "asset_sha256": "bdae7e8d8867a61f2763a543f9362dbba1c61256efc1a295205f1be9f3915be8",
+      "asset_sha256": "bdae7e8d8867a61f2763a543f9362dbba1c61256efc1a295205f1be9f3915be8"
+    },
+    {
       "contract_exceptions": [
         {
           "reason": "Explicit personal behavior or its aligned tests/docs; detailed owner evidence and current integration contract define boundaries"
         }
-      ]
-    },
-    {
+      ],
       "path": "docs/user/en/buttons-presets.md",
       "before_sha256": "6b3733815b33059966116f10bcb66fc58aa54eb3f6cea44f652c014bf107f58a",
       "after_sha256": "213cdef313f0fb59c69c6d118ebc60f5d5c405c3755cc2ae2bd9c3b367ab3c36",
       "kind": "hunks",
       "review_bundle": "fms_dm_shared_preservation.patch",
       "asset": "fms_preservation/ed433a2b40b94cd23855.patch",
-      "asset_sha256": "dce908cc77fcbfe5ca249b6a64e42683029b89e2c7819858c7a93dfd06878b8d",
+      "asset_sha256": "dce908cc77fcbfe5ca249b6a64e42683029b89e2c7819858c7a93dfd06878b8d"
+    },
+    {
       "contract_exceptions": [
         {
           "reason": "Explicit personal behavior or its aligned tests/docs; detailed owner evidence and current integration contract define boundaries"
         }
-      ]
-    },
-    {
+      ],
       "path": "docs/user/en/carrot-web.md",
       "before_sha256": "a0b8f3ebded86f4cc4a86776520cb1b08b07b648c81dc68e42049192d69e9d72",
       "after_sha256": "3487cb97a78d5751a3a6e1f13f58632afe55196eaca8e41b538e79e74a1a408c",
       "kind": "hunks",
       "review_bundle": "fms_dm_shared_preservation.patch",
       "asset": "fms_preservation/9740d88a82126bef4e5b.patch",
-      "asset_sha256": "c8c987fe1410570507441754ac6becb184587b64097f11624cebb006970a729f",
+      "asset_sha256": "c8c987fe1410570507441754ac6becb184587b64097f11624cebb006970a729f"
+    },
+    {
       "contract_exceptions": [
         {
           "reason": "Explicit personal behavior or its aligned tests/docs; detailed owner evidence and current integration contract define boundaries"
         }
-      ]
-    },
-    {
+      ],
       "path": "docs/user/en/cruise-gap.md",
       "before_sha256": "4853101914f01b3e59ad9300c1c9f534dec3d1e326c843721c1825b24b8feeea",
       "after_sha256": "7a0dd024288d72e17ae69572ba1c2aad554445246fd8841ce22db43dbf93093d",
       "kind": "hunks",
       "review_bundle": "fms_dm_shared_preservation.patch",
       "asset": "fms_preservation/235f5b408c62e00f9bfb.patch",
-      "asset_sha256": "835350c6ca7d5ba141f940037fdcc2cbf9d9c2dc4f94a3b0299cec6bacb49e07",
-      "contract_exceptions": [
-        {
-          "reason": "Explicit personal behavior or its aligned tests/docs; detailed owner evidence and current integration contract define boundaries"
-        }
-      ]
+      "asset_sha256": "835350c6ca7d5ba141f940037fdcc2cbf9d9c2dc4f94a3b0299cec6bacb49e07"
     },
     {
+      "contract_exceptions": [
+        {
+          "reason": "legacy_DM_only_restore"
+        }
+      ],
       "path": "docs/user/en/driver-monitoring.md",
       "before_sha256": "d4a6ac4088b59448dec08a73e54e69b505e07c37466a858df62d6825300d32cd",
       "after_sha256": "8f68645f609550e11a2330502f01fa28ebb28713c3a7027d99888d612aef30dc",
       "kind": "hunks",
       "review_bundle": "fms_dm_shared_preservation.patch",
       "asset": "fms_preservation/c5b45ee5a7078534e522.patch",
-      "asset_sha256": "ba46caa5ed2c422242f84f4f5134b54bab104e2b9fc68c3efaac1743560d6d67",
-      "contract_exceptions": [
-        {
-          "reason": "legacy_DM_only_restore"
-        }
-      ]
+      "asset_sha256": "ba46caa5ed2c422242f84f4f5134b54bab104e2b9fc68c3efaac1743560d6d67"
     },
     {
-      "path": "docs/user/en/settings.md",
-      "before_sha256": "67a3e686a0f3c3e33c392288d60f1045d6ef6a20f53c16f41268011f01b1d165",
-      "after_sha256": "99e307ac3395c1aad71cdac4f31d4227586b5f8b0f43ed687e81ede384cba804",
-      "kind": "hunks",
-      "review_bundle": "fms_dm_shared_preservation.patch",
-      "asset": "fms_preservation/81ad15a66b87a9ae04bc.patch",
-      "asset_sha256": "edcd9395e4d1fb04dc7953ed61930701c515a26977262f1d18fa1fb9ffcf0ea8",
       "contract_exceptions": [
         {
           "reason": "Explicit personal behavior or its aligned tests/docs; detailed owner evidence and current integration contract define boundaries"
         }
-      ]
+      ],
+      "path": "docs/user/en/settings.md",
+      "before_sha256": "7d4b75472ece2679f328bcacefd4fb6931edcc3b2bbaa69b4cd19ed4c5b2cdcc",
+      "after_sha256": "682fbd015dbaaf2fb0403b2ace855a20885f23fcbf0b5f8658d2af5729d051ad",
+      "kind": "hunks",
+      "review_bundle": "fms_dm_shared_preservation.patch",
+      "asset": "fms_preservation/81ad15a66b87a9ae04bc.patch",
+      "asset_sha256": "edcd9395e4d1fb04dc7953ed61930701c515a26977262f1d18fa1fb9ffcf0ea8"
     },
     {
+      "contract_exceptions": [
+        {
+          "reason": "Explicit personal behavior or its aligned tests/docs; detailed owner evidence and current integration contract define boundaries"
+        }
+      ],
       "path": "docs/user/ko/buttons-presets.md",
       "before_sha256": "50596f3b9be4afaaf9613b646f78091446a1a08af004f434ea2104e177407924",
       "after_sha256": "93c5a226fadc7066c45cc27664090b71ad1108b1f8a68cceda66aff4881001c5",
       "kind": "hunks",
       "review_bundle": "fms_dm_shared_preservation.patch",
       "asset": "fms_preservation/44136c5c4c5e61db729e.patch",
-      "asset_sha256": "2ce0a093f9dd8bad7be95e9d17d69a41f9e4ac313862a346a356bd60250e288e",
+      "asset_sha256": "2ce0a093f9dd8bad7be95e9d17d69a41f9e4ac313862a346a356bd60250e288e"
+    },
+    {
       "contract_exceptions": [
         {
           "reason": "Explicit personal behavior or its aligned tests/docs; detailed owner evidence and current integration contract define boundaries"
         }
-      ]
-    },
-    {
+      ],
       "path": "docs/user/ko/carrot-web.md",
       "before_sha256": "05b8da415aba7b915f911fcbb9c51e289f6194c682c8d696f1ebe96004881d15",
       "after_sha256": "fa97a75b0a05b01b512185703a85679d6bbeb873426c8936b81cc62b1961158a",
       "kind": "hunks",
       "review_bundle": "fms_dm_shared_preservation.patch",
       "asset": "fms_preservation/9a13039339aacac1b010.patch",
-      "asset_sha256": "dd5db75165ac4be591cf35cc81300db90539c85ac44ce6e7dd25507998f76b81",
+      "asset_sha256": "dd5db75165ac4be591cf35cc81300db90539c85ac44ce6e7dd25507998f76b81"
+    },
+    {
       "contract_exceptions": [
         {
           "reason": "Explicit personal behavior or its aligned tests/docs; detailed owner evidence and current integration contract define boundaries"
         }
-      ]
-    },
-    {
+      ],
       "path": "docs/user/ko/cruise-gap.md",
       "before_sha256": "d592566878dbb82a0f76e0dd5c4217a1d79fcc8140181c6a0d28105133f9f69d",
       "after_sha256": "f44a1be1003885108dd7e3309c56dd3688c57c41a7ed9cf2cc49faa71896bd43",
       "kind": "hunks",
       "review_bundle": "fms_dm_shared_preservation.patch",
       "asset": "fms_preservation/e5079a9851a3f0344911.patch",
-      "asset_sha256": "007bf4941c7202eeae87fe4069fc608d1b3c6224ca39f21c61868715cfe3db3d",
-      "contract_exceptions": [
-        {
-          "reason": "Explicit personal behavior or its aligned tests/docs; detailed owner evidence and current integration contract define boundaries"
-        }
-      ]
+      "asset_sha256": "007bf4941c7202eeae87fe4069fc608d1b3c6224ca39f21c61868715cfe3db3d"
     },
     {
+      "contract_exceptions": [
+        {
+          "reason": "legacy_DM_only_restore"
+        }
+      ],
       "path": "docs/user/ko/driver-monitoring.md",
       "before_sha256": "3c4b51bc5eddf8277590feeeae7a136f5fffff36719f3ae1752ba9fc96dc306e",
       "after_sha256": "c58d4f1d84346357f4e3040a7663fcb4491c6dd260416a0e0711301cc06a91d9",
       "kind": "hunks",
       "review_bundle": "fms_dm_shared_preservation.patch",
       "asset": "fms_preservation/4764dfe6835ae16a4a79.patch",
-      "asset_sha256": "7352e3ba4a0203c65f8a6d94b431d4aabd64c9ccadbffe0da1f5abaf0a727fca",
-      "contract_exceptions": [
-        {
-          "reason": "legacy_DM_only_restore"
-        }
-      ]
+      "asset_sha256": "7352e3ba4a0203c65f8a6d94b431d4aabd64c9ccadbffe0da1f5abaf0a727fca"
     },
     {
-      "path": "docs/user/ko/settings.md",
-      "before_sha256": "c12258265a301a4251ded38b929a48a74376c680524c9ca6324d370340ea48c5",
-      "after_sha256": "32d0e203f44a2c13e5befe55201b661dc3118ed96f250cd541ad935951e61333",
-      "kind": "hunks",
-      "review_bundle": "fms_dm_shared_preservation.patch",
-      "asset": "fms_preservation/e47e44fda7cd0c5ed09f.patch",
-      "asset_sha256": "0711dd05118e0f761d3ead3329445fae48db5ed8ef89e3416cc188a20dbcef68",
       "contract_exceptions": [
         {
           "reason": "Explicit personal behavior or its aligned tests/docs; detailed owner evidence and current integration contract define boundaries"
         }
-      ]
+      ],
+      "path": "docs/user/ko/settings.md",
+      "before_sha256": "7921cd53475de67d80df369a721758a79728c2334204c8cb25975e9abf07c8b7",
+      "after_sha256": "ae69ffc4324f02923f9721c0b6b3920a7b46a1a68bea36a9d11f2f8eff4f9f71",
+      "kind": "hunks",
+      "review_bundle": "fms_dm_shared_preservation.patch",
+      "asset": "fms_preservation/e47e44fda7cd0c5ed09f.patch",
+      "asset_sha256": "0711dd05118e0f761d3ead3329445fae48db5ed8ef89e3416cc188a20dbcef68"
     },
     {
+      "contract_exceptions": [
+        {
+          "reason": "Legacy DM inactive ordinal/type reservations only; all latest non-DM fields retained"
+        }
+      ],
       "path": "opendbc_repo/opendbc/car/car.capnp",
       "before_sha256": "0ba45c636d41c4e06fad4d822312924f2c09bd89c27d223a572391ad848862f3",
       "after_sha256": "2e46727a00d0abfcf4f246d3e997fbb993d9b14e31fc05d225277b84f67a842d",
       "kind": "hunks",
       "review_bundle": "fms_dm_shared_preservation.patch",
       "asset": "fms_preservation/bd32165cbeadf9029003.patch",
-      "asset_sha256": "0a417759e782abadb637302052e7153322515c000dea02b365a6f4cdd5f5ec2c",
-      "contract_exceptions": [
-        {
-          "reason": "Legacy DM inactive ordinal/type reservations only; all latest non-DM fields retained"
-        }
-      ]
+      "asset_sha256": "0a417759e782abadb637302052e7153322515c000dea02b365a6f4cdd5f5ec2c"
     },
     {
-      "path": "opendbc_repo/opendbc/car/hyundai/carcontroller.py",
-      "before_sha256": "285fea414f09d7d09c9984ca33e7d80a2495247ba81da1d5fa8b50aad4d42179",
-      "after_sha256": "f46d344e534bdf72ae2caef171def6abc8fac63c547df5ea47fd13ab72ba6c86",
-      "kind": "hunks",
-      "review_bundle": "independent_hold_stopping.patch",
-      "asset": "fms_preservation/2f40ec78174b0d34e8f4.patch",
-      "asset_sha256": "4095203fb6da61017ff0c025cde77dfa3995e9ed70699787188b65d49177df00",
       "contract_exceptions": [
         {
           "functions": [
@@ -291,16 +284,16 @@
           ],
           "reason": "Preserve S stop rate/actual SCC output feedback, exact mode4 gesture permission, per-controller BlinkerHold and final external-HOLD latch; remove new-DM alert arguments."
         }
-      ]
+      ],
+      "path": "opendbc_repo/opendbc/car/hyundai/carcontroller.py",
+      "before_sha256": "285fea414f09d7d09c9984ca33e7d80a2495247ba81da1d5fa8b50aad4d42179",
+      "after_sha256": "f46d344e534bdf72ae2caef171def6abc8fac63c547df5ea47fd13ab72ba6c86",
+      "kind": "hunks",
+      "review_bundle": "independent_hold_stopping.patch",
+      "asset": "fms_preservation/2f40ec78174b0d34e8f4.patch",
+      "asset_sha256": "4095203fb6da61017ff0c025cde77dfa3995e9ed70699787188b65d49177df00"
     },
     {
-      "path": "opendbc_repo/opendbc/car/hyundai/carstate.py",
-      "before_sha256": "c7f6e13570a2677b78e6a4a1d7afc106bd76c6153fda10447a5cfcccabac1cfd",
-      "after_sha256": "b0c6906e4cd1b5fafcdcdd06bb55e2cbd4e8f9895b7316a4eb7f2213b66057c8",
-      "kind": "hunks",
-      "review_bundle": "paddle_regen_isolation.patch",
-      "asset": "fms_preservation/4a0877adfccb61ed9a47.patch",
-      "asset_sha256": "38d26a76c6ffc2748382a36f945298a4989be9fbd52470c8062e0c3bdfdf9ad6",
       "contract_exceptions": [
         {
           "functions": [
@@ -310,16 +303,16 @@
           ],
           "reason": "Preserve actual raw paddle/CANCEL batch evidence and sequence; remove only new-DM steering touch producer. Latest physical stalk/GPS/rear-BSD/lane-time inputs remain upstream."
         }
-      ]
+      ],
+      "path": "opendbc_repo/opendbc/car/hyundai/carstate.py",
+      "before_sha256": "c7f6e13570a2677b78e6a4a1d7afc106bd76c6153fda10447a5cfcccabac1cfd",
+      "after_sha256": "b0c6906e4cd1b5fafcdcdd06bb55e2cbd4e8f9895b7316a4eb7f2213b66057c8",
+      "kind": "hunks",
+      "review_bundle": "paddle_regen_isolation.patch",
+      "asset": "fms_preservation/4a0877adfccb61ed9a47.patch",
+      "asset_sha256": "38d26a76c6ffc2748382a36f945298a4989be9fbd52470c8062e0c3bdfdf9ad6"
     },
     {
-      "path": "opendbc_repo/opendbc/car/hyundai/hyundaican.py",
-      "before_sha256": "c2f3cf729bbb54a71b8203e485e59d56fdc6987c4267d3220d657b22c219f49e",
-      "after_sha256": "728922fc0865499ae6c94a22f9c4413846c11a1a1f2db7716c7512bc1d0d9a9a",
-      "kind": "hunks",
-      "review_bundle": "fms_dm_shared_preservation.patch",
-      "asset": "fms_preservation/29a6453fcd353b74c7ac.patch",
-      "asset_sha256": "00c3b73389a4c99e14845c90dcc482ebb64fda3c7074df5bb26ec51819fe0e54",
       "contract_exceptions": [
         {
           "functions": [
@@ -328,31 +321,31 @@
           ],
           "reason": "Use frozen legacy DisableDM CAN display behavior; no new driverMonitoringAlert warning/chime injection."
         }
-      ]
+      ],
+      "path": "opendbc_repo/opendbc/car/hyundai/hyundaican.py",
+      "before_sha256": "c2f3cf729bbb54a71b8203e485e59d56fdc6987c4267d3220d657b22c219f49e",
+      "after_sha256": "728922fc0865499ae6c94a22f9c4413846c11a1a1f2db7716c7512bc1d0d9a9a",
+      "kind": "hunks",
+      "review_bundle": "fms_dm_shared_preservation.patch",
+      "asset": "fms_preservation/29a6453fcd353b74c7ac.patch",
+      "asset_sha256": "00c3b73389a4c99e14845c90dcc482ebb64fda3c7074df5bb26ec51819fe0e54"
     },
     {
+      "contract_exceptions": [
+        {
+          "reason": "Approved repair or regression/documentation of seven personal exceptions and common protections; preserve gesture origin/CANCEL boundary and explicit normal-completion HOLD detector retirement only",
+          "source_contract": "docs/fms_integration_contract.md"
+        }
+      ],
       "path": "opendbc_repo/opendbc/car/hyundai/hyundaicanfd.py",
       "before_sha256": "777c3dee9d25cf868f1861d6712d5b06ac981f05190d0495d8f035f6cc045d60",
       "after_sha256": "8d3e3472524a60b179469228ca047e545e0b2a847e464fc0496cfec73750e073",
       "kind": "hunks",
       "review_bundle": "independent_hold_stopping.patch",
       "asset": "fms_preservation/25986e4483d5e1eb45e5.patch",
-      "asset_sha256": "a2d3107f126b2a1c98da5c4e45e3d426e7a8b9552576cb6ed8640b44a59a21ce",
-      "contract_exceptions": [
-        {
-          "reason": "Approved repair or regression/documentation of seven personal exceptions and common protections; preserve gesture origin/CANCEL boundary and explicit normal-completion HOLD detector retirement only",
-          "source_contract": "docs/fms_integration_contract.md"
-        }
-      ]
+      "asset_sha256": "a2d3107f126b2a1c98da5c4e45e3d426e7a8b9552576cb6ed8640b44a59a21ce"
     },
     {
-      "path": "opendbc_repo/opendbc/car/hyundai/paddle_mode4.py",
-      "before_sha256": null,
-      "after_sha256": "dbcddd143871d95d4b7de9177ab51b534b7c2911e4a7447aa645b90615e88d14",
-      "kind": "blob",
-      "review_bundle": "paddle_regen_isolation.patch",
-      "asset": "fms_preservation/a1a546bb314b2fee3d12.blob",
-      "asset_sha256": "dbcddd143871d95d4b7de9177ab51b534b7c2911e4a7447aa645b90615e88d14",
       "contract_exceptions": [
         {
           "functions": [
@@ -364,14 +357,16 @@
           ],
           "reason": "Unchanged S-only parser/eligibility/gesture safety contract; real driver CANCEL separated from internal OEM cancel."
         }
-      ]
+      ],
+      "path": "opendbc_repo/opendbc/car/hyundai/paddle_mode4.py",
+      "before_sha256": null,
+      "after_sha256": "dbcddd143871d95d4b7de9177ab51b534b7c2911e4a7447aa645b90615e88d14",
+      "kind": "blob",
+      "review_bundle": "paddle_regen_isolation.patch",
+      "asset": "fms_preservation/a1a546bb314b2fee3d12.blob",
+      "asset_sha256": "dbcddd143871d95d4b7de9177ab51b534b7c2911e4a7447aa645b90615e88d14"
     },
     {
-      "path": "opendbc_repo/opendbc/car/hyundai/steering_touch.py",
-      "before_sha256": "e8a470019a93d7633ae2c2af6f7422cc2a85eb6066a077cfcaf719ee50a72c03",
-      "after_sha256": null,
-      "kind": "delete",
-      "review_bundle": "fms_dm_shared_preservation.patch",
       "contract_exceptions": [
         {
           "functions": [
@@ -379,16 +374,14 @@
           ],
           "reason": "Excluded new DM-only runtime; pristine441 holds exact recovery source. Corresponding test_steering_touch.py is excluded."
         }
-      ]
+      ],
+      "path": "opendbc_repo/opendbc/car/hyundai/steering_touch.py",
+      "before_sha256": "e8a470019a93d7633ae2c2af6f7422cc2a85eb6066a077cfcaf719ee50a72c03",
+      "after_sha256": null,
+      "kind": "delete",
+      "review_bundle": "fms_dm_shared_preservation.patch"
     },
     {
-      "path": "opendbc_repo/opendbc/car/hyundai/stopping.py",
-      "before_sha256": "ee5abe0b20d91b8bcfd8c891cae26d029168efe1f4b499cb898f4f897655268d",
-      "after_sha256": "66fd227a7ec7486c9d6365f41cf1a98b985a33d45b32678307ed9ee5d666d10f",
-      "kind": "hunks",
-      "review_bundle": "independent_hold_stopping.patch",
-      "asset": "fms_preservation/4d4854a37219f0733cf9.patch",
-      "asset_sha256": "feb33e6acf9a56c61d4e1beaeb772bee3735163aabccbadf8530e2b63d53023c",
       "contract_exceptions": [
         {
           "functions": [
@@ -397,213 +390,213 @@
           ],
           "reason": "Exact S stopping core: bounded single retry/re-entry and normal variable aReq; independent hold prepares two negative frames and converges to -0.5 using actual output."
         }
-      ]
+      ],
+      "path": "opendbc_repo/opendbc/car/hyundai/stopping.py",
+      "before_sha256": "ee5abe0b20d91b8bcfd8c891cae26d029168efe1f4b499cb898f4f897655268d",
+      "after_sha256": "66fd227a7ec7486c9d6365f41cf1a98b985a33d45b32678307ed9ee5d666d10f",
+      "kind": "hunks",
+      "review_bundle": "independent_hold_stopping.patch",
+      "asset": "fms_preservation/4d4854a37219f0733cf9.patch",
+      "asset_sha256": "feb33e6acf9a56c61d4e1beaeb772bee3735163aabccbadf8530e2b63d53023c"
     },
     {
+      "contract_exceptions": [
+        {
+          "reason": "Explicit personal behavior or its aligned tests/docs; detailed owner evidence and current integration contract define boundaries"
+        }
+      ],
       "path": "opendbc_repo/opendbc/car/hyundai/tests/fixtures/fms_hud_dca1f331.json",
       "before_sha256": null,
       "after_sha256": "847873c5257b8428dc221d2858f6ce8b9deb6f8e1ad54b6e6be47080e684627a",
       "kind": "blob",
       "review_bundle": "fms_dm_shared_preservation.patch",
       "asset": "fms_preservation/fca0fe082dc3e4ab1252.blob",
-      "asset_sha256": "847873c5257b8428dc221d2858f6ce8b9deb6f8e1ad54b6e6be47080e684627a",
+      "asset_sha256": "847873c5257b8428dc221d2858f6ce8b9deb6f8e1ad54b6e6be47080e684627a"
+    },
+    {
       "contract_exceptions": [
         {
           "reason": "Explicit personal behavior or its aligned tests/docs; detailed owner evidence and current integration contract define boundaries"
         }
-      ]
-    },
-    {
+      ],
       "path": "opendbc_repo/opendbc/car/hyundai/tests/fixtures/fms_signal_radar_3f86e7d3.json",
       "before_sha256": null,
       "after_sha256": "6e8b138fbd269d5c16075813c0f794047792dec34129f6bfa494660bd05d42d3",
       "kind": "blob",
       "review_bundle": "fms_dm_shared_preservation.patch",
       "asset": "fms_preservation/ff42edbf3950cda3a044.blob",
-      "asset_sha256": "6e8b138fbd269d5c16075813c0f794047792dec34129f6bfa494660bd05d42d3",
+      "asset_sha256": "6e8b138fbd269d5c16075813c0f794047792dec34129f6bfa494660bd05d42d3"
+    },
+    {
       "contract_exceptions": [
         {
           "reason": "Explicit personal behavior or its aligned tests/docs; detailed owner evidence and current integration contract define boundaries"
         }
-      ]
-    },
-    {
+      ],
       "path": "opendbc_repo/opendbc/car/hyundai/tests/fixtures/fms_stopping_dca1f331.json",
       "before_sha256": null,
       "after_sha256": "50c5341fcba4d6b90ef45b1f89020c5f88a54edcd936c129ac7a10d5ad0ce1e5",
       "kind": "blob",
       "review_bundle": "fms_dm_shared_preservation.patch",
       "asset": "fms_preservation/220b7218890e6bfd800a.blob",
-      "asset_sha256": "50c5341fcba4d6b90ef45b1f89020c5f88a54edcd936c129ac7a10d5ad0ce1e5",
-      "contract_exceptions": [
-        {
-          "reason": "Explicit personal behavior or its aligned tests/docs; detailed owner evidence and current integration contract define boundaries"
-        }
-      ]
+      "asset_sha256": "50c5341fcba4d6b90ef45b1f89020c5f88a54edcd936c129ac7a10d5ad0ce1e5"
     },
     {
+      "contract_exceptions": [
+        {
+          "reason": "Approved repair or regression/documentation of seven personal exceptions and common protections; preserve gesture origin/CANCEL boundary and explicit normal-completion HOLD detector retirement only",
+          "source_contract": "docs/fms_integration_contract.md"
+        }
+      ],
       "path": "opendbc_repo/opendbc/car/hyundai/tests/test_blinker_hold.py",
       "before_sha256": null,
       "after_sha256": "62ef20447bbadbc2d6e6bd0e0ce133376fcb6b31add1020740f5b6439391455d",
       "kind": "blob",
       "review_bundle": "fms_dm_shared_preservation.patch",
       "asset": "fms_preservation/b1d189b27df6d5139fcd.blob",
-      "asset_sha256": "62ef20447bbadbc2d6e6bd0e0ce133376fcb6b31add1020740f5b6439391455d",
-      "contract_exceptions": [
-        {
-          "reason": "Approved repair or regression/documentation of seven personal exceptions and common protections; preserve gesture origin/CANCEL boundary and explicit normal-completion HOLD detector retirement only",
-          "source_contract": "docs/fms_integration_contract.md"
-        }
-      ]
+      "asset_sha256": "62ef20447bbadbc2d6e6bd0e0ce133376fcb6b31add1020740f5b6439391455d"
     },
     {
+      "contract_exceptions": [
+        {
+          "reason": "Explicit personal behavior or its aligned tests/docs; detailed owner evidence and current integration contract define boundaries"
+        }
+      ],
       "path": "opendbc_repo/opendbc/car/hyundai/tests/test_cluster_turn.py",
       "before_sha256": null,
       "after_sha256": "2edc1e14cad8ee6e1ffbed8c1faafdb070e696be9d700b6a1234582e07bef594",
       "kind": "blob",
       "review_bundle": "fms_dm_shared_preservation.patch",
       "asset": "fms_preservation/ffa984e0a413b4cbd7bf.blob",
-      "asset_sha256": "2edc1e14cad8ee6e1ffbed8c1faafdb070e696be9d700b6a1234582e07bef594",
+      "asset_sha256": "2edc1e14cad8ee6e1ffbed8c1faafdb070e696be9d700b6a1234582e07bef594"
+    },
+    {
       "contract_exceptions": [
         {
           "reason": "Explicit personal behavior or its aligned tests/docs; detailed owner evidence and current integration contract define boundaries"
         }
-      ]
-    },
-    {
+      ],
       "path": "opendbc_repo/opendbc/car/hyundai/tests/test_dm_cluster.py",
       "before_sha256": "d6e71442d9ddcc66a5ecb3b8fa0d9a47e21e94ce165cfbda8b9404ad05d5ce2f",
       "after_sha256": "fa26e5f91aa9a03c4501216e298a51aceb04eb3817bfc3ef97dde551db1fe610",
       "kind": "hunks",
       "review_bundle": "fms_dm_shared_preservation.patch",
       "asset": "fms_preservation/8c872ea73c1dc0da1a9f.patch",
-      "asset_sha256": "385ba9fbc18cd8d6d863423560f2c2d2396c048cfb9d009c25eaa82e1c05e01a",
+      "asset_sha256": "385ba9fbc18cd8d6d863423560f2c2d2396c048cfb9d009c25eaa82e1c05e01a"
+    },
+    {
       "contract_exceptions": [
         {
           "reason": "Explicit personal behavior or its aligned tests/docs; detailed owner evidence and current integration contract define boundaries"
         }
-      ]
-    },
-    {
+      ],
       "path": "opendbc_repo/opendbc/car/hyundai/tests/test_fms_nav_input_integration.py",
       "before_sha256": null,
       "after_sha256": "189aa5a63f9a90bf061091fd9fa67a208d81a737b064e98567d80eb24082f53b",
       "kind": "blob",
       "review_bundle": "fms_dm_shared_preservation.patch",
       "asset": "fms_preservation/4f75306941fdcd46df8c.blob",
-      "asset_sha256": "189aa5a63f9a90bf061091fd9fa67a208d81a737b064e98567d80eb24082f53b",
+      "asset_sha256": "189aa5a63f9a90bf061091fd9fa67a208d81a737b064e98567d80eb24082f53b"
+    },
+    {
       "contract_exceptions": [
         {
           "reason": "Explicit personal behavior or its aligned tests/docs; detailed owner evidence and current integration contract define boundaries"
         }
-      ]
-    },
-    {
+      ],
       "path": "opendbc_repo/opendbc/car/hyundai/tests/test_jerk.py",
       "before_sha256": "ae98e9c72dc7b30da0533cdc2de24dc4aeca2af395e94c8d508f892b951036e8",
       "after_sha256": "060e327fabcb6728f607b478819a26263297be9df600ea1d1b38ad352e90834a",
       "kind": "hunks",
       "review_bundle": "fms_dm_shared_preservation.patch",
       "asset": "fms_preservation/7d1bcaf98ec1a017c2b5.patch",
-      "asset_sha256": "7a09e1c2307b30eeee23b2bc9a551c4ae6b92e57a7645e432a5b2612bebed150",
+      "asset_sha256": "7a09e1c2307b30eeee23b2bc9a551c4ae6b92e57a7645e432a5b2612bebed150"
+    },
+    {
       "contract_exceptions": [
         {
           "reason": "Explicit personal behavior or its aligned tests/docs; detailed owner evidence and current integration contract define boundaries"
         }
-      ]
-    },
-    {
+      ],
       "path": "opendbc_repo/opendbc/car/hyundai/tests/test_paddle_mode4.py",
       "before_sha256": null,
       "after_sha256": "30826ae8c02faf9652ca257d180bad245166a461e1cdf359d67a9cc5dfb35495",
       "kind": "blob",
       "review_bundle": "paddle_regen_isolation.patch",
       "asset": "fms_preservation/343f086fbd35774a3ac8.blob",
-      "asset_sha256": "30826ae8c02faf9652ca257d180bad245166a461e1cdf359d67a9cc5dfb35495",
-      "contract_exceptions": [
-        {
-          "reason": "Explicit personal behavior or its aligned tests/docs; detailed owner evidence and current integration contract define boundaries"
-        }
-      ]
+      "asset_sha256": "30826ae8c02faf9652ca257d180bad245166a461e1cdf359d67a9cc5dfb35495"
     },
     {
+      "contract_exceptions": [
+        {
+          "reason": "Approved repair or regression/documentation of seven personal exceptions and common protections; preserve gesture origin/CANCEL boundary and explicit normal-completion HOLD detector retirement only",
+          "source_contract": "docs/fms_integration_contract.md"
+        }
+      ],
       "path": "opendbc_repo/opendbc/car/hyundai/tests/test_signal_fms_integration.py",
       "before_sha256": null,
       "after_sha256": "97f0d6d0f030c487cb6a206936b001bbf858397db4bce1f092b5ea7fb7d83787",
       "kind": "blob",
       "review_bundle": "fms_dm_shared_preservation.patch",
       "asset": "fms_preservation/9928bbc4c03cda7d4da9.blob",
-      "asset_sha256": "97f0d6d0f030c487cb6a206936b001bbf858397db4bce1f092b5ea7fb7d83787",
-      "contract_exceptions": [
-        {
-          "reason": "Approved repair or regression/documentation of seven personal exceptions and common protections; preserve gesture origin/CANCEL boundary and explicit normal-completion HOLD detector retirement only",
-          "source_contract": "docs/fms_integration_contract.md"
-        }
-      ]
+      "asset_sha256": "97f0d6d0f030c487cb6a206936b001bbf858397db4bce1f092b5ea7fb7d83787"
     },
     {
+      "contract_exceptions": [
+        {
+          "reason": "Explicit personal behavior or its aligned tests/docs; detailed owner evidence and current integration contract define boundaries"
+        }
+      ],
       "path": "opendbc_repo/opendbc/car/hyundai/tests/test_steering_handover_controller.py",
       "before_sha256": "29c3d071861d2541e738827f58d55f3e84d840a34c6a293e894bcc6ecc677dab",
       "after_sha256": "ec36fc90d9dbc2778d836261088bd74c053e5089c43fce261e16c729200aee4c",
       "kind": "hunks",
       "review_bundle": "fms_dm_shared_preservation.patch",
       "asset": "fms_preservation/9cc1d72df9525e40021d.patch",
-      "asset_sha256": "b73f3fefae00e971268c05fd523d3ed7fda5ce669bbf3b99fad6ec0ac8816d3c",
+      "asset_sha256": "b73f3fefae00e971268c05fd523d3ed7fda5ce669bbf3b99fad6ec0ac8816d3c"
+    },
+    {
       "contract_exceptions": [
         {
           "reason": "Explicit personal behavior or its aligned tests/docs; detailed owner evidence and current integration contract define boundaries"
         }
-      ]
-    },
-    {
+      ],
       "path": "opendbc_repo/opendbc/car/hyundai/tests/test_steering_touch.py",
       "before_sha256": "14e0717f5996d875eaad5c2614b94ae665c25ed2b173d45e716b4c5adf275f93",
       "after_sha256": null,
       "kind": "delete",
-      "review_bundle": "fms_dm_shared_preservation.patch",
+      "review_bundle": "fms_dm_shared_preservation.patch"
+    },
+    {
       "contract_exceptions": [
         {
           "reason": "Explicit personal behavior or its aligned tests/docs; detailed owner evidence and current integration contract define boundaries"
         }
-      ]
-    },
-    {
+      ],
       "path": "opendbc_repo/opendbc/car/hyundai/tests/test_stopping.py",
       "before_sha256": "b08bfa22533c3a64bc15978cdbdb7bf8fd58b1b06dadd8ab42a729881c89580f",
       "after_sha256": "9320067d8d412f835a2934fef1318f46ec65b70c7636010156324552893336b5",
       "kind": "hunks",
       "review_bundle": "fms_dm_shared_preservation.patch",
       "asset": "fms_preservation/607851253656e1a899b2.patch",
-      "asset_sha256": "217c2f3cb30521a77a5d2be70a6700f61612e15692f49327386cb1bc51a20b5a",
-      "contract_exceptions": [
-        {
-          "reason": "Explicit personal behavior or its aligned tests/docs; detailed owner evidence and current integration contract define boundaries"
-        }
-      ]
+      "asset_sha256": "217c2f3cb30521a77a5d2be70a6700f61612e15692f49327386cb1bc51a20b5a"
     },
     {
+      "contract_exceptions": [
+        {
+          "reason": "Approved repair or regression/documentation of seven personal exceptions and common protections; preserve gesture origin/CANCEL boundary and explicit normal-completion HOLD detector retirement only",
+          "source_contract": "docs/fms_integration_contract.md"
+        }
+      ],
       "path": "openpilot/cereal/log.capnp",
       "before_sha256": "93342f166ff566501e3b1e05ceef96a970decf9a1fe82a6ffa22e4c341708b18",
       "after_sha256": "1a5cc24162039f85939436dfdb34c8d933f295cde8f197bdbd124d6e75a67d6c",
       "kind": "hunks",
       "review_bundle": "fms_dm_shared_preservation.patch",
       "asset": "fms_preservation/cc4f78cb2745b38728cc.patch",
-      "asset_sha256": "6610c844d2c45075aca9088e3b84b09577765d23a1b9ebb735fc9520f23b8219",
-      "contract_exceptions": [
-        {
-          "reason": "Approved repair or regression/documentation of seven personal exceptions and common protections; preserve gesture origin/CANCEL boundary and explicit normal-completion HOLD detector retirement only",
-          "source_contract": "docs/fms_integration_contract.md"
-        }
-      ]
+      "asset_sha256": "6610c844d2c45075aca9088e3b84b09577765d23a1b9ebb735fc9520f23b8219"
     },
     {
-      "path": "openpilot/common/params_keys.h",
-      "before_sha256": "402fd6a7abdb770a656aeb7ca176df343658f5ad94565d91ac374afd0ae24108",
-      "after_sha256": "978f9a4e8347dd37779050cbd3d5064889ed8b959975f0b9eacc71ece75c6617",
-      "kind": "hunks",
-      "review_bundle": "fms_dm_shared_preservation.patch",
-      "asset": "fms_preservation/b368b9282ecd7af0ea13.patch",
-      "asset_sha256": "32bb1d1234d3551934cc4839892f2ba52309b398f09835f03738e2f8f2adf434",
       "contract_exceptions": [
         {
           "functions": [
@@ -612,42 +605,42 @@
           ],
           "reason": "Replace only new DM2 registration/settings with legacy DisableDM0/1/2; preserve every non-DM upstream key, option and default."
         }
-      ]
+      ],
+      "path": "openpilot/common/params_keys.h",
+      "before_sha256": "402fd6a7abdb770a656aeb7ca176df343658f5ad94565d91ac374afd0ae24108",
+      "after_sha256": "978f9a4e8347dd37779050cbd3d5064889ed8b959975f0b9eacc71ece75c6617",
+      "kind": "hunks",
+      "review_bundle": "fms_dm_shared_preservation.patch",
+      "asset": "fms_preservation/b368b9282ecd7af0ea13.patch",
+      "asset_sha256": "32bb1d1234d3551934cc4839892f2ba52309b398f09835f03738e2f8f2adf434"
     },
     {
-      "path": "openpilot/common/stopping_params.py",
-      "before_sha256": "d4c419f5e3e4fdc27787b768c3566495226c6d1df102da1bed3a278f3ea104e3",
-      "after_sha256": null,
-      "kind": "delete",
-      "review_bundle": "vego_stopping_min1.patch",
       "contract_exceptions": [
         {
           "reason": "Retire min10 persistent rewrite helper; VEgoStopping direct read and saved values min1 remain authoritative"
         }
-      ]
+      ],
+      "path": "openpilot/common/stopping_params.py",
+      "before_sha256": "d4c419f5e3e4fdc27787b768c3566495226c6d1df102da1bed3a278f3ea104e3",
+      "after_sha256": null,
+      "kind": "delete",
+      "review_bundle": "vego_stopping_min1.patch"
     },
     {
+      "contract_exceptions": [
+        {
+          "reason": "Explicit personal behavior or its aligned tests/docs; detailed owner evidence and current integration contract define boundaries"
+        }
+      ],
       "path": "openpilot/common/tests/test_params.py",
       "before_sha256": "ab743f62b8488a1a85ad016e9964aacb85af0e7e8550ca0a3f24b3d9b5884fc5",
       "after_sha256": "a81f101ed318fc0db7b003f971528e8a4ec3af35344c85874b0e1e9ecd024929",
       "kind": "hunks",
       "review_bundle": "fms_dm_shared_preservation.patch",
       "asset": "fms_preservation/50595ac3134b0a8a9dc0.patch",
-      "asset_sha256": "313f4916316ae0fd5ee100ba3aef58d76cc8b03fb3a19ad6e24ffd36de20a7bb",
-      "contract_exceptions": [
-        {
-          "reason": "Explicit personal behavior or its aligned tests/docs; detailed owner evidence and current integration contract define boundaries"
-        }
-      ]
+      "asset_sha256": "313f4916316ae0fd5ee100ba3aef58d76cc8b03fb3a19ad6e24ffd36de20a7bb"
     },
     {
-      "path": "openpilot/selfdrive/car/card.py",
-      "before_sha256": "3bb0538cc4c0473b95eceaaa045b8b7a103dbcf412e16fc247ca1edfdc6cc483",
-      "after_sha256": "61a317c2189ac43e39667bf379ae86b387b371b40f47bd93b66346dd1d85ff64",
-      "kind": "hunks",
-      "review_bundle": "paddle_regen_isolation.patch",
-      "asset": "fms_preservation/06eedf6d7dca5c425cea.patch",
-      "asset_sha256": "dfbad974822fb619e912b4d0adf7ad4934d77b638688368d39a7bedbc66ffef7",
       "contract_exceptions": [
         {
           "functions": [
@@ -655,16 +648,16 @@
           ],
           "reason": "Same-batch raw CANCEL input to VCruise and same-process applied paddle context published on every receive tick; latest Hyundai SPAS and Tesla signal senders remain intact."
         }
-      ]
+      ],
+      "path": "openpilot/selfdrive/car/card.py",
+      "before_sha256": "3bb0538cc4c0473b95eceaaa045b8b7a103dbcf412e16fc247ca1edfdc6cc483",
+      "after_sha256": "61a317c2189ac43e39667bf379ae86b387b371b40f47bd93b66346dd1d85ff64",
+      "kind": "hunks",
+      "review_bundle": "paddle_regen_isolation.patch",
+      "asset": "fms_preservation/06eedf6d7dca5c425cea.patch",
+      "asset_sha256": "dfbad974822fb619e912b4d0adf7ad4934d77b638688368d39a7bedbc66ffef7"
     },
     {
-      "path": "openpilot/selfdrive/car/cruise.py",
-      "before_sha256": "87941b7a191bc9fe791d278985e009de4fc9d2591fdea66a7e5c8a66ee05a972",
-      "after_sha256": "337b1fea4277206a50a8d4d10a4a72ae49c5699b25d3422dc492c241765a9243",
-      "kind": "hunks",
-      "review_bundle": "paddle_mode4.patch",
-      "asset": "fms_preservation/89c058b9a146c09f4f30.patch",
-      "asset_sha256": "db5946e5427442b0efcd198ceaa39b61ec6e1f924facdf280cf37648530871fe",
       "contract_exceptions": [
         {
           "functions": [
@@ -679,16 +672,16 @@
           ],
           "reason": "Exact S cruise policy: independent hold never creates ON/RES, CANCEL latch survives hold/gas release, mode4 gap writes accepted only actual enabled/longActive qualified new input, no OFF replay, physical CANCEL drains Bluetooth backlog through preserved reader API."
         }
-      ]
+      ],
+      "path": "openpilot/selfdrive/car/cruise.py",
+      "before_sha256": "87941b7a191bc9fe791d278985e009de4fc9d2591fdea66a7e5c8a66ee05a972",
+      "after_sha256": "337b1fea4277206a50a8d4d10a4a72ae49c5699b25d3422dc492c241765a9243",
+      "kind": "hunks",
+      "review_bundle": "paddle_mode4.patch",
+      "asset": "fms_preservation/89c058b9a146c09f4f30.patch",
+      "asset_sha256": "db5946e5427442b0efcd198ceaa39b61ec6e1f924facdf280cf37648530871fe"
     },
     {
-      "path": "openpilot/selfdrive/car/paddle_context.py",
-      "before_sha256": null,
-      "after_sha256": "a8693dfb0a186ba8111ec51b996cb4c6151fd7b1ebac47dc8e388dbe47f85f43",
-      "kind": "blob",
-      "review_bundle": "paddle_regen_isolation.patch",
-      "asset": "fms_preservation/62295ce8a29d1966b7f2.blob",
-      "asset_sha256": "a8693dfb0a186ba8111ec51b996cb4c6151fd7b1ebac47dc8e388dbe47f85f43",
       "contract_exceptions": [
         {
           "functions": [
@@ -696,117 +689,117 @@
           ],
           "reason": "Unchanged S same-process context/revocation including skipped CI.apply intervals."
         }
-      ]
+      ],
+      "path": "openpilot/selfdrive/car/paddle_context.py",
+      "before_sha256": null,
+      "after_sha256": "a8693dfb0a186ba8111ec51b996cb4c6151fd7b1ebac47dc8e388dbe47f85f43",
+      "kind": "blob",
+      "review_bundle": "paddle_regen_isolation.patch",
+      "asset": "fms_preservation/62295ce8a29d1966b7f2.blob",
+      "asset_sha256": "a8693dfb0a186ba8111ec51b996cb4c6151fd7b1ebac47dc8e388dbe47f85f43"
     },
     {
+      "contract_exceptions": [
+        {
+          "reason": "Explicit personal behavior or its aligned tests/docs; detailed owner evidence and current integration contract define boundaries"
+        }
+      ],
       "path": "openpilot/selfdrive/car/tests/test_carrot_cruise_buttons.py",
       "before_sha256": "59858eceffdfb30a3e412bce3ee4c3dec94dc19de85addbcc7ab18087703e7f9",
       "after_sha256": "3258beb87349fc52ec7e5732439a6e92bed0c3bd399f37c160dbbc8810afeb75",
       "kind": "hunks",
       "review_bundle": "fms_dm_shared_preservation.patch",
       "asset": "fms_preservation/8976944be748a91476ab.patch",
-      "asset_sha256": "14fce1bc4c53e788310791870bf03e74d1bbbc68f3efde95219d84e857b4620d",
+      "asset_sha256": "14fce1bc4c53e788310791870bf03e74d1bbbc68f3efde95219d84e857b4620d"
+    },
+    {
       "contract_exceptions": [
         {
           "reason": "Explicit personal behavior or its aligned tests/docs; detailed owner evidence and current integration contract define boundaries"
         }
-      ]
-    },
-    {
+      ],
       "path": "openpilot/selfdrive/car/tests/test_paddle_gap.py",
       "before_sha256": null,
       "after_sha256": "95da8f85febd362758f5c30ac19600dc77022b58b5283a3be1c01bd8ee9b2c4d",
       "kind": "blob",
       "review_bundle": "paddle_regen_isolation.patch",
       "asset": "fms_preservation/e0990fbea8f3ec030662.blob",
-      "asset_sha256": "95da8f85febd362758f5c30ac19600dc77022b58b5283a3be1c01bd8ee9b2c4d",
+      "asset_sha256": "95da8f85febd362758f5c30ac19600dc77022b58b5283a3be1c01bd8ee9b2c4d"
+    },
+    {
       "contract_exceptions": [
         {
           "reason": "Explicit personal behavior or its aligned tests/docs; detailed owner evidence and current integration contract define boundaries"
         }
-      ]
-    },
-    {
+      ],
       "path": "openpilot/selfdrive/car/tests/test_toyota_pcm_mode0.py",
       "before_sha256": "b8585ea8e70af5751cea1ab15ea5c70832ba4b9d4ad41c7a2e46535857540f44",
       "after_sha256": "ec67406775cbc0255be32f0288914aa4270dbf11e776bb542675bee1867a7050",
       "kind": "hunks",
       "review_bundle": "fms_dm_shared_preservation.patch",
       "asset": "fms_preservation/688609a6b7fff0716e76.patch",
-      "asset_sha256": "eab2b5aacd0ef0f737eb63f91dfe6709e8362706884babddaf925cbb5d970959",
+      "asset_sha256": "eab2b5aacd0ef0f737eb63f91dfe6709e8362706884babddaf925cbb5d970959"
+    },
+    {
       "contract_exceptions": [
         {
           "reason": "Explicit personal behavior or its aligned tests/docs; detailed owner evidence and current integration contract define boundaries"
         }
-      ]
-    },
-    {
+      ],
       "path": "openpilot/selfdrive/car/tests/test_toyota_pcm_speed.py",
       "before_sha256": "b3433d7c10e703dd04146ff479b925ddd018230c71719c1417a25d34f99e32cc",
       "after_sha256": "38d285eb72df18a16d03020601ed3a4ee25bd52fd8933867aa8a8d831acd2dcc",
       "kind": "hunks",
       "review_bundle": "fms_dm_shared_preservation.patch",
       "asset": "fms_preservation/3b0bf5b14819dac8c498.patch",
-      "asset_sha256": "8081c1cbd4a55a2f36b8cabb369fa7d833ec53aaa59a2f0b9fe361ca0a0ad4a3",
-      "contract_exceptions": [
-        {
-          "reason": "Explicit personal behavior or its aligned tests/docs; detailed owner evidence and current integration contract define boundaries"
-        }
-      ]
+      "asset_sha256": "8081c1cbd4a55a2f36b8cabb369fa7d833ec53aaa59a2f0b9fe361ca0a0ad4a3"
     },
     {
+      "contract_exceptions": [
+        {
+          "reason": "Approved repair or regression/documentation of seven personal exceptions and common protections; preserve gesture origin/CANCEL boundary and explicit normal-completion HOLD detector retirement only",
+          "source_contract": "docs/fms_integration_contract.md"
+        }
+      ],
       "path": "openpilot/selfdrive/carrot/bluetooth/daemon.py",
       "before_sha256": "3d9692a83a4bafd0194008929963501c092bf3d0db48e3fa85a2223b88f121fb",
       "after_sha256": "976bf2799c615e18b52fa050f02979d8d96d308fa453aed1aedc5f3fe8027219",
       "kind": "hunks",
       "review_bundle": "fms_dm_shared_preservation.patch",
       "asset": "fms_preservation/256ad92406b1b9e584c3.patch",
-      "asset_sha256": "67ad347bef45465f556d95c8f5212055baa4dc715f195aa81c118550dcf85c5a",
+      "asset_sha256": "67ad347bef45465f556d95c8f5212055baa4dc715f195aa81c118550dcf85c5a"
+    },
+    {
       "contract_exceptions": [
         {
           "reason": "Approved repair or regression/documentation of seven personal exceptions and common protections; preserve gesture origin/CANCEL boundary and explicit normal-completion HOLD detector retirement only",
           "source_contract": "docs/fms_integration_contract.md"
         }
-      ]
-    },
-    {
+      ],
       "path": "openpilot/selfdrive/carrot/bluetooth/model.py",
       "before_sha256": "42a3c568f997a0ef28e361624db14998ac0da480f78f06a5f8ca0a288d32029d",
       "after_sha256": "23e3127ee8a3c3ceb07be00de6699fc69ed0775f04997fce4fae3a5f592a7e38",
       "kind": "hunks",
       "review_bundle": "fms_dm_shared_preservation.patch",
       "asset": "fms_preservation/8f8d3c4929853bfc1e82.patch",
-      "asset_sha256": "7672c153e327fb7d8ae2b63feaea65b331179cb44aba9fbb28daf80f97909cbf",
+      "asset_sha256": "7672c153e327fb7d8ae2b63feaea65b331179cb44aba9fbb28daf80f97909cbf"
+    },
+    {
       "contract_exceptions": [
         {
           "reason": "Approved repair or regression/documentation of seven personal exceptions and common protections; preserve gesture origin/CANCEL boundary and explicit normal-completion HOLD detector retirement only",
           "source_contract": "docs/fms_integration_contract.md"
         }
-      ]
-    },
-    {
+      ],
       "path": "openpilot/selfdrive/carrot/bluetooth/tests/test_input.py",
       "before_sha256": "6c977408ba33125fada00526c91774be027dae3540865e8ecbe7254328fdd26c",
       "after_sha256": "39c2eed815e27b3b5679f20c748d8cb6680338a1dd8a1254db62c511471e3f11",
       "kind": "hunks",
       "review_bundle": "fms_dm_shared_preservation.patch",
       "asset": "fms_preservation/f8d255e9ba65f884714c.patch",
-      "asset_sha256": "8904fe0e18a99fa5be702ea5611c2053527b1f8d616a0dbc600dd6b434c86220",
-      "contract_exceptions": [
-        {
-          "reason": "Approved repair or regression/documentation of seven personal exceptions and common protections; preserve gesture origin/CANCEL boundary and explicit normal-completion HOLD detector retirement only",
-          "source_contract": "docs/fms_integration_contract.md"
-        }
-      ]
+      "asset_sha256": "8904fe0e18a99fa5be702ea5611c2053527b1f8d616a0dbc600dd6b434c86220"
     },
     {
-      "path": "openpilot/selfdrive/carrot/carrot_functions.py",
-      "before_sha256": "931a2ef6ee293164cae84fa8d878302bd30eae8da2d8b5f95c7d69936b5b4e28",
-      "after_sha256": "85021d599dbc594766cbeedb6555e6dc70f190bb1e145147bdab8b13406783f1",
-      "kind": "hunks",
-      "review_bundle": "fms_dm_shared_preservation.patch",
-      "asset": "fms_preservation/d02b38a2ac23d5e17a8a.patch",
-      "asset_sha256": "c77be6f9816ce9b826634f73a5f3c970e3bd21f4fe96b1197ae254e2ee6cdb6a",
       "contract_exceptions": [
         {
           "functions": [
@@ -817,78 +810,100 @@
           ],
           "reason": "Preserve normal active-ACC lead priority with all actual-control/driver validity gates, retained red/native ownership, current owned-stay and explicit user obstacle. S hunks applied while retaining upstream finite lead_in_stop_range in native handover. No green/ENABLE/RES or acceleration producer added."
         }
-      ]
+      ],
+      "path": "openpilot/selfdrive/carrot/carrot_functions.py",
+      "before_sha256": "931a2ef6ee293164cae84fa8d878302bd30eae8da2d8b5f95c7d69936b5b4e28",
+      "after_sha256": "85021d599dbc594766cbeedb6555e6dc70f190bb1e145147bdab8b13406783f1",
+      "kind": "hunks",
+      "review_bundle": "fms_dm_shared_preservation.patch",
+      "asset": "fms_preservation/d02b38a2ac23d5e17a8a.patch",
+      "asset_sha256": "c77be6f9816ce9b826634f73a5f3c970e3bd21f4fe96b1197ae254e2ee6cdb6a"
     },
     {
-      "path": "openpilot/selfdrive/carrot/cluster/gbm_cleanup.c",
-      "before_sha256": "2470b7c307a57f51c958d64de57ca073ec7bda293b7e8949e92fcfeec5d2a175",
-      "after_sha256": "25ce0c2203d6ce346004ac1e1b00a3f6369a095bb0d477d9b47689d0d74401ff",
-      "kind": "hunks",
-      "asset": "fms_preservation/f386ffe704f4679d330d.patch",
-      "asset_sha256": "71cb7ceab300c42478a770d47c62d05a1461ad8eb55dde73b8fa8a71fe62cde7",
-      "review_bundle": "fms_dm_shared_preservation.patch",
       "contract_exceptions": [
         {
           "reason": "Only remove upstream extra EOF blank line for required diff check; all non-EOF bytes and behavior unchanged"
         }
-      ]
+      ],
+      "path": "openpilot/selfdrive/carrot/cluster/gbm_cleanup.c",
+      "before_sha256": "2470b7c307a57f51c958d64de57ca073ec7bda293b7e8949e92fcfeec5d2a175",
+      "after_sha256": "25ce0c2203d6ce346004ac1e1b00a3f6369a095bb0d477d9b47689d0d74401ff",
+      "kind": "hunks",
+      "review_bundle": "fms_dm_shared_preservation.patch",
+      "asset": "fms_preservation/f386ffe704f4679d330d.patch",
+      "asset_sha256": "71cb7ceab300c42478a770d47c62d05a1461ad8eb55dde73b8fa8a71fe62cde7"
     },
     {
+      "contract_exceptions": [
+        {
+          "reason": "Explicit personal behavior or its aligned tests/docs; detailed owner evidence and current integration contract define boundaries"
+        }
+      ],
       "path": "openpilot/selfdrive/carrot/paddle_gap.py",
       "before_sha256": null,
       "after_sha256": "95b93083e78ed060c1334112ecbf8e6ae216dc132c416768e6891dc964301b51",
       "kind": "blob",
       "review_bundle": "paddle_regen_isolation.patch",
       "asset": "fms_preservation/f29b5e2db394bb735645.blob",
-      "asset_sha256": "95b93083e78ed060c1334112ecbf8e6ae216dc132c416768e6891dc964301b51",
-      "contract_exceptions": [
-        {
-          "reason": "Explicit personal behavior or its aligned tests/docs; detailed owner evidence and current integration contract define boundaries"
-        }
-      ]
+      "asset_sha256": "95b93083e78ed060c1334112ecbf8e6ae216dc132c416768e6891dc964301b51"
     },
     {
+      "contract_exceptions": [
+        {
+          "functions": [
+            "register",
+            "syncLogsMenu",
+            "initLogsPage",
+            "pcLogTransferButton"
+          ],
+          "reason": "Reconnect existing private phone-to-PC HTTP transfer with lease/auth/resume/receipts/KST route-day/multi-device protections."
+        }
+      ],
       "path": "openpilot/selfdrive/carrot/server/features/dashcam/__init__.py",
       "before_sha256": "ff9cd551502604d94183441d68375ebaeb97b4af8469486301a0944c2dd7f77a",
       "after_sha256": "4ede9d463b95c65f7d0e4d59fc4f2259107ef823ec2dfd7fac3f6efa4e958254",
       "kind": "hunks",
       "review_bundle": "fms_dm_shared_preservation.patch",
       "asset": "fms_preservation/c382f0fd13d66767851d.patch",
-      "asset_sha256": "8d0853bdb94e7dbcdf454ab202dab6c3615d38662066b7560f35fc6f4abfdef1",
-      "contract_exceptions": [
-        {
-          "functions": [
-            "register",
-            "syncLogsMenu",
-            "initLogsPage",
-            "pcLogTransferButton"
-          ],
-          "reason": "Reconnect existing private phone-to-PC HTTP transfer with lease/auth/resume/receipts/KST route-day/multi-device protections."
-        }
-      ]
+      "asset_sha256": "8d0853bdb94e7dbcdf454ab202dab6c3615d38662066b7560f35fc6f4abfdef1"
     },
     {
+      "contract_exceptions": [
+        {
+          "reason": "Explicit personal behavior or its aligned tests/docs; detailed owner evidence and current integration contract define boundaries"
+        }
+      ],
       "path": "openpilot/selfdrive/carrot/server/features/dashcam/pc_transfer.py",
       "before_sha256": null,
       "after_sha256": "f52518aed0672fabcee98ac0fc8a1028e6e42bcee905711feeb71bec667185c2",
       "kind": "blob",
       "review_bundle": "fms_dm_shared_preservation.patch",
       "asset": "fms_preservation/ec1a0daae84d319c5839.blob",
-      "asset_sha256": "f52518aed0672fabcee98ac0fc8a1028e6e42bcee905711feeb71bec667185c2",
-      "contract_exceptions": [
-        {
-          "reason": "Explicit personal behavior or its aligned tests/docs; detailed owner evidence and current integration contract define boundaries"
-        }
-      ]
+      "asset_sha256": "f52518aed0672fabcee98ac0fc8a1028e6e42bcee905711feeb71bec667185c2"
     },
     {
+      "contract_exceptions": [
+        {
+          "functions": [
+            "set_param_value",
+            "filter_param_backup_values",
+            "get_all_param_values_for_backup",
+            "preview_param_restore_values",
+            "preset definitions",
+            "build_state"
+          ],
+          "reason": "Legacy DM remains restorable by files/QR/profile; retain the new CoG nonzero clamp and generic profile search-only behavior."
+        }
+      ],
       "path": "openpilot/selfdrive/carrot/server/features/intro/presets.py",
       "before_sha256": "27adfb16235d9957289442195fc65a48a67653b7669f11c7440873d18750afbc",
       "after_sha256": "ec2dc9589808cc1655f68672d678cfe5109fdf6fcc7cba9687a84f9eba7f9bb0",
       "kind": "hunks",
       "review_bundle": "fms_dm_shared_preservation.patch",
       "asset": "fms_preservation/73d04a5018eeeffcce43.patch",
-      "asset_sha256": "ee9065b61b7e1b2129847dacd04a49043dfb7f2b48dd36ba5b5a1936b44eb425",
+      "asset_sha256": "ee9065b61b7e1b2129847dacd04a49043dfb7f2b48dd36ba5b5a1936b44eb425"
+    },
+    {
       "contract_exceptions": [
         {
           "functions": [
@@ -901,87 +916,87 @@
           ],
           "reason": "Legacy DM remains restorable by files/QR/profile; retain the new CoG nonzero clamp and generic profile search-only behavior."
         }
-      ]
-    },
-    {
+      ],
       "path": "openpilot/selfdrive/carrot/server/features/params.py",
       "before_sha256": "1fdbd2b887d7502e9667090b875ce0e7e036e3f1f6279d6941378cea60da53e2",
       "after_sha256": "aacdff123ad63cd9fd3194bf5600ab159c60c1181ce18601a23e8779ad43f0eb",
       "kind": "hunks",
       "review_bundle": "fms_dm_shared_preservation.patch",
       "asset": "fms_preservation/be5103c3ae0441a87e79.patch",
-      "asset_sha256": "af679916fe6747bcda2c4c3cddc95205b0bba0c18e0a5e0e2e1133ae139e5043",
+      "asset_sha256": "af679916fe6747bcda2c4c3cddc95205b0bba0c18e0a5e0e2e1133ae139e5043"
+    },
+    {
       "contract_exceptions": [
         {
           "functions": [
-            "set_param_value",
-            "filter_param_backup_values",
-            "get_all_param_values_for_backup",
-            "preview_param_restore_values",
-            "preset definitions",
-            "build_state"
+            "_needs_repo_lock",
+            "git_branch_list",
+            "git_checkout",
+            "git_sync",
+            "loadBranchList"
           ],
-          "reason": "Legacy DM remains restorable by files/QR/profile; retain the new CoG nonzero clamp and generic profile search-only behavior."
+          "reason": "Original and fork names coexist, listing leaves current/origin/config unchanged; fetch only explicit safe selection; no branch deletion."
         }
-      ]
-    },
-    {
+      ],
       "path": "openpilot/selfdrive/carrot/server/features/tools/dispatcher.py",
       "before_sha256": "178eab221574fb917b583c095834205cfe125bc6b27625d924306e7476d23678",
       "after_sha256": "79da7bac2c2196b54418d8867789a90a36604d3e24af821ed75119a524078a60",
       "kind": "hunks",
       "review_bundle": "fms_dm_shared_preservation.patch",
       "asset": "fms_preservation/64fefc6880bfabc62ad8.patch",
-      "asset_sha256": "33752801ccf61514167d1d1d919d65400bc86527b624cb28a901796b809d4602",
-      "contract_exceptions": [
-        {
-          "functions": [
-            "_needs_repo_lock",
-            "git_branch_list",
-            "git_checkout",
-            "git_sync",
-            "loadBranchList"
-          ],
-          "reason": "Original and fork names coexist, listing leaves current/origin/config unchanged; fetch only explicit safe selection; no branch deletion."
-        }
-      ]
+      "asset_sha256": "33752801ccf61514167d1d1d919d65400bc86527b624cb28a901796b809d4602"
     },
     {
+      "contract_exceptions": [
+        {
+          "reason": "Explicit personal behavior or its aligned tests/docs; detailed owner evidence and current integration contract define boundaries"
+        }
+      ],
       "path": "openpilot/selfdrive/carrot/server/services/branch_catalog.py",
       "before_sha256": null,
       "after_sha256": "bc99a2c645940269da3bf61bc54f67e5e353344c2578c481f1732b3ec2977fbc",
       "kind": "blob",
       "review_bundle": "fms_dm_shared_preservation.patch",
       "asset": "fms_preservation/f399d13d9f47cacd2661.blob",
-      "asset_sha256": "bc99a2c645940269da3bf61bc54f67e5e353344c2578c481f1732b3ec2977fbc",
+      "asset_sha256": "bc99a2c645940269da3bf61bc54f67e5e353344c2578c481f1732b3ec2977fbc"
+    },
+    {
       "contract_exceptions": [
         {
           "reason": "Explicit personal behavior or its aligned tests/docs; detailed owner evidence and current integration contract define boundaries"
         }
-      ]
-    },
-    {
+      ],
       "path": "openpilot/selfdrive/carrot/server/services/fork_remote.py",
       "before_sha256": null,
       "after_sha256": "d3a2fdaaa73105015db55153aa8b0aa49e68a5749d3288ae33449eb8fe71b565",
       "kind": "blob",
       "review_bundle": "fms_dm_shared_preservation.patch",
       "asset": "fms_preservation/0aa5acd6917465c59864.blob",
-      "asset_sha256": "d3a2fdaaa73105015db55153aa8b0aa49e68a5749d3288ae33449eb8fe71b565",
-      "contract_exceptions": [
-        {
-          "reason": "Explicit personal behavior or its aligned tests/docs; detailed owner evidence and current integration contract define boundaries"
-        }
-      ]
+      "asset_sha256": "d3a2fdaaa73105015db55153aa8b0aa49e68a5749d3288ae33449eb8fe71b565"
     },
     {
+      "contract_exceptions": [
+        {
+          "functions": [
+            "set_param_value",
+            "filter_param_backup_values",
+            "get_all_param_values_for_backup",
+            "preview_param_restore_values",
+            "preset definitions",
+            "build_state"
+          ],
+          "reason": "Legacy DM remains restorable by files/QR/profile; retain the new CoG nonzero clamp and generic profile search-only behavior."
+        }
+      ],
       "path": "openpilot/selfdrive/carrot/server/services/params.py",
       "before_sha256": "a1065ee80c2feb835a864b5263e13c195744b5b69af110e35291e049d15bb507",
       "after_sha256": "d117cb373819161ca32bd56b59690c8664df4a9c69e9cfe185d0066dcd4690ce",
       "kind": "hunks",
       "review_bundle": "fms_dm_shared_preservation.patch",
       "asset": "fms_preservation/f54c49e19a0259112361.patch",
-      "asset_sha256": "17a0a080e5666e45c329c3555b1fac09d853600e879a7636b9759f307da66625",
+      "asset_sha256": "17a0a080e5666e45c329c3555b1fac09d853600e879a7636b9759f307da66625"
+    },
+    {
       "contract_exceptions": [
         {
           "functions": [
@@ -994,220 +1009,198 @@
           ],
           "reason": "Legacy DM remains restorable by files/QR/profile; retain the new CoG nonzero clamp and generic profile search-only behavior."
         }
-      ]
-    },
-    {
+      ],
       "path": "openpilot/selfdrive/carrot/server/services/vision_test.py",
       "before_sha256": "5b09512aa02ad61d7246359ca9b45b5c67fd64354f69c905ad2240fd632157cb",
       "after_sha256": "5d74193dae0d2234176c8b8af640ad08f59ed78abff75b4ce47749c6b9a8deaf",
       "kind": "hunks",
       "review_bundle": "fms_dm_shared_preservation.patch",
       "asset": "fms_preservation/599a66299353eaf9583e.patch",
-      "asset_sha256": "610d4a51369fba520f2dbc102451e8bf3acbf9cc9de88dc5d2aed317b8761da3",
-      "contract_exceptions": [
-        {
-          "functions": [
-            "set_param_value",
-            "filter_param_backup_values",
-            "get_all_param_values_for_backup",
-            "preview_param_restore_values",
-            "preset definitions",
-            "build_state"
-          ],
-          "reason": "Legacy DM remains restorable by files/QR/profile; retain the new CoG nonzero clamp and generic profile search-only behavior."
-        }
-      ]
+      "asset_sha256": "610d4a51369fba520f2dbc102451e8bf3acbf9cc9de88dc5d2aed317b8761da3"
     },
     {
+      "contract_exceptions": [
+        {
+          "reason": "Explicit personal behavior or its aligned tests/docs; detailed owner evidence and current integration contract define boundaries"
+        }
+      ],
       "path": "openpilot/selfdrive/carrot/server/tests/test_branch_catalog.py",
       "before_sha256": null,
       "after_sha256": "f7d6e90c23126ea189c396428bb99714e354c63fcc573dadc0a46e5b0f90fc5b",
       "kind": "blob",
       "review_bundle": "fms_dm_shared_preservation.patch",
       "asset": "fms_preservation/46db2a4ff48582090fdf.blob",
-      "asset_sha256": "f7d6e90c23126ea189c396428bb99714e354c63fcc573dadc0a46e5b0f90fc5b",
+      "asset_sha256": "f7d6e90c23126ea189c396428bb99714e354c63fcc573dadc0a46e5b0f90fc5b"
+    },
+    {
       "contract_exceptions": [
         {
           "reason": "Explicit personal behavior or its aligned tests/docs; detailed owner evidence and current integration contract define boundaries"
         }
-      ]
-    },
-    {
+      ],
       "path": "openpilot/selfdrive/carrot/server/tests/test_params_compat.py",
       "before_sha256": "64c8b8acdf7cea0c7138af65ef813ef02734b4f2e602b5b0682e24ddd6455518",
       "after_sha256": "2bbbe4a11338ef298d0c23d5af7a0a554e6b8efdead11260eb64c3cbb216c254",
       "kind": "hunks",
       "review_bundle": "fms_dm_shared_preservation.patch",
       "asset": "fms_preservation/848a865e99d7d67dd883.patch",
-      "asset_sha256": "0716657a33b527286ef2a36fc79a3a30a9ce59c6c0d138639a63ebe995f9286b",
+      "asset_sha256": "0716657a33b527286ef2a36fc79a3a30a9ce59c6c0d138639a63ebe995f9286b"
+    },
+    {
       "contract_exceptions": [
         {
           "reason": "Explicit personal behavior or its aligned tests/docs; detailed owner evidence and current integration contract define boundaries"
         }
-      ]
-    },
-    {
+      ],
       "path": "openpilot/selfdrive/carrot/server/tests/test_pc_log_transfer.py",
       "before_sha256": null,
       "after_sha256": "1893fb1f8eaaba113d64e6b3a478897190daed7cbc5caa32e6b7010c76c8e160",
       "kind": "blob",
       "review_bundle": "fms_dm_shared_preservation.patch",
       "asset": "fms_preservation/a6fc372dbfbb20edc754.blob",
-      "asset_sha256": "1893fb1f8eaaba113d64e6b3a478897190daed7cbc5caa32e6b7010c76c8e160",
+      "asset_sha256": "1893fb1f8eaaba113d64e6b3a478897190daed7cbc5caa32e6b7010c76c8e160"
+    },
+    {
       "contract_exceptions": [
         {
           "reason": "Explicit personal behavior or its aligned tests/docs; detailed owner evidence and current integration contract define boundaries"
         }
-      ]
-    },
-    {
+      ],
       "path": "openpilot/selfdrive/carrot/server/tests/test_setting_profiles.py",
       "before_sha256": "008cfc2d3e0d8b4a43a336feaaef1e37d85ff1d546ce19c9fd57ee9f73f024ab",
       "after_sha256": "881634f980078d03374b73852dd81ca238c6330647f91fcf5cad1eaf029d4e4e",
       "kind": "hunks",
       "review_bundle": "fms_dm_shared_preservation.patch",
       "asset": "fms_preservation/cd37e0d091667faa6fc5.patch",
-      "asset_sha256": "703482590e5e666bd5f97f201f44bd99ba89644561bcc10ffa3cdd9735464950",
+      "asset_sha256": "703482590e5e666bd5f97f201f44bd99ba89644561bcc10ffa3cdd9735464950"
+    },
+    {
       "contract_exceptions": [
         {
           "reason": "Explicit personal behavior or its aligned tests/docs; detailed owner evidence and current integration contract define boundaries"
         }
-      ]
-    },
-    {
+      ],
       "path": "openpilot/selfdrive/carrot/server/tests/test_settings_schema.py",
       "before_sha256": "ac1f35ce949a55ede253c50fe92bbf17f207e888ac5e6fbeb247d1ea2aebeb71",
       "after_sha256": "03d5ced06dd433580d9dd74b5053ecf4a62af19f6d6f0816e1f7a344e6fdf1f0",
       "kind": "hunks",
       "review_bundle": "fms_dm_shared_preservation.patch",
       "asset": "fms_preservation/dacde753d630b3108b5f.patch",
-      "asset_sha256": "6e09cb7ca5575a72c222b79f0aa1865f8afe2221cc9ea5dd0a043f580f75e055",
+      "asset_sha256": "6e09cb7ca5575a72c222b79f0aa1865f8afe2221cc9ea5dd0a043f580f75e055"
+    },
+    {
       "contract_exceptions": [
         {
           "reason": "Explicit personal behavior or its aligned tests/docs; detailed owner evidence and current integration contract define boundaries"
         }
-      ]
-    },
-    {
+      ],
       "path": "openpilot/selfdrive/carrot/tests/test_signal_departure.py",
       "before_sha256": "2bc588e7a3f6d1eb87eb30ede6280c3c73b3f8e82a595765808aab013cb2f92b",
       "after_sha256": "80966642c9acb1b115263e52bfbdbbaf741412a1529afda4267e31011f7c26e2",
       "kind": "hunks",
       "review_bundle": "fms_dm_shared_preservation.patch",
       "asset": "fms_preservation/3e1928d155c9840c8d3a.patch",
-      "asset_sha256": "053050fbc62f1e65cd3318fa54f44b10cd0c2f2e290ae60d8d1df8043aa7f54f",
+      "asset_sha256": "053050fbc62f1e65cd3318fa54f44b10cd0c2f2e290ae60d8d1df8043aa7f54f"
+    },
+    {
       "contract_exceptions": [
         {
           "reason": "Explicit personal behavior or its aligned tests/docs; detailed owner evidence and current integration contract define boundaries"
         }
-      ]
-    },
-    {
+      ],
       "path": "openpilot/selfdrive/carrot/tests/test_signal_lead_alerts.py",
       "before_sha256": "a6336ce67087ade71b9eb34a59ec65fbf624eec8a3cc7c8ecb378ae0ae9a12ff",
       "after_sha256": "0f759ceb965f03ef1eba28bc4dc48597254223f72c457db1ad93cee5b93630be",
       "kind": "hunks",
       "review_bundle": "fms_dm_shared_preservation.patch",
       "asset": "fms_preservation/8211349b552761007a21.patch",
-      "asset_sha256": "a29403cb4c41a31f82fec72c586879223159653a82786a0ae5679f0e478b2aa1",
+      "asset_sha256": "a29403cb4c41a31f82fec72c586879223159653a82786a0ae5679f0e478b2aa1"
+    },
+    {
       "contract_exceptions": [
         {
           "reason": "Explicit personal behavior or its aligned tests/docs; detailed owner evidence and current integration contract define boundaries"
         }
-      ]
-    },
-    {
+      ],
       "path": "openpilot/selfdrive/carrot/tests/test_signal_lead_handover.py",
       "before_sha256": "9ef0f0c974221c74586ea4c78b36aa89360bff7c1945d8b0b88ec0355c0400a5",
       "after_sha256": "45aec324133ee91950fb0e29e46174e728b6e8335ce9ac4e22e172d799269fce",
       "kind": "hunks",
       "review_bundle": "fms_dm_shared_preservation.patch",
       "asset": "fms_preservation/19f55b1636c864c71593.patch",
-      "asset_sha256": "896a6b57112b6ae8bf07a76ee43ea33d08e4e98df13396090762a87ea4f34c73",
+      "asset_sha256": "896a6b57112b6ae8bf07a76ee43ea33d08e4e98df13396090762a87ea4f34c73"
+    },
+    {
       "contract_exceptions": [
         {
           "reason": "Explicit personal behavior or its aligned tests/docs; detailed owner evidence and current integration contract define boundaries"
         }
-      ]
-    },
-    {
+      ],
       "path": "openpilot/selfdrive/carrot/tests/test_signal_off_release.py",
       "before_sha256": null,
       "after_sha256": "4ba58b4589ccbfe9b741eb8cc73724593293967fc81772fceb737bbb9f48037a",
       "kind": "blob",
       "review_bundle": "fms_dm_shared_preservation.patch",
       "asset": "fms_preservation/4a60dcc87581b4189d3d.blob",
-      "asset_sha256": "4ba58b4589ccbfe9b741eb8cc73724593293967fc81772fceb737bbb9f48037a",
+      "asset_sha256": "4ba58b4589ccbfe9b741eb8cc73724593293967fc81772fceb737bbb9f48037a"
+    },
+    {
       "contract_exceptions": [
         {
           "reason": "Explicit personal behavior or its aligned tests/docs; detailed owner evidence and current integration contract define boundaries"
         }
-      ]
-    },
-    {
+      ],
       "path": "openpilot/selfdrive/carrot/tests/test_signal_prepare_lead_distance.py",
       "before_sha256": "78189cca3ba06076b878afc9d66744cc2338309d82e0368d30dcc5e5ec19c8be",
       "after_sha256": "6b8d46cb35720812971438eedc537676d1350c191534802262db4df6c4bd3034",
       "kind": "hunks",
       "review_bundle": "fms_dm_shared_preservation.patch",
       "asset": "fms_preservation/1df7ffc87ec5d59eee69.patch",
-      "asset_sha256": "8e6222cfc3dfc7117fa602114b8c971d86ca4ba08fd6e98ae0cc2d1264d09906",
+      "asset_sha256": "8e6222cfc3dfc7117fa602114b8c971d86ca4ba08fd6e98ae0cc2d1264d09906"
+    },
+    {
       "contract_exceptions": [
         {
           "reason": "Explicit personal behavior or its aligned tests/docs; detailed owner evidence and current integration contract define boundaries"
         }
-      ]
-    },
-    {
+      ],
       "path": "openpilot/selfdrive/carrot/tests/test_signal_start_guard.py",
       "before_sha256": "488956e39485253c71270f708f178665446f782b7a5fbd1358469ef7cfd0da90",
       "after_sha256": "80d26871a7cc2b8d8984c395f590a3989dc0533576dbefbe039d103af74f030b",
       "kind": "hunks",
       "review_bundle": "fms_dm_shared_preservation.patch",
       "asset": "fms_preservation/cb0f3c58f7723691fb75.patch",
-      "asset_sha256": "b17eb0d3d575b1004446e465e7bbfc89dc47b745f6dfd039dbca1680d1e7216e",
+      "asset_sha256": "b17eb0d3d575b1004446e465e7bbfc89dc47b745f6dfd039dbca1680d1e7216e"
+    },
+    {
       "contract_exceptions": [
         {
           "reason": "Explicit personal behavior or its aligned tests/docs; detailed owner evidence and current integration contract define boundaries"
         }
-      ]
-    },
-    {
+      ],
       "path": "openpilot/selfdrive/carrot/tests/test_signal_start_runtime_contract.py",
       "before_sha256": null,
       "after_sha256": "815e69f0d6394247ddb24b5eb4b129f14125913d62cd4434d8902a3c8844ca03",
       "kind": "blob",
       "review_bundle": "fms_dm_shared_preservation.patch",
       "asset": "fms_preservation/0a4882d2d78efb30b5f1.blob",
-      "asset_sha256": "815e69f0d6394247ddb24b5eb4b129f14125913d62cd4434d8902a3c8844ca03",
+      "asset_sha256": "815e69f0d6394247ddb24b5eb4b129f14125913d62cd4434d8902a3c8844ca03"
+    },
+    {
       "contract_exceptions": [
         {
           "reason": "Explicit personal behavior or its aligned tests/docs; detailed owner evidence and current integration contract define boundaries"
         }
-      ]
-    },
-    {
+      ],
       "path": "openpilot/selfdrive/carrot/tests/test_t_follow.py",
       "before_sha256": "e8127aceaf8ebae19fa415dd9b863a83d09bc6532393e3f1cb115450a0912660",
       "after_sha256": "741e5150b7dc88dd43bf70d248bdafcdce797d6f944f5a3954abca5aba5e9e2e",
       "kind": "hunks",
       "review_bundle": "fms_dm_shared_preservation.patch",
       "asset": "fms_preservation/d8701eea800340efe51a.patch",
-      "asset_sha256": "23834364498fb54a8261f307c675b9a41213f101e49cf61f118582c5c015663b",
-      "contract_exceptions": [
-        {
-          "reason": "Explicit personal behavior or its aligned tests/docs; detailed owner evidence and current integration contract define boundaries"
-        }
-      ]
+      "asset_sha256": "23834364498fb54a8261f307c675b9a41213f101e49cf61f118582c5c015663b"
     },
     {
-      "path": "openpilot/selfdrive/carrot/web/index.html",
-      "before_sha256": "1b542366f39a28158a9836e2d7f50220aaa85dcfb8fc347b3177af095bc9272c",
-      "after_sha256": "9a3b8050eccd33bd402a993851e4a8d728f629e0172d4175e9e39d984b8aac66",
-      "kind": "hunks",
-      "review_bundle": "fms_dm_shared_preservation.patch",
-      "asset": "fms_preservation/b33684ecc0fb0b54e33c.patch",
-      "asset_sha256": "ad77641d3b7f43ebf299815aa12514f442268cb544f6c274fb52d21b233ef1d0",
       "contract_exceptions": [
         {
           "functions": [
@@ -1218,16 +1211,16 @@
           ],
           "reason": "Reconnect existing private phone-to-PC HTTP transfer with lease/auth/resume/receipts/KST route-day/multi-device protections."
         }
-      ]
-    },
-    {
-      "path": "openpilot/selfdrive/carrot/web/js/pages/branch.js",
-      "before_sha256": "7a5388d5092d6edfb28dcfa54568a6ead7356ab071312c611e8c3bf2033dbdf8",
-      "after_sha256": "624138c04faa2ba13ba9def4ab351b74bbecda9f1d31efead7ea062c3036904f",
+      ],
+      "path": "openpilot/selfdrive/carrot/web/index.html",
+      "before_sha256": "1b542366f39a28158a9836e2d7f50220aaa85dcfb8fc347b3177af095bc9272c",
+      "after_sha256": "9a3b8050eccd33bd402a993851e4a8d728f629e0172d4175e9e39d984b8aac66",
       "kind": "hunks",
       "review_bundle": "fms_dm_shared_preservation.patch",
-      "asset": "fms_preservation/c1a142134e671d7b8ccc.patch",
-      "asset_sha256": "7881ac9286c5b7a2fbbb65537b8efd9d7d44a9a6dd1ad04f9183924fafcb8def",
+      "asset": "fms_preservation/b33684ecc0fb0b54e33c.patch",
+      "asset_sha256": "ad77641d3b7f43ebf299815aa12514f442268cb544f6c274fb52d21b233ef1d0"
+    },
+    {
       "contract_exceptions": [
         {
           "functions": [
@@ -1239,16 +1232,36 @@
           ],
           "reason": "Original and fork names coexist, listing leaves current/origin/config unchanged; fetch only explicit safe selection; no branch deletion."
         }
-      ]
+      ],
+      "path": "openpilot/selfdrive/carrot/web/js/pages/branch.js",
+      "before_sha256": "7a5388d5092d6edfb28dcfa54568a6ead7356ab071312c611e8c3bf2033dbdf8",
+      "after_sha256": "624138c04faa2ba13ba9def4ab351b74bbecda9f1d31efead7ea062c3036904f",
+      "kind": "hunks",
+      "review_bundle": "fms_dm_shared_preservation.patch",
+      "asset": "fms_preservation/c1a142134e671d7b8ccc.patch",
+      "asset_sha256": "7881ac9286c5b7a2fbbb65537b8efd9d7d44a9a6dd1ad04f9183924fafcb8def"
     },
     {
+      "contract_exceptions": [
+        {
+          "functions": [
+            "updateCarrotDeviceRuntimeState",
+            "fetchCarrotDeviceRuntimeState",
+            "syncCarrotVisionAvailability",
+            "setParam"
+          ],
+          "reason": "Preserve legacy DisableDM2 WebRTC and existing ClusterHud exclusion; remove new experimental-DM acknowledgement and independent vision policy only."
+        }
+      ],
       "path": "openpilot/selfdrive/carrot/web/js/realtime/app_realtime.js",
       "before_sha256": "204e4a000fcf0215d1431207d70852740fd0e76ef3d1a41bbd0b667ffe505270",
       "after_sha256": "5e82a7dea28c1c2a8b2e91789034adc2a50b35b544fbe758aee8a97c0e481090",
       "kind": "hunks",
       "review_bundle": "fms_dm_shared_preservation.patch",
       "asset": "fms_preservation/aef0bc5fbdb5d2b2587d.patch",
-      "asset_sha256": "859339cade05928a26cb0b26edf495c01d51e3259d1b696bdb385c48ee829f69",
+      "asset_sha256": "859339cade05928a26cb0b26edf495c01d51e3259d1b696bdb385c48ee829f69"
+    },
+    {
       "contract_exceptions": [
         {
           "functions": [
@@ -1259,16 +1272,16 @@
           ],
           "reason": "Preserve legacy DisableDM2 WebRTC and existing ClusterHud exclusion; remove new experimental-DM acknowledgement and independent vision policy only."
         }
-      ]
-    },
-    {
+      ],
       "path": "openpilot/selfdrive/carrot/web/js/realtime/vision_state.js",
       "before_sha256": "2a5b7a4a0ebadacb66bcb32168e2324939752afe9283615a7200fd535ceb7351",
       "after_sha256": "99dc948bca1022ab4796614064d9e57d20a36254fef0d731ff04700d9382a987",
       "kind": "hunks",
       "review_bundle": "fms_dm_shared_preservation.patch",
       "asset": "fms_preservation/9b9e7ffe3a206668b033.patch",
-      "asset_sha256": "928f9f743d665d17b3e2d1299ecb1f0a2e094b91d7250bc781168f50076d70ae",
+      "asset_sha256": "928f9f743d665d17b3e2d1299ecb1f0a2e094b91d7250bc781168f50076d70ae"
+    },
+    {
       "contract_exceptions": [
         {
           "functions": [
@@ -1279,16 +1292,16 @@
           ],
           "reason": "Preserve legacy DisableDM2 WebRTC and existing ClusterHud exclusion; remove new experimental-DM acknowledgement and independent vision policy only."
         }
-      ]
-    },
-    {
+      ],
       "path": "openpilot/selfdrive/carrot/web/js/shared/api.js",
       "before_sha256": "6ea8c46b0bf095476d19df1f6b326d320dad9b1ba854e7e240704c590c1bb65d",
       "after_sha256": "400de6c8632dab2a534fa776e4ffdeb643bb3abaee8921b3eb015ed8e138fb6a",
       "kind": "hunks",
       "review_bundle": "fms_dm_shared_preservation.patch",
       "asset": "fms_preservation/9a69698ca2cac1c1d69b.patch",
-      "asset_sha256": "1886064d90b93bd6fe3a31400386f79ed2973edbe3038533998afc52270ce1e4",
+      "asset_sha256": "1886064d90b93bd6fe3a31400386f79ed2973edbe3038533998afc52270ce1e4"
+    },
+    {
       "contract_exceptions": [
         {
           "functions": [
@@ -1299,16 +1312,16 @@
           ],
           "reason": "Preserve legacy DisableDM2 WebRTC and existing ClusterHud exclusion; remove new experimental-DM acknowledgement and independent vision policy only."
         }
-      ]
-    },
-    {
+      ],
       "path": "openpilot/selfdrive/carrot/web/js/translations/en.js",
       "before_sha256": "e6ae7c364feb443618cea7f8d7d5dc83fd262c91f15e4ea0c2d2c9d213e2ac64",
       "after_sha256": "08ace03353cc35bc79ff147ab5681abce20779f3896cb6d378d0c0c6c137c6e2",
       "kind": "hunks",
       "review_bundle": "fms_dm_shared_preservation.patch",
       "asset": "fms_preservation/07ec238f30a1e4b236cf.patch",
-      "asset_sha256": "aec7d343806834b5007113a138c5a84de67b20fe96d72c13678ea4c7a626bcf3",
+      "asset_sha256": "aec7d343806834b5007113a138c5a84de67b20fe96d72c13678ea4c7a626bcf3"
+    },
+    {
       "contract_exceptions": [
         {
           "functions": [
@@ -1319,16 +1332,16 @@
           ],
           "reason": "Preserve legacy DisableDM2 WebRTC and existing ClusterHud exclusion; remove new experimental-DM acknowledgement and independent vision policy only."
         }
-      ]
-    },
-    {
+      ],
       "path": "openpilot/selfdrive/carrot/web/js/translations/ko.js",
       "before_sha256": "2e49cf1f3f694e9ea2dfe3930e78f7e08a516e54d79a2aa671a1f24238bcc2ab",
       "after_sha256": "dc32c4d8ed5be5617668b3525db91f49df7654498c930fa500647971331e78b8",
       "kind": "hunks",
       "review_bundle": "fms_dm_shared_preservation.patch",
       "asset": "fms_preservation/30413c057cf1af81df8e.patch",
-      "asset_sha256": "8e2803be42623ca70c9d18a67a7462866a0f4ff7958819442c59a3e2f2f8b4d0",
+      "asset_sha256": "8e2803be42623ca70c9d18a67a7462866a0f4ff7958819442c59a3e2f2f8b4d0"
+    },
+    {
       "contract_exceptions": [
         {
           "functions": [
@@ -1339,50 +1352,50 @@
           ],
           "reason": "Preserve legacy DisableDM2 WebRTC and existing ClusterHud exclusion; remove new experimental-DM acknowledgement and independent vision policy only."
         }
-      ]
-    },
-    {
+      ],
       "path": "openpilot/selfdrive/carrot/web/js/translations/zh.js",
       "before_sha256": "eff7fdb87349a98ee7c25cf834fc43fdb3c71be204f0af10a417967a180ea415",
       "after_sha256": "8e97a3dffcdd447fbfc38209f5e9fbafbe3a5f863c4e359e1bfefd147ce12ab3",
       "kind": "hunks",
       "review_bundle": "fms_dm_shared_preservation.patch",
       "asset": "fms_preservation/458fe0da10c03404a979.patch",
-      "asset_sha256": "e9099435a5e206c6a20c73d911fefc482a29d4878ba3e1dec584ef87f0a3de95",
-      "contract_exceptions": [
-        {
-          "functions": [
-            "updateCarrotDeviceRuntimeState",
-            "fetchCarrotDeviceRuntimeState",
-            "syncCarrotVisionAvailability",
-            "setParam"
-          ],
-          "reason": "Preserve legacy DisableDM2 WebRTC and existing ClusterHud exclusion; remove new experimental-DM acknowledgement and independent vision policy only."
-        }
-      ]
+      "asset_sha256": "e9099435a5e206c6a20c73d911fefc482a29d4878ba3e1dec584ef87f0a3de95"
     },
     {
+      "contract_exceptions": [
+        {
+          "reason": "Explicit personal behavior or its aligned tests/docs; detailed owner evidence and current integration contract define boundaries"
+        }
+      ],
       "path": "openpilot/selfdrive/carrot/web/src/features/logs/pc_transfer.js",
       "before_sha256": null,
       "after_sha256": "0585f19b127f87daf0d8efc2857ac5f0f6efaa929db27a0bc17d3f50e28e482b",
       "kind": "blob",
       "review_bundle": "fms_dm_shared_preservation.patch",
       "asset": "fms_preservation/a9868c3048e4b3011c4b.blob",
-      "asset_sha256": "0585f19b127f87daf0d8efc2857ac5f0f6efaa929db27a0bc17d3f50e28e482b",
-      "contract_exceptions": [
-        {
-          "reason": "Explicit personal behavior or its aligned tests/docs; detailed owner evidence and current integration contract define boundaries"
-        }
-      ]
+      "asset_sha256": "0585f19b127f87daf0d8efc2857ac5f0f6efaa929db27a0bc17d3f50e28e482b"
     },
     {
+      "contract_exceptions": [
+        {
+          "functions": [
+            "register",
+            "syncLogsMenu",
+            "initLogsPage",
+            "pcLogTransferButton"
+          ],
+          "reason": "Reconnect existing private phone-to-PC HTTP transfer with lease/auth/resume/receipts/KST route-day/multi-device protections."
+        }
+      ],
       "path": "openpilot/selfdrive/carrot/web/src/features/logs/runtime.js",
       "before_sha256": "130dc52eea39c44a739e03cffb044ae3df7e6985c4f9a29ee00d781cfdb91741",
       "after_sha256": "9fd5258441a36348fc04d20bd1b3e25e2159cafb61c6f3be64cb4baa51192403",
       "kind": "hunks",
       "review_bundle": "fms_dm_shared_preservation.patch",
       "asset": "fms_preservation/044c5095526b1ff7e07a.patch",
-      "asset_sha256": "378ad68bb3eda12fb352d951c37c621c8c1f9c0c94dff6b6f8f5518dc96479e7",
+      "asset_sha256": "378ad68bb3eda12fb352d951c37c621c8c1f9c0c94dff6b6f8f5518dc96479e7"
+    },
+    {
       "contract_exceptions": [
         {
           "functions": [
@@ -1393,134 +1406,114 @@
           ],
           "reason": "Reconnect existing private phone-to-PC HTTP transfer with lease/auth/resume/receipts/KST route-day/multi-device protections."
         }
-      ]
-    },
-    {
+      ],
       "path": "openpilot/selfdrive/carrot/web/src/features/logs/style.css",
       "before_sha256": "a14fc19da969484e1ca0dfabba570fee751ee76af84c1fe2329230f4dc779d6a",
       "after_sha256": "6938ed6f1e3d9acb957420b1d06a1f527ace63e5b6a7162d799737b21364ae90",
       "kind": "hunks",
       "review_bundle": "fms_dm_shared_preservation.patch",
       "asset": "fms_preservation/f1e887cc7f06ae3708ac.patch",
-      "asset_sha256": "9a56a1819a95b87c8622270bba155034fa136af5c8b462a4ce044d0459355565",
-      "contract_exceptions": [
-        {
-          "functions": [
-            "register",
-            "syncLogsMenu",
-            "initLogsPage",
-            "pcLogTransferButton"
-          ],
-          "reason": "Reconnect existing private phone-to-PC HTTP transfer with lease/auth/resume/receipts/KST route-day/multi-device protections."
-        }
-      ]
+      "asset_sha256": "9a56a1819a95b87c8622270bba155034fa136af5c8b462a4ce044d0459355565"
     },
     {
+      "contract_exceptions": [
+        {
+          "reason": "Explicit personal behavior or its aligned tests/docs; detailed owner evidence and current integration contract define boundaries"
+        }
+      ],
       "path": "openpilot/selfdrive/carrot/web/tests/branch_catalog.test.mjs",
       "before_sha256": null,
       "after_sha256": "670bd4b1848745f3a74b2c5fff0f86b2d62b63c31aba8fbe2336677e10fd7d26",
       "kind": "blob",
       "review_bundle": "fms_dm_shared_preservation.patch",
       "asset": "fms_preservation/924d694477cf29319eb8.blob",
-      "asset_sha256": "670bd4b1848745f3a74b2c5fff0f86b2d62b63c31aba8fbe2336677e10fd7d26",
+      "asset_sha256": "670bd4b1848745f3a74b2c5fff0f86b2d62b63c31aba8fbe2336677e10fd7d26"
+    },
+    {
       "contract_exceptions": [
         {
           "reason": "Explicit personal behavior or its aligned tests/docs; detailed owner evidence and current integration contract define boundaries"
         }
-      ]
-    },
-    {
+      ],
       "path": "openpilot/selfdrive/carrot/web/tests/dm_settings.test.mjs",
       "before_sha256": "6fe4a44dc765815ba500fd663c973732e7ce12ee19d43d4e023ec6d0beabef85",
       "after_sha256": "3d56525fbcc2d1bd560025fef222eb726fea2bbe02727045f50ca0fa687952fa",
       "kind": "hunks",
       "review_bundle": "fms_dm_shared_preservation.patch",
       "asset": "fms_preservation/0f1f1b0993127b0f2964.patch",
-      "asset_sha256": "699c0545415d65b330d3fe575b6622a585afaddc16aa176e7dcf109ff81abe9f",
+      "asset_sha256": "699c0545415d65b330d3fe575b6622a585afaddc16aa176e7dcf109ff81abe9f"
+    },
+    {
       "contract_exceptions": [
         {
           "reason": "Explicit personal behavior or its aligned tests/docs; detailed owner evidence and current integration contract define boundaries"
         }
-      ]
-    },
-    {
+      ],
       "path": "openpilot/selfdrive/carrot/web/tests/paddle_mode.test.mjs",
       "before_sha256": null,
       "after_sha256": "69663230b2d37b667f64c47a1622cb8411b72e8d6ec5ecca73e85085d37e5d62",
       "kind": "blob",
       "review_bundle": "paddle_regen_isolation.patch",
       "asset": "fms_preservation/9b22362f4957d68e3887.blob",
-      "asset_sha256": "69663230b2d37b667f64c47a1622cb8411b72e8d6ec5ecca73e85085d37e5d62",
+      "asset_sha256": "69663230b2d37b667f64c47a1622cb8411b72e8d6ec5ecca73e85085d37e5d62"
+    },
+    {
       "contract_exceptions": [
         {
           "reason": "Explicit personal behavior or its aligned tests/docs; detailed owner evidence and current integration contract define boundaries"
         }
-      ]
-    },
-    {
+      ],
       "path": "openpilot/selfdrive/carrot/web/tests/pc_log_transfer.test.mjs",
       "before_sha256": null,
       "after_sha256": "3d53ae356445e6064f146d3476874b3e6309f4ceb613db170f2d301685fb1507",
       "kind": "blob",
       "review_bundle": "fms_dm_shared_preservation.patch",
       "asset": "fms_preservation/728418d0bfdd26439103.blob",
-      "asset_sha256": "3d53ae356445e6064f146d3476874b3e6309f4ceb613db170f2d301685fb1507",
+      "asset_sha256": "3d53ae356445e6064f146d3476874b3e6309f4ceb613db170f2d301685fb1507"
+    },
+    {
       "contract_exceptions": [
         {
           "reason": "Explicit personal behavior or its aligned tests/docs; detailed owner evidence and current integration contract define boundaries"
         }
-      ]
-    },
-    {
+      ],
       "path": "openpilot/selfdrive/carrot/web/tests/settings_catalog.test.mjs",
       "before_sha256": "74f8420c7826bcc94a3ffe08dde33ab268e1d960ee524d3caeffe8575a55ba87",
       "after_sha256": "cab36149dc4127d9d0510c8b967d6e68e1ce72dbe03f466564e17b2f545b0ab0",
       "kind": "hunks",
       "review_bundle": "fms_dm_shared_preservation.patch",
       "asset": "fms_preservation/850268b63bb9a0a8728b.patch",
-      "asset_sha256": "c972ebf1a0d4f0d76bcbae5a276b16a3cc2cf7c75749ac8c6bb20e1b790df0b6",
+      "asset_sha256": "c972ebf1a0d4f0d76bcbae5a276b16a3cc2cf7c75749ac8c6bb20e1b790df0b6"
+    },
+    {
       "contract_exceptions": [
         {
           "reason": "Explicit personal behavior or its aligned tests/docs; detailed owner evidence and current integration contract define boundaries"
         }
-      ]
-    },
-    {
+      ],
       "path": "openpilot/selfdrive/carrot/web/tests/settings_derived_model.test.mjs",
       "before_sha256": "86053605b487d3eafe3b5e2fae28d1f3b10a35c10d9c4478d7d4b4b5f660405b",
       "after_sha256": "98527f51b3c1649faf019039244da505670cd30aff0f495924757662e46c8ab0",
       "kind": "hunks",
       "review_bundle": "fms_dm_shared_preservation.patch",
       "asset": "fms_preservation/cbb453b547b8e2b91ad9.patch",
-      "asset_sha256": "40caad0a2978a7aacf8714b991e6737fd08b40bced86afedfdd81c5bc17f4b5b",
+      "asset_sha256": "40caad0a2978a7aacf8714b991e6737fd08b40bced86afedfdd81c5bc17f4b5b"
+    },
+    {
       "contract_exceptions": [
         {
           "reason": "Explicit personal behavior or its aligned tests/docs; detailed owner evidence and current integration contract define boundaries"
         }
-      ]
-    },
-    {
+      ],
       "path": "openpilot/selfdrive/carrot/web/tests/vision_hud_availability.test.mjs",
       "before_sha256": "f090a1d2e1b76552d8baf4a4749bf4b6c8f823ffb2d53f954fb3598c4959e247",
       "after_sha256": "ecba9018c40ff09893642b2fc688edb5793648437db0ef89d55cf6682607befe",
       "kind": "hunks",
       "review_bundle": "fms_dm_shared_preservation.patch",
       "asset": "fms_preservation/b449e33084c6bf18a549.patch",
-      "asset_sha256": "c8ee15925fc2d3d3c71f299b8811f8de24e5ac1ef0250a02a013fa5533ae846c",
-      "contract_exceptions": [
-        {
-          "reason": "Explicit personal behavior or its aligned tests/docs; detailed owner evidence and current integration contract define boundaries"
-        }
-      ]
+      "asset_sha256": "c8ee15925fc2d3d3c71f299b8811f8de24e5ac1ef0250a02a013fa5533ae846c"
     },
     {
-      "path": "openpilot/selfdrive/carrot_settings.json",
-      "before_sha256": "5567d3cab6eab67dacf4e7f735e7498a683ae8ab0e00e10fceba33f9a752f6f7",
-      "after_sha256": "f1558c3134c41e6e65b39ca3d4a22d9f37e99dd2b8d0a8acc7a47f361ac6f06d",
-      "kind": "hunks",
-      "review_bundle": "fms_dm_shared_preservation.patch",
-      "asset": "fms_preservation/b2b2e0d9301c6a4eba46.patch",
-      "asset_sha256": "3de3d40e76875cedc265e1d302d6f83b6230dc66f20368f156ab33337ef5b7a1",
       "contract_exceptions": [
         {
           "functions": [
@@ -1529,16 +1522,16 @@
           ],
           "reason": "Replace only new DM2 registration/settings with legacy DisableDM0/1/2; preserve every non-DM upstream key, option and default."
         }
-      ]
-    },
-    {
-      "path": "openpilot/selfdrive/controls/controlsd.py",
-      "before_sha256": "20ea264d9a776d8c4fa850266330eb9e2c0cafa9aa3c95bc30fc7205aa89567d",
-      "after_sha256": "0baaefa4ee3e54b70e70a03c353091d5bed460e7416de89f47c89f8290b5ab56",
+      ],
+      "path": "openpilot/selfdrive/carrot_settings.json",
+      "before_sha256": "83f732bb85822de2140c12b81c9228968094e0c5d8b6ac56398f48d709681055",
+      "after_sha256": "7a0e92c157a3459f4f0458f1eecb8707e4335d1928916269caf3f758a161e026",
       "kind": "hunks",
       "review_bundle": "fms_dm_shared_preservation.patch",
-      "asset": "fms_preservation/f94186ae8ffadd59abf4.patch",
-      "asset_sha256": "732a1167385867897e1949f948c7ad21026d0b31ccdc1f47103c8fd90fe13313",
+      "asset": "fms_preservation/b2b2e0d9301c6a4eba46.patch",
+      "asset_sha256": "3de3d40e76875cedc265e1d302d6f83b6230dc66f20368f156ab33337ef5b7a1"
+    },
+    {
       "contract_exceptions": [
         {
           "functions": [
@@ -1546,31 +1539,31 @@
           ],
           "reason": "Restore actual S DisableDM0/1/2 forceDecel and remove only new-DM HUD producer/import. Retain latest live VehicleModel geometry, physical blinker HoldReader and unchanged OEM cancel production."
         }
-      ]
-    },
-    {
-      "path": "openpilot/selfdrive/controls/lib/desire_helper.py",
-      "before_sha256": "aeaea694ab06f8da5595ee4382bd9fd57e64a0d016e1e7add5c573752199fad3",
-      "after_sha256": "0bc6f09876ae0ec1dc5663d31ac6584466084c026b4c8e5cc70a90e728396aae",
+      ],
+      "path": "openpilot/selfdrive/controls/controlsd.py",
+      "before_sha256": "20ea264d9a776d8c4fa850266330eb9e2c0cafa9aa3c95bc30fc7205aa89567d",
+      "after_sha256": "0baaefa4ee3e54b70e70a03c353091d5bed460e7416de89f47c89f8290b5ab56",
       "kind": "hunks",
       "review_bundle": "fms_dm_shared_preservation.patch",
-      "asset": "fms_preservation/475db96ec8946659e540.patch",
-      "asset_sha256": "e586085cb5d9cadc99190ceac0c2c1d319d7fdf0c1494a8ddcf5b60efe0d6bc4",
+      "asset": "fms_preservation/f94186ae8ffadd59abf4.patch",
+      "asset_sha256": "732a1167385867897e1949f948c7ad21026d0b31ccdc1f47103c8fd90fe13313"
+    },
+    {
       "contract_exceptions": [
         {
           "reason": "Approved repair or regression/documentation of seven personal exceptions and common protections; preserve gesture origin/CANCEL boundary and explicit normal-completion HOLD detector retirement only",
           "source_contract": "docs/fms_integration_contract.md"
         }
-      ]
+      ],
+      "path": "openpilot/selfdrive/controls/lib/desire_helper.py",
+      "before_sha256": "2a91beb7bc7532a7a636d03da31f55f17fbb8e219d2d6e0190d553c5a6b04d2b",
+      "after_sha256": "2b3dd351e46613285583a8544b313ed76ae225ce2cd0c3596e8eb859f16890b0",
+      "kind": "hunks",
+      "review_bundle": "fms_dm_shared_preservation.patch",
+      "asset": "fms_preservation/475db96ec8946659e540.patch",
+      "asset_sha256": "736fbad361e63976f28300c85b277057ab5d605a8b79a02c4693c5d26434179f"
     },
     {
-      "path": "openpilot/selfdrive/controls/lib/longitudinal_planner.py",
-      "before_sha256": "d20ec36947c6aefd12b425daa0f8d1fa39d0d273d1da578b13a20b079aad878a",
-      "after_sha256": "534a4cf84b9e42b9e055347d7f0433cadb4d17e46b404aa961b07dd353f1707d",
-      "kind": "hunks",
-      "review_bundle": "vego_stopping_min1.patch",
-      "asset": "fms_preservation/843fbbd5b573292e7d4a.patch",
-      "asset_sha256": "5ee5cde344d50ce4fa6296fc7a0638f07cbcb1847756023f7990df392f6b2334",
       "contract_exceptions": [
         {
           "functions": [
@@ -1578,835 +1571,842 @@
           ],
           "reason": "Replace get_stopping_speed import/call with direct saved VEgoStopping*0.01. Existing final start veto/SoftHold reset/coasting/MPC paths retained."
         }
-      ]
+      ],
+      "path": "openpilot/selfdrive/controls/lib/longitudinal_planner.py",
+      "before_sha256": "d20ec36947c6aefd12b425daa0f8d1fa39d0d273d1da578b13a20b079aad878a",
+      "after_sha256": "534a4cf84b9e42b9e055347d7f0433cadb4d17e46b404aa961b07dd353f1707d",
+      "kind": "hunks",
+      "review_bundle": "vego_stopping_min1.patch",
+      "asset": "fms_preservation/843fbbd5b573292e7d4a.patch",
+      "asset_sha256": "5ee5cde344d50ce4fa6296fc7a0638f07cbcb1847756023f7990df392f6b2334"
     },
     {
+      "contract_exceptions": [
+        {
+          "reason": "Approved repair or regression/documentation of seven personal exceptions and common protections; preserve gesture origin/CANCEL boundary and explicit normal-completion HOLD detector retirement only",
+          "source_contract": "docs/fms_integration_contract.md"
+        }
+      ],
       "path": "openpilot/selfdrive/controls/tests/test_blinker_integration.py",
       "before_sha256": null,
       "after_sha256": "bca6354a424e8488b3257b4fe8fe84e52480d02f398c439e2287f07cbb0eb5c0",
       "kind": "blob",
       "review_bundle": "fms_dm_shared_preservation.patch",
       "asset": "fms_preservation/805ea3c9e21b6e9221f1.blob",
-      "asset_sha256": "bca6354a424e8488b3257b4fe8fe84e52480d02f398c439e2287f07cbb0eb5c0",
-      "contract_exceptions": [
-        {
-          "reason": "Approved repair or regression/documentation of seven personal exceptions and common protections; preserve gesture origin/CANCEL boundary and explicit normal-completion HOLD detector retirement only",
-          "source_contract": "docs/fms_integration_contract.md"
-        }
-      ]
+      "asset_sha256": "bca6354a424e8488b3257b4fe8fe84e52480d02f398c439e2287f07cbb0eb5c0"
     },
     {
+      "contract_exceptions": [
+        {
+          "reason": "Explicit personal behavior or its aligned tests/docs; detailed owner evidence and current integration contract define boundaries"
+        }
+      ],
       "path": "openpilot/selfdrive/controls/tests/test_desire_helper.py",
       "before_sha256": "c9af32b146b6a8c79154bb8128ffceadaa8cc2fb3103bab0fd6e61837a78f4b6",
       "after_sha256": "db9dd49fde6a0a6546548990204d75e8ce7a09812dabf482d7b791a7dc7a0fd1",
       "kind": "hunks",
       "review_bundle": "fms_dm_shared_preservation.patch",
       "asset": "fms_preservation/82a664236933f0f44e8b.patch",
-      "asset_sha256": "0700b278767ce2a18f389dad33a24c514ca903e6440831e5ae7e01ec59f0013a",
+      "asset_sha256": "0700b278767ce2a18f389dad33a24c514ca903e6440831e5ae7e01ec59f0013a"
+    },
+    {
       "contract_exceptions": [
         {
           "reason": "Explicit personal behavior or its aligned tests/docs; detailed owner evidence and current integration contract define boundaries"
         }
-      ]
-    },
-    {
+      ],
       "path": "openpilot/selfdrive/controls/tests/test_desire_lever.py",
       "before_sha256": null,
       "after_sha256": "862a60fbdb776ebb7a10b999ffb437efed38b91f8b140e3cf7322d192a9f18cb",
       "kind": "blob",
       "review_bundle": "fms_dm_shared_preservation.patch",
       "asset": "fms_preservation/3b5ab7b5c0cb0038383a.blob",
-      "asset_sha256": "862a60fbdb776ebb7a10b999ffb437efed38b91f8b140e3cf7322d192a9f18cb",
+      "asset_sha256": "862a60fbdb776ebb7a10b999ffb437efed38b91f8b140e3cf7322d192a9f18cb"
+    },
+    {
       "contract_exceptions": [
         {
           "reason": "Explicit personal behavior or its aligned tests/docs; detailed owner evidence and current integration contract define boundaries"
         }
-      ]
-    },
-    {
+      ],
       "path": "openpilot/selfdrive/controls/tests/test_lateral_startup_control.py",
       "before_sha256": "9fa9d5a1bba3400e32c994606a76ec816ee8e54da034f6dbc6adb295786f5d6f",
       "after_sha256": "ba776ee6e40c6b2fa01d16a2c89feeda4b3bdefdde1f0b852bfb4448b0958ac0",
       "kind": "hunks",
       "review_bundle": "fms_dm_shared_preservation.patch",
       "asset": "fms_preservation/063871a9443e7537c1f4.patch",
-      "asset_sha256": "8db9b447cca82452ed4a0266da47ad9e95d648ddaf9f665053817ee8c66d432e",
+      "asset_sha256": "8db9b447cca82452ed4a0266da47ad9e95d648ddaf9f665053817ee8c66d432e"
+    },
+    {
       "contract_exceptions": [
         {
           "reason": "Explicit personal behavior or its aligned tests/docs; detailed owner evidence and current integration contract define boundaries"
         }
-      ]
-    },
-    {
+      ],
       "path": "openpilot/selfdrive/controls/tests/test_longitudinal_stopping.py",
       "before_sha256": "9027855b747496b8d7b8c71ad44eab78643952051ff5dedce016e27eb0e33991",
       "after_sha256": "7e4526d36aaa170d7f3b825ed1b4991f83ff05eb89296abdde8cea2b2a27b4d2",
       "kind": "hunks",
       "review_bundle": "fms_dm_shared_preservation.patch",
       "asset": "fms_preservation/c64df44f802ff9eab983.patch",
-      "asset_sha256": "6e82de59346adb8ec8aacee0ab2749384a0a738a9810b8d260efe29dc1e451a0",
+      "asset_sha256": "6e82de59346adb8ec8aacee0ab2749384a0a738a9810b8d260efe29dc1e451a0"
+    },
+    {
       "contract_exceptions": [
         {
           "reason": "Explicit personal behavior or its aligned tests/docs; detailed owner evidence and current integration contract define boundaries"
         }
-      ]
-    },
-    {
+      ],
       "path": "openpilot/selfdrive/controls/tests/test_stopping_speed_param.py",
       "before_sha256": "3629112bad5d65dbb9e10710a338bb2f17ff76638700aa33c537a2f30660dbfa",
       "after_sha256": "5339c4e80253c1dc71ff4e9ab33654a182c5f84a71e63f97d370b38f1fb5b6fe",
       "kind": "hunks",
       "review_bundle": "vego_stopping_min1.patch",
       "asset": "fms_preservation/ef35c2d449984b3682cd.patch",
-      "asset_sha256": "cbb4cf4bf118ecaebbe70576837ab19d19a5e8ce898ccc599741c1a049b4302c",
+      "asset_sha256": "cbb4cf4bf118ecaebbe70576837ab19d19a5e8ce898ccc599741c1a049b4302c"
+    },
+    {
       "contract_exceptions": [
         {
           "reason": "Explicit personal behavior or its aligned tests/docs; detailed owner evidence and current integration contract define boundaries"
         }
-      ]
-    },
-    {
+      ],
       "path": "openpilot/selfdrive/controls/tests/test_tesla_auto_signal_intent.py",
       "before_sha256": "0d31cac20a734f48ac26ccd589bf20d7a989e15d8af67c485c605c156cfbb796",
       "after_sha256": "385e51e6d6c6deaa47c5b1830f51a4f93443ffff344e6c06918fdc51640f8df1",
       "kind": "hunks",
       "review_bundle": "fms_dm_shared_preservation.patch",
       "asset": "fms_preservation/6821547f00c1092e3f4f.patch",
-      "asset_sha256": "6670e2c399d5c6c0d7bc5d09e20a45a57785643c4ffe7607ab2de12d4057a3b0",
+      "asset_sha256": "6670e2c399d5c6c0d7bc5d09e20a45a57785643c4ffe7607ab2de12d4057a3b0"
+    },
+    {
       "contract_exceptions": [
         {
           "reason": "Explicit personal behavior or its aligned tests/docs; detailed owner evidence and current integration contract define boundaries"
         }
-      ]
-    },
-    {
+      ],
       "path": "openpilot/selfdrive/controls/tests/test_turn_accel.py",
       "before_sha256": "bf7371600db053e67c8192c336103344b06fe1d95bb4a3be05ce4d6ee53a6bd5",
       "after_sha256": "88a5202552bbe9462453aab75eb98f944b624d138281d3aee5e5b5db817cf0fc",
       "kind": "hunks",
       "review_bundle": "fms_dm_shared_preservation.patch",
       "asset": "fms_preservation/28f78f8a7c6b20e38f18.patch",
-      "asset_sha256": "fbaddfdbfea7a359b3a9ff7c42ca40bdea645b522c96f27678ce9cf8828d7239",
-      "contract_exceptions": [
-        {
-          "reason": "Explicit personal behavior or its aligned tests/docs; detailed owner evidence and current integration contract define boundaries"
-        }
-      ]
+      "asset_sha256": "fbaddfdbfea7a359b3a9ff7c42ca40bdea645b522c96f27678ce9cf8828d7239"
     },
     {
+      "contract_exceptions": [
+        {
+          "reason": "legacy_DM_only_restore"
+        }
+      ],
       "path": "openpilot/selfdrive/modeld/dmonitoringmodeld.py",
       "before_sha256": "04d3d9f935b3a584ac86dc3410e369e8fc07cca76c83cf450832497a7092d705",
       "after_sha256": "23e692a5e776864c4a22bb2c048bf7b7a711b6eca38284ce3448396032ccff01",
       "kind": "hunks",
       "review_bundle": "fms_dm_shared_preservation.patch",
       "asset": "fms_preservation/11b8010b08e69712e489.patch",
-      "asset_sha256": "786f8d6cccf17dea2c8b236b3bd2164411cf30750edbd4e97109b08a928760a6",
-      "contract_exceptions": [
-        {
-          "reason": "legacy_DM_only_restore"
-        }
-      ]
+      "asset_sha256": "786f8d6cccf17dea2c8b236b3bd2164411cf30750edbd4e97109b08a928760a6"
     },
     {
+      "contract_exceptions": [
+        {
+          "reason": "Approved repair or regression/documentation of seven personal exceptions and common protections; preserve gesture origin/CANCEL boundary and explicit normal-completion HOLD detector retirement only",
+          "source_contract": "docs/fms_integration_contract.md"
+        }
+      ],
       "path": "openpilot/selfdrive/modeld/modeld.py",
       "before_sha256": "8f8045bed5edbd20c3825b5e5181ff964d69ae30f9fe267426eb20053ec0127a",
       "after_sha256": "6c15af92057dbd59460357708abec8f9e7b6b36f1504800dbf94af25fe9cc9db",
       "kind": "hunks",
       "review_bundle": "vego_stopping_min1.patch",
       "asset": "fms_preservation/2b005e9585d9de32d57b.patch",
-      "asset_sha256": "61cd8d04e517dfa0bdccec4f6adefe0f2f8ac0666ea6b0ec68fc3e74a04cf978",
-      "contract_exceptions": [
-        {
-          "reason": "Approved repair or regression/documentation of seven personal exceptions and common protections; preserve gesture origin/CANCEL boundary and explicit normal-completion HOLD detector retirement only",
-          "source_contract": "docs/fms_integration_contract.md"
-        }
-      ]
+      "asset_sha256": "61cd8d04e517dfa0bdccec4f6adefe0f2f8ac0666ea6b0ec68fc3e74a04cf978"
     },
     {
+      "contract_exceptions": [
+        {
+          "reason": "Explicit personal behavior or its aligned tests/docs; detailed owner evidence and current integration contract define boundaries"
+        }
+      ],
       "path": "openpilot/selfdrive/modeld/signal_neural_shadow.py",
       "before_sha256": "8cbd34af5a40d625cb88c00eaf7d7345028126200d125b89c0d868a9372909c5",
       "after_sha256": "7ecb07e3e59357a81c97607aded73ea3c4043cb6526c4eb92fae70d24fa6d5bb",
       "kind": "hunks",
       "review_bundle": "fms_dm_shared_preservation.patch",
       "asset": "fms_preservation/c41c713edef1aee22002.patch",
-      "asset_sha256": "d502090f0af4bfda2e5e94418f66eacac5fa943ac3a3d700114701f929e87710",
+      "asset_sha256": "d502090f0af4bfda2e5e94418f66eacac5fa943ac3a3d700114701f929e87710"
+    },
+    {
       "contract_exceptions": [
         {
           "reason": "Explicit personal behavior or its aligned tests/docs; detailed owner evidence and current integration contract define boundaries"
         }
-      ]
-    },
-    {
+      ],
       "path": "openpilot/selfdrive/modeld/tests/test_signal_neural_shadow.py",
       "before_sha256": "7323b85e5c5cac78fc83e348087a362ae9962067ece556e0f1e1e47f25deffd4",
       "after_sha256": "3b17a180a7ac5e23e25e1250e07e178ae9253c1fd37e4acee03898797b5a8853",
       "kind": "hunks",
       "review_bundle": "fms_dm_shared_preservation.patch",
       "asset": "fms_preservation/76839bc5d536ca2582de.patch",
-      "asset_sha256": "2cbe8a560e92f24b9468711998a5a11713c5aca110028ca1bb6c3b98c7223fd3",
+      "asset_sha256": "2cbe8a560e92f24b9468711998a5a11713c5aca110028ca1bb6c3b98c7223fd3"
+    },
+    {
       "contract_exceptions": [
         {
           "reason": "Explicit personal behavior or its aligned tests/docs; detailed owner evidence and current integration contract define boundaries"
         }
-      ]
-    },
-    {
+      ],
       "path": "openpilot/selfdrive/monitoring/config.py",
       "before_sha256": "04bc8823aa5016d8b6dc6f0cf934d491c8abe26f744bbb1fedec2dad471ba531",
       "after_sha256": null,
       "kind": "delete",
-      "review_bundle": "fms_dm_shared_preservation.patch",
+      "review_bundle": "fms_dm_shared_preservation.patch"
+    },
+    {
       "contract_exceptions": [
         {
           "reason": "Explicit personal behavior or its aligned tests/docs; detailed owner evidence and current integration contract define boundaries"
         }
-      ]
-    },
-    {
+      ],
       "path": "openpilot/selfdrive/monitoring/dm2.py",
       "before_sha256": "6068873aa0dc220000b4d076dbdf9421cf71dcfc3bbad4830dc0ff5b41044624",
       "after_sha256": null,
       "kind": "delete",
-      "review_bundle": "fms_dm_shared_preservation.patch",
+      "review_bundle": "fms_dm_shared_preservation.patch"
+    },
+    {
       "contract_exceptions": [
         {
           "reason": "Explicit personal behavior or its aligned tests/docs; detailed owner evidence and current integration contract define boundaries"
         }
-      ]
-    },
-    {
+      ],
       "path": "openpilot/selfdrive/monitoring/dm2_cadence.py",
       "before_sha256": "31ba20f192a070ac35f45cc88da722caf454f4a615bf13b4154c7088812fb6ae",
       "after_sha256": null,
       "kind": "delete",
-      "review_bundle": "fms_dm_shared_preservation.patch",
+      "review_bundle": "fms_dm_shared_preservation.patch"
+    },
+    {
       "contract_exceptions": [
         {
           "reason": "Explicit personal behavior or its aligned tests/docs; detailed owner evidence and current integration contract define boundaries"
         }
-      ]
-    },
-    {
+      ],
       "path": "openpilot/selfdrive/monitoring/dm2_context.py",
       "before_sha256": "63c5e3bf4ca88c205e103556322d12bca18a11f1c6ab202ae896bbdbb396ba2d",
       "after_sha256": null,
       "kind": "delete",
-      "review_bundle": "fms_dm_shared_preservation.patch",
+      "review_bundle": "fms_dm_shared_preservation.patch"
+    },
+    {
       "contract_exceptions": [
         {
           "reason": "Explicit personal behavior or its aligned tests/docs; detailed owner evidence and current integration contract define boundaries"
         }
-      ]
-    },
-    {
+      ],
       "path": "openpilot/selfdrive/monitoring/dm2d.py",
       "before_sha256": "63b1b596f86511d2cd9bb34dd4f7b0dd8f8cdcc4aec7250b9ed64b7dc2b67606",
       "after_sha256": null,
       "kind": "delete",
-      "review_bundle": "fms_dm_shared_preservation.patch",
+      "review_bundle": "fms_dm_shared_preservation.patch"
+    },
+    {
       "contract_exceptions": [
         {
           "reason": "Explicit personal behavior or its aligned tests/docs; detailed owner evidence and current integration contract define boundaries"
         }
-      ]
-    },
-    {
+      ],
       "path": "openpilot/selfdrive/monitoring/dm_alerts.py",
       "before_sha256": "54e19558b59b94253d0801f4be9142f1158acb821a51b5e82d54861ce41c9be1",
       "after_sha256": null,
       "kind": "delete",
-      "review_bundle": "fms_dm_shared_preservation.patch",
+      "review_bundle": "fms_dm_shared_preservation.patch"
+    },
+    {
       "contract_exceptions": [
         {
           "reason": "Explicit personal behavior or its aligned tests/docs; detailed owner evidence and current integration contract define boundaries"
         }
-      ]
-    },
-    {
+      ],
       "path": "openpilot/selfdrive/monitoring/test_config_params.py",
       "before_sha256": "c50912a07b3b8a1a90226df3714c63bdba3fcf4334e921bf879b131239ef63e1",
       "after_sha256": null,
       "kind": "delete",
-      "review_bundle": "fms_dm_shared_preservation.patch",
+      "review_bundle": "fms_dm_shared_preservation.patch"
+    },
+    {
       "contract_exceptions": [
         {
           "reason": "Explicit personal behavior or its aligned tests/docs; detailed owner evidence and current integration contract define boundaries"
         }
-      ]
-    },
-    {
+      ],
       "path": "openpilot/selfdrive/monitoring/test_dm2.py",
       "before_sha256": "e8684e329e4a2a2f9aef2312d9b3c8827d7a0c5405204fd4bf79541ec71e09d3",
       "after_sha256": null,
       "kind": "delete",
-      "review_bundle": "fms_dm_shared_preservation.patch",
+      "review_bundle": "fms_dm_shared_preservation.patch"
+    },
+    {
       "contract_exceptions": [
         {
           "reason": "Explicit personal behavior or its aligned tests/docs; detailed owner evidence and current integration contract define boundaries"
         }
-      ]
-    },
-    {
+      ],
       "path": "openpilot/selfdrive/monitoring/test_dm2_cadence.py",
       "before_sha256": "1e59801775970164a09dbcecc37820be0a9807af241b694dcf59284d113dae59",
       "after_sha256": null,
       "kind": "delete",
-      "review_bundle": "fms_dm_shared_preservation.patch",
+      "review_bundle": "fms_dm_shared_preservation.patch"
+    },
+    {
       "contract_exceptions": [
         {
           "reason": "Explicit personal behavior or its aligned tests/docs; detailed owner evidence and current integration contract define boundaries"
         }
-      ]
-    },
-    {
+      ],
       "path": "openpilot/selfdrive/monitoring/test_dm2_context.py",
       "before_sha256": "766b4609c4e83f3f655525041261a0a1ee2be4edfe198e2c3124364d369f0c77",
       "after_sha256": null,
       "kind": "delete",
-      "review_bundle": "fms_dm_shared_preservation.patch",
+      "review_bundle": "fms_dm_shared_preservation.patch"
+    },
+    {
       "contract_exceptions": [
         {
           "reason": "Explicit personal behavior or its aligned tests/docs; detailed owner evidence and current integration contract define boundaries"
         }
-      ]
-    },
-    {
+      ],
       "path": "openpilot/selfdrive/monitoring/test_dm2d.py",
       "before_sha256": "d574ae3ffe8d35744e64321925048fe012c383d624803d7af7dab9eac82c28b5",
       "after_sha256": null,
       "kind": "delete",
-      "review_bundle": "fms_dm_shared_preservation.patch",
+      "review_bundle": "fms_dm_shared_preservation.patch"
+    },
+    {
       "contract_exceptions": [
         {
           "reason": "Explicit personal behavior or its aligned tests/docs; detailed owner evidence and current integration contract define boundaries"
         }
-      ]
-    },
-    {
+      ],
       "path": "openpilot/selfdrive/monitoring/test_dm_alerts.py",
       "before_sha256": "7ddffcf2a1b1aa476e361de49168d1be420fcb22360ad38b12a02f2d7921e77e",
       "after_sha256": null,
       "kind": "delete",
-      "review_bundle": "fms_dm_shared_preservation.patch",
+      "review_bundle": "fms_dm_shared_preservation.patch"
+    },
+    {
       "contract_exceptions": [
         {
           "reason": "Explicit personal behavior or its aligned tests/docs; detailed owner evidence and current integration contract define boundaries"
         }
-      ]
-    },
-    {
+      ],
       "path": "openpilot/selfdrive/monitoring/test_parked_reset.py",
       "before_sha256": "6dbbfc674089877cdfb9c643ed61af781cd729741d39e8acf9f755a8a207edb9",
       "after_sha256": null,
       "kind": "delete",
-      "review_bundle": "fms_dm_shared_preservation.patch",
+      "review_bundle": "fms_dm_shared_preservation.patch"
+    },
+    {
       "contract_exceptions": [
         {
           "reason": "Explicit personal behavior or its aligned tests/docs; detailed owner evidence and current integration contract define boundaries"
         }
-      ]
-    },
-    {
+      ],
       "path": "openpilot/selfdrive/monitoring/test_soft_hold_pause.py",
       "before_sha256": "b17d419ad1bff586ea359e734980d91eed4a42d8d5da13f4b53136000e36ac4e",
       "after_sha256": null,
       "kind": "delete",
-      "review_bundle": "fms_dm_shared_preservation.patch",
+      "review_bundle": "fms_dm_shared_preservation.patch"
+    },
+    {
       "contract_exceptions": [
         {
           "reason": "Explicit personal behavior or its aligned tests/docs; detailed owner evidence and current integration contract define boundaries"
         }
-      ]
-    },
-    {
+      ],
       "path": "openpilot/selfdrive/monitoring/test_steering_touch.py",
       "before_sha256": "a514fe6ed1577ec957a0328b2e11aa75130632b4243c40e4829349e36312b971",
       "after_sha256": null,
       "kind": "delete",
-      "review_bundle": "fms_dm_shared_preservation.patch",
-      "contract_exceptions": [
-        {
-          "reason": "Explicit personal behavior or its aligned tests/docs; detailed owner evidence and current integration contract define boundaries"
-        }
-      ]
+      "review_bundle": "fms_dm_shared_preservation.patch"
     },
     {
+      "contract_exceptions": [
+        {
+          "reason": "legacy_DM_only_restore"
+        }
+      ],
       "path": "openpilot/selfdrive/selfdrived/camera_config.py",
       "before_sha256": "562613ba3e89a4b23f2a9c9e0ea655d646ecbeff791893686ed64cff5710efac",
       "after_sha256": "6cb3f8c703fef54c04964fba8f118009ff5e9951b4582065e714eb9704c9c758",
       "kind": "hunks",
       "review_bundle": "fms_dm_shared_preservation.patch",
       "asset": "fms_preservation/700b66e78b84e1f1815d.patch",
-      "asset_sha256": "983ec83ca67a54d4d79bc422b33320f145b4f8b843019e53e16db058b5b115c0",
+      "asset_sha256": "983ec83ca67a54d4d79bc422b33320f145b4f8b843019e53e16db058b5b115c0"
+    },
+    {
       "contract_exceptions": [
         {
           "reason": "legacy_DM_only_restore"
         }
-      ]
-    },
-    {
+      ],
       "path": "openpilot/selfdrive/selfdrived/events.py",
       "before_sha256": "d0aa5b928ad9bf067ea43a1b0194fb6024b7a4876d2d2bab4a90efd4cbbf9bfc",
       "after_sha256": "9c356646bd328230538a589ba3e5933fd961342162dc9cc400716bd778810b66",
       "kind": "hunks",
       "review_bundle": "fms_dm_shared_preservation.patch",
       "asset": "fms_preservation/d3bb925f8f3a0f431094.patch",
-      "asset_sha256": "b6e84853fb7eaa77f47f57eb490ed81d75c67e1abff511073ced17277578d4a3",
-      "contract_exceptions": [
-        {
-          "reason": "legacy_DM_only_restore"
-        }
-      ]
+      "asset_sha256": "b6e84853fb7eaa77f47f57eb490ed81d75c67e1abff511073ced17277578d4a3"
     },
     {
+      "contract_exceptions": [
+        {
+          "reason": "upstream_with_scoped_legacy_DM_hunks"
+        }
+      ],
       "path": "openpilot/selfdrive/selfdrived/selfdrived.py",
       "before_sha256": "e160f4588777e9c4bb30550117b349fb70220931a0d3dfa726d8c14cb5d438e9",
       "after_sha256": "2ff50168abb94457e0a6f2295bb8af831da7e8d9b97720dc3bfdc9b4863bebeb",
       "kind": "hunks",
       "review_bundle": "fms_dm_shared_preservation.patch",
       "asset": "fms_preservation/40fcca13390a872c9883.patch",
-      "asset_sha256": "3c2576d13fb86af1c10cf0d9f80a4b1bde17b206d01cc57c63f79bcfe70a9c5c",
-      "contract_exceptions": [
-        {
-          "reason": "upstream_with_scoped_legacy_DM_hunks"
-        }
-      ]
+      "asset_sha256": "3c2576d13fb86af1c10cf0d9f80a4b1bde17b206d01cc57c63f79bcfe70a9c5c"
     },
     {
+      "contract_exceptions": [
+        {
+          "reason": "legacy_DM_only_restore"
+        }
+      ],
       "path": "openpilot/selfdrive/selfdrived/tests/test_camera_config.py",
       "before_sha256": "0c4b6bcd313ab705663f9582a1b30b8dcf83cb800b9790b7f5b1943c078876dc",
       "after_sha256": "0d0c731ebbf897007cf0502572f3d4b71df022bc5a22d0483e21d9057a9f26d3",
       "kind": "hunks",
       "review_bundle": "fms_dm_shared_preservation.patch",
       "asset": "fms_preservation/4de23cf3dec989490d8c.patch",
-      "asset_sha256": "f9df0a26e5f3265ec83905374267968d86d966d0573cdd1f59127e3e012529f8",
+      "asset_sha256": "f9df0a26e5f3265ec83905374267968d86d966d0573cdd1f59127e3e012529f8"
+    },
+    {
       "contract_exceptions": [
         {
           "reason": "legacy_DM_only_restore"
         }
-      ]
-    },
-    {
+      ],
       "path": "openpilot/selfdrive/test/process_replay/process_replay.py",
       "before_sha256": "98b1aefae1043b18e5479160bff38acabb76bbe9375c72c06a88f1595fd708fb",
       "after_sha256": "44ffef48a06842bdadb4e31653c9bca004b5bfbac811eb58fbfae8668e29af61",
       "kind": "hunks",
       "review_bundle": "fms_dm_shared_preservation.patch",
       "asset": "fms_preservation/4b8727802a0183b25aef.patch",
-      "asset_sha256": "e8ad4fcaa614c7c5ebaf983d9e79db34df780a1bbe1d4b31c25986c3c2e35d6f",
-      "contract_exceptions": [
-        {
-          "reason": "legacy_DM_only_restore"
-        }
-      ]
+      "asset_sha256": "e8ad4fcaa614c7c5ebaf983d9e79db34df780a1bbe1d4b31c25986c3c2e35d6f"
     },
     {
+      "contract_exceptions": [
+        {
+          "reason": "Explicit personal behavior or its aligned tests/docs; detailed owner evidence and current integration contract define boundaries"
+        }
+      ],
       "path": "openpilot/selfdrive/test/process_replay/test_dmonitoring_replay.py",
       "before_sha256": "880261ba078b7362be4f77488d1be7bd2c8c36c14e7ab7d7fd8121e839de9dbd",
       "after_sha256": null,
       "kind": "delete",
-      "review_bundle": "fms_dm_shared_preservation.patch",
+      "review_bundle": "fms_dm_shared_preservation.patch"
+    },
+    {
       "contract_exceptions": [
         {
           "reason": "Explicit personal behavior or its aligned tests/docs; detailed owner evidence and current integration contract define boundaries"
         }
-      ]
-    },
-    {
+      ],
       "path": "openpilot/selfdrive/ui/dm_preview.py",
       "before_sha256": "a59a395e7f8b4788dd4fbb014d08094b29a12ffe784d9c3f0b43b5367407d750",
       "after_sha256": null,
       "kind": "delete",
-      "review_bundle": "fms_dm_shared_preservation.patch",
-      "contract_exceptions": [
-        {
-          "reason": "Explicit personal behavior or its aligned tests/docs; detailed owner evidence and current integration contract define boundaries"
-        }
-      ]
+      "review_bundle": "fms_dm_shared_preservation.patch"
     },
     {
+      "contract_exceptions": [
+        {
+          "reason": "legacy_DM_only_restore"
+        }
+      ],
       "path": "openpilot/selfdrive/ui/mici/onroad/augmented_road_view.py",
       "before_sha256": "74e1295f0e94f98162cb695ed747792122aecc7cfc30e19d2215256aa0be7af9",
       "after_sha256": "e698a5d3e9411a6d15371b86e8a8f27ffa8a8dd821e1594b5d434c20995c1d71",
       "kind": "hunks",
       "review_bundle": "fms_dm_shared_preservation.patch",
       "asset": "fms_preservation/b79d783c01220a506450.patch",
-      "asset_sha256": "a3f38c34f29ef9f7e517d8cfd750ad47a666a03b795dfd5d72eb57c6442f54c6",
+      "asset_sha256": "a3f38c34f29ef9f7e517d8cfd750ad47a666a03b795dfd5d72eb57c6442f54c6"
+    },
+    {
       "contract_exceptions": [
         {
           "reason": "legacy_DM_only_restore"
         }
-      ]
-    },
-    {
+      ],
       "path": "openpilot/selfdrive/ui/mici/onroad/driver_state.py",
       "before_sha256": "c6ab1be41295818f619fd7623caddf49cf8251e13e5e84033a27c12e628ba524",
       "after_sha256": "026bcc233163fdf7d287c91877aa58d3327236ab787dd11fd94d6dcc8d6cef50",
       "kind": "hunks",
       "review_bundle": "fms_dm_shared_preservation.patch",
       "asset": "fms_preservation/267b5b0ca13a509ecf0b.patch",
-      "asset_sha256": "18e791154a703aaa04713fd4f61e0aa675a2e1d0710503083424845cde7ff72b",
+      "asset_sha256": "18e791154a703aaa04713fd4f61e0aa675a2e1d0710503083424845cde7ff72b"
+    },
+    {
       "contract_exceptions": [
         {
           "reason": "legacy_DM_only_restore"
         }
-      ]
-    },
-    {
+      ],
       "path": "openpilot/selfdrive/ui/onroad/augmented_road_view.py",
       "before_sha256": "8a00589dbde68784bacc65add29631bc1b6751f1b2461569db7ec5baaa4ffdc6",
       "after_sha256": "11b0de09183ccfe230ea54ee088ed9c2a7e34b0882e8dc92ee4235b5a3fae383",
       "kind": "hunks",
       "review_bundle": "fms_dm_shared_preservation.patch",
       "asset": "fms_preservation/9035ad59f4a681e7e5f9.patch",
-      "asset_sha256": "0b8d801b6fda052ff73f988dfcc5e01e4e764872dc6df3d09808ee9aa2316e63",
-      "contract_exceptions": [
-        {
-          "reason": "legacy_DM_only_restore"
-        }
-      ]
+      "asset_sha256": "0b8d801b6fda052ff73f988dfcc5e01e4e764872dc6df3d09808ee9aa2316e63"
     },
     {
-      "path": "openpilot/selfdrive/ui/onroad/driver_preview.py",
-      "before_sha256": "958ba1daf9517449bb94658059eeade31237f7f67340e9521ccc26287dc5e69c",
-      "after_sha256": null,
-      "kind": "delete",
-      "review_bundle": "fms_dm_shared_preservation.patch",
       "contract_exceptions": [
         {
           "reason": "Explicit personal behavior or its aligned tests/docs; detailed owner evidence and current integration contract define boundaries"
         }
-      ]
+      ],
+      "path": "openpilot/selfdrive/ui/onroad/driver_preview.py",
+      "before_sha256": "958ba1daf9517449bb94658059eeade31237f7f67340e9521ccc26287dc5e69c",
+      "after_sha256": null,
+      "kind": "delete",
+      "review_bundle": "fms_dm_shared_preservation.patch"
     },
     {
+      "contract_exceptions": [
+        {
+          "reason": "legacy_DM_only_restore"
+        }
+      ],
       "path": "openpilot/selfdrive/ui/onroad/driver_state.py",
       "before_sha256": "0962505a601aa11c734599ea124d28f74b5954f4030b82dcfb340927b69be59c",
       "after_sha256": "571da708ad25502806747ff86575b1239bcc43ffdd46677878769f432fa10adc",
       "kind": "hunks",
       "review_bundle": "fms_dm_shared_preservation.patch",
       "asset": "fms_preservation/7e122038651b39a208ff.patch",
-      "asset_sha256": "fd6d28c6c00ae1116a74fef7737af50e473534eb123edd2d767f10957396f2fd",
+      "asset_sha256": "fd6d28c6c00ae1116a74fef7737af50e473534eb123edd2d767f10957396f2fd"
+    },
+    {
       "contract_exceptions": [
         {
           "reason": "legacy_DM_only_restore"
         }
-      ]
-    },
-    {
+      ],
       "path": "openpilot/selfdrive/ui/soundd.py",
       "before_sha256": "d0460a47e088b607cadaaa0050206db0bc45f02f1a0dddd4b6b758fb1e519d83",
       "after_sha256": "d76c38edb87cfa2a8d5d423ab80fbb26c94bf9a1bfbe518490191bae325deac6",
       "kind": "hunks",
       "review_bundle": "fms_dm_shared_preservation.patch",
       "asset": "fms_preservation/3f991d4cf5d13a4a49f0.patch",
-      "asset_sha256": "bd3ca89c2be74151570baf9473684715bd71ad45039b7c77a33d7ee4f8c2e369",
-      "contract_exceptions": [
-        {
-          "reason": "legacy_DM_only_restore"
-        }
-      ]
+      "asset_sha256": "bd3ca89c2be74151570baf9473684715bd71ad45039b7c77a33d7ee4f8c2e369"
     },
     {
-      "path": "openpilot/selfdrive/ui/tests/test_dm_preview.py",
-      "before_sha256": "7efbbb2a7e462aff0646fa890182a6447aa4fab366ac9e2b07e07dfc31006c66",
-      "after_sha256": null,
-      "kind": "delete",
-      "review_bundle": "fms_dm_shared_preservation.patch",
       "contract_exceptions": [
         {
           "reason": "Explicit personal behavior or its aligned tests/docs; detailed owner evidence and current integration contract define boundaries"
         }
-      ]
+      ],
+      "path": "openpilot/selfdrive/ui/tests/test_dm_preview.py",
+      "before_sha256": "7efbbb2a7e462aff0646fa890182a6447aa4fab366ac9e2b07e07dfc31006c66",
+      "after_sha256": null,
+      "kind": "delete",
+      "review_bundle": "fms_dm_shared_preservation.patch"
     },
     {
+      "contract_exceptions": [
+        {
+          "reason": "legacy_DM_only_restore"
+        }
+      ],
       "path": "openpilot/selfdrive/ui/tests/test_mici_road_view_mode.py",
       "before_sha256": "a2f09fb75535b4d99510c8eda12673985c7749b8b994410549dd1095b0cf5ab5",
       "after_sha256": "99b8f381c87da26d7b21e7368e3ba2927a9e40356e558bc3335b7fa09a7b3926",
       "kind": "hunks",
       "review_bundle": "fms_dm_shared_preservation.patch",
       "asset": "fms_preservation/a4d3f6f650ab93cae924.patch",
-      "asset_sha256": "b3cc66851ccd28ff6761d65311a4c7d27cec9de3fc5d523c1650be1c87f3167e",
+      "asset_sha256": "b3cc66851ccd28ff6761d65311a4c7d27cec9de3fc5d523c1650be1c87f3167e"
+    },
+    {
       "contract_exceptions": [
         {
           "reason": "legacy_DM_only_restore"
         }
-      ]
-    },
-    {
+      ],
       "path": "openpilot/selfdrive/ui/tests/test_overlay_cache.py",
       "before_sha256": "f9f89774899efe5819fcfaf0673ecbc986e950243d6464be6c8387d621a49f60",
       "after_sha256": "d07657603e6554c8ce74d62dc75c9bd7020b98c5f4800e288a175e6a2393c87b",
       "kind": "hunks",
       "review_bundle": "fms_dm_shared_preservation.patch",
       "asset": "fms_preservation/9dee7d2717d0a12d0f63.patch",
-      "asset_sha256": "3f326ea1efdfc6b6b96d3cfdcb64ae13489a213689b70fee408f14177858e877",
+      "asset_sha256": "3f326ea1efdfc6b6b96d3cfdcb64ae13489a213689b70fee408f14177858e877"
+    },
+    {
       "contract_exceptions": [
         {
           "reason": "legacy_DM_only_restore"
         }
-      ]
-    },
-    {
+      ],
       "path": "openpilot/selfdrive/ui/tests/test_soundd.py",
       "before_sha256": "d4e757382cd61c9196aa23c8ca8cd44e3410b237c56a0284f5c168f6390df53c",
       "after_sha256": "9fe8221831753df8b406f0ceda113be9de03efa811fd7c4246afe145bec94f57",
       "kind": "hunks",
       "review_bundle": "fms_dm_shared_preservation.patch",
       "asset": "fms_preservation/7c7d4b45ce6eb09a1f76.patch",
-      "asset_sha256": "4aca1c6316ee01895b14aeb0f19f9d102770724cc78c78d69b0b935591bcba5c",
+      "asset_sha256": "4aca1c6316ee01895b14aeb0f19f9d102770724cc78c78d69b0b935591bcba5c"
+    },
+    {
       "contract_exceptions": [
         {
           "reason": "legacy_DM_only_restore"
         }
-      ]
-    },
-    {
+      ],
       "path": "openpilot/selfdrive/ui/translations/app_en.po",
       "before_sha256": "0d33aa494dd68755d724e787b43cb7bd1053488d2114a08332291ab988855053",
       "after_sha256": "dbe5d7a26bf71611766c1e7c739baa141d555f7b0f5693a66c5d86d3bbfdbf91",
       "kind": "hunks",
       "review_bundle": "fms_dm_shared_preservation.patch",
       "asset": "fms_preservation/b59ccc1635eb9053fd86.patch",
-      "asset_sha256": "f26c08c78340ed9ef500e1c6bbb387f151bb24b5c81351bef9965be2fa1cce47",
+      "asset_sha256": "f26c08c78340ed9ef500e1c6bbb387f151bb24b5c81351bef9965be2fa1cce47"
+    },
+    {
       "contract_exceptions": [
         {
           "reason": "legacy_DM_only_restore"
         }
-      ]
-    },
-    {
+      ],
       "path": "openpilot/selfdrive/ui/translations/app_ko.po",
       "before_sha256": "48457765031f345f89a1bcfa7d3e59bc5aaf0ee9cad6a0d2a7de5db76687d0e9",
       "after_sha256": "d0778d5139e8c113f9246a4b93b6da90c00a7d93dc1053d5d6bfd81a0496affc",
       "kind": "hunks",
       "review_bundle": "fms_dm_shared_preservation.patch",
       "asset": "fms_preservation/ada8b4da3cbdf5087b35.patch",
-      "asset_sha256": "c1c54e660bd44679605a1e066fa23356403bee29de1f8c6faa053ec718fd8f55",
+      "asset_sha256": "c1c54e660bd44679605a1e066fa23356403bee29de1f8c6faa053ec718fd8f55"
+    },
+    {
       "contract_exceptions": [
         {
           "reason": "legacy_DM_only_restore"
         }
-      ]
-    },
-    {
+      ],
       "path": "openpilot/system/camerad/SConscript",
       "before_sha256": "839caf8fccdf5a4fed86050f483338e8efabbdc3b071337cf19000f93c70317c",
       "after_sha256": "84902515737be0ba372326e5afcefd519ce98a78a3a4ffa68846c7b9a1c247b6",
       "kind": "hunks",
       "review_bundle": "fms_dm_shared_preservation.patch",
       "asset": "fms_preservation/cb590062c7479b285762.patch",
-      "asset_sha256": "508f80a634e343997f8329ddf172064637e6805de7c0d6bf9ff778c3b80dac95",
-      "contract_exceptions": [
-        {
-          "reason": "legacy_DM_only_restore"
-        }
-      ]
+      "asset_sha256": "508f80a634e343997f8329ddf172064637e6805de7c0d6bf9ff778c3b80dac95"
     },
     {
-      "path": "openpilot/system/camerad/cameras/async_frame_wait.h",
-      "before_sha256": "6bf3ec805a579cf00656ee6081c6dc16ed047dd83f0250fce580c8de841b0f41",
-      "after_sha256": null,
-      "kind": "delete",
-      "review_bundle": "fms_dm_shared_preservation.patch",
       "contract_exceptions": [
         {
           "reason": "Explicit personal behavior or its aligned tests/docs; detailed owner evidence and current integration contract define boundaries"
         }
-      ]
+      ],
+      "path": "openpilot/system/camerad/cameras/async_frame_wait.h",
+      "before_sha256": "6bf3ec805a579cf00656ee6081c6dc16ed047dd83f0250fce580c8de841b0f41",
+      "after_sha256": null,
+      "kind": "delete",
+      "review_bundle": "fms_dm_shared_preservation.patch"
     },
     {
+      "contract_exceptions": [
+        {
+          "reason": "legacy_DM_only_restore"
+        }
+      ],
       "path": "openpilot/system/camerad/cameras/camera_qcom2.cc",
       "before_sha256": "fa8cfdf761153c6149cd3962df7f7ec09cd1c109a6700bc5a66e699b34c1e8ce",
       "after_sha256": "573c45e4799bf816e31aa60945cf5175d38dd0fb34f532f1697c8dcec0eacb29",
       "kind": "hunks",
       "review_bundle": "fms_dm_shared_preservation.patch",
       "asset": "fms_preservation/5e0199211b5b55634a88.patch",
-      "asset_sha256": "17c7de4c722b738c78506a3e20906b02e128d456db46d9385ffb7c0e786246aa",
+      "asset_sha256": "17c7de4c722b738c78506a3e20906b02e128d456db46d9385ffb7c0e786246aa"
+    },
+    {
       "contract_exceptions": [
         {
           "reason": "legacy_DM_only_restore"
         }
-      ]
-    },
-    {
+      ],
       "path": "openpilot/system/camerad/cameras/spectra.cc",
       "before_sha256": "e537c27f1d24f3232acc17a0c0b08183813253325e1a74662b27f8a61608943f",
       "after_sha256": "503cf6d4cb74d901466b0e3b244f9bf218a525e76c0f2ef2790f92ce391a6587",
       "kind": "hunks",
       "review_bundle": "fms_dm_shared_preservation.patch",
       "asset": "fms_preservation/0f83fa87e657b0c2ac6b.patch",
-      "asset_sha256": "e1a5e34823722019f7d44e579a6f9556996cff1c72edfa69ca67616d0902a90a",
+      "asset_sha256": "e1a5e34823722019f7d44e579a6f9556996cff1c72edfa69ca67616d0902a90a"
+    },
+    {
       "contract_exceptions": [
         {
           "reason": "legacy_DM_only_restore"
         }
-      ]
-    },
-    {
+      ],
       "path": "openpilot/system/camerad/cameras/spectra.h",
       "before_sha256": "66aa42ef892d9f2ca7e85c07d13d252bd34a6901ee58f8e7aa639f6dce3c1b4a",
       "after_sha256": "ef9182505fcd05c37517c15e0981201cb7d17d97b2f8c593f5ee4fd6f0fc9928",
       "kind": "hunks",
       "review_bundle": "fms_dm_shared_preservation.patch",
       "asset": "fms_preservation/95a00e975c2c201f79e0.patch",
-      "asset_sha256": "fcccf87659213a1a0aeddd2b3d87ff6329b4cce8893b4e19a88018009290ba80",
+      "asset_sha256": "fcccf87659213a1a0aeddd2b3d87ff6329b4cce8893b4e19a88018009290ba80"
+    },
+    {
       "contract_exceptions": [
         {
           "reason": "legacy_DM_only_restore"
         }
-      ]
-    },
-    {
+      ],
       "path": "openpilot/system/camerad/test/SConscript",
       "before_sha256": "d6c4a0594e13ac43b06992b3f95eb8079ee45a6ac60edc2ed9ae63242686f8ae",
       "after_sha256": "7dae73167a0318a8f545455104032e6dd877e859d94e05655971befa9369cc28",
       "kind": "hunks",
       "review_bundle": "fms_dm_shared_preservation.patch",
       "asset": "fms_preservation/8a3af5e1804f9cc8afc7.patch",
-      "asset_sha256": "3fb25614427ceb0016e6aaee8a79bb5b6673c59de72b5298bb87facb48d70765",
-      "contract_exceptions": [
-        {
-          "reason": "legacy_DM_only_restore"
-        }
-      ]
+      "asset_sha256": "3fb25614427ceb0016e6aaee8a79bb5b6673c59de72b5298bb87facb48d70765"
     },
     {
-      "path": "openpilot/system/camerad/test/test_async_frame_wait.cc",
-      "before_sha256": "8314d757a6797409f2409ecca86904e1050883550adab6c094235575834bfdbd",
-      "after_sha256": null,
-      "kind": "delete",
-      "review_bundle": "fms_dm_shared_preservation.patch",
       "contract_exceptions": [
         {
           "reason": "Explicit personal behavior or its aligned tests/docs; detailed owner evidence and current integration contract define boundaries"
         }
-      ]
+      ],
+      "path": "openpilot/system/camerad/test/test_async_frame_wait.cc",
+      "before_sha256": "8314d757a6797409f2409ecca86904e1050883550adab6c094235575834bfdbd",
+      "after_sha256": null,
+      "kind": "delete",
+      "review_bundle": "fms_dm_shared_preservation.patch"
     },
     {
+      "contract_exceptions": [
+        {
+          "reason": "Explicit personal behavior or its aligned tests/docs; detailed owner evidence and current integration contract define boundaries"
+        }
+      ],
       "path": "openpilot/system/manager/manager.py",
       "before_sha256": "8b33b98cf0a6770e49d5c285cf6251a1f23621004f5c71ce32cc9f8dafa2f371",
       "after_sha256": "9c46da1bc3232da4427c3ac8f93fb33b0c8dfd2ee0f66dea4550aa05a8f2a223",
       "kind": "hunks",
       "review_bundle": "fms_dm_shared_preservation.patch",
       "asset": "fms_preservation/ccbdf80df2d46cea017a.patch",
-      "asset_sha256": "119ee7e5c578575a7aaff3c8fd026777eb68a243a48f2962945ab1cb95494da0",
+      "asset_sha256": "119ee7e5c578575a7aaff3c8fd026777eb68a243a48f2962945ab1cb95494da0"
+    },
+    {
       "contract_exceptions": [
         {
           "reason": "Explicit personal behavior or its aligned tests/docs; detailed owner evidence and current integration contract define boundaries"
         }
-      ]
-    },
-    {
+      ],
       "path": "openpilot/system/manager/process_config.py",
       "before_sha256": "5c881a28c4c368f055452d778b256cb20c63ffcdca82ee8e4353ac69022cf7e6",
       "after_sha256": "799cf7a0945430df843cb0df2f765048a893df4fe8e5d3ebda692b9abefd4090",
       "kind": "hunks",
       "review_bundle": "fms_dm_shared_preservation.patch",
       "asset": "fms_preservation/3b79706045dc6c8b1f33.patch",
-      "asset_sha256": "9437ba9b487763cfe0c5b249d0db6c0a831d1ea9c6029229366f66ed60f2e8da",
+      "asset_sha256": "9437ba9b487763cfe0c5b249d0db6c0a831d1ea9c6029229366f66ed60f2e8da"
+    },
+    {
       "contract_exceptions": [
         {
           "reason": "Explicit personal behavior or its aligned tests/docs; detailed owner evidence and current integration contract define boundaries"
         }
-      ]
-    },
-    {
+      ],
       "path": "openpilot/system/manager/test/test_manager.py",
       "before_sha256": "5918dfe03eef9d103309dd472a621cd20b0409052429c7fa23c008c2d322ada9",
       "after_sha256": "c8d73fc5b30135361e655b9fc2e44f2c962ad2ed182d6674c75975a92ac938d7",
       "kind": "hunks",
       "review_bundle": "fms_dm_shared_preservation.patch",
       "asset": "fms_preservation/6dadd53df6802b9d8f69.patch",
-      "asset_sha256": "177e82b053db1dc0478a044af3b09f2f7bd174aec385ce00f97db77aa05c6b44",
+      "asset_sha256": "177e82b053db1dc0478a044af3b09f2f7bd174aec385ce00f97db77aa05c6b44"
+    },
+    {
       "contract_exceptions": [
         {
           "reason": "Explicit personal behavior or its aligned tests/docs; detailed owner evidence and current integration contract define boundaries"
         }
-      ]
-    },
-    {
+      ],
       "path": "tools/carrot_pc_logs/README.md",
       "before_sha256": null,
       "after_sha256": "cb5b20dcee1a33e2f860538e9639ea8f68e7c47e65d4b053530faac30345b7d4",
       "kind": "blob",
       "review_bundle": "fms_dm_shared_preservation.patch",
       "asset": "fms_preservation/2e3da9500bf27e9803f2.blob",
-      "asset_sha256": "cb5b20dcee1a33e2f860538e9639ea8f68e7c47e65d4b053530faac30345b7d4",
+      "asset_sha256": "cb5b20dcee1a33e2f860538e9639ea8f68e7c47e65d4b053530faac30345b7d4"
+    },
+    {
       "contract_exceptions": [
         {
           "reason": "Explicit personal behavior or its aligned tests/docs; detailed owner evidence and current integration contract define boundaries"
         }
-      ]
-    },
-    {
+      ],
       "path": "tools/carrot_pc_logs/receiver.py",
       "before_sha256": null,
       "after_sha256": "8b770bce78973616a76b2cda3a11a4c7c834c552bf0f1f693a2d656ccaf42e96",
       "kind": "blob",
       "review_bundle": "fms_dm_shared_preservation.patch",
       "asset": "fms_preservation/0ec1267db49c845b8404.blob",
-      "asset_sha256": "8b770bce78973616a76b2cda3a11a4c7c834c552bf0f1f693a2d656ccaf42e96",
+      "asset_sha256": "8b770bce78973616a76b2cda3a11a4c7c834c552bf0f1f693a2d656ccaf42e96"
+    },
+    {
       "contract_exceptions": [
         {
           "reason": "Explicit personal behavior or its aligned tests/docs; detailed owner evidence and current integration contract define boundaries"
         }
-      ]
-    },
-    {
+      ],
       "path": "tools/carrot_pc_logs/start.cmd",
       "before_sha256": null,
       "after_sha256": "baa3261f10554cd7273207f9e43bd10a833ebd2871fbd9ef91b6b3da6a62851f",
       "kind": "blob",
       "review_bundle": "fms_dm_shared_preservation.patch",
       "asset": "fms_preservation/c15401f601dd3c1ad5a7.blob",
-      "asset_sha256": "baa3261f10554cd7273207f9e43bd10a833ebd2871fbd9ef91b6b3da6a62851f",
+      "asset_sha256": "baa3261f10554cd7273207f9e43bd10a833ebd2871fbd9ef91b6b3da6a62851f"
+    },
+    {
       "contract_exceptions": [
         {
           "reason": "Explicit personal behavior or its aligned tests/docs; detailed owner evidence and current integration contract define boundaries"
         }
-      ]
-    },
-    {
+      ],
       "path": "tools/carrot_pc_logs/tests/test_receiver.py",
       "before_sha256": null,
       "after_sha256": "a154487ea774e1edcc306fa5b394afcef9b820055e02b99d6e43ea9690260670",
       "kind": "blob",
       "review_bundle": "fms_dm_shared_preservation.patch",
       "asset": "fms_preservation/5b8cbb3edbbc4c9563d6.blob",
-      "asset_sha256": "a154487ea774e1edcc306fa5b394afcef9b820055e02b99d6e43ea9690260670",
+      "asset_sha256": "a154487ea774e1edcc306fa5b394afcef9b820055e02b99d6e43ea9690260670"
+    },
+    {
       "contract_exceptions": [
         {
           "reason": "Explicit personal behavior or its aligned tests/docs; detailed owner evidence and current integration contract define boundaries"
         }
-      ]
-    },
-    {
+      ],
       "path": "tools/docs/wiki_settings/tests/test_generate.py",
       "before_sha256": "bd40b87784d80aedb73d1f9115c5dd72cbab659a8b433535a21db8e2ec105df9",
       "after_sha256": "d00b40debc17cc4acde277d6b4613d9bdd912144483047b4c53b189154300043",
       "kind": "hunks",
       "review_bundle": "fms_dm_shared_preservation.patch",
       "asset": "fms_preservation/afe96cbe56f8172891d2.patch",
-      "asset_sha256": "f7fb0fec47f93d11e2dcebf0456ee99b3efe2a5a1286a8d8cfd10b6daa141757",
-      "contract_exceptions": [
-        {
-          "reason": "Explicit personal behavior or its aligned tests/docs; detailed owner evidence and current integration contract define boundaries"
-        }
-      ]
+      "asset_sha256": "f7fb0fec47f93d11e2dcebf0456ee99b3efe2a5a1286a8d8cfd10b6daa141757"
     },
     {
-      "path": "tools/signal_analysis/signal_upper_group_trial.py",
-      "before_sha256": "772bef7b31527c5986eaaa49143225ddc20e58696c3b7f27513040351cc9bd69",
-      "after_sha256": "3b51aec91eff87f3d30dc58390979c85381f3646af73a1d6b98d5ee206fa94bd",
-      "kind": "hunks",
-      "asset": "fms_preservation/67b599bd2be177158e7e.patch",
-      "asset_sha256": "f40bcb6363ef0430891717c205365bda0f51f8d31ce986f4855c66ca26b7bcbe",
-      "review_bundle": "fms_dm_shared_preservation.patch",
       "contract_exceptions": [
         {
           "reason": "Only remove upstream extra EOF blank line for required diff check; all non-EOF bytes and behavior unchanged"
         }
-      ]
+      ],
+      "path": "tools/signal_analysis/signal_upper_group_trial.py",
+      "before_sha256": "772bef7b31527c5986eaaa49143225ddc20e58696c3b7f27513040351cc9bd69",
+      "after_sha256": "3b51aec91eff87f3d30dc58390979c85381f3646af73a1d6b98d5ee206fa94bd",
+      "kind": "hunks",
+      "review_bundle": "fms_dm_shared_preservation.patch",
+      "asset": "fms_preservation/67b599bd2be177158e7e.patch",
+      "asset_sha256": "f40bcb6363ef0430891717c205365bda0f51f8d31ce986f4855c66ca26b7bcbe"
     }
   ],
   "personal_features": [
@@ -2453,12 +2453,23 @@
     "Personal205 first-install profile retired; restore backup",
     "Schedules paused, stable manual promotion, device/install/publication separate permission"
   ],
-  "followup_review_status": "Both skeptical-review findings repaired and targeted verified (Bluetooth253, blinker155); this exact441 integration and repair tree authorized for WIP-only commit and ordinary fast-forward push after final gates.",
+  "followup_review_status": "Incremental4a source join reviewed by independent Sol;383 targeted PASS/noFAIL orSKIP. First reconstruction/idempotence/full freeze/publication required; prior Bluetooth253 and unchanged-source checks reused without duplicate counting.",
   "repair_followup": {
     "source_baseline": "441d71e330471a46d6207218a97d9937f68026e3",
     "base_git_parent": "e0f14004a52061895eae47d230327bf03f05065c",
     "bluetooth": "Preserve gesture started independent from publication time/TTL, cancel-cutoff across deferred gesture paths and fresh rearm",
     "blinker": "Persistent normal-completion mono stamp field35 only; retire in-change detector on explicit valid completion, preserve blocked/cancel/late-debounce protection and original FSM",
     "permissions": "User explicitly approved repair and this WIP publication; no stable/DDM/device/schedules update"
+  },
+  "incremental_followup": {
+    "from_upstream": "441d71e330471a46d6207218a97d9937f68026e3",
+    "to_upstream": "4a555c75b81c4ba80bfbf2260007a6baa645fcac",
+    "git_parent": "f283533d3243416a83aef89654d8c1b810f4840c",
+    "upstream_commits": 2,
+    "upstream_paths": 16,
+    "applied_paths": 15,
+    "owned_AGENTS": "Preserve FMS operating instructions; new upstream technical facts are in adopted docs and current FMS summary, not authority",
+    "preserved_repairs_from": "f283533d3243416a83aef89654d8c1b810f4840c",
+    "permissions": "Current WIP update only; no stable/DDM/device/Params/schedules"
   }
 }

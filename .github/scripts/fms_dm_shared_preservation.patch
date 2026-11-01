@@ -16,28 +16,34 @@ diff --git a/.gitattributes b/.gitattributes
 diff --git a/AGENTS.md b/AGENTS.md
 --- a/AGENTS.md
 +++ b/AGENTS.md
-@@ -1,1210 +1,155 @@
+@@ -1,1230 +1,161 @@
 +# CarrotPilot 제품 작업 지침
 +
-+사용자 후속 명시 승인(2026-11-01): **"수리후 커밋 푸쉬해줘". 이번441 통합본과발견2건수리를검증한그대로 fms-carrot-wip에커밋·일반fast-forward푸시하는범위만승인했다. 안정판/DDM·기기/Params·예약은변경하지않는다. 아래이전승인금지/미수리문구는그때기록이며현재승인은이항목을우선한다. 최종게시SHA는프로젝트운영로그최상단을따른다.**
++사용자 이번 요청(2026-11-01): **"원본 4a555c7 기준으로 또 업데이트". 게시 f283533 위에 원본441d71e..4a555c7의2커밋을 통합하고 개인7개 예외·공통보호·기존DM·직전두수리를 보존해 검증한 뒤 fms-carrot-wip만 일반fast-forward로 갱신한다. 안정판/DDM·예약·기기/Params는 그대로다. 원본과 재구성기준은4a555c7이며 Git부모는f283533이다. 아래 과거로컬/금지상태를 현행으로 오인하지 않는다.**
++
++이번 원본 변경은 선택 기능인 IONIQ5PE/Jetson 수동 자동깜박이의 반향 오인 방지·ACK와 조기램프관측 연결·경계접근0.3초 예측(0.9~1.2m 제한)이다. 기존 장비/기본OFF·속도/색상/접근/로드에지/운전자취소게이트는 보존한다. MQ4의 완료stamp35·운전자개입HOLD/원본FSM은 유지한다. 원본의AGENTS·rlog/CI 수치는 변경배경 자료이며 FMS승인이나 실차PASS가 아니다. 세부는 docs/manual_indicator_response_20261101.md와 외부프로젝트 output/WIP_DELTA_4A555C7_2026-11-01 근거를 참조한다.
++
++이전 수리 게시 승인(2026-11-01): **"수리후 커밋 푸쉬해줘". 이번441 통합본과발견2건수리를검증한그대로 fms-carrot-wip에커밋·일반fast-forward푸시하는범위만승인했다. 안정판/DDM·기기/Params·예약은변경하지않는다. 아래이전승인금지/미수리문구는그때기록이며현재승인은이항목을우선한다. 최종게시SHA는프로젝트운영로그최상단을따른다.**
 +
 +
 +## 2026-11-01 확정 운영 방향 — 최신 원본을 기본으로, 명시 개인 예외만 유지
 +
-+사용자 최신 승인: **원본441d71e 기준으로 최대한 원본을 따르면서 기존 개인 패치·검증된 깜박이 수정·현재 DM 전체를 유지한다. 로컬 통합·검증·인수인계까지 수행하고 커밋·푸시는 하지 않는다.** 이 항목은 과거의 '현 FMS에서 소수 기능만 선별', 재구성0389e7a 고정, 자동등/SPAS/Tesla/GPS 전면 제외 방침을 대체한다. 과거 검증과 실패 이력은 증거로 보존하되 그 당시 제외 목록을 영구 정책으로 재사용하지 않는다.
++사용자 확정 운영 방향: **선택한 최신 원본4a555c7을 기본으로 최대한 원본을 따르면서 개인7개 예외·공통보호·검증된 깜박이 수정·현재DM전체를 유지한다. 이번 WIP 갱신과 검증·기록·게시 범위는 맨 위 현재 요청을 따른다.** 이 항목은 과거의 '현 FMS에서 소수 기능만 선별', 재구성0389e7a 고정, 자동등/SPAS/Tesla/GPS 전면 제외 방침을 대체한다. 과거 검증과 실패 이력은 증거로 보존하되 그 당시 제외 목록을 영구 정책으로 재사용하지 않는다.
 +
 +- **기본값:** 선택한 최신 원본의 일반 코드·버그 수정·NAV/GPS·모델 카탈로그·Jetson/GPU·UI·신규 선택 기능을 가져온다. 원본의 기본 OFF/차종·장비 조건은 그대로이며 코드 포함과 실제 설정·설치·활성화는 구분한다. 장비 미사용·실험 기능이라는 이유만으로 원본 영역을 통째 제외하지 않는다.
 +- **예외를 좁힌다:** 아래 개인 계약과 충돌하는 정확한 함수·조건·필드만 접합한다. 공용 파일 전체를 구 FMS로 덮어 최신 비DM 변경을 잃지 않는다. 새 제외는 구체적 계약 충돌·결함·검증 실패와 파일/함수를 기록한다. 원본이 동등한 기능을 제공하면 같은 계약을 확인하고 중복 개인 코드를 흡수한다.
-+- **기준을 분리한다:** 이번 원본 소스·재구성 기준은 `441d71e330471a46d6207218a97d9937f68026e3`, 기존 게시/현재 Git HEAD는 `e0f14004a52061895eae47d230327bf03f05065c`다. HEAD가441로 이동했거나 새 커밋이 게시됐다는 뜻이 아니다. 이후 갱신은 선택 원본 기준도 함께 올려 오래된 원본 복원 패치를 누적하지 않는다. 실제 설치 SHA는 별도 확인한다.
++- **기준을 분리한다:** 이번 원본 소스·재구성 기준은 `4a555c75b81c4ba80bfbf2260007a6baa645fcac`, 이번 통합의 게시 시작/Git부모는 `f283533d3243416a83aef89654d8c1b810f4840c`다. 원본기준과 최종FMS게시SHA는 다르다. 이후 갱신은 선택 원본 기준도 함께 올려 오래된 원본 복원 패치를 누적하지 않는다. 실제 설치 SHA는 별도 확인한다.
 +- **개인 기능·유지예외는7개:** ①독립SoftHold/CANFD정차호환 ②패들모드4 ③진행중운전자개입HOLD해제 ④legacyDM전체고정 ⑤VEgoStopping최소1/저장값 ⑥원본+포크브랜치선택 ⑦폰경유PC로그전송. 세부의도/제외범위/검증조건은제품 `docs/fms_integration_contract.md` 최신분류절이권위기준이다.
 +- **공통 보호는별도:** CANCEL우선·과거입력/지연클릭재생금지·기존페달/주차/무효인터록·정상저장보존이다. 보호조건/함수/시험을각각추가개인기능으로세지않는다.
 +- **원본 기능 보존은별도:** 앞차추종정차·재출발, 원본레버/FSM/대기예약, 패들0~3·일반조향/정지거리설정등이다. 우리호환구조가가리지않게보존하는것이며원본만으로동등보호가충족되면중복접합은검증후흡수대상이다.
 +- **퇴역·운영은별도:** 개인205최초값폐기/백업복원, 예약중지/안정판수동승격/DDM보관이다. 정의는목표동작이며검증완료선언이아니다. 의심검토2건은사용자후속승인으로수리했다. Bluetooth입력기원/CANCEL경계253PASS·명시정상완료stamp기반HOLD감지구간155PASS이며기존보호와원본FSM은보존한다. 이번검증본만WIP게시승인대상이고최종재구성/지문/독립검토대조후게시한다.
 +- **실행 경계:** 기존 Git 이력·미커밋 후보를 먼저 보존한다. force push/reset/clean/stash로 치우지 않는다. 안정판/DDM·기기/실제 Params·예약은 이번 범위가 아니다. 자동 미러/자동 갱신·안정판 자동 승격을 뜻하지 않는다. 게시/설치는 새 명시 요청이 필요하다.
 +
-+현재 증거의 위치: `output/WIP_BASE_441D71E_2026-11-01/`의 소유별 결과·최종 동결/재구성·완료 결과. 원래 작업 폴더는 `D:\Codex\openpilot-paddle-wip-merge-20260926`이며 격리 후보는 해당 output의 `candidate`다. 기존 검증 후보는 `current_snapshot`에 6,225경로로 보관했다. 최종 원래 폴더 반영 여부·검사 수치·남은 한계는 `CARROTPILOT_AUTOMATION_LOG.md`의 가장 위 현재 운영 인수인계를 확인한다.
++현재 증거의 위치: `output/WIP_DELTA_4A555C7_2026-11-01/`의 원본2커밋차이·관련383PASS·독립검토·최초재구성/멱등·전체동결·최종게시대조를 우선한다. 아래441 통합과253/155수리 근거는 동일소스·의존지문에 유효할 때 재사용하며 중복합산하지 않는다.
 +
-+이 제품의 현행 세부 계약은 `docs/fms_integration_contract.md` 2026-11-01 절이다. 격리 후보와 원래 폴더는 같은 승인 범위의 검증/반영 단계이며 어느 쪽에서도 커밋·푸시 권한은 없다. 소스 기준441d71e와미커밋Git HEAD e0f1400을혼동하지않는다. 여러작업자가함께하므로소유외수정/되돌리기를하지않는다. Astra는현재명시요청때만읽기전용자문이며과거승인은자동호출권한이아니다.
++이전441 통합 증거의 위치: `output/WIP_BASE_441D71E_2026-11-01/`의 소유별 결과·최종 동결/재구성·완료 결과. 원래 작업 폴더는 `D:\Codex\openpilot-paddle-wip-merge-20260926`이며 격리 후보는 해당 output의 `candidate`다. 기존 검증 후보는 `current_snapshot`에 6,225경로로 보관했다. 최종 원래 폴더 반영 여부·검사 수치·남은 한계는 `CARROTPILOT_AUTOMATION_LOG.md`의 가장 위 현재 운영 인수인계를 확인한다.
++
++이 제품의 현행 세부 계약은 `docs/fms_integration_contract.md` 2026-11-01 절이다. 현재 작업은 원래 폴더의 f283533 위4a555c7 증분 갱신이다. 이번 검증본의 WIP게시만 현재 요청 범위이며 미래갱신·안정판·설치의 포괄승인이 아니다. 소스4a555c7/Git부모f283533/최종게시·설치SHA를구분한다. 여러작업자가함께하므로소유외수정/되돌리기를하지않는다. Astra는현재명시요청때만읽기전용자문이며과거승인은자동호출권한이아니다.
 +
 +---
 +
@@ -169,6 +175,26 @@ diff --git a/AGENTS.md b/AGENTS.md
 +and field observations, not permission to replace these FMS contracts.
 +
  # Repository memory
+-
+-- On 2026-11-01, owner approves latest-drive manual-indicator response fixes.
+-  Eleven hash-matched full rlogs/147479258B/12755model frames:20manual requests,
+-  15lamp-feedback starts, median0.206s request-to-lamp; detector delay dominates.
+-  Add0.3s approach projection capped0.3m (threshold<=1.2m), keeping intent,
+-  actual0.15m movement, paired geometry,30km/h/white-left/edge-right gates.
+-  Comma-only successful-send local echo context binds ID/time/direction/counts,
+-  <150ms fresh/<600ms start/<250ms pulse,3/4counter edges for interleaved stock
+-  neutral; opposite/latched/receiver-driver override preserved. Same-direction
+-  physical input within short echo interval remains ambiguous, not perfectly
+-  attributable. Remember early lamp<750ms but require exact completed-sendACK
+-  before hold. Replay20->20,14earlier median0.298s/max0.760s; context-supplied
+-  cancellation replay13cancelled->geometry/return, not closed-loop road proof.
+-  Desktop700pass/2skip; no receiver/CAN/Panda/ATC/TBT/BT/steering/model changes,
+-  no new Jetson bundle or live writes. Normal GitPull/comma restart.
+-  Source6054829dc8 published. Signal41273870185 1277/40skip/362subtests;
+-  Jetson41273870206 2214/56skip+232/62/94/119/11/11 andWindows pass.
+-  eGPU/docs pass; Wiki7589726->c8a0cf2 ninepages reviewed/current.
+-  See docs/manual_indicator_response_20261101.md; raw evidence private.
+-
 -
 -- On 2026-11-01, owner requests C3/C4/USB HUD automatic-indicator reasons and
 -  preparation. Shared read-only badge distinguishes prepare/request/activation
@@ -1415,18 +1441,18 @@ diff --git a/docs/branch_catalog.md b/docs/branch_catalog.md
 diff --git a/docs/fms_integration_contract.md b/docs/fms_integration_contract.md
 --- /dev/null
 +++ b/docs/fms_integration_contract.md
-@@ -0,0 +1,186 @@
+@@ -0,0 +1,190 @@
 +# FMS 최신 원본 통합과 개인 기능 계약
 +
-+## 2026-11-01 현재 기준: 원본441d71e 우선 + 명시 개인 예외
++## 2026-11-01 현재 기준: 원본4a555c7 우선 + 명시 개인 예외
 +
 +이번 사용자는 '최대한 원본을 따르고 개인 브랜치가 너무 독립적이지 않도록' 방향을 확정했다. **선택 원본을 기본 코드로 삼고 개인 기능에 필요한 예외만 재접합한다.** 과거 FMS고정·소수 선별·SPAS/자동등/Tesla/GPS 일괄 제외와0389e7a 재구성 고정은 현재 기준이 아니다. 이 절이 아래 역사 기록보다 우선한다.
 +
 +| 구분 | 정확한 기준 |
 +|---|---|
-+| 원본 소스·검토 끝·재구성 baseline | `441d71e330471a46d6207218a97d9937f68026e3` |
-+| 이번 통합 준비의 Git parent | `e0f14004a52061895eae47d230327bf03f05065c`; 원본소스441/최종게시SHA/실제기기설치는각각구분 |
-+| 개인 시작 후보 | 게시 e0f1400 + 직전 검증한Nov1 레버/토크 HOLD후속, raw사본6,225경로 |
++| 원본 소스·검토 끝·재구성 baseline | `4a555c75b81c4ba80bfbf2260007a6baa645fcac` |
++| 이번 통합 준비의 Git parent | `f283533d3243416a83aef89654d8c1b810f4840c`; 원본소스4a555c7/최종게시SHA/실제기기설치는각각구분 |
++| 개인 시작 후보 | 게시 f283533의441 통합·CANCEL입력기원/정상완료stamp 수리까지 포함; 원본441..4a2커밋만 추가 |
 +| DM 기능 기준 | 현재 FMS legacy `DisableDM=0/1/2` 전체 연결; ef586a4 이후 새DM 정책 비채택 |
 +| 이번 후속 승인 | 발견2건수리·검증후 fms-carrot-wip 커밋/일반FF푸시. 안정판/DDM·기기/Params·예약변경금지 |
 +
@@ -1460,7 +1486,7 @@ diff --git a/docs/fms_integration_contract.md b/docs/fms_integration_contract.md
 +- 최신일반차선변경·레버재입력/대기·다음1회예약/회전분류는원본이다. 개인기능3은운전자개입의HOLD경계만예외다. 패들0~3·일반크루즈·기존정지거리설정·일반조향과NAV/GPS/CoG·모델카탈로그/기본정책·선택SPAS/Tesla등도개인기능으로포장하지않는다. 차종/장비기본게이트와저장설정호환을원본대로따르되명시개인예외를침범하지않아야한다.
 +- source파일이나함수개수와개인기능개수는같지않다. `_lead_follow_eligible`/effective guard/owned-stay/최종planner guard는원본재출발을우리구조에서유지하는호환·보호경계이며별도신규재출발기능이아니다.
 +
-+**퇴역·운영 방침 — 제품 개인기능과 분리한다.** 개인205최초설정/profile/marker는폐기했고백업복원을사용한다. 예약중지·안정판수동승격·DDM보관·기기/Params변경별도승인은운영방침이다. 옛navdQt/구branch백업workflow퇴역은최신원본정리이며새개인기능이아니다. 원본소스441/GitHEADe0/실제설치SHA를구분한다.
++**퇴역·운영 방침 — 제품 개인기능과 분리한다.** 개인205최초설정/profile/marker는폐기했고백업복원을사용한다. 예약중지·안정판수동승격·DDM보관·기기/Params변경별도승인은운영방침이다. 옛navdQt/구branch백업workflow퇴역은최신원본정리이며새개인기능이아니다. 원본소스4a555c7/Git부모f283533/최종게시·실제설치SHA를구분한다.
 +
 +**2026-11-01 후속수리 — 이검증본의WIP게시승인:** 사용자가 "수리후커밋푸쉬"를명시했다. 두반례를수리전FAIL로보존한뒤다음처럼원인수리했다. 최초의미수리발견·직전정의동결은과거증거로보존하고, 최신수리자산/검증/게시결과를따른다.
 +
@@ -1468,6 +1494,10 @@ diff --git a/docs/fms_integration_contract.md b/docs/fms_integration_contract.md
 +- **개인3완료경계:** 정상완료/취소가같은off/pre상태로보여단순Finishing→off초기화안은취소후늦은토크보호를약화하므로폐기했다. DH원본정상Finishing완료분기를관찰해최종oppositeTorque취소없고CAN유효할때만마지막정상완료monotonicstamp를생산한다. modeld→`ModelDataV2.MetaData.laneChangeCompletedMonoTime @35 :UInt64`로지속전달,이전0~34는변경하지않는다. 새정상완료stamp에만활동중토크감지구간을퇴역하고blocked는fresh실제stalk전까지유지한다. 0/stale/역행·invalid회복·model유실·취소는정상완료재무장으로쓰지않는다. 정상완료stamp동일주기와apply공백후다음Starting의확인토크는완료우선으로분류하되취소는stamp없음으로지연debounce보호를유지한다. 실제MQ4 DH/메타직렬화/parser/controller/DBC와관련고유155PASS,원본FSM·queue·조향판단/ACC·페달은불변이다.
 +
 +수리생산코드는Bluetooth model/daemon 및BlinkerHold/정상완료관찰/메타전달에한정한다. SoftHold/두ACCbuilder·실제feedback·패들/크루즈/DM·VEgo·브랜치/PC로그는별도보존한다. 검사원문은외부프로젝트출력의`repair_bluetooth_result.json`/`repair_blinker_result.json`,최종독립검토/선택441최초재구성·멱등/전체동결·커밋tree일치를같이본다. 실제BT/IPC·ECU/램프·실차PASS가아니다. 이번게시승인은미래모든업데이트/안정판승격/기기설정승인이아니다.
++
++### 2026-11-01 원본4a555c7 증분 갱신
++
++원본6054829/4a555c7의 수동 경계접근 예측과 소유된 깜박이 반향 판별·초기램프/완료ACK 연결을 원본대로 가져온다. 기존 지원차종/기본OFF·운전자취소·자동조향 분리와 개인7개/공통보호는 유지한다. DH의 원본 신규HOLD_PATH/feedback만 접합하며 정상완료stamp35의 기존5줄은 그대로다. 원본AGENTS의 운영승인·원본rlog/CI 결과를 우리승인·실차PASS로 취급하지 않는다. 관련383PASS/실패0·독립Sol검토GO이고 helper/manifest를4a로 함께 올린 최초재구성·멱등·최종지문/게시대조가 완료조건이다. 직전Bluetooth253과 DM/SoftHold/패들/앞차우선/PC로그 등 미변경 근거는 소스·의존동일성을 확인해 재사용하고 검사수를 중복합산하지 않는다. 이번 사용자 WIP갱신 요청만 해당하며 안정판/DDM·예약·기기/Params는 불변이다. 외부 output/WIP_DELTA_4A555C7_2026-11-01의 실제결과와 최신운영로그를 본다. nativeIPC/ECU/실제램프·실차 미실행은 유지한다.
 +
 +### 다음 갱신 절차와 검증 근거
 +
@@ -11461,7 +11491,7 @@ diff --git a/openpilot/selfdrive/controls/controlsd.py b/openpilot/selfdrive/con
 diff --git a/openpilot/selfdrive/controls/lib/desire_helper.py b/openpilot/selfdrive/controls/lib/desire_helper.py
 --- a/openpilot/selfdrive/controls/lib/desire_helper.py
 +++ b/openpilot/selfdrive/controls/lib/desire_helper.py
-@@ -44,6 +44,7 @@
+@@ -45,6 +45,7 @@
      self.lane_change_state = LaneChangeState.off
      self.lane_change_direction = LaneChangeDirection.none
      self.lane_change_timer = 0.0
@@ -11469,7 +11499,7 @@ diff --git a/openpilot/selfdrive/controls/lib/desire_helper.py b/openpilot/selfd
      self.lane_change_ll_prob = 1.0
      self.lane_change_delay = 0.0
      self.maneuver_type = "none"  # "none" / "turn" / "lane_change"
-@@ -402,6 +403,7 @@
+@@ -404,6 +405,7 @@
      trailer_maneuver_blocked = carstate.trailerConnected
  
      prev_lane_change_state = self.lane_change_state
@@ -11477,7 +11507,7 @@ diff --git a/openpilot/selfdrive/controls/lib/desire_helper.py b/openpilot/selfd
      lever_decided_turn = False
  
      # per-side compute (좌/우 모두)
-@@ -652,6 +654,7 @@
+@@ -654,6 +656,7 @@
              self.queued_lane_change = stalk_press
            self.lane_change_ll_prob = min(self.lane_change_ll_prob + DT_MDL, 1.0)
            if self.lane_change_ll_prob > 0.99:
@@ -11485,7 +11515,7 @@ diff --git a/openpilot/selfdrive/controls/lib/desire_helper.py b/openpilot/selfd
              self.lane_change_direction = LaneChangeDirection.none
              if desire_enabled:
                self.lane_change_state = LaneChangeState.preLaneChange
-@@ -683,6 +686,8 @@
+@@ -685,6 +688,8 @@
        self.lane_change_direction = LaneChangeDirection.none
        self.lane_change_state = LaneChangeState.off
        self.blinker_ignore = True
