@@ -105,6 +105,9 @@ def clamp_numeric(value: float, p: Optional[Dict[str, Any]]) -> float:
       value = max(value, float(mn))
     if mx is not None:
       value = min(value, float(mx))
+    nonzero_min = p.get("nonzero_min")
+    if nonzero_min is not None and 0 < value < float(nonzero_min):
+      value = float(nonzero_min)
   except Exception:
     pass
   return value
@@ -1263,7 +1266,8 @@ def _values_equal(t: Any, left: Any, right: Any) -> bool:
     return str(left) == str(right)
 
 
-def preview_param_restore_values(values: Dict[str, Any], selected_keys: Optional[List[str]] = None) -> Dict[str, Any]:
+def preview_param_restore_values(values: Dict[str, Any], selected_keys: Optional[List[str]] = None,
+                                 source: str = "restore") -> Dict[str, Any]:
   if not HAS_PARAMS or ParamKeyType is None:
     raise RuntimeError("Params/ParamKeyType not available")
 
@@ -1336,7 +1340,7 @@ def preview_param_restore_values(values: Dict[str, Any], selected_keys: Optional
 
 def restore_param_values_validated(values: Dict[str, Any], selected_keys: Optional[List[str]] = None,
                                    source: str = "restore") -> Dict[str, Any]:
-  preview = preview_param_restore_values(values, selected_keys)
+  preview = preview_param_restore_values(values, selected_keys, source=source)
   apply_values = {
     entry["key"]: entry["value"]
     for entry in preview["entries"]

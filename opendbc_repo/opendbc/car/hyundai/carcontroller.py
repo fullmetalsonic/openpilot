@@ -188,6 +188,7 @@ class CarController(CarControllerBase):
     self.accel_last = 0
     self.accel_value_last = 0.0
     self.display_lead_lateral = hyundaicanfd.DisplayLeadLateralFilter()
+    self.blinker_hold = hyundaicanfd.BlinkerHold()
     self.canfd_stopping = (CanfdStopping(CP.stoppingDecelRate)
                            if CP.flags & HyundaiFlags.CANFD and CP.openpilotLongitudinalControl else None)
     self.apply_torque_last = 0
@@ -540,6 +541,9 @@ class CarController(CarControllerBase):
 
     # *** common hyundai stuff ***
 
+    # Observe every control tick, including the ticks between cluster transmissions.
+    blinker_hold = self.blinker_hold.update(CS.modelV2, CS.out, CC.latActive) if self.CP.flags & HyundaiFlags.CANFD else 0
+
     # tester present - w/ no response (keeps relevant ECU disabled)
     if self.frame % 100 == 0 and not (self.CP.flags & HyundaiFlags.CANFD_CAMERA_SCC) and self.CP.openpilotLongitudinalControl:
       # for longitudinal control, either radar or ADAS driving ECU
@@ -594,7 +598,8 @@ class CarController(CarControllerBase):
           can_sends.extend(hyundaicanfd.create_ccnc_messages(
             self.CP, self.packer, self.CAN, self.frame, CC, CS, hud_control, apply_angle,
             left_lane_warning, right_lane_warning, self.enable_corner_radar, stopping,
-            self.canfd_debug, self.paddle_mode, hud_lateral=hud_lateral,
+            self.canfd_debug, self.paddle_mode, hud_lateral=hud_lateral, blinker_hold=blinker_hold,
+            blinker_hold_blocked=self.blinker_hold.blocked,
           ))
           if hda2:
             can_sends.extend(hyundaicanfd.create_adrv_messages(self.CP, self.packer, self.CAN, self.frame))

@@ -12,6 +12,9 @@ from opendbc.car.hyundai.hyundaicanfd import CanBus
 from opendbc.car.hyundai.paddle_mode4 import read_paddle_input
 from opendbc.car.hyundai.navi_speedcam import SpeedcamPolicy
 from opendbc.car.hyundai.section_average import DISTANCE_SCALE as SECTION_DISTANCE_SCALE, SectionAverage
+from opendbc.car.hyundai.rear_gap import tbt_bsd_inputs
+from opendbc.car.hyundai.lane_line_time import lane_line_time
+from opendbc.car.hyundai.vehicle_gps import VehicleGPS, register_vehicle_gps
 from opendbc.car.hyundai.values import HyundaiFlags, CAR, DBC, Buttons, CarControllerParams, CAMERA_SCC_CAR, HyundaiExtFlags, \
                                        EV_MODE_ACTIVE_VALUES, EV_MODE_STATUS_ADDR, EV_MODE_STATUS_DLC, EV_MODE_STATUS_MSG, \
                                        EV_MODE_STATUS_SIGNAL
@@ -211,6 +214,7 @@ class CarState(CarStateBase):
     self.tcs = None
     self.mdps = None
     self.steer_touch_2af = None
+    self.vehicle_gps = VehicleGPS()
     self.cruise_buttons_msg = None
     self.cam_0x362 = None
     self.cam_0x2a4 = None
@@ -218,6 +222,9 @@ class CarState(CarStateBase):
     self.accelerator = None
     self.blinkers = None
     self.blinkers_alt = None
+    self.blinker_stalks = None
+    self.left_stalk_prev = self.right_stalk_prev = False
+    self.left_blinker_stalk_count = self.right_blinker_stalk_count = 0
     self.doors_seatbelts = None
     self.cruise_buttons_alt2 = None
 
@@ -477,6 +484,9 @@ class CarState(CarStateBase):
             add_and_cache(self.cp, "ACCELERATOR", "accelerator", ignore_counter = True)
           add_and_cache(self.cp, "BLINKERS", "blinkers")
           add_and_cache(self.cp, "BLINKERS_ALT", "blinkers_alt")
+          # Turn-signal lever pulses (0.04-0.2 s per press, ~5 Hz) on the PT bus only: the alt bus carries an
+          # unrelated 24-byte frame with the same 0x3C1 id (Ioniq 5 PE, 2026-09-19 drive).
+          add_and_cache(self.cp, "BLINKER_STALKS", "blinker_stalks", ignore_counter=True)
           add_and_cache(self.cp, "DOORS_SEATBELTS", "doors_seatbelts")
         elif self.controls_ready_count == 126:
           add_and_cache(self.cp, "CRUISE_BUTTONS_ALT2", "cruise_buttons_alt2", ignore_counter = True)
@@ -684,6 +694,7 @@ class CarState(CarStateBase):
     if prev_main_buttons == 0 and self.main_buttons[-1] != 0:
       self.main_enabled = not self.main_enabled
 
+    ret.vehicleGps = self.vehicle_gps.update(cp, ret.vEgoRaw, ret.gearShifter == GearShifter.reverse)
     return ret
 
   @staticmethod
@@ -854,6 +865,21 @@ class CarState(CarStateBase):
         continue
       kept.append(event)
     return kept
+
+  def _update_blinker_stalks(self, ret):
+    """Turn-signal lever (BLINKER_STALKS): presses (rising edges) into carState.*BlinkerStalkCount, position into blinkerLever."""
+    if self.blinker_stalks is not None:
+      left_stalk, right_stalk = bool(self.blinker_stalks["LEFT_BLINKER"]), bool(self.blinker_stalks["RIGHT_BLINKER"])
+      if left_stalk and not self.left_stalk_prev:
+        self.left_blinker_stalk_count = (self.left_blinker_stalk_count + 1) % 256
+      if right_stalk and not self.right_stalk_prev:
+        self.right_blinker_stalk_count = (self.right_blinker_stalk_count + 1) % 256
+      self.left_stalk_prev, self.right_stalk_prev = left_stalk, right_stalk
+      # *_TAP is set only in the one-touch detent; a latch passes through it for ~0.1 s (2026-10-04 lever test)
+      tap = self.blinker_stalks["LEFT_BLINKER_TAP"] or self.blinker_stalks["RIGHT_BLINKER_TAP"]
+      ret.blinkerLever = 1 if tap else 2 if (left_stalk or right_stalk) else 0
+    ret.leftBlinkerStalkCount = self.left_blinker_stalk_count
+    ret.rightBlinkerStalkCount = self.right_blinker_stalk_count
 
   def _hold_speedcam_decel(self, button_events, decel_long_press):
     """While a section is unlocked, cruise - goes to carstate only: a long press relocks the section
@@ -1330,6 +1356,7 @@ class CarState(CarStateBase):
     )
     ret.vEgoRaw = (ret.wheelSpeeds.fl + ret.wheelSpeeds.fr + ret.wheelSpeeds.rl + ret.wheelSpeeds.rr) / 4.
     ret.vEgo, ret.aEgo = self.update_speed_kf(ret.vEgoRaw)
+    ret.vehicleGps = self.vehicle_gps.update(cp, ret.vEgoRaw, ret.gearShifter == GearShifter.reverse)
     ret.standstill = ret.wheelSpeeds.fl <= STANDSTILL_THRESHOLD and ret.wheelSpeeds.rr <= STANDSTILL_THRESHOLD
 
     ret.brakeLights = ret.brakePressed or cp.vl["TCS"]["BrakeLight"] == 1 or ret.aEgo < -0.5
@@ -1371,11 +1398,14 @@ class CarState(CarStateBase):
     ret.steerFaultTemporary = cp.vl["MDPS"]["LKA_FAULT"] != 0 or cp.vl["MDPS"]["LFA2_FAULT"] != 0
     #ret.steerFaultTemporary = False
 
+    self._update_blinker_stalks(ret)
+
     blinkers_info = self.blinkers if self.blinkers is not None else self.blinkers_alt if self.blinkers_alt is not None else None
     if blinkers_info is not None:
       left_blinker_lamp = blinkers_info["LEFT_LAMP"] or blinkers_info["LEFT_LAMP_ALT"]
       right_blinker_lamp = blinkers_info["RIGHT_LAMP"] or blinkers_info["RIGHT_LAMP_ALT"]
       ret.leftBlinker, ret.rightBlinker = self.update_blinker_from_lamp(50, left_blinker_lamp, right_blinker_lamp)
+      ret.blinkerLamp = 1 if left_blinker_lamp else 2 if right_blinker_lamp else 0
 
     if self.CP.enableBsm:
       if self.cp_bsm is None:
@@ -1432,6 +1462,11 @@ class CarState(CarStateBase):
         ret.pcmCruiseGap = int(np.clip(cp_cruise_info.vl["SCC_CONTROL"]["DISTANCE_SETTING"], 1, 4))
       ret.cruiseState.standstill = cp_cruise_info.vl["SCC_CONTROL"]["InfoDisplay"] >= 4
       ret.cruiseState.speed = cp_cruise_info.vl["SCC_CONTROL"]["VSetDis"] * speed_factor
+
+    # The optional 250m trigger uses OEM BSD independently of corner display data.
+    if self.CP.enableBsm:
+      ret.tbtRearInputsAvailable, ret.tbtRightRearBlocked = tbt_bsd_inputs(
+        self.cp_bsm, max(cp._last_update_nanos, cp_cam._last_update_nanos))
 
     speed_limit_cam = False
     corner = False
@@ -1490,6 +1525,7 @@ class CarState(CarStateBase):
     ret.gearStep = cp.vl["GEAR_ALT"]["GEAR_STEP"] if self.GEAR_ALT else ret.gearStep
 
     lane_info = self.cam_0x2a4 if self.cam_0x2a4 is not None else self.cam_0x362
+    ret.laneLineInfoMonoTime = lane_line_time((self.cp_cam, self.cp_alt), lane_info)
 
     if lane_info is not None:
       left_lane_prob = lane_info["LEFT_LANE_PROB"]
@@ -1586,7 +1622,6 @@ class CarState(CarStateBase):
       *create_button_events(self.main_buttons[-1], prev_main_buttons, {1: ButtonType.mainCruise})]), speedcam_decel_long_press)
 
     self.paddle_button_prev = paddle_button
-
     self._update_paddle_input(cp)
 
     return ret
@@ -1596,6 +1631,7 @@ class CarState(CarStateBase):
     paddle_source = "CRUISE_BUTTONS" if self.cruise_btns_msg_canfd == "CRUISE_BUTTONS" else "GEAR" if self.gear_msg_canfd == "GEAR" else None
     cancel_source = "CRUISE_BUTTONS_ALT2" if getattr(self, "cruise_buttons_alt2", None) is not None else self.cruise_btns_msg_canfd
     self.paddle_input = read_paddle_input(cp, paddle_source, cancel_source, self.paddle_input_sequence)
+
 
   def get_can_parsers_canfd(self, CP):
     # Register stock-navigation position/route/profile messages as optional
@@ -1611,7 +1647,7 @@ class CarState(CarStateBase):
       ]
 
     CAN = CanBus(CP)
-    pt_parser = CANParser(DBC[CP.carFingerprint][Bus.pt], msgs, CAN.ECAN)
+    pt_parser = register_vehicle_gps(CANParser(DBC[CP.carFingerprint][Bus.pt], msgs, CAN.ECAN))
     if CP.extFlags & HyundaiExtFlags.EV_MODE_STATUS_230:
       # Display-only while the signal is fleet-validated: checksum and freshness
       # gate the value without making a counter/alive fault disable controls.
@@ -1630,6 +1666,6 @@ class CarState(CarStateBase):
     return {
       # EMS21 carries SCR_UREA_LEVEL on diesel platforms. NaN frequency makes
       # it optional, so gasoline/EV platforms do not fail CAN validity.
-      Bus.pt: CANParser(DBC[CP.carFingerprint][Bus.pt], [("EMS21", math.nan)], 0),
+      Bus.pt: register_vehicle_gps(CANParser(DBC[CP.carFingerprint][Bus.pt], [("EMS21", math.nan)], 0)),
       Bus.cam: CANParser(DBC[CP.carFingerprint][Bus.pt], [], 2),
     }

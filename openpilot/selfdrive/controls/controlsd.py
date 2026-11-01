@@ -35,6 +35,7 @@ from openpilot.selfdrive.locationd.helpers import PoseCalibrator, Pose
 
 from openpilot.selfdrive.carrot.carrot_controls import CarrotControls
 from openpilot.selfdrive.carrot.carrot_man_input import get_carrot_man
+from openpilot.selfdrive.carrot.bluetooth.physical import HoldReader
 
 State = log.SelfdriveState.OpenpilotState
 LaneChangeState = log.LaneChangeState
@@ -60,6 +61,7 @@ class Controls:
     cloudlog.info("controlsd got CarParams")
 
     self.CI = interfaces[self.CP.carFingerprint](self.CP)
+    self.physical_blinker_hold = HoldReader(self.CP.carFingerprint, self.params)
 
     self.sm = messaging.SubMaster(['liveDelay', 'liveParameters', 'liveTorqueParameters', 'modelV2', 'selfdriveState',
                                    'liveCalibration', 'livePose', 'longitudinalPlan', 'carState', 'carOutput',
@@ -122,6 +124,7 @@ class Controls:
     sr = resolve_vehicle_model_steer_ratio(lp.steerRatio,
                                            self.params.get_float("SteerRatioRate"),
                                            self.params.get_float("CustomSR"))
+    self.VM.update_geometry(getattr(lp, "centerToFrontRatio", 0.0))
     self.VM.update_params(x, sr)
 
     steer_angle_without_offset = math.radians(CS.steeringAngleDeg - lp.angleOffsetDeg)
@@ -304,6 +307,7 @@ class Controls:
       setSpeed = speeds[-1] / vCluRatio
 
     hudControl = CC.hudControl
+    hudControl.physicalBlinkerHold = self.physical_blinker_hold.read(CS.canValid)
 
     hudControl.activeCarrot = self.sm['carrotMan'].activeCarrot
     hudControl.atcDistance = self.sm['carrotMan'].xDistToTurn

@@ -1,4 +1,4 @@
-﻿import pytest
+import pytest
 from openpilot.selfdrive.carrot.tests.test_signal_lead_handover import setup, update
 from tools.signal_analysis.test_signal_assist_planner import inputs
 from types import SimpleNamespace as NS

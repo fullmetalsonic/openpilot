@@ -1,4 +1,77 @@
-# FMS 선별 통합 운영 계약
+# FMS 최신 원본 통합과 개인 기능 계약
+
+## 2026-11-01 현재 기준: 원본441d71e 우선 + 명시 개인 예외
+
+이번 사용자는 '최대한 원본을 따르고 개인 브랜치가 너무 독립적이지 않도록' 방향을 확정했다. **선택 원본을 기본 코드로 삼고 개인 기능에 필요한 예외만 재접합한다.** 과거 FMS고정·소수 선별·SPAS/자동등/Tesla/GPS 일괄 제외와0389e7a 재구성 고정은 현재 기준이 아니다. 이 절이 아래 역사 기록보다 우선한다.
+
+| 구분 | 정확한 기준 |
+|---|---|
+| 원본 소스·검토 끝·재구성 baseline | `441d71e330471a46d6207218a97d9937f68026e3` |
+| 이번 통합 준비의 Git parent | `e0f14004a52061895eae47d230327bf03f05065c`; 원본소스441/최종게시SHA/실제기기설치는각각구분 |
+| 개인 시작 후보 | 게시 e0f1400 + 직전 검증한Nov1 레버/토크 HOLD후속, raw사본6,225경로 |
+| DM 기능 기준 | 현재 FMS legacy `DisableDM=0/1/2` 전체 연결; ef586a4 이후 새DM 정책 비채택 |
+| 이번 후속 승인 | 발견2건수리·검증후 fms-carrot-wip 커밋/일반FF푸시. 안정판/DDM·기기/Params·예약변경금지 |
+
+### 기본으로 따를 원본과 예외 판단
+
+최신 일반 수정·NAV/GPS·CoG 연결·모델 카탈로그(N16 원본 기본 정책 포함)·Jetson/GPU·UI·원본 자동등/SPAS/Tesla 선택 기능의 코드와 의존 연결을 가져온다. 기존 저장된 실제 기기 설정을 Codex가 쓰거나 모델을 설치/선택한 것은 아니다. 원본의 기본OFF/차종/장비 게이트는 유지한다. 장비 미사용이나 실험이라는 이유만으로 기능 전체를 빼지 않는다. 새 제외는 구체적 개인 계약 충돌·결함·실패와 정확한 경로/함수/이유를 남긴다. 같은 파일의 비DM 최신 변경은 유지하고, 원본이 동일 기능을 충족하면 검증 후 개인 중복을 흡수한다. 원본 자료의 DM 전용 설계 문서는 upstream 참고 이력이며 FMS 실행 정책이 아니다. 현재 사용자용DM 설명과 아래 계약이 우선한다.
+
+### 기능 분류와 유지 기준 — 개인 7개·공통 보호·원본 기능
+
+**판정 기준:** '개인 패치'는 우리가 처음 개발한 모든 기능이라는 뜻이 아니다. **선택한 최신 원본과 다르게 유지하기로 사용자가 정한 기능·버전 예외**를 뜻한다. 원본과 같은 기능은 '원본 기능 보존', 여러 기능의 운전자 우선/유효성 조건은 '공통 보호'로 분리한다. 함수·파일·시험·보조 코드를 각각 별도 개인 기능으로 세지 않는다. 다음은 **원하는 동작의 정의**이며 현재 구현 전체가 통과했다는 선언이 아니다.
+
+| 개인 기능·유지 예외 | 반드시 충족할 정의 | 범위를 넓혀 해석하지 않는 기준 |
+|---|---|---|
+| **1. 독립 SoftHold와 CANFD 정차 호환** | 비PCM 크루즈 OFF/대기/CANCEL에서도 실제 CAN 정차를 유지. hold 자체가 activateCruise/buttonEnable/RES/자동ON을 만들지 않음. CANCEL 후 가속으로 hold를 해제해도 자동ON 금지. 양 CANFD builder·독립 hold 음수 준비/유지·일반ACC 조절형 정지/직전 실제출력 feedback 연속성과 기존 인터록 보존. | 정상ACC 정차/재출발 전체를 우리가 만든 기능으로 세지 않는다. 기존 원본 정지거리 설정을 새로 고정하지 않는다. 원본 no-lead HUD2는 일반ACC 원본조건만 따르고 독립hold의기존bit출력은유지한다. |
+| **2. 패들 모드4 차간거리/회생 분리** | 실제ON/longActive에서 새press당 오른쪽한단계감소(최소1), 왼쪽증가(최대4). 지속당김반복없음. OFF/대기/CANCEL/독립hold의회생조작은gap저장불변·재ON/release시재생없음. MQ4 HEV camera-SCC 정상모드4의정상당김은SCC2요청연속성유지. | 모드0~3은원본기능. 정상ON접수저장이OFF뒤완료되는것은허용; 큐전체삭제/예전gap복원으로직접간격버튼·웹설정을잃지않음. 범위밖차량/모드·페달/주차·invalid 인터록은우회하지않는다. |
+| **3. 차선변경 중 운전자 개입 시 HOLD만 해제** | 최신원본레버/FSM/대기·예약·회전동작을사용. **진행중인차선변경**에서새steeringPressed개입을감지하면유지요청만해제·같은요청재유지차단. 시작확인토크제외, 새유효실제stalk조작은재무장. 모델/외부HOLD가차단을우회하지않음. | 차선변경이완전히끝난뒤일반조향을과거변경개입으로취급하지않음. 조향FSM/queue를새로취소하지않고원본반대토크취소는유지. 단순손접촉/모터토크를감지신호로바꾸지않음. 상시HOLD0·순정램프강제소등을뜻하지않음. |
+| **4. 기존 DM 전체 버전 유지** | legacyDisableDM0/1/2와모델/daemon·영상/DriverView·프로세스/health·events/forceDecel·UI/sound/CAN·replay/GPU연결유지. ef586a4이후새DM/touch/3CANCELsession/정차pause/새설정으로이행하지않음. | 기존DM자체를우리신규개발로세지않는다. 사용자가선택한옛DM유지는개인버전예외다. 새DM을단순OFF로남기는것과다르며inactive동일ordinal/type예약은실행기능이아니다. |
+| **5. VEgoStopping 최소1·저장값 보존** | min1/max100/default50/step5. manager시작/planner·modeld주행중10하한강제/비동기재저장없음. 실제읽기는get_float*0.01, 저장1/2/5/9등보존. | 사용자값을1로강제하지않는다. StoppingAccel/shouldStop/기존정지거리설정은이요청만으로변경하지않는다. |
+| **6. 원본＋포크 브랜치 선택** | 원본ajouatom과fullmetalsonic목록을함께표시, 선택branch만안전하게fetch/전환. 목록조회는대량객체download없이수행, origin/현재branch/사용자설정을목록준비때바꾸지않음. | 잘못설정된예약remote를자동덮어쓰지않음. 목록문제로기기git clean/reset·저장소삭제하지않음. 별도명시sync/checkout동작과목록조회는구분. |
+| **7. 폰을 경유한 내 PC 로그 전송** | 폰웹캐럿→기존Tailscale→집PC privateHTTP. 주행일KST·콤마별저장,무결성·lease/auth·중단재개/영수증보존. 실제서빙generatedJS/CSS/manifest포함. | 콤마자체Tailscale/새공개서버/Funnel/Pi/새인증을필수로추가하지않음. 브랜치코드포함과실제기기·폰·PC연결시험은별개. |
+
+**공통 보호 조건 — 8번째 개인 기능으로 추가하지 않는다.**
+
+- 실제운전자CANCEL은즉시우선한다. CANCEL전의패들·리모컨/제스처대기입력이뒤늦게새명령처럼처리돼크루즈를다시켜면안된다. 새실제조작의재무장은허용하되과거pending클릭·더블판정·long/repeat를새조작으로위장하지않는다. 내부OEM취소와raw운전자CANCEL은구분한다.
+- 브레이크·가속override·주차브레이크/AutoHold·gear·입력무효/제어OFF의기존보호를우회하지않는다. 이를'브레이크해제후자동ON영구금지'로확대하지않고기존사용자AutoCruise설정정책을유지한다. CruiseOnDist0은거리자동ON만끄며전체자동ON차단을뜻하지않는다.
+- 같은입력지속/invalid회복/재ON으로과거동작을재생하지않는다. 정상ON에접수된비동기저장/직접웹·버튼변경은잃지않는다. 저장값·origin·백업·기존미커밋작업을보존하고검증을위해assert/skip을약화하지않는다.
+
+**원본 기능 보존·회귀 검증 — 개인 기능으로 세지 않는다.**
+
+- **앞차 추종 정차·재출발 자체는원본기능이다.** 우리SoftHold/CANCEL/신호보조구조가원본의정상재출발을가리지않도록한호환코드가있을뿐이다. 현재유효제어/유한양수lead거리·필터모델stop과차<2m/정확2m제외·red/native기억·유효성철회·최종veto를연결해보존한다. 같은ID/radar-only/추가움직임대기/가짜green·ENABLE·RES를추가하지않는다. 원본만으로동등한동작·보호가충족되면검증후중복접합을흡수할대상이다.
+- 최신일반차선변경·레버재입력/대기·다음1회예약/회전분류는원본이다. 개인기능3은운전자개입의HOLD경계만예외다. 패들0~3·일반크루즈·기존정지거리설정·일반조향과NAV/GPS/CoG·모델카탈로그/기본정책·선택SPAS/Tesla등도개인기능으로포장하지않는다. 차종/장비기본게이트와저장설정호환을원본대로따르되명시개인예외를침범하지않아야한다.
+- source파일이나함수개수와개인기능개수는같지않다. `_lead_follow_eligible`/effective guard/owned-stay/최종planner guard는원본재출발을우리구조에서유지하는호환·보호경계이며별도신규재출발기능이아니다.
+
+**퇴역·운영 방침 — 제품 개인기능과 분리한다.** 개인205최초설정/profile/marker는폐기했고백업복원을사용한다. 예약중지·안정판수동승격·DDM보관·기기/Params변경별도승인은운영방침이다. 옛navdQt/구branch백업workflow퇴역은최신원본정리이며새개인기능이아니다. 원본소스441/GitHEADe0/실제설치SHA를구분한다.
+
+**2026-11-01 후속수리 — 이검증본의WIP게시승인:** 사용자가 "수리후커밋푸쉬"를명시했다. 두반례를수리전FAIL로보존한뒤다음처럼원인수리했다. 최초의미수리발견·직전정의동결은과거증거로보존하고, 최신수리자산/검증/게시결과를따른다.
+
+- **공통CANCEL보호:** Bluetooth제스처의실제시작시각`started`를발행`time`과분리했다. single대기flush·double·long/repeat·fastkey·touch의원래입력기원을reader취소cutoff와비교해CANCEL전입력이뒤늦게새명령으로재ON하지못한다. 발행time기반기존0.4초TTL/순서·blinkinput_time/attention/학습은유지한다. 취소전첫press가속한straddle-double은같은과거gesture로차단하고,완전히새single/double/long은정상재무장한다. 실제emit→writer/reader→MQ4parser/VCruise/상태기계의이전FAIL·수리후PASS,관련고유253PASS/기존fcntl모듈1SKIP다.
+- **개인3완료경계:** 정상완료/취소가같은off/pre상태로보여단순Finishing→off초기화안은취소후늦은토크보호를약화하므로폐기했다. DH원본정상Finishing완료분기를관찰해최종oppositeTorque취소없고CAN유효할때만마지막정상완료monotonicstamp를생산한다. modeld→`ModelDataV2.MetaData.laneChangeCompletedMonoTime @35 :UInt64`로지속전달,이전0~34는변경하지않는다. 새정상완료stamp에만활동중토크감지구간을퇴역하고blocked는fresh실제stalk전까지유지한다. 0/stale/역행·invalid회복·model유실·취소는정상완료재무장으로쓰지않는다. 정상완료stamp동일주기와apply공백후다음Starting의확인토크는완료우선으로분류하되취소는stamp없음으로지연debounce보호를유지한다. 실제MQ4 DH/메타직렬화/parser/controller/DBC와관련고유155PASS,원본FSM·queue·조향판단/ACC·페달은불변이다.
+
+수리생산코드는Bluetooth model/daemon 및BlinkerHold/정상완료관찰/메타전달에한정한다. SoftHold/두ACCbuilder·실제feedback·패들/크루즈/DM·VEgo·브랜치/PC로그는별도보존한다. 검사원문은외부프로젝트출력의`repair_bluetooth_result.json`/`repair_blinker_result.json`,최종독립검토/선택441최초재구성·멱등/전체동결·커밋tree일치를같이본다. 실제BT/IPC·ECU/램프·실차PASS가아니다. 이번게시승인은미래모든업데이트/안정판승격/기기설정승인이아니다.
+
+### 다음 갱신 절차와 검증 근거
+
+1. 실제FMS HEAD/원격/미커밋후보·동결을먼저인수한다. 다음선택원본SHA를명시하고원본과현재개인예외차이를다시검토한다. 기존후보를reset/clean/stash/force로버리지않는다.
+2. 최신원본의공통파일을기본으로개인예외만재접합하고, helper/manifest의기준도선택원본으로함께올린다. 옛원본파일복원패치를계속쌓지않는다. Git부모·원본sourcebaseline·최종게시/설치SHA를분리기록한다.
+3. 관련SoftHold/CANCEL/두CANFD출력·패들ON/OFF/재무장·앞차우선/정지거리·깜박이실제parser→직렬화→builder·DM0/1/2연결·VEgo저장값·웹/로그를표적검증한다. helper최초/재적용멱등과선택원본의이력없는최초재구성·전체경로/제어AST일치를확인한다. 검사실패/미실행과환경차단을구분하고assert/skip을약화하지않는다.
+4. 이번소유별결과는 `output/WIP_BASE_441D71E_2026-11-01/{can,controls,dm,runtime,web}_result.json`, 최종전체동결·재구성·독립Sol검토·완료결과와최신운영로그를같이확인한다. 호스트pack/parse/fixture는nativeIPC/ECU·회생·실제소등·실차PASS가아니다. 설치/주행확인은별도다.
+
+---
+
+## 이전 계약·검증 이력 (위 절로 대체된 방향/상태는 현행으로 재사용하지 않는다)
+
+
+## 2026-11-01 깜박이·레버 로컬 후속 계약
+
+게시 WIP/HEAD는 `e0f14004a52061895eae47d230327bf03f05065c`다. 사용자는 원본 `00d791247114527317b4e68ca296a6ddd1b0316d`의 레버·차선변경 동작을 선별 이식하고 진행 중 운전자 조작 때 깜박이 유지 요청만 해제하도록 로컬 수정·검증을 승인했다. 커밋·푸시·기기 설치/Params·안정판/DDM·예약 변경은 승인하지 않았다. 아래 날짜별 HOLD0/레버 보류 기록은 당시 정책이며 현재 WIP에는 이 후속 계약이 우선한다. 안정판의 기존 HOLD0 계약은 변경하지 않는다.
+
+- 실제 CANFD 레버 누름 횟수·원터치/고정 위치·원시 램프를 읽는다. 같은 쪽을 다시 누른 요청, 차선 교차 뒤 다음 한 번 예약, 대기 만료·새 요청 재무장, 원본 토크 필수/BSD/차선/반대 토크 취소를 함께 보존한다. `BlinkerLatchedTurn=0`, `LaneChangeLeverWait=False`가 초기값이며 사용자 저장 설정을 쓰거나 기존 설정을 초기화하지 않는다.
+- 원본의 현재 차선 교차 기반 HOLD 및 대기·예약 HOLD를 연결한다. 이미 시작된 차선변경에서 기존 `steeringPressed`가 새 운전자 개입을 감지하면 다음 출력부터 HOLD만 0으로 한다. 시작 시 이미 누른 확인용 토크는 release 뒤 새 개입과 구분한다. 같은 요청의 모델/예약 HOLD로 되살리지 않으며 새 실제 레버 조작만 재무장한다. 추가 조향 취소·가감속/페달 정책이나 queue 삭제를 만들지 않는다. 반대 토크에 대한 원래 FSM 취소는 별개로 유지한다.
+- 스키마는 기존 `CarState@100..103` UInt8 및 `ModelMeta@20/21`의 동일 번호·타입을 복원한다. DM/touch 예약이나 다른 새 원본 필드는 활성화하지 않는다. 단순 손 접촉은 이번 판정 신호가 아니다.
+- HOLD0은 콤마의 유지 요청 해제이며 순정 레버 고정·원터치 점멸의 실제 즉시 소등을 보장하지 않는다. ECU·램프 타이밍·실차 결과는 호스트 소스/DBC 시험과 분리한다.
+- 새로운 SPAS/UDS 송신·USB2CAN/ATC 자동 점등·Tesla 신호 경로는 도입하지 않는다. 기존 Bluetooth·ATC 계산과 DM/SoftHold·양 CANFD stopping/실제 출력 feedback·앞차 우선·패들/CANCEL·VEgoStopping 최소1/저장값·원본+포크 선택·개인 최초값 퇴역·로그 전송·예약 중지를 보존한다. 최종 검사와 재구성 수치는 운영 인수인계의 이 날짜 항목을 따른다.
 
 ## 상태와 방향
 
@@ -63,7 +136,7 @@ Git 병합은 이력과 충돌을 추적하는 도구다. 원본의 모든 정�
 | 패들 | 0~4·좌우 방향·1~4 경계·press당 한 번·모드 재시작 정책. 모드4 간격 입력은 실제 ON/활성 long의 새 press만 접수. OFF/대기/CANCEL/독립 hold에서 회생 조작 시 gap 저장/큐/재ON 재생 없음 |
 | 패들 출력 | 지정 MQ4 HEV camera-SCC OP-long 정상 ACC의 제한 예외·SCC2 연속성. 내부 OEM cancel과 raw 운전자 CANCEL 구분. 페달/override/invalid/최종 CC 차단/apply 생략/긴 공백/epoch에서 즉시 철회, 새 유효 release 필요 |
 | 간격 저장 | 정상 ON 입력의 늦은 비동기 저장 허용. 직접 gap 버튼/웹의 대기 변경 유지. 큐 전체 삭제/과거 값 복원으로 정상 요청을 잃지 않음 |
-| 방향지시등 | LEFT_BLINK_HOLD=0, RIGHT_BLINK_HOLD=0만 유지. 차선변경/조향/경로에 새 개인 수정 없음 |
+| 방향지시등 | 2026-11-01 WIP: 원본 레버/차선변경 HOLD를 선별 이식하고 진행 중 새 운전자 조작에는 유지 요청만 해제. 이전 상시 HOLD0은 안정판과 과거 이력에만 적용 |
 | VEgoStopping | 최소1·최대100·기본50·단위5, get_float×0.01과 저장값 유지. manager/planner/modeld의 10 강제 보정·비동기 저장 없음. 모든 값을1로 강제하지 않음 |
 | Change Branch | 원본+fullmetalsonic 목록·선택 브랜치만 다운로드·origin/체크아웃/설정 불변 |
 | 퇴역/운영 | 개인 205개 최초설정·first_install_defaults·marker 재도입 금지. 자동화 중지, stable/DDM 및 기기/Params 불변 |

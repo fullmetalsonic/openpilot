@@ -13,6 +13,8 @@ import openpilot.system.sentry as sentry
 from openpilot.common.utils import atomic_write
 from openpilot.common.basedir import BASEDIR
 from openpilot.common.params import Params, ParamKeyFlag
+from openpilot.common.atc_params import migrate_atc_params
+from openpilot.common.lateral_geometry_params import migrate_lateral_geometry_params
 from openpilot.common.repo_update import release_boot_lock
 from openpilot.common.text_window import TextWindow
 from openpilot.system.hardware import HARDWARE
@@ -79,6 +81,9 @@ def manager_init() -> UpdateStatus:
 
   if params.get_bool("RecordFrontLock"):
     params.put_bool("RecordFront", True)
+
+  migrate_atc_params(params)
+  migrate_lateral_geometry_params(params)
 
   # set unset params to their default value
   for k in params.all_keys():

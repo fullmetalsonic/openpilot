@@ -1,0 +1,32 @@
+--- a/openpilot/selfdrive/controls/tests/test_tesla_auto_signal_intent.py
++++ b/openpilot/selfdrive/controls/tests/test_tesla_auto_signal_intent.py
+@@ -1,9 +1,29 @@
++import sys
++import time
+ from types import SimpleNamespace as NS
+ 
+ import pytest
+ 
+ from openpilot.cereal import log
+ from openpilot.selfdrive.controls.tests.test_desire_helper_stalk import TestDesireHelperStalkRequest as StalkFixture
++
++
++@pytest.fixture(autouse=True)
++def isolated_host_boundaries(monkeypatch):
++  # Test real parser/controller paths without native Params storage on any host.
++  class InterfaceParams:
++    def get_bool(self, key):
++      return {"DisableMinSteerSpeed": False, "NNFF": False, "NNFFLite": False}[key]
++
++    def put_int(self, key, value):
++      assert (key, value) == ("LongitudinalPersonalityMax", 3)
++
++  monkeypatch.setattr("opendbc.car.interfaces.Params", InterfaceParams)
++  if sys.platform == "win32":
++    # The deployed Linux clock API is absent on Windows; keep elapsed time real.
++    monkeypatch.setattr(time, "CLOCK_MONOTONIC", 1, raising=False)
++    monkeypatch.setattr(time, "clock_gettime", lambda _: time.monotonic(), raising=False)
++    monkeypatch.setattr(time, "clock_gettime_ns", lambda _: time.monotonic_ns(), raising=False)
+ 
+ 
+ @pytest.fixture

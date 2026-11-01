@@ -69,7 +69,6 @@ MODEL_CONTENT_TYPES = {
   "precompiled-runtime.tar.gz": "application/gzip",
 }
 
-
 JETSON_RELEASE_RE = re.compile(r"^v[0-9]+\.[0-9]+\.[0-9]+(?:-[A-Za-z0-9][A-Za-z0-9.-]{0,63})?$")
 JETSON_DOWNLOAD_TYPES = {
   "carrot-jetson.img.zst": "application/zstd",

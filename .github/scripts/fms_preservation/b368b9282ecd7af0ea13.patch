@@ -1,17 +1,8 @@
 --- a/openpilot/common/params_keys.h
 +++ b/openpilot/common/params_keys.h
-@@ -357,8 +357,6 @@
-     {"LaneChangeDelay", {PERSISTENT, INT, "0"}},
-     {"LaneChangeBsd", {PERSISTENT, INT, "0"}},
-     {"LaneLineCheck", {PERSISTENT, INT, "0"}},
--    {"BlinkerLatchedTurn", {PERSISTENT, INT, "0"}},
--    {"LaneChangeLeverWait", {PERSISTENT, BOOL, "0"}},
-     {"MaxAngleFrames", {PERSISTENT, INT, "89"}},
- 
-     {"LatMpcPathCost", {PERSISTENT, INT, "200"}},
-@@ -389,11 +387,7 @@
-     {"MaxTimeOffroadMin", {PERSISTENT, INT, "60"}},
+@@ -399,11 +399,7 @@
      {"TeslaWakeOnCAN", {PERSISTENT, BOOL, "1"}},
+     {"TeslaAutoTurnSignals", {PERSISTENT, BOOL, "0"}},
  
 -    {"DisableDM", {PERSISTENT, INT, "0"}},  // retired; read only for one-time streaming migration
 -    {"DriverMonitoringEnabled", {PERSISTENT, BOOL, "1"}},
@@ -22,11 +13,3 @@
      {"MuteDoor", {PERSISTENT, INT, "0"}},
      {"MuteSeatbelt", {PERSISTENT, INT, "0"}},
  
-@@ -420,6 +414,7 @@
- 
-     {"HardwareC3xLite", {PERSISTENT, INT, "0"}},
-     {"ShareData", {PERSISTENT, INT, "0"}},
-+    {"OnnxBsdEnabled", {PERSISTENT, INT, "0"}},
-     {"OnnxLaneThreshold", {PERSISTENT, INT, "25"}},
-     {"OnnxLaneIntervalMs", {PERSISTENT, INT, "400"}},
-     {"OnnxBsdThreshold", {PERSISTENT, INT, "94"}},

@@ -9,16 +9,17 @@ diff --git a/opendbc_repo/opendbc/car/hyundai/carcontroller.py b/opendbc_repo/op
  from opendbc.car.hyundai.steering_handover import SteeringHandover
  from opendbc.car.carlog import carlog
  from opendbc.car.hyundai.hyundaicanfd import CanBus
-@@ -187,7 +188,7 @@
+@@ -187,7 +188,8 @@
      self.accel_last = 0
      self.accel_value_last = 0.0
      self.display_lead_lateral = hyundaicanfd.DisplayLeadLateralFilter()
 -    self.canfd_stopping = (CanfdStopping()
++    self.blinker_hold = hyundaicanfd.BlinkerHold()
 +    self.canfd_stopping = (CanfdStopping(CP.stoppingDecelRate)
                             if CP.flags & HyundaiFlags.CANFD and CP.openpilotLongitudinalControl else None)
      self.apply_torque_last = 0
      self.car_fingerprint = CP.carFingerprint
-@@ -240,9 +241,20 @@
+@@ -240,9 +242,20 @@
      self.is_ldws_car = Params().get_bool("IsLdwsCar")
      self.enable_corner_radar = 0
      self.paddle_mode = Params().get_int("PaddleMode")
@@ -39,7 +40,17 @@ diff --git a/opendbc_repo/opendbc/car/hyundai/carcontroller.py b/opendbc_repo/op
  
    def update(self, CC, CS, now_nanos):
  
-@@ -562,8 +574,6 @@
+@@ -528,6 +541,9 @@
+ 
+     # *** common hyundai stuff ***
+ 
++    # Observe every control tick, including the ticks between cluster transmissions.
++    blinker_hold = self.blinker_hold.update(CS.modelV2, CS.out, CC.latActive) if self.CP.flags & HyundaiFlags.CANFD else 0
++
+     # tester present - w/ no response (keeps relevant ECU disabled)
+     if self.frame % 100 == 0 and not (self.CP.flags & HyundaiFlags.CANFD_CAMERA_SCC) and self.CP.openpilotLongitudinalControl:
+       # for longitudinal control, either radar or ADAS driving ECU
+@@ -562,8 +578,6 @@
            suppress_camera_auto_disengage=bool(camera_scc and self.car_fingerprint in (
              CAR.GENESIS_GV70_1ST_GEN, CAR.KIA_SORENTO_HEV_4TH_GEN,
            )),
@@ -48,7 +59,7 @@ diff --git a/opendbc_repo/opendbc/car/hyundai/carcontroller.py b/opendbc_repo/op
          ))
          if not camera_scc:
            can_sends.extend(hyundaicanfd.create_lfa_icon_non_camera_scc(self.packer, CS, self.CAN, CC))
-@@ -578,6 +588,7 @@
+@@ -578,12 +592,14 @@
          hud_lateral = self.display_lead_lateral.update(getattr(CS, "radarState", None), getattr(CS, "modelV2", None))
          self.hyundai_jerk.make_jerk(self.CP, CS, accel, actuators, hud_control)
          self.hyundai_jerk.check_carrot_cruise(CC, CS, hud_control, stopping, accel, actuators.aTarget)
@@ -56,7 +67,15 @@ diff --git a/opendbc_repo/opendbc/car/hyundai/carcontroller.py b/opendbc_repo/op
  
          if True: #not camera_scc:
            can_sends.extend(hyundaicanfd.create_ccnc_messages(
-@@ -594,6 +605,7 @@
+             self.CP, self.packer, self.CAN, self.frame, CC, CS, hud_control, apply_angle,
+             left_lane_warning, right_lane_warning, self.enable_corner_radar, stopping,
+-            self.canfd_debug, self.paddle_mode, hud_lateral=hud_lateral,
++            self.canfd_debug, self.paddle_mode, hud_lateral=hud_lateral, blinker_hold=blinker_hold,
++            blinker_hold_blocked=self.blinker_hold.blocked,
+           ))
+           if hda2:
+             can_sends.extend(hyundaicanfd.create_adrv_messages(self.CP, self.packer, self.CAN, self.frame))
+@@ -594,6 +610,7 @@
              msg, self.accel_value_last = hyundaicanfd.create_acc_control_scc2(
                self.packer, self.CAN, CC.enabled, self.accel_value_last, accel, stopping, CC.cruiseControl.override,
                set_speed_in_units, hud_control, self.hyundai_jerk, CS, self.canfd_stopping, hud_lateral=hud_lateral,
@@ -64,7 +83,7 @@ diff --git a/opendbc_repo/opendbc/car/hyundai/carcontroller.py b/opendbc_repo/op
              )
              if msg is not None:
                can_sends.append(msg)
-@@ -620,8 +632,7 @@
+@@ -620,8 +637,7 @@
            can_sends.append(hyundaican.create_lkas11(self.packer, self.frame, self.CP, apply_torque, apply_steer_req,
                                                      torque_fault, CS.lkas11, sys_warning, sys_state, CC.enabled,
                                                      hud_control.leftLaneVisible, hud_control.rightLaneVisible,
@@ -97,7 +116,7 @@ diff --git a/opendbc_repo/opendbc/car/hyundai/hyundaicanfd.py b/opendbc_repo/ope
    if controller is None:
      return
  
-@@ -40,39 +40,31 @@
+@@ -40,41 +40,34 @@
    speeds = [CS.out.vEgo, CS.out.vEgoRaw, wheels.fl, wheels.fr, wheels.rl, wheels.rr]
    finite = all(math.isfinite(v) for v in (*speeds, CS.out.aEgo, accel, values["aReqValue"], previous_value, jerk_u, jerk_l))
    speed = max(abs(v) for v in speeds) if finite else 0.0
@@ -143,8 +162,11 @@ diff --git a/opendbc_repo/opendbc/car/hyundai/hyundaicanfd.py b/opendbc_repo/ope
 +                    "held": CS.canfdSccHoldActive, "retry_used": controller.retried,
                      "soft_hold": soft_hold,
                      "StopReq": values["StopReq"], "aReqRaw": values["aReqRaw"], "aReqValue": values["aReqValue"]})
++
  
-@@ -347,7 +339,7 @@
+ 
+ def hyundai_crc8(data: bytes) -> int:
+@@ -347,7 +340,7 @@
    })
    return packer.make_can_msg("SCC_CONTROL", CAN.ECAN, values)
  
@@ -153,7 +175,7 @@ diff --git a/opendbc_repo/opendbc/car/hyundai/hyundaicanfd.py b/opendbc_repo/ope
  
  
    if CS.lfahda_cluster is not None:
-@@ -375,26 +367,8 @@
+@@ -375,26 +368,10 @@
        and mdps is not None and mdps.get("LKA_FAULT") == 0 and mdps.get("LFA2_FAULT") == 0
        and scc is not None and scc.get("SysFailState") == 0):
      values["HDA_InfoPUDis"] = 0
@@ -177,18 +199,23 @@ diff --git a/opendbc_repo/opendbc/car/hyundai/hyundaicanfd.py b/opendbc_repo/ope
 -    values["ALERTS_2"] = 2 if level == 3 else 1
 -    if level == 3 and all(values[f"SOUNDS_{i}"] == 0 for i in range(1, 5)):
 -      values["SOUNDS_2"] = 3
++
++
  
  
  def create_lfa_icon_non_camera_scc(packer, CS, CAN, CC):
-@@ -425,7 +399,6 @@
+@@ -425,9 +402,9 @@
      if values["ALERTS_5"] in [1, 2, 3, 4, 5]:
        values["ALERTS_5"] = 0
  
 -    _apply_driver_monitoring_alert(values, getattr(CC, "hudControl", None), CS.adrv_0x161)
      ret.append(packer.make_can_msg("ADRV_0x161", CAN.ECAN, values, rx_counter=rx_counter))
    return ret
++
  
-@@ -492,15 +465,24 @@
+ def _display_lead(radar_state):
+   # Vehicle displays show the nearest valid control lead, including leadTwo.
+@@ -492,15 +469,24 @@
  
  
  def create_acc_control_scc2(packer, CAN, enabled, accel_value_last, accel, stopping, gas_override, set_speed, hud_control, hyundai_jerk, CS,
@@ -216,17 +243,29 @@ diff --git a/opendbc_repo/opendbc/car/hyundai/hyundaicanfd.py b/opendbc_repo/ope
    enabled = acc_control_enabled
  
    acc_mode = 0 if not enabled else (2 if gas_override else 1)
-@@ -564,7 +546,8 @@
+@@ -564,22 +550,29 @@
    values["AccelLimitBandLower"] = 0.0
  
    values["ZEROS_7"] = 0 if stop_controller is not None else 1
 -  apply_canfd_stopping(values, CS, stop_controller, accel, previous_value, jerk_u, jerk_l)
+-
+-  # Trial for no-lead stops: OEM SCC_ObjSta is named HUD_LEAD_INFO in this DBC.
+-  # Change only the state after the final StopReq/interlocks; do not fabricate
+-  # object distance/speed or latch it into RX. This is not a confirmed ESC gate.
+-  if stop_controller is not None and values["ACCMode"] == 1 and values["StopReq"] == 1 and values["HUD_LEAD_INFO"] == 0:
 +  apply_canfd_stopping(values, CS, stop_controller, accel, previous_value, jerk_u, jerk_l,
 +                       independent_hold=independent_hold)
++
++  # Independent SoftHold keeps its validated stop packet; the new no-lead
++  # object-state trial remains scoped to ordinary ACC.
++  if (not independent_hold and stop_controller is not None and values["ACCMode"] == 1
++      and values["StopReq"] == 1 and values["HUD_LEAD_INFO"] == 0):
+     values["HUD_LEAD_INFO"] = 2
  
    return packer.make_can_msg("SCC_CONTROL", CAN.ECAN, values), values["aReqValue"]
++
  
-@@ -572,8 +555,13 @@
+ def create_acc_control(packer, CAN, enabled, accel_last, accel, stopping, gas_override, set_speed, hud_control, jerk_u, jerk_l, CS,
                         stop_controller=None, accel_value_last=None):
  
    interlock_active = longitudinal_interlock_active(CS)
@@ -242,7 +281,7 @@ diff --git a/opendbc_repo/opendbc/car/hyundai/hyundaicanfd.py b/opendbc_repo/ope
    enabled = acc_control_enabled
    jerk = 5
    jn = jerk / 50
-@@ -612,7 +600,8 @@
+@@ -618,8 +611,10 @@
    # accel_last is the legacy raw target, not necessarily the previous SCC
    # output. Keep ordinary packet limiting; anchor recovery to the returned value.
    previous_value = accel_last if accel_value_last is None else accel_value_last
@@ -250,66 +289,76 @@ diff --git a/opendbc_repo/opendbc/car/hyundai/hyundaicanfd.py b/opendbc_repo/ope
 +  apply_canfd_stopping(values, CS, stop_controller, accel, previous_value, jerk_u, jerk_l,
 +                       independent_hold=independent_hold)
    return packer.make_can_msg("SCC_CONTROL", CAN.ECAN, values), values["aReqValue"]
++
  
  
-@@ -773,56 +762,6 @@
-       if ds[4] > 0.9: lane_changing = 4
-   return desire, lane_changing
+ def create_spas_messages(packer, CAN, frame, left_blink, right_blink):
+@@ -829,6 +824,54 @@
+   return desire
  
--BLINK_HOLD_CROSS_NEAR_M = 1.0     # the target-side line came this close to the car centre ...
--BLINK_HOLD_CROSS_JUMP_M = 1.5     # ... then moved this far away again: the model relabelled it, the centre is across
--BLINK_HOLD_RELEASE_PROGRESS = 0.6  # release once the car centre has moved this fraction of a lane width into the new lane
--
--
--def _blink_hold_side(md, desire, state):
--  """Turn-signal hold for ADRV_0x1ea: 3 (left), 4 (right) or 0.
--
--  DesireHelper's request (modelV2.meta.laneChangeBlinkerHold) wins: it holds the lamp while a lever-requested
--  change waits (LaneChangeLeverWait) and while a next change asked for during this one is queued. Otherwise the
--  current change decides (_blink_hold_change).
--  """
--  change_hold = _blink_hold_change(md, desire, state)
--  meta = getattr(md, "meta", None) if md is not None else None
--  requested = str(getattr(meta, "laneChangeBlinkerHold", "none"))
--  return 3 if requested == "left" else 4 if requested == "right" else change_hold
--
--
--def _blink_hold_change(md, desire, state):
--  """Hold for the current lane change: 3 (left), 4 (right) or 0.
--
--  Held for the whole confirmed lane change (desire 3/4 = starting + finishing, same as the green
--  cluster lane) instead of the model's desireState > 0.9, which falls ~2 s before the change ends and
--  let the lamp stop mid-change (2026-09-19 drive: hold covered 49-65 % of the change). Released once the
--  model's lane lines show the car centre 60 % of a lane width over (the crossed line, now on the other
--  side, 0.1 lane width away), so the lamp does not keep flashing ~2 s after the car is already in the new
--  lane. Without a detectable crossing the hold lasts to the end of the desire.
--  """
--  if desire not in (3, 4):
--    state.update(crossed=False, released=False, y_min=None)
--    return 0
--  if state.get("released"):
--    return 0
--  lines = getattr(md, "laneLines", None) if md is not None else None
--  if lines is not None and len(lines) >= 3 and len(lines[1].y) and len(lines[2].y):
--    target, other = (1, 2) if desire == 3 else (2, 1)
--    y_target, y_other = float(lines[target].y[0]), float(lines[other].y[0])
--    # The relabel is spread over 2-3 model frames (e.g. -0.28 -> -1.36 -> -3.46 m), so compare with the
--    # closest approach instead of the previous frame.
--    y_min = abs(y_target) if state.get("y_min") is None else min(state["y_min"], abs(y_target))
--    state["y_min"] = y_min
--    if not state.get("crossed") and y_min < BLINK_HOLD_CROSS_NEAR_M and abs(y_target) - y_min > BLINK_HOLD_CROSS_JUMP_M:
--      state["crossed"] = True
--    lane_width = abs(y_target) + abs(y_other)
--    if state.get("crossed") and abs(y_other) >= (BLINK_HOLD_RELEASE_PROGRESS - 0.5) * lane_width:
--      state["released"] = True
--      return 0
--  return desire
--
--
+ 
++class BlinkerHold:
++  """Per-controller HOLD state; driver intervention never changes the lane-change FSM."""
++  def __init__(self):
++    self.change = {}
++    self.stalk_counts = None
++    self.steering_pressed = False
++    self.in_change = False
++    self.blocked = False
++    self.completed_mono_time = 0
++
++  def update(self, md, cs, lat_active):
++    valid = cs.canValid and not cs.trailerConnected
++    counts = (cs.leftBlinkerStalkCount, cs.rightBlinkerStalkCount)
++    new_press = self.stalk_counts is not None and counts != self.stalk_counts
++    self.stalk_counts = counts
++    pressed = cs.steeringPressed
++    rising = pressed and not self.steering_pressed
++    self.steering_pressed = pressed
++
++    meta = getattr(md, "meta", None) if md is not None else None
++    lane_state = str(getattr(meta, "laneChangeState", "off"))
++    changing = lane_state in ("laneChangeStarting", "laneChangeFinishing")
++    completed = getattr(meta, "laneChangeCompletedMonoTime", 0)
++    if completed > self.completed_mono_time:
++      self.completed_mono_time = completed
++      # Only normal FSM completion retires torque detection; cancellation can precede its debounce.
++      if valid and lat_active:
++        self.in_change = False
++    if new_press and valid and lat_active:
++      self.blocked = False
++      self.in_change = changing
++    elif rising and self.in_change:
++      self.blocked = True
++    # Retain the episode if model cancellation arrives before steering debounce.
++    self.in_change |= changing
++
++    desire, _ = _get_desire_and_lane_changing(md)
++    hold = _blink_hold_side(md, desire, self.change)
++    if not valid or not lat_active:
++      self.blocked |= self.in_change or hold != 0
++      return 0
++    if lane_state == "off":
++      self.blocked |= hold != 0
++      return 0
++    return 0 if self.blocked else hold
++
++
++
  def _apply_lane_desire(values, desire):
    #values['LANE_CHANGING'] = 0
  
-@@ -1124,7 +1063,6 @@
+@@ -963,7 +1006,8 @@
+ 
+ def create_ccnc_messages(CP, packer, CAN, frame, CC, CS, hud_control,
+                          disp_angle, left_lane_warning, right_lane_warning,
+-                         enable_corner_radar, stopping, canfd_debug, paddle_mode, hud_lateral=None):
++                         enable_corner_radar, stopping, canfd_debug, paddle_mode, hud_lateral=None,
++                         blinker_hold=0, blinker_hold_blocked=False):
+   ret = []
+   interlock_active = longitudinal_interlock_active(CS)
+   display_lead = _display_lead(getattr(CS, "radarState", None))
+@@ -1130,7 +1174,6 @@
          values["LANE_LEFT"] = 0 if trailer_lane_change_blocked else 1 if desire in (1, 3) else 0
          values["LANE_RIGHT"] = 0 if trailer_lane_change_blocked else 1 if desire in (2, 4) else 0
  
@@ -317,22 +366,21 @@ diff --git a/opendbc_repo/opendbc/car/hyundai/hyundaicanfd.py b/opendbc_repo/ope
          ret.append(packer.make_can_msg("ADRV_0x161", CAN.ECAN, values, rx_counter = rx_counter))
  
        if CS.adrv_0x200 is not None:
-@@ -1136,10 +1074,11 @@
-       if CS.adrv_0x1ea is not None:
+@@ -1143,10 +1186,13 @@
          values = copy.copy(CS.adrv_0x1ea)
          rx_counter = values.pop("COUNTER", None)
--        # blinker hold: the confirmed lane change until the body is across (see _blink_hold_side)
+         # blinker hold: the confirmed lane change until the body is across (see _blink_hold_side)
 -        hold = _blink_hold_side(md, desire, create_ccnc_messages.__dict__.setdefault("_blink_hold", {}))
--        values['LEFT_BLINK_HOLD'] = 1 if hold == 3 else 0
--        values['RIGHT_BLINK_HOLD'] = 1 if hold == 4 else 0
-+        # Never hold the physical turn signal for an automated lane change.
-+        # The lane-change state remains active, but the vehicle can cancel the
-+        # indicator as soon as the driver releases the stalk.
-+        values['LEFT_BLINK_HOLD'] = 0
-+        values['RIGHT_BLINK_HOLD'] = 0
++        hold = blinker_hold
+         external_hold = getattr(hud_control, "physicalBlinkerHold", 0)
+         if external_hold in (1, 2, 3):
+           hold = {1:0, 2:3, 3:4}[external_hold]
++        # Every HOLD producer yields to a driver intervention in this episode.
++        if blinker_hold_blocked:
++          hold = 0
+         values['LEFT_BLINK_HOLD'] = 1 if hold == 3 else 0
+         values['RIGHT_BLINK_HOLD'] = 1 if hold == 4 else 0
  
-         _apply_cluster_lane_lines(values, CS, lat_active, desire)
-         _normalize_cluster_corner_objects(values)
 diff --git a/opendbc_repo/opendbc/car/hyundai/stopping.py b/opendbc_repo/opendbc/car/hyundai/stopping.py
 --- a/opendbc_repo/opendbc/car/hyundai/stopping.py
 +++ b/opendbc_repo/opendbc/car/hyundai/stopping.py

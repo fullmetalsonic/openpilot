@@ -36,3 +36,9 @@ def test_large_access_unit_preserves_prefixes_payload_and_trailing_zero_rules():
   for start, payload, end in _h264_nals(data):
     assert data[start:payload] in (b'\0\0\1', b'\0\0\0\1')
     assert payload < end and data[end - 1] != 0
+
+def test_wired_encoder_does_not_require_wifi_qp_api():
+  from types import SimpleNamespace
+  from cluster_h264_pipeline import H264UsbPipeline
+  obj = SimpleNamespace(usb_display=SimpleNamespace())
+  H264UsbPipeline._set_native_qp_range(obj, SimpleNamespace(), 123)

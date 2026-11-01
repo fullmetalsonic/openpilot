@@ -43,14 +43,6 @@ def test_the_catalogue_is_readable_and_populated(params):
   assert all(isinstance(p.get("name"), str) and p["name"] for p in params)
 
 
-def test_paddle_mode_four_uses_common_dropdown_and_restart_description(params):
-  paddle = next(p for p in params if p["name"] == "PaddleMode")
-  assert (paddle["min"], paddle["max"], paddle["default"], paddle["unit"]) == (0, 4, 1, 1)
-  assert "control" not in paddle  # Five options use the common select rule.
-  assert "재시작" in paddle["descr"] and "주행 중" in paddle["descr"]
-  assert "restart" in paddle["edescr"] and "重启" in paddle["cdescr"]
-
-
 @pytest.mark.parametrize("maximum", (3, 4))
 def test_gap_cycle_catalog_uses_vehicle_maximum_without_mutating_cache(settings, maximum):
   groups, by_name, groups_list = group_index(settings)
@@ -437,7 +429,7 @@ def test_external_hud_brightness_and_orientation_use_catalog_controls(settings, 
     "Info left / driving right",
   ]
   screen_mode = by_name["ClusterHudScreenMode"]
-  assert (screen_mode["min"], screen_mode["max"], screen_mode["default"]) == (-1, 5, 0)
+  assert (screen_mode["min"], screen_mode["max"], screen_mode["default"]) == (-1, 7, 0)
   assert screen_mode["descr"].startswith("-1: 3D 전체화면\n0: 기본(내비/주행 리포트)")
   assert screen_mode["edescr"].startswith("-1: 3D fullscreen\n0: Default (navigation/driving report)")
   assert screen_mode["cdescr"].startswith("-1: 3D全屏\n0: 默认(导航/驾驶报告)")
@@ -597,9 +589,56 @@ def test_declared_numeric_bounds_stay_intact(params):
   assert by_name["TFollowDecelBoost"]["unit"] == 10
 
 
-def test_deferred_lever_settings_are_not_exposed(settings, params):
-  names = {p["name"] for p in params}
-  assert not names.intersection({"BlinkerLatchedTurn", "LaneChangeLeverWait"})
+def test_live_geometry_has_zero_default_and_no_enable_switch(settings, params):
+  from openpilot.selfdrive.carrot.server.services.params import clamp_numeric
+  by_name = {p['name']: p for p in params}
+  assert 'CenterToFrontRatioEnabled' not in by_name
+  ratio = by_name['CenterToFrontRatio']
+  assert (ratio['min'], ratio['nonzero_min'], ratio['max'], ratio['default'], ratio['unit']) == (0, 31, 69, 0, 1)
+  assert ratio['display_unit'] == 'percent'
+  assert not ratio.get('detail_parent') and not ratio.get('hidden_brands')
+  assert ratio['risk'] == 'high'
+  keys = PARAMS_KEYS_PATH.read_text(encoding='utf-8')
+  assert '{"CenterToFrontRatio", {PERSISTENT, INT, "0"}}' in keys
+  assert '{"CenterToFrontRatioEnabled", {PERSISTENT, BOOL}}' in keys  # Migration only, no recreated default.
+  categories = build_menu_categories(settings, by_name)
+  section = next(section for category in categories for group in category['groups'] for section in group['sections']
+                 if 'SteerActuatorDelay' in section['items'])
+  assert section['items'].index(ratio['name']) == section['items'].index('SteerActuatorDelay') + 1
+  for raw, expected in ((0, 0), (1, 31), (30, 31), (40, 40), (60, 60), (99, 69)):
+    assert clamp_numeric(raw, ratio) == expected
+  assert clamp_numeric(1, by_name['SteerActuatorDelay']) == 1
+  assert '재시작 없이' in ratio['descr']
+  assert 'without restarting' in ratio['edescr']
+  assert set(ratio['zero_label']) == {'ko', 'en', 'zh'}
+
+
+def test_declared_nonzero_min_and_zero_labels_are_well_formed(params):
+  for item in params:
+    if 'nonzero_min' in item:
+      assert item['min'] == item['default'] == 0
+      assert 0 < item['nonzero_min'] <= item['max']
+      assert set(item['zero_label']) == {'ko', 'en', 'zh'}
+
+
+def test_paddle_mode_four_uses_common_dropdown_and_restart_description(params):
+  paddle = next(p for p in params if p["name"] == "PaddleMode")
+  assert (paddle["min"], paddle["max"], paddle["default"], paddle["unit"]) == (0, 4, 1, 1)
+  assert "control" not in paddle  # Five options use the common select rule.
+  assert "재시작" in paddle["descr"] and "주행 중" in paddle["descr"]
+  assert "restart" in paddle["edescr"] and "重启" in paddle["cdescr"]
+
+
+def test_selected_lever_settings_are_exposed_with_upstream_defaults(settings, params):
+  by_name = {p["name"]: p for p in params}
+  turn = by_name["BlinkerLatchedTurn"]
+  wait = by_name["LaneChangeLeverWait"]
+  assert (turn["min"], turn["max"], turn["default"], turn["unit"]) == (0, 80, 0, 5)
+  assert turn["display_unit"] == "speedKph"
+  assert (wait["min"], wait["max"], wait["default"], wait["control"]) == (0, 1, 0, "toggle")
+  registered = PARAMS_KEYS_PATH.read_text(encoding="utf-8")
+  assert '{"BlinkerLatchedTurn", {PERSISTENT, INT, "0"}}' in registered
+  assert '{"LaneChangeLeverWait", {PERSISTENT, BOOL, "0"}}' in registered
 
 
 def test_nnff_is_search_only_and_does_not_inflate_menu_counts(settings, params):

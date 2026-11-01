@@ -5,6 +5,7 @@ import pytest
 from opendbc.car import Bus, structs
 from opendbc.car.hyundai import carcontroller, hyundaicanfd
 from opendbc.car.hyundai.values import CAR, HyundaiFlags
+from openpilot.cereal import log
 
 
 def setup_controller(monkeypatch, *, mode=None, angle=True, camera=True):
@@ -33,7 +34,7 @@ def setup_controller(monkeypatch, *, mode=None, angle=True, camera=True):
   controller = carcontroller.CarController({Bus.pt: "hyundai_canfd_generated"}, cp)
   controller.lkas_max_torque = 25
   cs = NS(out=structs.CarState(canValid=True, steeringPressed=True, steeringTorque=300, vEgoRaw=15),
-          modelV2=NS(frameId=1, position=NS(yStd=[0.1] * 33)), is_metric=True,
+          modelV2=log.ModelDataV2.new_message(frameId=1, position={"yStd": [0.1] * 33}), is_metric=True,
           adrv_0x161=None, mdps=None, steer_touch_2af=None, lfa_alt={}, lfa={})
   cc = structs.CarControl(enabled=True, latActive=True)
   cc.actuators.steeringAngleDeg = 0.5

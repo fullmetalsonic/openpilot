@@ -1,9 +1,9 @@
 --- a/openpilot/selfdrive/carrot/web/js/translations/en.js
 +++ b/openpilot/selfdrive/carrot/web/js/translations/en.js
-@@ -5,6 +5,41 @@
-   nativeName: "English",
-   shortName: "EN",
-   strings: {
+@@ -808,10 +808,46 @@
+     video_track_lost_reconnecting: "Reconnecting video",
+     video_stalled_reconnecting: "Reconnecting video",
+     no_initial_frame_reconnecting: "Waiting for first frame",
 +    pc_logs_phone_help: "Turn on Tailscale on the phone and the PC receiver, and keep this web page open. Closing the page or phone sleep pauses transfer; reopen it to resume.",
 +    pc_logs_other_page: "Another page is transferring. Close it and wait briefly to resume here.",
 +    pc_logs_stale_page: "Another page owns this transfer. Reopen this page to check its status.",
@@ -39,39 +39,6 @@
 +    pc_logs_legacy: "Legacy test registration exists. Its destination was not silently changed.",
 +    pc_logs_changed: "The confirmed log selection changed. Reopen the window and check it again.",
 +    pc_logs_error: "Unable to continue. Check the connection and recording status, then retry.",
-     egpu_model_recovering: "eGPU reconnecting",
-     egpu_model_recovering_detail: "The internal model remains in use while eGPU recovery is attempted, up to three times.",
-     egpu_model_recovery_ready: "eGPU READY",
-@@ -226,6 +261,7 @@
-     onnx_vision_summary_starting: "Waiting for the ONNX service to start.",
-     onnx_vision_summary_unavailable: "The ONNX service is not responding.",
-     onnx_vision_summary_waiting: "Models are ready; waiting for road cameras.",
-+    onnx_vision_summary_lane_only: "Lane detection is ready; vision BSD is off.",
-     onnx_vision_summary_ready: "Lane and blindspot detection are ready.",
-     onnx_vision_summary_attention: "Check the ONNX model or its configuration.",
-     onnx_vision_open_diagnostics: "Open diagnostics",
-@@ -549,7 +585,7 @@
-     git_update_output: "Git output",
-     git_update_up_to_date: "Already up to date",
-     git_result_pull_done: "Update check complete",
--    git_result_sync_done: "Sync complete. No remote changes.",
-+    git_result_sync_done: "Branch cleanup complete. No files downloaded.",
-     git_result_reset_done: "Reset complete: {mode} {target}",
-     git_result_checkout_done: "Branch changed: {branch}",
-     git_result_remote_set_done: "Repository changed. Branch list is ready.",
-@@ -594,7 +630,7 @@
-     confirm_reboot: "Reboot now?",
-     reboot_later: "Selected. Reboot later to apply.",
-     rebooting: "Rebooting...",
--    git_sync_confirm: "This will sync branches.\nLocal branches will be cleaned up. Continue?",
-+    git_sync_confirm: "Delete local branches other than the current branch and prune stale remote entries.\nNo files will be downloaded. Continue?",
-     git_reset_confirm: "Connect to the remote repository to check branch tracking and repair broken links. Reset will stop if verification fails.\nThen revert code changes. Your modifications may be lost. Continue?",
-     git_reset_mode_prompt: "Select reset mode\n\n• hard: discard all changes\n• soft: undo commit only\n• mixed: unstage only",
-     git_reset_target_prompt: "Enter reset target\ne.g. HEAD (current), origin/master (remote)",
-@@ -806,10 +842,11 @@
-     video_track_lost_reconnecting: "Reconnecting video",
-     video_stalled_reconnecting: "Reconnecting video",
-     no_initial_frame_reconnecting: "Waiting for first frame",
 +    vision_unavailable_cluster_hud: "Carrot Vision is unavailable while Cluster HUD is enabled.",
 +    disable_dm_inactive: "Available when DisableDM is 2.",
 +    disable_dm_check_failed: "Could not check DisableDM status.",
@@ -83,7 +50,7 @@
      vision_step_unavailable: "Check the setting.",
      vision_step_inactive: "Waiting to start",
      vision_step_starting: "Preparing camera",
-@@ -1392,8 +1429,6 @@
+@@ -1394,8 +1430,6 @@
      update_ago_seconds: "{s}s ago",
      update_ago_now: "just now",
      git_reset_head_prompt: "Select reset mode based on HEAD.",

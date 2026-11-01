@@ -21,7 +21,7 @@ def test_turn_model_flashes_the_cluster_red_like_a_held_paddle():
 
 @pytest.mark.parametrize('desire', range(5))
 @pytest.mark.parametrize('lat_active', [False, True])
-def test_physical_turn_signal_hold_stays_zero_in_actual_dbc(monkeypatch, desire, lat_active):
+def test_explicit_zero_hold_clears_stock_hold_in_actual_dbc(monkeypatch, desire, lat_active):
   monkeypatch.setattr(hyundaicanfd, 'Params', lambda: NS(get_int=lambda key: 0, get=lambda key: '0'))
   packer=CANPacker('hyundai_canfd_generated')
   definition=packer.dbc.name_to_msg['ADRV_0x1ea']
@@ -34,7 +34,7 @@ def test_physical_turn_signal_hold_stays_zero_in_actual_dbc(monkeypatch, desire,
            is_metric=True, paddle_button_prev=0, softHoldActive=0, trailer_connected=False)
   cc=structs.CarControl(enabled=True,latActive=lat_active)
   messages=hyundaicanfd.create_ccnc_messages(NS(flags=HyundaiFlags.CAMERA_SCC),packer,NS(ECAN=0,CAM=2),
-    5,cc,state,cc.hudControl,0,False,False,0,False,0,0)
+    5,cc,state,cc.hudControl,0,False,False,0,False,0,0,blinker_hold=0)
   assert len(messages)==1 and messages[0][0]==definition.address
   parser=CANParser('hyundai_canfd_generated',[('ADRV_0x1ea',20)],0)
   parser.update([(1_000_000_000,messages)])

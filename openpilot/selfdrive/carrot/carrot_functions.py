@@ -613,6 +613,11 @@ class CarrotPlanner:
 
     stop_model_x = self._stop_x_rl
     stop_model_x_rl = self._stop_x_rl
+    # Share the existing stop-to-lead boundary with auxiliary departure vetoes.
+    # This is lead following, not evidence that the traffic light turned green.
+    lead_in_stop_range = (lead_detected and np.isfinite(radarstate.leadOne.dRel)
+                          and radarstate.leadOne.dRel > 0 and np.isfinite(stop_model_x_raw)
+                          and (radarstate.leadOne.dRel - stop_model_x_raw) < 2.0)
 
     trafficState_last = self.trafficState
     #self.check_model_stopping(v, v_ego, self.xStop, y)
@@ -747,7 +752,7 @@ class CarrotPlanner:
     elif self.xState == XState.e2eStopped:
       if carstate.gasPressed:
         self.xState = XState.e2eCruise #XState.e2ePrepare
-      elif lead_detected and (radarstate.leadOne.dRel - stop_model_x_raw) < 2.0:
+      elif lead_in_stop_range:
         self.xState = XState.lead
       elif self.stopping_count == 0:
         if self.trafficState == TrafficState.green and not self.carrot_stay_stop and not carstate.leftBlinker and self.trafficLightDetectMode != 1:
@@ -762,7 +767,7 @@ class CarrotPlanner:
         #self.xState = XState.e2ePrepare
         self.xState = XState.e2eCruise
         self.traffic_starting_count = 10.0 / DT_MDL
-      elif lead_detected and (radarstate.leadOne.dRel - stop_model_x_raw) < 2.0:
+      elif lead_in_stop_range:
         self.xState = XState.lead
       else:
         if self.trafficState == TrafficState.green:

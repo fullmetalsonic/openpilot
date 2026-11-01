@@ -1,6 +1,6 @@
 --- a/docs/user/en/driver-monitoring.md
 +++ b/docs/user/en/driver-monitoring.md
-@@ -1,98 +1,15 @@
+@@ -1,104 +1,15 @@
  # Driver monitoring
  
 -`DriverMonitoringEnabled` defaults to ON and saves your choice across drives and restarts. While monitoring is enabled, `DriverMonitoringMode` defaults to `0: Standard`; select `1: Experimental` separately. Mode changes apply live at roughly half-second intervals without rebooting. Switching preserves accumulated monitoring time, warning counts and lockout, and ends the previous interaction grace and forward-attention streak. Old `DisableDM` values do not opt into experimental monitoring.
@@ -107,4 +107,10 @@
 -Warnings progress from a silent visual notice to the first audible warning and then the final audible warning. **The first sound has a 70% minimum gain; the final sound always uses 100%.** General/engagement volume settings and ambient-noise attenuation cannot reduce these levels.
 -
 -This sound policy applies to modes 0 and 1 with camera or interaction monitoring. Navigation and other events sharing the same sound assets retain their existing volume; percentages describe software output gain, not measured speaker sound pressure.
+-
+-## Confirmed stationary holds
+-
+-SoftHold pauses driver assessment. The same pause applies during a fresh, confirmed signal stop or stop behind a stationary lead with active longitudinal control, standstill, raw and filtered speed below 0.1 m/s, and no accelerator input. A lead stop additionally requires a valid stationary lead within 40 m.
+-
+-The camera continues running; accumulated warnings and lockout are not cleared. Departure, a green signal, lead movement, or stale/invalid inputs resumes assessment on the next update. Stopping alone does not qualify.
 +Disabling monitoring removes the existing monitoring alerts and monitoring-triggered deceleration and lockout protections. Actual vehicle monitoring, warning and video behavior requires field validation. See the [Carrot Web guide](carrot-web.md) for web video.

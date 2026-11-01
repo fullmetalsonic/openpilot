@@ -12,7 +12,7 @@ from tools.signal_analysis.test_signal_assist_planner import inputs
 
 
 @pytest.mark.parametrize('index', [0, 1])
-@pytest.mark.parametrize('distance,blocked', [(4., True), (49.9, True), (50., True), (50.1, False), (80., False),
+@pytest.mark.parametrize('distance,blocked', [(4., True), (49.9, True), (50., True), (50.01, False), (50.1, False), (80., False),
                                            (-1., True), (float('nan'), True), (float('inf'), True)])
 def test_both_leads_use_fixed_boundary(index, distance, blocked):
   leads = [NS(status=False), NS(status=False)]
@@ -72,4 +72,5 @@ def test_stopped_modes_have_identical_red_unknown_green_and_departure(lead):
       trace.append((p.xState,p.start_decision,p.stop_dist,p.v_cruise))
     traces.append(trace)
   assert traces[0] == traces[1]
+  # These fixtures carry no current normal-ACC control permission.
   assert any(row[1].hold for row in traces[0]) and any(row[1].released for row in traces[0])

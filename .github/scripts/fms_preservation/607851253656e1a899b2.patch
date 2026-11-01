@@ -270,63 +270,19 @@
                                           controller, accel_value_last=previous_value)
    if msg is None:
      return None
-@@ -133,62 +250,51 @@
+@@ -133,10 +250,454 @@
      assert values["InfoDisplay"] == 0
    assert packed >> 74 & 7 == values["InfoDisplay"]
    assert packed >> 184 & 3 == values["StopReq"]
+-  assert packed >> 108 & 7 == values["HUD_LEAD_INFO"]  # OEM SCC_ObjSta
 -  assert ((packed >> 152) & 127) * 0.1 == pytest.approx(values["JerkUpperLimit"])
    assert (packed >> 176 & 63) * 0.02 == pytest.approx(values["AccelLimitBandLower"])
    return values
- 
- 
- @pytest.mark.parametrize("camera", [True, False])
--@pytest.mark.parametrize("stock_band", [0., .06, 1.26])
--@pytest.mark.parametrize("approach", [False, True])
--def test_lower_band_precedes_stop_and_survives_hold_and_departure(camera, stock_band, approach):
--  cs = make_cs()
--  cs.scc_control["AccelLimitBandLower"] = stock_band
--  controller = CanfdStopping()
--  # Include positive acceleration and ordinary deceleration before shouldStop,
--  # plus direct low-speed entry where there is no requested approach phase.
--  stages = [(False, 10., .4, 0), (False, 2., -.5, 0)]
--  if approach:
--    stages.append((True, 1., -.8, 0))
--  stages += [(True, .3, -.5, 1), (True, 0., -.5, 1),
--             (True, .3, -.5, 1), (False, .3, .4, 0)]
--  for stopping, speed, accel, stop_req in stages:
--    cs.out.vEgo = cs.out.vEgoRaw = speed
--    cs.out.wheelSpeeds = SimpleNamespace(fl=speed, fr=speed, rl=speed, rr=speed)
--    cs.canfdSccHoldActive = speed == 0.
--    for _ in range(15):
--      values = send(camera, controller, cs, stopping=stopping, accel=accel)
--      assert values["ACCMode"] == 1
--      assert values["AccelLimitBandLower"] == STOP_LOWER_BAND
--      assert values["AccelLimitBandUpper"] == 0.
--      assert values["StopReq"] == stop_req
--      if stop_req:
--        assert values["aReqRaw"] == values["aReqValue"] == 0.
--  disabled = send(camera, controller, cs, enabled=False, stopping=False)
--  assert disabled["AccelLimitBandLower"] == disabled["StopReq"] == 0.
--  # Reengagement must not wait for a new stopping episode to restore the band.
--  resumed = send(camera, controller, cs, stopping=False)
--  assert resumed["AccelLimitBandLower"] == STOP_LOWER_BAND
--  assert resumed["StopReq"] == 0
--
--
--@pytest.mark.parametrize("camera", [True, False])
--@pytest.mark.parametrize("initial", [-1., -.3, .3])
++
++
++@pytest.mark.parametrize("camera", [True, False])
 +@pytest.mark.parametrize("initial", [-1., -.3])
- @pytest.mark.parametrize("target", [-.5, -.8, -1.])
--def test_packed_stop_zeros_both_requests_on_first_frame_and_keeps_zero(camera, initial, target):
--  cs = make_cs()
--  controller = CanfdStopping()
--  previous = initial
--  for tick in range(200):
--    # Rebound beyond the entry threshold must not create another release.
--    speed = .3 if tick < 40 else 1.2
--    cs.out.vEgo = cs.out.vEgoRaw = speed
--    cs.out.wheelSpeeds = SimpleNamespace(fl=speed, fr=speed, rl=speed, rr=speed)
--    cs.out.aEgo = -.3 if tick < 40 else .5
++@pytest.mark.parametrize("target", [-.5, -.8, -1.])
 +def test_packed_normal_stop_matches_legacy_acceleration(camera, initial, target):
 +  cs = make_cs()
 +  cs.canfdSccHoldActive = True
@@ -353,9 +309,7 @@
 +  previous = target
 +  for _ in range(150):
 +    old_phase = controller.phase
-     values = send(camera, controller, cs, accel=target, previous_value=previous, previous_target=target)
--    assert values['StopReq'] == 1
--    assert values['aReqRaw'] == values['aReqValue'] == 0.
++    values = send(camera, controller, cs, accel=target, previous_value=previous, previous_target=target)
 +    if controller.phase == StopPhase.retry:
 +      assert old_phase == StopPhase.release
 +      assert values['StopReq'] == 1
@@ -364,48 +318,56 @@
 +      assert following['StopReq'] == 1
 +      assert following['aReqRaw'] == following['aReqValue'] == pytest.approx(target)
 +      break
-     previous = values['aReqValue']
++    previous = values['aReqValue']
 +  else:
 +    pytest.fail('persistent motion did not trigger the retained retry')
- 
- 
- @pytest.mark.parametrize("camera", [True, False])
-@@ -208,19 +314,19 @@
- 
- 
- @pytest.mark.parametrize("camera", [True, False])
--def test_default_controller_keeps_stop_request_during_persistent_motion(camera, monkeypatch):
++
++
++@pytest.mark.parametrize("camera", [True, False])
++@pytest.mark.parametrize("stock_info", [0, 4, 5])
++def test_base_packet_builder_without_controller_preserves_legacy_fields(camera, stock_info):
++  cs = make_cs()
++  cs.scc_control["InfoDisplay"] = stock_info
++  # Direct use of the base packet builder does not create a retry controller.
++  for _ in range(200):
++    values = send(camera, None, cs)
++    assert values["StopReq"] == 1
++    assert values["aReqRaw"] == pytest.approx(-0.5)
++    assert values["aReqValue"] == pytest.approx(-0.5)
++    assert values["AccelLimitBandLower"] == pytest.approx(0)
++    assert values["InfoDisplay"] == (5 if camera and stock_info == 5 else 4)
++    assert values["ZEROS_7"] == (1 if camera else 0)
++
++
++@pytest.mark.parametrize("camera", [True, False])
 +def test_default_controller_sends_stop_commands_and_retains_retry_progress(camera, monkeypatch):
-   controller = make_car_controller(monkeypatch)
-   cs = make_cs()
-   values = send(camera, controller.canfd_stopping, cs)
-   assert values["StopReq"] == 1
--  assert values["aReqRaw"] == pytest.approx(0.)
++  controller = make_car_controller(monkeypatch)
++  cs = make_cs()
++  values = send(camera, controller.canfd_stopping, cs)
++  assert values["StopReq"] == 1
 +  assert values["aReqRaw"] == pytest.approx(-0.5)
-   assert values["InfoDisplay"] == values["ZEROS_7"] == 0
-   assert values["AccelLimitBandLower"] == pytest.approx(STOP_LOWER_BAND)
-   initial = controller.canfd_stopping
-   for _ in range(170):
-     send(camera, controller.canfd_stopping, cs)
-   assert controller.canfd_stopping is initial
--  assert initial.phase == StopPhase.request
++  assert values["InfoDisplay"] == values["ZEROS_7"] == 0
++  assert values["AccelLimitBandLower"] == pytest.approx(STOP_LOWER_BAND)
++  initial = controller.canfd_stopping
++  for _ in range(170):
++    send(camera, controller.canfd_stopping, cs)
++  assert controller.canfd_stopping is initial
 +  assert initial.phase == StopPhase.fallback
- 
- 
- @pytest.mark.parametrize("camera", [True, False])
-@@ -229,15 +335,30 @@
-   values = send(camera, controller, make_cs())
-   assert values["ACCMode"] == 1
-   assert values["StopReq"] == 1
--  assert values["aReqRaw"] == pytest.approx(0.)
--  assert values["aReqValue"] == pytest.approx(0.)
++
++
++@pytest.mark.parametrize("camera", [True, False])
++def test_packed_scc_stop_acceleration_zero_display_fields_and_fixed_band(camera):
++  controller = CanfdStopping()
++  values = send(camera, controller, make_cs())
++  assert values["ACCMode"] == 1
++  assert values["StopReq"] == 1
 +  assert values["aReqRaw"] == pytest.approx(-0.5)
 +  assert values["aReqValue"] == pytest.approx(-0.5)
-   assert values["InfoDisplay"] == values["ZEROS_7"] == 0
-   assert values["AccelLimitBandLower"] == pytest.approx(STOP_LOWER_BAND)
- 
- 
- @pytest.mark.parametrize("camera", [True, False])
++  assert values["InfoDisplay"] == values["ZEROS_7"] == 0
++  assert values["AccelLimitBandLower"] == pytest.approx(STOP_LOWER_BAND)
++
++
++@pytest.mark.parametrize("camera", [True, False])
 +def test_packet_path_uses_measured_deceleration_to_preserve_stop_request(camera):
 +  controller = CanfdStopping()
 +  cs = make_cs()
@@ -421,17 +383,18 @@
 +
 +
 +@pytest.mark.parametrize("camera", [True, False])
- @pytest.mark.parametrize("a_ego", [float('nan'), float('inf')])
--def test_invalid_measured_acceleration_blocks_stop_commands(camera, a_ego):
++@pytest.mark.parametrize("a_ego", [float('nan'), float('inf')])
 +def test_invalid_measured_acceleration_blocks_retry_commands(camera, a_ego):
-   cs = make_cs()
-   cs.out.aEgo = a_ego
-   controller = CanfdStopping()
-@@ -248,15 +369,33 @@
- 
- 
- @pytest.mark.parametrize("camera", [True, False])
--@pytest.mark.parametrize("stopping", [False, True])
++  cs = make_cs()
++  cs.out.aEgo = a_ego
++  controller = CanfdStopping()
++  values = send(camera, controller, cs)
++  assert values['ACCMode'] == values['StopReq'] == 0
++  assert values['aReqRaw'] == values['aReqValue'] == 0.
++  assert controller.phase == StopPhase.idle
++
++
++@pytest.mark.parametrize("camera", [True, False])
 +def test_packed_recovery_and_reentry(camera):
 +  controller = CanfdStopping()
 +  cs = make_cs()
@@ -451,78 +414,48 @@
 +
 +
 +@pytest.mark.parametrize("camera", [True, False])
- @pytest.mark.parametrize("block", ["brakePressed", "gasPressed", "brakeHoldActive", "parkingBrake", "canValid", "gearShifter",
--                                   "unavailable", "disabled", "override", "nan_speed"])
--def test_interlocks_and_motion_sources(camera, stopping, block):
++@pytest.mark.parametrize("block", ["brakePressed", "gasPressed", "brakeHoldActive", "parkingBrake", "canValid", "gearShifter",
 +                                   "unavailable", "disabled", "override", "nan_speed", "wheel_motion"])
 +def test_interlocks_and_motion_sources(camera, block):
-   controller = CanfdStopping()
-   cs = make_cs()
-   for _ in range(40):
-     send(camera, controller, cs)
--  assert controller.phase == StopPhase.request
++  controller = CanfdStopping()
++  cs = make_cs()
++  for _ in range(40):
++    send(camera, controller, cs)
 +  assert controller.phase == StopPhase.release
-   if block in ("brakePressed", "gasPressed", "brakeHoldActive", "parkingBrake"):
-     setattr(cs.out, block, True)
-   elif block == "canValid":
-@@ -267,43 +406,17 @@
-     cs.out.cruiseState.available = False
-   elif block == "nan_speed":
-     cs.out.vEgo = float("nan")
--  values = send(camera, controller, cs, enabled=block != "disabled", override=block == "override", stopping=stopping)
++  if block in ("brakePressed", "gasPressed", "brakeHoldActive", "parkingBrake"):
++    setattr(cs.out, block, True)
++  elif block == "canValid":
++    cs.out.canValid = False
++  elif block == "gearShifter":
++    cs.out.gearShifter = "reverse"
++  elif block == "unavailable":
++    cs.out.cruiseState.available = False
++  elif block == "nan_speed":
++    cs.out.vEgo = float("nan")
 +  elif block == "wheel_motion":
 +    cs.out.vEgo = cs.out.vEgoRaw = 0.0
 +    cs.canfdSccHoldActive = True
 +  values = send(camera, controller, cs, enabled=block != "disabled", override=block == "override")
-   assert values["StopReq"] == 0
--  assert values["aReqRaw"] == pytest.approx(0)
--  assert values["aReqValue"] == pytest.approx(0)
--  assert values["AccelLimitBandLower"] == 0.
--  assert controller.phase == StopPhase.idle
--
--
--@pytest.mark.parametrize("camera", [True, False])
--def test_wheel_motion_overrides_zero_ego_for_initial_entry_but_never_retries(camera):
--  controller = CanfdStopping()
--  cs = make_cs()
--  cs.out.vEgo = cs.out.vEgoRaw = 0.
--  cs.canfdSccHoldActive = True
--  cs.out.wheelSpeeds.fl = 1.
--  assert send(camera, controller, cs)['StopReq'] == 0
--  cs.out.wheelSpeeds.fl = .3
--  assert send(camera, controller, cs)['StopReq'] == 1
--  cs.out.wheelSpeeds.fl = 1.
--  assert send(camera, controller, cs)['StopReq'] == 1
--  assert controller.phase == StopPhase.request
--
--
--@pytest.mark.parametrize("camera", [True, False])
--def test_departure_releases_and_resumes_normal_acceleration_limiter(camera):
--  controller = CanfdStopping()
--  cs = make_cs()
--  stopped = send(camera, controller, cs)
--  assert stopped['aReqValue'] == 0.
--  actual = dict(send(camera, controller, cs, stopping=False, accel=.5, previous_value=0., previous_target=0.))
--  expected = dict(send(camera, None, cs, stopping=False, accel=.5, previous_value=0., previous_target=0.))
--  assert actual['StopReq'] == expected['StopReq'] == 0
--  assert actual['aReqRaw'] == expected['aReqRaw'] == .5
--  assert actual['aReqValue'] == expected['aReqValue']
--  assert actual['aReqValue'] == pytest.approx(.04 if camera else .1)
--  assert actual['AccelLimitBandLower'] == STOP_LOWER_BAND
--  assert controller.phase == StopPhase.idle
++  assert values["StopReq"] == 0
 +  if block == "wheel_motion":
 +    assert controller.phase == StopPhase.release
 +  else:
 +    assert values["aReqRaw"] == pytest.approx(0)
 +    assert values["aReqValue"] == pytest.approx(0)
 +    assert controller.phase == StopPhase.idle
- 
- 
- def test_missing_stock_message_resets_camera_experiment():
-@@ -317,8 +430,46 @@
- 
- 
- @pytest.mark.parametrize("camera", [True, False])
++
++
++def test_missing_stock_message_resets_camera_experiment():
++  cs = make_cs()
++  controller = CanfdStopping()
++  for _ in range(40):
++    send(True, controller, cs)
++  cs.scc_control = None
++  assert send(True, controller, cs) is None
++  assert controller.phase == StopPhase.idle
++
++
++@pytest.mark.parametrize("camera", [True, False])
 +@pytest.mark.parametrize("release_after", [None, 1, 10, 26])
 +@pytest.mark.parametrize("available", [True, False])
 +def test_soft_hold_prepares_two_negative_scc_frames_before_stop_req(camera, release_after, available):
@@ -561,75 +494,63 @@
 +
 +
 +@pytest.mark.parametrize("camera", [True, False])
- @pytest.mark.parametrize("brake_pressed", [False, True])
--def test_soft_hold_zeros_requests_without_preparation(camera, brake_pressed):
++@pytest.mark.parametrize("brake_pressed", [False, True])
 +def test_long_active_soft_hold_keeps_upstream_adjustable_request(camera, brake_pressed):
-   cs = make_cs()
-   cs.softHoldActive = 1 if brake_pressed else 2
-   cs.out.brakePressed = brake_pressed
-@@ -327,27 +478,31 @@
-   controller = CanfdStopping()
-   previous = previous_target = 0.
-   for _ in range(110):
--    values = send(camera, controller, cs, enabled=False, stopping=False, accel=-2.,
++  cs = make_cs()
++  cs.softHoldActive = 1 if brake_pressed else 2
++  cs.out.brakePressed = brake_pressed
++  cs.out.vEgo = cs.out.vEgoRaw = 0.
++  cs.out.wheelSpeeds = SimpleNamespace(fl=0., fr=0., rl=0., rr=0.)
++  controller = CanfdStopping()
++  previous = previous_target = 0.
++  for _ in range(110):
 +    values = send(camera, controller, cs, enabled=True, stopping=False, accel=-2.,
 +                  previous_value=previous, previous_target=previous_target)
 +    legacy = send(camera, None, cs, enabled=True, stopping=False, accel=-2.,
-                   previous_value=previous, previous_target=previous_target)
-     assert values['ACCMode'] == values['StopReq'] == 1
--    assert values['aReqRaw'] == 0.
--    assert values['aReqValue'] == 0.
++                  previous_value=previous, previous_target=previous_target)
++    assert values['ACCMode'] == values['StopReq'] == 1
 +    assert values['aReqRaw'] == legacy['aReqRaw'] == -2.
 +    assert values['aReqValue'] == legacy['aReqValue']
-     previous, previous_target = values['aReqValue'], -2.
-   assert controller.phase == StopPhase.held
--  assert previous == 0.
++    previous, previous_target = values['aReqValue'], -2.
++  assert controller.phase == StopPhase.held
 +  assert previous == -2.
- 
- 
- @pytest.mark.parametrize('camera', [True, False])
- @pytest.mark.parametrize('block', ['gasPressed', 'brakeHoldActive', 'parkingBrake', 'canValid', 'gearShifter', 'moving'])
--def test_soft_hold_brake_exception_preserves_other_interlocks(camera, block):
--  cs = make_cs()
++
++
++@pytest.mark.parametrize('camera', [True, False])
++@pytest.mark.parametrize('block', ['gasPressed', 'brakeHoldActive', 'parkingBrake', 'canValid', 'gearShifter', 'moving'])
 +@pytest.mark.parametrize('available', [True, False])
 +def test_soft_hold_brake_exception_preserves_other_interlocks(camera, block, available):
 +  cs = make_cs()
 +  cs.out.cruiseState.available = available
-   cs.softHoldActive = 1
-   cs.out.brakePressed = True
-   cs.out.vEgo = cs.out.vEgoRaw = 0.0
-   cs.out.wheelSpeeds = SimpleNamespace(fl=0., fr=0., rl=0., rr=0.)
-   controller = CanfdStopping()
-   send(camera, controller, cs, enabled=False, stopping=False, accel=0.)
--  assert controller.phase == StopPhase.request
++  cs.softHoldActive = 1
++  cs.out.brakePressed = True
++  cs.out.vEgo = cs.out.vEgoRaw = 0.0
++  cs.out.wheelSpeeds = SimpleNamespace(fl=0., fr=0., rl=0., rr=0.)
++  controller = CanfdStopping()
++  send(camera, controller, cs, enabled=False, stopping=False, accel=0.)
 +  assert controller.phase == StopPhase.prepare
-   if block == 'canValid':
-     cs.out.canValid = False
-   elif block == 'gearShifter':
-@@ -370,100 +525,164 @@
- 
- 
- @pytest.mark.parametrize('camera', [True, False])
--@pytest.mark.parametrize('previous_upper', [.5, 1., 2., 5.])
--@pytest.mark.parametrize('soft_hold', [False, True])
--def test_stop_upper_increase_waits_one_packet_without_delaying_stop(camera, previous_upper, soft_hold):
--  cs = make_cs()
--  controller = CanfdStopping()
--  first = send(camera, controller, cs, stopping=False, jerk_upper=previous_upper)
--  assert first['StopReq'] == 0
--  assert first['JerkUpperLimit'] == previous_upper
--  if soft_hold:
--    cs.softHoldActive = 2
--    cs.out.vEgo = cs.out.vEgoRaw = 0.
--    cs.out.wheelSpeeds = SimpleNamespace(fl=0., fr=0., rl=0., rr=0.)
--  first = send(camera, controller, cs, stopping=not soft_hold, jerk_upper=2.)
--  second = send(camera, controller, cs, stopping=not soft_hold, jerk_upper=2.)
--  assert first['StopReq'] == second['StopReq'] == 1
--  assert first['JerkUpperLimit'] == min(previous_upper, 2.)
--  assert second['JerkUpperLimit'] == 2.
--  assert first['aReqRaw'] == second['aReqRaw'] == 0.
--  assert first['aReqValue'] == second['aReqValue'] == 0.
--  assert first['AccelLimitBandLower'] == second['AccelLimitBandLower'] == STOP_LOWER_BAND
++  if block == 'canValid':
++    cs.out.canValid = False
++  elif block == 'gearShifter':
++    cs.out.gearShifter = 'reverse'
++  elif block == 'moving':
++    cs.out.wheelSpeeds.fl = .11
++  else:
++    setattr(cs.out, block, True)
++  values = send(camera, controller, cs, enabled=False, stopping=False, accel=0.)
++  assert values['StopReq'] == 0
++  assert values['aReqRaw'] == values['aReqValue'] == 0.
++  assert controller.phase == StopPhase.idle
++
++
++def test_confirmed_existing_hold_is_not_released():
++  controller = CanfdStopping()
++  command = step(controller, speed=0., held=True)
++  assert command.stop_req == 1
++  assert controller.phase == StopPhase.held
++
++
++@pytest.mark.parametrize('camera', [True, False])
 +@pytest.mark.parametrize('available', [True, False])
 +def test_independent_confirmed_hold_packed_commands(camera, available, monkeypatch):
 +  cs = make_cs()
@@ -648,14 +569,9 @@
 +    assert values['aReqRaw'] <= 0
 +    assert values['aReqValue'] <= 0
 +  assert previous_value == pytest.approx(-.5)
- 
- 
- @pytest.mark.parametrize('camera', [True, False])
--def test_initial_stop_without_previous_packet_uses_upper_one(camera):
--  controller = CanfdStopping()
--  cs = make_cs()
--  assert send(camera, controller, cs)['JerkUpperLimit'] == 1.
--  assert send(camera, controller, cs)['JerkUpperLimit'] == 2.
++
++
++@pytest.mark.parametrize('camera', [True, False])
 +def test_independent_and_normal_stop_mode_transition(camera):
 +  cs = make_cs()
 +  cs.softHoldActive = 2
@@ -738,9 +654,363 @@
 +  else:
 +    with pytest.raises(AssertionError, match='Frozen FMS fixture changed'):
 +      _read_frozen_fms_stopping_sources(path)
++
++
++@pytest.mark.parametrize('camera', [True, False])
++@pytest.mark.parametrize('initial_output', [0., -1.2])
++@pytest.mark.parametrize('held', [False, True])
++def test_frozen_fms_stop_transition_trace_matches_actual_dbc(camera, initial_output, held, frozen_fms_stopping_sources):
++  """Keep normal/raw and independent/actual feedback distinct across modes."""
++  from opendbc.car.hyundai import hyundaicanfd, stopping as stopping_module
++  def source(path):
++    return frozen_fms_stopping_sources[path]
++  namespace = dict(stopping_module.__dict__)
++  core = next(n for n in ast.parse(source('opendbc_repo/opendbc/car/hyundai/stopping.py')).body
++              if isinstance(n, ast.ClassDef) and n.name == 'CanfdStopping')
++  exec(compile(ast.Module(body=[core], type_ignores=[]), '<frozen FMS stopping>', 'exec'), namespace)
++  baseline_controller = namespace['CanfdStopping']()
++  baseline = dict(hyundaicanfd.__dict__)
++  names = {'apply_canfd_stopping', 'create_acc_control_scc2', 'create_acc_control'}
++  functions = [n for n in ast.parse(source('opendbc_repo/opendbc/car/hyundai/hyundaicanfd.py')).body
++               if isinstance(n, ast.FunctionDef) and n.name in names]
++  assert len(functions) == len(names)
++  exec(compile(ast.Module(body=functions, type_ignores=[]), '<frozen FMS ACC builders>', 'exec'), baseline)
++
++  cs = make_cs()
++  cs.out.vEgo = cs.out.vEgoRaw = 0.
++  cs.out.wheelSpeeds = SimpleNamespace(fl=0., fr=0., rl=0., rr=0.)
++  cs.canfdSccHoldActive = held
++  packer, reference = CANPacker('hyundai_canfd_generated'), CANPacker('hyundai_canfd_generated')
++  can, hud = SimpleNamespace(ECAN=0), SimpleNamespace(leadDistanceBars=2, leadVisible=False)
++  jerk = SimpleNamespace(carrot_cruise=0, jerk_u=2., jerk_l=1.)
++  controller = CanfdStopping()
++  previous = expected_previous = initial_output
++  previous_target = initial_output
++  # Independent hold starts from the actual prior output, then returns to a
++  # raw target deliberately different from that output before normal restart.
++  for enabled, target, requested, hold, available, ticks in [
++    (False, 0., False, 2, False, 75),
++    (True, -.2, True, 0, True, 8),
++    (True, .2, False, 0, True, 8),
++    (True, -.8, True, 0, True, 8),
++    (False, 0., False, 2, False, 40),
++    (True, 0., False, 0, False, 1),
++  ]:
++    cs.softHoldActive, cs.out.cruiseState.available = hold, available
++    for _ in range(ticks):
++      if camera:
++        args = (can, enabled, previous, target, requested, False, 30., hud, jerk, cs, controller)
++        expected_args = (can, enabled, expected_previous, target, requested, False, 30., hud, jerk, cs, baseline_controller)
++        message, previous = hyundaicanfd.create_acc_control_scc2(packer, *args)
++        expected_message, expected_previous = baseline['create_acc_control_scc2'](reference, *expected_args)
++      else:
++        args = (can, enabled, previous_target, target, requested, False, 30., hud, 2., 1., cs)
++        message, previous = hyundaicanfd.create_acc_control(packer, *args, controller, accel_value_last=previous)
++        expected_message, expected_previous = baseline['create_acc_control'](
++          reference, *args, baseline_controller, accel_value_last=expected_previous)
++      if camera and enabled:
++        # The latest normal-ACC object-state trial is the sole approved packet
++        # delta from frozen FMS. Compare every remaining bit, including control.
++        actual_bits = int.from_bytes(message[1], 'little')
++        expected_bits = int.from_bytes(expected_message[1], 'little')
++        expected_hud = (expected_bits >> 108) & 7
++        acc_mode, stop_req = (actual_bits >> 68) & 7, (actual_bits >> 184) & 3
++        assert (actual_bits >> 108) & 7 == (2 if acc_mode == 1 and stop_req and expected_hud == 0 else expected_hud)
++        allowed_bits = (7 << 108) | 0xffff  # HUD state and its derived CRC only
++        assert (actual_bits ^ expected_bits) & ~allowed_bits == 0
++        assert message[0] == expected_message[0] and message[2] == expected_message[2]
++      else:
++        assert message == expected_message
++      assert previous == expected_previous
++      assert controller.phase == baseline_controller.phase
++      previous_target = target
  
  
- @pytest.mark.parametrize('camera', [True, False])
+ @pytest.mark.parametrize("camera", [True, False])
+@@ -156,6 +717,7 @@
+     assert values["ACC_ObjDist"] == pytest.approx(204.6 if camera else 1.)
+     assert values["ACC_ObjRelSpd"] == pytest.approx(239.4 if camera else -170.)
+     assert cs.scc_control == stock  # never write the synthetic state into RX
++
+ 
+ 
+ @pytest.mark.parametrize("relative_speed,object_state", [(-.4, 2), (.6, 1)])
+@@ -180,335 +742,21 @@
+   assert released["StopReq"] == released["HUD_LEAD_INFO"] == 0
+ 
+ 
+-@pytest.mark.parametrize("camera", [True, False])
+-@pytest.mark.parametrize("stock_band", [0., .06, 1.26])
+-@pytest.mark.parametrize("approach", [False, True])
+-def test_lower_band_precedes_stop_and_survives_hold_and_departure(camera, stock_band, approach):
+-  cs = make_cs()
+-  cs.scc_control["AccelLimitBandLower"] = stock_band
+-  controller = CanfdStopping()
+-  # Include positive acceleration and ordinary deceleration before shouldStop,
+-  # plus direct low-speed entry where there is no requested approach phase.
+-  stages = [(False, 10., .4, 0), (False, 2., -.5, 0)]
+-  if approach:
+-    stages.append((True, 1., -.8, 0))
+-  stages += [(True, .3, -.5, 1), (True, 0., -.5, 1),
+-             (True, .3, -.5, 1), (False, .3, .4, 0)]
+-  for stopping, speed, accel, stop_req in stages:
+-    cs.out.vEgo = cs.out.vEgoRaw = speed
+-    cs.out.wheelSpeeds = SimpleNamespace(fl=speed, fr=speed, rl=speed, rr=speed)
+-    cs.canfdSccHoldActive = speed == 0.
+-    for _ in range(15):
+-      values = send(camera, controller, cs, stopping=stopping, accel=accel)
+-      assert values["ACCMode"] == 1
+-      assert values["AccelLimitBandLower"] == STOP_LOWER_BAND
+-      assert values["AccelLimitBandUpper"] == 0.
+-      assert values["StopReq"] == stop_req
+-      if stop_req:
+-        assert values["aReqRaw"] == values["aReqValue"] == 0.
+-  disabled = send(camera, controller, cs, enabled=False, stopping=False)
+-  assert disabled["AccelLimitBandLower"] == disabled["StopReq"] == 0.
+-  # Reengagement must not wait for a new stopping episode to restore the band.
+-  resumed = send(camera, controller, cs, stopping=False)
+-  assert resumed["AccelLimitBandLower"] == STOP_LOWER_BAND
+-  assert resumed["StopReq"] == 0
+-
+-
+-@pytest.mark.parametrize("camera", [True, False])
+-@pytest.mark.parametrize("initial", [-1., -.3, .3])
+-@pytest.mark.parametrize("target", [-.5, -.8, -1.])
+-def test_packed_stop_zeros_both_requests_on_first_frame_and_keeps_zero(camera, initial, target):
+-  cs = make_cs()
+-  controller = CanfdStopping()
+-  previous = initial
+-  for tick in range(200):
+-    # Rebound beyond the entry threshold must not create another release.
+-    speed = .3 if tick < 40 else 1.2
+-    cs.out.vEgo = cs.out.vEgoRaw = speed
+-    cs.out.wheelSpeeds = SimpleNamespace(fl=speed, fr=speed, rl=speed, rr=speed)
+-    cs.out.aEgo = -.3 if tick < 40 else .5
+-    values = send(camera, controller, cs, accel=target, previous_value=previous, previous_target=target)
+-    assert values['StopReq'] == 1
+-    assert values['aReqRaw'] == values['aReqValue'] == 0.
+-    previous = values['aReqValue']
+-
+-
+-@pytest.mark.parametrize("camera", [True, False])
+-@pytest.mark.parametrize("stock_info", [0, 4, 5])
+-def test_base_packet_builder_without_controller_preserves_legacy_fields(camera, stock_info):
+-  cs = make_cs()
+-  cs.scc_control["InfoDisplay"] = stock_info
+-  # Direct use of the base packet builder does not create a retry controller.
+-  for _ in range(200):
+-    values = send(camera, None, cs)
+-    assert values["StopReq"] == 1
+-    assert values["aReqRaw"] == pytest.approx(-0.5)
+-    assert values["aReqValue"] == pytest.approx(-0.5)
+-    assert values["AccelLimitBandLower"] == pytest.approx(0)
+-    assert values["InfoDisplay"] == (5 if camera and stock_info == 5 else 4)
+-    assert values["ZEROS_7"] == (1 if camera else 0)
+-    assert values["HUD_LEAD_INFO"] == 0
+-
+-
+-@pytest.mark.parametrize("camera", [True, False])
+-def test_default_controller_keeps_stop_request_during_persistent_motion(camera, monkeypatch):
+-  controller = make_car_controller(monkeypatch)
+-  cs = make_cs()
+-  values = send(camera, controller.canfd_stopping, cs)
+-  assert values["StopReq"] == 1
+-  assert values["aReqRaw"] == pytest.approx(0.)
+-  assert values["InfoDisplay"] == values["ZEROS_7"] == 0
+-  assert values["AccelLimitBandLower"] == pytest.approx(STOP_LOWER_BAND)
+-  initial = controller.canfd_stopping
+-  for _ in range(170):
+-    send(camera, controller.canfd_stopping, cs)
+-  assert controller.canfd_stopping is initial
+-  assert initial.phase == StopPhase.request
+-
+-
+-@pytest.mark.parametrize("camera", [True, False])
+-def test_packed_scc_stop_acceleration_zero_display_fields_and_fixed_band(camera):
+-  controller = CanfdStopping()
+-  values = send(camera, controller, make_cs())
+-  assert values["ACCMode"] == 1
+-  assert values["StopReq"] == 1
+-  assert values["aReqRaw"] == pytest.approx(0.)
+-  assert values["aReqValue"] == pytest.approx(0.)
+-  assert values["InfoDisplay"] == values["ZEROS_7"] == 0
+-  assert values["AccelLimitBandLower"] == pytest.approx(STOP_LOWER_BAND)
+-
+-
+-@pytest.mark.parametrize("camera", [True, False])
+-@pytest.mark.parametrize("a_ego", [float('nan'), float('inf')])
+-def test_invalid_measured_acceleration_blocks_stop_commands(camera, a_ego):
+-  cs = make_cs()
+-  cs.out.aEgo = a_ego
+-  controller = CanfdStopping()
+-  values = send(camera, controller, cs)
+-  assert values['ACCMode'] == values['StopReq'] == 0
+-  assert values['aReqRaw'] == values['aReqValue'] == 0.
+-  assert controller.phase == StopPhase.idle
+-
+-
+-@pytest.mark.parametrize("camera", [True, False])
+-@pytest.mark.parametrize("stopping", [False, True])
+-@pytest.mark.parametrize("block", ["brakePressed", "gasPressed", "brakeHoldActive", "parkingBrake", "canValid", "gearShifter",
+-                                   "unavailable", "disabled", "override", "nan_speed"])
+-def test_interlocks_and_motion_sources(camera, stopping, block):
+-  controller = CanfdStopping()
+-  cs = make_cs()
+-  for _ in range(40):
+-    send(camera, controller, cs)
+-  assert controller.phase == StopPhase.request
+-  if block in ("brakePressed", "gasPressed", "brakeHoldActive", "parkingBrake"):
+-    setattr(cs.out, block, True)
+-  elif block == "canValid":
+-    cs.out.canValid = False
+-  elif block == "gearShifter":
+-    cs.out.gearShifter = "reverse"
+-  elif block == "unavailable":
+-    cs.out.cruiseState.available = False
+-  elif block == "nan_speed":
+-    cs.out.vEgo = float("nan")
+-  values = send(camera, controller, cs, enabled=block != "disabled", override=block == "override", stopping=stopping)
+-  assert values["StopReq"] == 0
+-  assert values["HUD_LEAD_INFO"] == 0
+-  assert values["aReqRaw"] == pytest.approx(0)
+-  assert values["aReqValue"] == pytest.approx(0)
+-  assert values["AccelLimitBandLower"] == 0.
+-  assert controller.phase == StopPhase.idle
+-
+-
+-@pytest.mark.parametrize("camera", [True, False])
+-def test_wheel_motion_overrides_zero_ego_for_initial_entry_but_never_retries(camera):
+-  controller = CanfdStopping()
+-  cs = make_cs()
+-  cs.out.vEgo = cs.out.vEgoRaw = 0.
+-  cs.canfdSccHoldActive = True
+-  cs.out.wheelSpeeds.fl = 1.
+-  assert send(camera, controller, cs)['StopReq'] == 0
+-  cs.out.wheelSpeeds.fl = .3
+-  assert send(camera, controller, cs)['StopReq'] == 1
+-  cs.out.wheelSpeeds.fl = 1.
+-  assert send(camera, controller, cs)['StopReq'] == 1
+-  assert controller.phase == StopPhase.request
+-
+-
+-@pytest.mark.parametrize("camera", [True, False])
+-def test_departure_releases_and_resumes_normal_acceleration_limiter(camera):
+-  controller = CanfdStopping()
+-  cs = make_cs()
+-  stopped = send(camera, controller, cs)
+-  assert stopped['aReqValue'] == 0.
+-  actual = dict(send(camera, controller, cs, stopping=False, accel=.5, previous_value=0., previous_target=0.))
+-  expected = dict(send(camera, None, cs, stopping=False, accel=.5, previous_value=0., previous_target=0.))
+-  assert actual['StopReq'] == expected['StopReq'] == 0
+-  assert actual['aReqRaw'] == expected['aReqRaw'] == .5
+-  assert actual['aReqValue'] == expected['aReqValue']
+-  assert actual['aReqValue'] == pytest.approx(.04 if camera else .1)
+-  assert actual['AccelLimitBandLower'] == STOP_LOWER_BAND
+-  assert controller.phase == StopPhase.idle
+-
+-
+-def test_missing_stock_message_resets_camera_experiment():
+-  cs = make_cs()
+-  controller = CanfdStopping()
+-  for _ in range(40):
+-    send(True, controller, cs)
+-  cs.scc_control = None
+-  assert send(True, controller, cs) is None
+-  assert controller.phase == StopPhase.idle
+-
+-
+-@pytest.mark.parametrize("camera", [True, False])
+-@pytest.mark.parametrize("brake_pressed", [False, True])
+-def test_soft_hold_zeros_requests_without_preparation(camera, brake_pressed):
+-  cs = make_cs()
+-  cs.softHoldActive = 1 if brake_pressed else 2
+-  cs.out.brakePressed = brake_pressed
++
++@pytest.mark.parametrize("initial_output", [0., -1.2])
++def test_no_lead_state_trial_does_not_change_independent_soft_hold(initial_output):
++  cs = make_cs()
++  cs.softHoldActive = 2
++  cs.out.cruiseState.available = False
+   cs.out.vEgo = cs.out.vEgoRaw = 0.
+   cs.out.wheelSpeeds = SimpleNamespace(fl=0., fr=0., rl=0., rr=0.)
+   controller = CanfdStopping()
+-  previous = previous_target = 0.
+-  for _ in range(110):
+-    values = send(camera, controller, cs, enabled=False, stopping=False, accel=-2.,
+-                  previous_value=previous, previous_target=previous_target)
+-    assert values['ACCMode'] == values['StopReq'] == 1
+-    assert values['HUD_LEAD_INFO'] == (2 if camera else 0)
+-    assert values['aReqRaw'] == 0.
+-    assert values['aReqValue'] == 0.
+-    previous, previous_target = values['aReqValue'], -2.
+-  assert controller.phase == StopPhase.held
+-  assert previous == 0.
+-
+-
+-@pytest.mark.parametrize('camera', [True, False])
+-@pytest.mark.parametrize('block', ['gasPressed', 'brakeHoldActive', 'parkingBrake', 'canValid', 'gearShifter', 'moving'])
+-def test_soft_hold_brake_exception_preserves_other_interlocks(camera, block):
+-  cs = make_cs()
+-  cs.softHoldActive = 1
+-  cs.out.brakePressed = True
+-  cs.out.vEgo = cs.out.vEgoRaw = 0.0
+-  cs.out.wheelSpeeds = SimpleNamespace(fl=0., fr=0., rl=0., rr=0.)
+-  controller = CanfdStopping()
+-  send(camera, controller, cs, enabled=False, stopping=False, accel=0.)
+-  assert controller.phase == StopPhase.request
+-  if block == 'canValid':
+-    cs.out.canValid = False
+-  elif block == 'gearShifter':
+-    cs.out.gearShifter = 'reverse'
+-  elif block == 'moving':
+-    cs.out.wheelSpeeds.fl = .11
+-  else:
+-    setattr(cs.out, block, True)
+-  values = send(camera, controller, cs, enabled=False, stopping=False, accel=0.)
+-  assert values['StopReq'] == 0
+-  assert values['aReqRaw'] == values['aReqValue'] == 0.
+-  assert controller.phase == StopPhase.idle
+-
+-
+-def test_confirmed_existing_hold_is_not_released():
+-  controller = CanfdStopping()
+-  command = step(controller, speed=0., held=True)
+-  assert command.stop_req == 1
+-  assert controller.phase == StopPhase.held
+-
+-
+-@pytest.mark.parametrize('camera', [True, False])
+-@pytest.mark.parametrize('previous_upper', [.5, 1., 2., 5.])
+-@pytest.mark.parametrize('soft_hold', [False, True])
+-def test_stop_upper_increase_waits_one_packet_without_delaying_stop(camera, previous_upper, soft_hold):
+-  cs = make_cs()
+-  controller = CanfdStopping()
+-  first = send(camera, controller, cs, stopping=False, jerk_upper=previous_upper)
+-  assert first['StopReq'] == 0
+-  assert first['JerkUpperLimit'] == previous_upper
+-  if soft_hold:
+-    cs.softHoldActive = 2
+-    cs.out.vEgo = cs.out.vEgoRaw = 0.
+-    cs.out.wheelSpeeds = SimpleNamespace(fl=0., fr=0., rl=0., rr=0.)
+-  first = send(camera, controller, cs, stopping=not soft_hold, jerk_upper=2.)
+-  second = send(camera, controller, cs, stopping=not soft_hold, jerk_upper=2.)
+-  assert first['StopReq'] == second['StopReq'] == 1
+-  assert first['JerkUpperLimit'] == min(previous_upper, 2.)
+-  assert second['JerkUpperLimit'] == 2.
+-  assert first['aReqRaw'] == second['aReqRaw'] == 0.
+-  assert first['aReqValue'] == second['aReqValue'] == 0.
+-  assert first['AccelLimitBandLower'] == second['AccelLimitBandLower'] == STOP_LOWER_BAND
+-
+-
+-@pytest.mark.parametrize('camera', [True, False])
+-def test_initial_stop_without_previous_packet_uses_upper_one(camera):
+-  controller = CanfdStopping()
+-  cs = make_cs()
+-  assert send(camera, controller, cs)['JerkUpperLimit'] == 1.
+-  assert send(camera, controller, cs)['JerkUpperLimit'] == 2.
+-
+-
+-@pytest.mark.parametrize('camera', [True, False])
 -def test_upper_history_survives_departure_and_interlock_episode_resets(camera):
 -  cs = make_cs()
 -  controller = CanfdStopping()
@@ -807,58 +1077,12 @@
 -    expected.pop('JerkUpperLimit')
 -    assert actual == expected
 -    assert controller.phase == reference.phase
-+@pytest.mark.parametrize('initial_output', [0., -1.2])
-+@pytest.mark.parametrize('held', [False, True])
-+def test_frozen_fms_stop_transition_trace_matches_actual_dbc(camera, initial_output, held, frozen_fms_stopping_sources):
-+  """Keep normal/raw and independent/actual feedback distinct across modes."""
-+  from opendbc.car.hyundai import hyundaicanfd, stopping as stopping_module
-+  def source(path):
-+    return frozen_fms_stopping_sources[path]
-+  namespace = dict(stopping_module.__dict__)
-+  core = next(n for n in ast.parse(source('opendbc_repo/opendbc/car/hyundai/stopping.py')).body
-+              if isinstance(n, ast.ClassDef) and n.name == 'CanfdStopping')
-+  exec(compile(ast.Module(body=[core], type_ignores=[]), '<frozen FMS stopping>', 'exec'), namespace)
-+  baseline_controller = namespace['CanfdStopping']()
-+  baseline = dict(hyundaicanfd.__dict__)
-+  names = {'apply_canfd_stopping', 'create_acc_control_scc2', 'create_acc_control'}
-+  functions = [n for n in ast.parse(source('opendbc_repo/opendbc/car/hyundai/hyundaicanfd.py')).body
-+               if isinstance(n, ast.FunctionDef) and n.name in names]
-+  assert len(functions) == len(names)
-+  exec(compile(ast.Module(body=functions, type_ignores=[]), '<frozen FMS ACC builders>', 'exec'), baseline)
-+
-+  cs = make_cs()
-+  cs.out.vEgo = cs.out.vEgoRaw = 0.
-+  cs.out.wheelSpeeds = SimpleNamespace(fl=0., fr=0., rl=0., rr=0.)
-+  cs.canfdSccHoldActive = held
-+  packer, reference = CANPacker('hyundai_canfd_generated'), CANPacker('hyundai_canfd_generated')
-+  can, hud = SimpleNamespace(ECAN=0), SimpleNamespace(leadDistanceBars=2, leadVisible=False)
-+  jerk = SimpleNamespace(carrot_cruise=0, jerk_u=2., jerk_l=1.)
-+  controller = CanfdStopping()
-+  previous = expected_previous = initial_output
-+  previous_target = initial_output
-+  # Independent hold starts from the actual prior output, then returns to a
-+  # raw target deliberately different from that output before normal restart.
-+  for enabled, target, requested, hold, available, ticks in [
-+    (False, 0., False, 2, False, 75),
-+    (True, -.2, True, 0, True, 8),
-+    (True, .2, False, 0, True, 8),
-+    (True, -.8, True, 0, True, 8),
-+    (False, 0., False, 2, False, 40),
-+    (True, 0., False, 0, False, 1),
-+  ]:
-+    cs.softHoldActive, cs.out.cruiseState.available = hold, available
-+    for _ in range(ticks):
-+      if camera:
-+        args = (can, enabled, previous, target, requested, False, 30., hud, jerk, cs, controller)
-+        expected_args = (can, enabled, expected_previous, target, requested, False, 30., hud, jerk, cs, baseline_controller)
-+        message, previous = hyundaicanfd.create_acc_control_scc2(packer, *args)
-+        expected_message, expected_previous = baseline['create_acc_control_scc2'](reference, *expected_args)
-+      else:
-+        args = (can, enabled, previous_target, target, requested, False, 30., hud, 2., 1., cs)
-+        message, previous = hyundaicanfd.create_acc_control(packer, *args, controller, accel_value_last=previous)
-+        expected_message, expected_previous = baseline['create_acc_control'](
-+          reference, *args, baseline_controller, accel_value_last=expected_previous)
-+      assert message == expected_message
-+      assert previous == expected_previous
-+      assert controller.phase == baseline_controller.phase
-+      previous_target = target
++  previous = initial_output
++  requested = False
++  for _ in range(90):
++    values = send(True, controller, cs, enabled=False, stopping=False,
++                  accel=0., previous_value=previous)
++    assert values["HUD_LEAD_INFO"] == 0
++    requested |= bool(values["StopReq"])
++    previous = values["aReqValue"]
++  assert requested and previous == pytest.approx(-.5)

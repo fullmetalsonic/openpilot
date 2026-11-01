@@ -185,6 +185,7 @@ def test_planner_passes_preview_ceiling_to_mpc_with_existing_slew_limit(previous
   planner = SimpleNamespace(CP=SimpleNamespace(openpilotLongitudinalControl=True),
                             mpc=SimpleNamespace(set_accel_limits=lambda *args: captured.extend(args), set_cur_state=stop),
                             a_desired=previous_accel, reset_decel_timer=0, output_should_stop=False,
+                            coasting_param_time=0., dt=.05,
                             v_desired_filter=SimpleNamespace(update=lambda value: value),
                             parse_model=lambda _: (0., 0., 0., 0., 1.), update_lead_tracks=lambda _: (0, 0))
   with pytest.raises(StopBeforeSolver):

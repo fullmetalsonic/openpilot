@@ -141,11 +141,15 @@ This experimental sequence applies to Hyundai/Kia CANFD openpilot longitudinal c
 > [!CAUTION]
 > This trial adopts part of an observed stock sequence; complete stopping and prevention of rolling have not been validated on the vehicle.
 
+### CANFD stopping
+
+Normal ACC retains adjustable stopping acceleration (aReqRaw/aReqValue) and the existing one-time bounded stop re-entry. Independent SoftHold while cruise is OFF, in standby or CANCEL starts from the actual previous SCC output, prepares with negative acceleration and StopReq=0, then converges to StopReq=1 with -0.5 m/s² holding acceleration. Independent SoftHold does not request cruise ON or RES. Both CANFD builders retain actual-output feedback and pedal, parking and AutoHold protections. Actual ECU stopping acceptance requires vehicle validation.
+
 ### `VEgoStopping`
 
-Range 1–100, step 5, default 50. A value of 1 is 0.01 m/s; 50 is 0.50 m/s (about 1.8 km/h). `shouldStop` becomes true when both the planner's target speeds at the control-delay horizon and one second later are below this threshold.
+Range 10–100, step 5, default 50. A value of 10 is 0.10 m/s; 50 is 0.50 m/s (about 1.8 km/h). `shouldStop` becomes true when both the planner's target speeds at the control-delay horizon and one second later are below this threshold.
 
-Previously stored values are not automatically raised at startup. Control reads the saved value during driving without repairing it. Lower values can delay stop recognition.
+Previously stored values below 10 are automatically raised to 10 at startup. If a lower value is written during driving, control applies the minimum immediately and repairs the stored value. Existing values within the supported range are retained.
 
 Lowering it delays stop recognition and may release stop state sooner on departure. Raising it enters stop state earlier but can make departure feel sluggish.
 

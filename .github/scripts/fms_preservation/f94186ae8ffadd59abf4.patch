@@ -5,10 +5,10 @@
  from openpilot.selfdrive.carrot.carrot_controls import CarrotControls
  from openpilot.selfdrive.carrot.carrot_man_input import get_carrot_man
 -from openpilot.selfdrive.monitoring.dm_alerts import driver_monitoring_hud_alert
+ from openpilot.selfdrive.carrot.bluetooth.physical import HoldReader
  
  State = log.SelfdriveState.OpenpilotState
- LaneChangeState = log.LaneChangeState
-@@ -368,7 +367,6 @@
+@@ -372,7 +371,6 @@
      hudControl.leadVisible = self.sm['longitudinalPlan'].hasLead
      hudControl.leadDistanceBars = self.sm['selfdriveState'].personality.raw + 1
      hudControl.visualAlert = self.sm['selfdriveState'].alertHudVisual
@@ -16,7 +16,7 @@
  
      radarState = self.sm['radarState']
      leadOne = radarState.leadOne
-@@ -434,9 +432,10 @@
+@@ -438,9 +436,10 @@
      cs.upAccelCmd = float(self.LoC.pid.p)
      cs.uiAccelCmd = float(self.LoC.pid.i)
      cs.ufAccelCmd = float(self.LoC.pid.f)

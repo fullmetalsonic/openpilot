@@ -1,9 +1,0 @@
---- a/openpilot/selfdrive/carrot/tests/test_cluster_autorun.py
-+++ b/openpilot/selfdrive/carrot/tests/test_cluster_autorun.py
-@@ -1,4 +1,6 @@
- from openpilot.selfdrive.carrot import cluster_autorun
-+
-+
- 
- 
- def test_device_cluster_uses_standalone_carrot_navi_ipc():

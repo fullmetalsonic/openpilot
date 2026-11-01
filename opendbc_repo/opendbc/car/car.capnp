@@ -277,11 +277,30 @@ struct CarState {
   vehicleNaviSpeed @91 :Float32; # raw speed from the active stock-navigation CAN profile, kph
   vehicleNaviAvailable @92 :Bool; # stock-navigation 0x4BE has been observed during this drive
   radarInput @93 :RadarInput;
-  steeringTouchDEPRECATED @94 :SteeringTouch; # inactive compatibility reservation; no producer/consumer
-  leftBlinkerStalkCountDEPRECATED @100 :UInt8; # inactive compatibility reservation
-  rightBlinkerStalkCountDEPRECATED @101 :UInt8; # inactive compatibility reservation
-  blinkerLeverDEPRECATED @102 :UInt8; # inactive compatibility reservation
-  blinkerLampDEPRECATED @103 :UInt8; # inactive compatibility reservation
+  steeringTouchDEPRECATED @94 :SteeringTouch; # inactive DM compatibility reservation; no producer/consumer
+  leftBlinkerStalkCount @100 :UInt8;  # +1 (wrapping) on every left turn-signal lever press; the lamp-based leftBlinker cannot show a press while the lamp is already flashing
+  rightBlinkerStalkCount @101 :UInt8; # +1 (wrapping) on every right turn-signal lever press
+  blinkerLever @102 :UInt8;           # turn-signal lever position: 0 released, 1 one-touch (half) detent, 2 latched
+  blinkerLamp @103 :UInt8;            # turn-signal lamp right now (no hold): 0 dark, 1 left lit, 2 right lit
+
+  vehicleGps @104 :VehicleGps;
+  autoTurnSignalDirection @105 :UInt8; # automatic ownership, including an unconfirmed cancellation tail
+  autoTurnSignalStatus @106 :Text;
+  turnSignalDriverValid @107 :Bool;
+  turnSignalDriverDirection @108 :UInt8; # actual stalk: 0 released, 1 left, 2 right
+  autoTurnSignalReadyRequestId @109 :UInt64; # TX echoed and lamps confirmed for this automatic maneuver; zero otherwise
+  tbtRearInputsAvailable @110 :Bool; # fresh CANFD OEM BSD input for the TBT physical-indicator trigger only (BSD-only since 2026-10-30)
+  tbtRightRearBlocked @111 :Bool = true; # OEM right BSD warning or invalid/stale BSD; no corner-distance veto; manual admission unchanged
+  laneLineInfoMonoTime @112 :UInt64; # exact OEM lane type/colour CAN observation; zero means unknown, manual indicator only
+  struct VehicleGps {
+    available @0 :Bool;
+    valid @1 :Bool; # receive/continuity checks, not a decoded satellite fix flag
+    latitude @2 :Float64;
+    longitude @3 :Float64;
+    sampleMonoTime @4 :UInt64;
+    headingDeg @5 :Float32; # course derived from consecutive positions
+    headingValid @6 :Bool;
+  }
 
   # Optional original vehicle receive signal. Separate from torque/override.
   struct SteeringTouch {
@@ -514,6 +533,9 @@ struct CarControl {
     naviEventType @19: Int16;   # VW MEB cluster: 0=없음 1=커브 2=교차로 3=분기/출구 4=로터리 5=병목 8=도로제한제어중
     naviEventSpeed @20: Int16;  # VW MEB cluster: 목표속도 kph (커브는 부호=방향: +우/-좌) -> ACC_Event_Wunschgeschw
     leadLimiting @21: Bool;     # VW MEB cluster: 앞차가 속도를 제한 중(xState lead) -> 앞차 하이라이트 우선
+
+    driverMonitoringAlertDEPRECATED @22: UInt8; # inactive DM compatibility reservation
+    physicalBlinkerHold @23: UInt8;  # 0=legacy, 1=release, 2=left hold, 3=right hold; fresh USB-CAN lease
 
     # not used with the dash, TODO: separate structs for dash UI and device UI
     audibleAlert @5: AudibleAlert;

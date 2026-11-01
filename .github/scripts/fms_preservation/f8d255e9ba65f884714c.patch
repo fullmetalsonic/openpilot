@@ -1,9 +1,43 @@
 --- a/openpilot/selfdrive/carrot/bluetooth/tests/test_input.py
 +++ b/openpilot/selfdrive/carrot/bluetooth/tests/test_input.py
-@@ -296,6 +296,42 @@
-   assert lane.read(now=11.08) == 'laneLeft'
+@@ -1,11 +1,31 @@
+ import asyncio
++import ast
+ import json
+ from pathlib import Path
++import uuid
+ 
+ import pytest
+ 
+ from openpilot.selfdrive.carrot.bluetooth.model import Clicks, CommandReader, CommandWriter, Decoder, DEFAULT_MAPPING, atomic_json, validate_config
+ from openpilot.selfdrive.carrot.bluetooth.bluez import Bluez
++
++
++def production_daemon_emit(writer, mapping, *, learning=None, hold_blocked=False):
++  """Bind the unchanged production emit closure without importing Linux evdev."""
++  source = Path(__file__).resolve().parents[1] / 'daemon.py'
++  main = next(n for n in ast.parse(source.read_text()).body if isinstance(n, ast.FunctionDef) and n.name == 'main')
++  emit = next(n for n in main.body if isinstance(n, ast.FunctionDef) and n.name == 'emit')
++  wrapper = ast.parse('''
++def bind(settings, writer, learning, hold_blocked):
++  last_event = None
++  last_events, recent_events, last_fire = {}, [], {}
++  started = car_ok = True
++''').body[0]
++  wrapper.body.extend([emit, ast.Return(value=ast.Name(id='emit', ctx=ast.Load()))])
++  namespace = {'uuid': uuid}
++  exec(compile(ast.fix_missing_locations(ast.Module(body=[wrapper], type_ignores=[])), str(source), 'exec'), namespace)
++  settings = {'devices': {mac: {'enabled': True, 'mapping': actions} for mac, actions in mapping.items()}}
++  return namespace['bind'](settings, writer, learning or {}, hold_blocked)
  
  
+ def test_recorded_seven_yiser_buttons():
+@@ -343,3 +363,211 @@
+   devices['00:00:00:00:00:FF'] = devices['00:00:00:00:00:00']
+   with pytest.raises(ValueError, match='16'):
+     validate_config({'devices': devices})
++
++
 +def test_cancel_cutoff_does_not_change_default_throttle_or_lane_consumption(tmp_path):
 +  writer=CommandWriter(tmp_path)
 +  cruise=CommandReader('cruise',tmp_path)
@@ -40,30 +74,173 @@
 +  assert len(reader.seen)==3
 +
 +
- def test_command_queue_is_bounded_and_expires(tmp_path):
-   writer = CommandWriter(tmp_path)
-   reader = CommandReader('cruise', tmp_path)
-@@ -306,23 +342,6 @@
-   assert reader.read(now=11.5) is None
-   writer.prune(set(), 11.5)
-   assert json.loads(reader.path.read_text()) == {'events': []}
--
--
--def test_attention_journal_is_independent_fresh_and_one_shot_even_for_unmapped_buttons(tmp_path):
--  writer = CommandWriter(tmp_path)
--  attention = CommandReader('attention', tmp_path)
--  cruise = CommandReader('cruise', tmp_path)
--  attention.started = cruise.started = 10
--  writer.attention('A', 'none', 11)
--  writer.send('A', 'accelCruise', 11)
--  assert attention.read(now=11.05) == 'none'
--  assert attention.read(now=11.08) is None
--  assert cruise.read(now=11.05) == 'accelCruise'
--  writer.attention('A', 'gapAdjustCruise', 11.1)
--  assert attention.read(now=12) is None
--  writer.attention('A', 'none', 12.1)
--  writer.prune(set(), 12.2)
--  assert attention.read(now=12.2) is None
- 
- 
- def test_cancelled_device_events_cannot_return_when_writer_republishes(tmp_path):
++@pytest.mark.parametrize('batch_cancel', [False, True])
++@pytest.mark.parametrize('publish_after_cancel', [False, True])
++def test_real_cruise_cancel_discards_pending_remote_and_rearms_only_fresh(tmp_path, monkeypatch,
++                                                                       batch_cancel, publish_after_cancel):
++  from openpilot.selfdrive.car.tests.test_carrot_cruise_buttons import make_remote_helper
++  clock = [10.]
++  monkeypatch.setattr('openpilot.selfdrive.carrot.bluetooth.model.time.monotonic', lambda: clock[0])
++  helper, cs, cc = make_remote_helper(None)
++  helper.autoCruiseControl = 0
++  reader = CommandReader('cruise', tmp_path)
++  writer = CommandWriter(tmp_path)
++  helper.bluetooth_commands = reader
++  assert reader.read(now=11.) is None
++
++  def publish_old():
++    writer.send('A', 'accelCruise', 11.005)
++    writer.send('B', 'decelCruise', 11.01)
++
++  if not publish_after_cancel:
++    publish_old()
++  clock[0] = 11.01  # cancellation must apply even inside the read throttle
++  cs.buttonEvents = [] if batch_cancel else [{'type': 'cancel', 'pressed': True}]
++  helper._update_cruise_buttons(cs, cc, 80., paddle_cancel_seen=batch_cancel)
++  assert helper._activate_cruise == -1 and helper._cruise_cancel_state
++  assert reader.last_check == 11. and reader.cancel_cutoff == 11.01
++  if publish_after_cancel:
++    publish_old()
++  # A physical press must publish its real release before a new remote action.
++  cs.buttonEvents = [] if batch_cancel else [{'type': 'cancel', 'pressed': False}]
++  for now in (11.04, 11.07):
++    clock[0] = now
++    helper._activate_cruise = 0  # update_v_cruise resets this publication each cycle
++    assert helper._update_cruise_buttons(cs, cc, 80.) == 80.
++    assert helper._activate_cruise == 0 and helper._cruise_cancel_state
++    cs.buttonEvents = []
++    writer.publish('cruise')  # writer replay must not resurrect either old action
++
++  writer.send('A', 'accelCruise', 11.08)
++  clock[0] = 11.11
++  helper._update_cruise_buttons(cs, cc, 80.)
++  assert helper._activate_cruise == 1 and not helper._cruise_cancel_state
++  clock[0] = 11.14
++  helper._activate_cruise = 0
++  helper._update_cruise_buttons(cs, cc, 80.)
++  assert helper._activate_cruise == 0 and len(reader.seen) == 3
++
++
++@pytest.mark.parametrize('gesture', ['single_flush', 'short_release', 'double_release', 'double_straddles_cancel',
++                                  'long_flush_repeat', 'long_release', 'fast_key', 'fast_touch', 'touch_long_direction'])
++def test_daemon_preserves_pre_cancel_gesture_origin_on_every_emit_path(tmp_path, gesture):
++  from openpilot.selfdrive.carrot.bluetooth.tests.test_fast_blinker import frame
++  mapping = {'key:30': 'accelCruise', 'key:30@double': 'gapAdjustCruise', 'key:30@long': 'accelCruiseLong',
++             'left': 'accelCruise', 'left@long': 'accelCruiseLong'}
++  gestures = {'double': gesture in ('single_flush', 'double_release', 'double_straddles_cancel'),
++              'long': gesture in ('short_release', 'long_flush_repeat', 'long_release', 'touch_long_direction')}
++  decoder = Decoder('yiser-j6' if 'touch' in gesture else 'generic', mapping, gestures=gestures)
++  writer = CommandWriter(tmp_path)
++  reader = CommandReader('cruise', tmp_path)
++  reader.started = 9.
++  emit = production_daemon_emit(writer, {'A': mapping})
++  if 'touch' in gesture:
++    frame(decoder, [(3, 0, 300), (3, 1, 500), (1, 330, 1)], 10.)
++  elif gesture == 'fast_key':
++    assert decoder.feed(1, 30, 1, 10.) == []  # SYN_REPORT itself may arrive after CANCEL.
++  elif gesture in ('single_flush', 'double_release', 'double_straddles_cancel'):
++    assert press(decoder, 30, 10., .02) == []
++    if gesture == 'double_release':
++      assert frame(decoder, [(1, 30, 1)], 10.05) == []
++  else:
++    assert frame(decoder, [(1, 30, 1)], 10.) == []
++  assert reader.read(allowed=False, now=10.1, cancel_pending=True) is None
++
++  if gesture == 'single_flush':
++    tokens, now = decoder.flush(10.38), 10.38
++  elif gesture == 'double_straddles_cancel':
++    tokens, now = press(decoder, 30, 10.2), 10.25
++  elif gesture in ('short_release', 'double_release', 'long_release'):
++    now = 10.75 if gesture == 'long_release' else 10.25
++    tokens = frame(decoder, [(1, 30, 0)], now)
++  elif gesture == 'fast_key':
++    tokens, now = decoder.feed(0, 0, 0, 10.2), 10.2
++  elif gesture == 'fast_touch':
++    tokens, now = frame(decoder, [(3, 0, 450)], 10.2), 10.2
++  else:
++    if gesture == 'touch_long_direction':
++      assert frame(decoder, [(3, 0, 450)], 10.2) == []
++    now = 10.91
++    tokens = decoder.flush(now)
++  assert tokens and all(token.started == 10. for token in tokens)
++  emit('input-a', 'A', decoder, tokens, now)
++  assert writer.events['cruise'][-1]['started'] == 10.
++  assert writer.events['cruise'][-1]['time'] == now
++  assert reader.read(now=now + .03) is None
++  if gesture in ('long_flush_repeat', 'touch_long_direction'):
++    tokens = decoder.flush(now + .51)
++    assert tokens and decoder.repeated
++    emit('input-a', 'A', decoder, tokens, now + .51)
++    assert writer.events['cruise'][-1]['repeat']
++    assert reader.read(now=now + .54) is None
++
++  # The same decoder rearms after the old gesture ends; no reconnect/reset.
++  fresh = now + 1.
++  if 'touch' in gesture:
++    frame(decoder, [(1, 330, 0)], fresh - .05)
++    frame(decoder, [(3, 0, 300), (3, 1, 500), (1, 330, 1)], fresh)
++    tokens = frame(decoder, [(3, 0, 450)], fresh + .02)
++    emitted = fresh + .02
++    if gestures['long']:
++      tokens, emitted = decoder.flush(fresh + .75), fresh + .75
++  else:
++    frame(decoder, [(1, 30, 0)], fresh - .05)
++    tokens = frame(decoder, [(1, 30, 1)], fresh)
++    tokens += frame(decoder, [(1, 30, 0)], fresh + .05)
++    emitted = fresh + .05
++    if gestures['double']:
++      tokens, emitted = decoder.flush(fresh + .41), fresh + .41
++  assert tokens and all(token.started == fresh for token in tokens)
++  emit('input-a', 'A', decoder, tokens, emitted)
++  assert reader.read(now=emitted + .03) == mapping[tokens[0]]
++
++
++@pytest.mark.parametrize('gesture', ['single', 'double', 'long'])
++def test_daemon_fresh_post_cancel_gestures_rearm_without_losing_ttl_or_peer_order(tmp_path, gesture):
++  from openpilot.selfdrive.carrot.bluetooth.tests.test_fast_blinker import frame
++  mapping = {'key:30': 'accelCruise', 'key:30@double': 'gapAdjustCruise', 'key:30@long': 'accelCruiseLong'}
++  options = {'double': gesture in ('single', 'double'), 'long': gesture == 'long'}
++  a, b = Decoder(mapping=mapping, gestures=options), Decoder(mapping=mapping, gestures=options)
++  writer = CommandWriter(tmp_path)
++  reader = CommandReader('cruise', tmp_path)
++  reader.started = 9.
++  emit = production_daemon_emit(writer, {'A': mapping, 'B': mapping})
++  reader.read(allowed=False, now=10.1, cancel_pending=True)
++  for path, decoder in (('A', a), ('B', b)):
++    if gesture == 'long':
++      assert frame(decoder, [(1, 30, 1)], 10.2) == []
++      tokens, now = decoder.flush(10.91), 10.91
++    else:
++      assert press(decoder, 30, 10.2) == []
++      tokens, now = (press(decoder, 30, 10.35), 10.4) if gesture == 'double' else (decoder.flush(10.61), 10.61)
++    assert tokens[0].started == 10.2
++    emit('input-' + path, path, decoder, tokens, now)
++  action = mapping['key:30' + {'single': '', 'double': '@double', 'long': '@long'}[gesture]]
++  assert [reader.read(now=now + offset) for offset in (.03, .06, .09)] == [action, action, None]
++  assert [event['address'] for event in writer.events['cruise']] == ['A', 'B']
++
++
++@pytest.mark.parametrize('origin', ['bad', None, float('nan'), float('inf'), -1., 12.])
++def test_command_reader_rejects_invalid_gesture_origin(tmp_path, origin):
++  reader = CommandReader('cruise', tmp_path)
++  reader.started = 10.
++  atomic_json(reader.path, {'id': 'bad-origin', 'time': 11., 'started': origin, 'action': 'accelCruise'})
++  assert reader.read(now=11.1) is None
++
++
++def test_touch_origin_precedes_late_syn_and_direction_recognition(tmp_path):
++  from openpilot.selfdrive.carrot.bluetooth.tests.test_fast_blinker import frame
++  mapping = {'left': 'accelCruise'}
++  decoder = Decoder('yiser-j6', mapping, gestures={'double': False, 'long': False})
++  writer = CommandWriter(tmp_path)
++  reader = CommandReader('cruise', tmp_path)
++  reader.started = 9.
++  emit = production_daemon_emit(writer, {'A': mapping})
++  for event in [(3, 0, 300), (3, 1, 500), (1, 330, 1)]:
++    assert decoder.feed(*event, 10.) == []
++  reader.read(allowed=False, now=10.1, cancel_pending=True)
++  assert decoder.feed(0, 0, 0, 10.2) == []
++  tokens = frame(decoder, [(3, 0, 450)], 10.25)
++  assert tokens[0].started == 10.
++  emit('input-a', 'A', decoder, tokens, 10.25, input_time=10.25)
++  assert reader.read(now=10.28) is None

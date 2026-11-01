@@ -244,3 +244,59 @@ def test_prepare_state_does_not_expand_vcruise_auto_on_policy():
                and any(isinstance(c,ast.List) and all(isinstance(v,ast.Constant) for v in c.elts)
                        and [v.value for v in c.elts]==[3,5] for c in n.comparators)]
   assert comparisons
+
+
+def test_delayed_bluetooth_click_cannot_reenable_real_cancelled_cruise(production_chain, tmp_path, monkeypatch):
+  from openpilot.cereal import log
+  from openpilot.selfdrive.car.car_specific import CarSpecificEvents
+  from openpilot.selfdrive.car.cruise import VCruiseCarrot
+  from openpilot.selfdrive.selfdrived.state import StateMachine
+  from openpilot.selfdrive.carrot.bluetooth.model import CommandReader, CommandWriter, Decoder
+  from openpilot.selfdrive.carrot.bluetooth.tests.test_input import press, production_daemon_emit
+
+  clock = [10.]
+  monkeypatch.setattr(time, 'monotonic', lambda: clock[0])
+  driver, ci, helper, cc, _, _ = production_chain
+  helper._cruise_control = VCruiseCarrot._cruise_control.__get__(helper)
+  helper.autoCruiseControl = 0
+  reader = CommandReader('cruise', tmp_path)
+  reader.started = 9.
+  helper.bluetooth_commands = reader
+  writer = CommandWriter(tmp_path)
+  mapping = {'key:30': 'accelCruise', 'key:30@double': 'gapAdjustCruise'}
+  decoder = Decoder(mapping=mapping, gestures={'double': True, 'long': False})
+  emit = production_daemon_emit(writer, {'A': mapping})
+  state = StateMachine()
+  state.state = log.SelfdriveState.OpenpilotState.enabled
+  car_events = CarSpecificEvents(ci.CP)
+  previous = structs.CarState()
+
+  def tick(now, buttons=(0,)):
+    nonlocal previous
+    clock[0] = now
+    helper._activate_cruise = 0  # update_v_cruise's per-cycle publication reset
+    driver.tick(0, acc_req=int(cc.enabled), buttons=buttons, apply=False)
+    current = ci.CS.out
+    current.activateCruise = helper._activate_cruise  # production card publication
+    events = car_events.create_common_events(current, previous, pcm_enable=False)
+    enabled, _ = state.update(events)
+    previous = current.as_reader()
+    cc.enabled = cc.longActive = enabled
+    return events, enabled
+
+  assert press(decoder, 30, 10.) == []
+  events, enabled = tick(10.1, (4, 0))  # real MQ4 parser sees same-batch CANCEL
+  assert ci.CS.paddle_input.cancel_seen and helper._cruise_cancel_state
+  assert helper._activate_cruise == -1 and not enabled
+  assert reader.cancel_cutoff == 10.1
+  emit('input-a', 'A', decoder, decoder.flush(10.41), 10.41)
+  events, enabled = tick(10.44)
+  assert helper._cruise_cancel_state and helper._activate_cruise == 0
+  assert not enabled and log.OnroadEvent.EventName.buttonEnable not in events.events
+
+  # A real new press/release, including the same delayed-single window, rearms.
+  assert press(decoder, 30, 10.5) == []
+  emit('input-a', 'A', decoder, decoder.flush(10.91), 10.91)
+  events, enabled = tick(10.94)
+  assert not helper._cruise_cancel_state and helper._activate_cruise == 1
+  assert enabled and log.OnroadEvent.EventName.buttonEnable in events.events

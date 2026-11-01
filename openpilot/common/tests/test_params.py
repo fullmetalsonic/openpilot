@@ -83,6 +83,14 @@ class TestParams:
     self.params.put("IsMetric", False)
     assert not self.params.get_bool("IsMetric")
 
+  @pytest.mark.parametrize("flag", [ParamKeyFlag.CLEAR_ON_MANAGER_START, ParamKeyFlag.CLEAR_ON_IGNITION_ON])
+  @pytest.mark.parametrize("mode", [0, 1, 2])
+  def test_legacy_driver_monitoring_setting_persists_at_lifecycle_boundary(self, flag, mode):
+    self.params.put_int("DisableDM", mode)
+    assert self.params.get_int("DisableDM") == mode
+    self.params.clear_all(flag)
+    assert self.params.get_int("DisableDM") == mode
+
   def test_put_non_blocking_with_get_block(self):
     q = Params()
     def _delayed_writer():

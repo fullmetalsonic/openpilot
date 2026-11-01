@@ -69,6 +69,7 @@ def apply_canfd_stopping(values, CS, controller, accel, previous_value, jerk_u, 
                     "StopReq": values["StopReq"], "aReqRaw": values["aReqRaw"], "aReqValue": values["aReqValue"]})
 
 
+
 def hyundai_crc8(data: bytes) -> int:
   poly = 0x2F
   crc = 0xFF
@@ -371,6 +372,8 @@ def create_lfahda_cluster(packer, CS, CAN, long_active, lat_active, *, suppress_
 
 
 
+
+
 def create_lfa_icon_non_camera_scc(packer, CS, CAN, CC):
   ret = []
   if CS.adrv_0x161 is not None:
@@ -401,6 +404,7 @@ def create_lfa_icon_non_camera_scc(packer, CS, CAN, CC):
 
     ret.append(packer.make_can_msg("ADRV_0x161", CAN.ECAN, values, rx_counter=rx_counter))
   return ret
+
 
 def _display_lead(radar_state):
   # Vehicle displays show the nearest valid control lead, including leadTwo.
@@ -549,7 +553,14 @@ def create_acc_control_scc2(packer, CAN, enabled, accel_value_last, accel, stopp
   apply_canfd_stopping(values, CS, stop_controller, accel, previous_value, jerk_u, jerk_l,
                        independent_hold=independent_hold)
 
+  # Independent SoftHold keeps its validated stop packet; the new no-lead
+  # object-state trial remains scoped to ordinary ACC.
+  if (not independent_hold and stop_controller is not None and values["ACCMode"] == 1
+      and values["StopReq"] == 1 and values["HUD_LEAD_INFO"] == 0):
+    values["HUD_LEAD_INFO"] = 2
+
   return packer.make_can_msg("SCC_CONTROL", CAN.ECAN, values), values["aReqValue"]
+
 
 def create_acc_control(packer, CAN, enabled, accel_last, accel, stopping, gas_override, set_speed, hud_control, jerk_u, jerk_l, CS,
                        stop_controller=None, accel_value_last=None):
@@ -603,6 +614,7 @@ def create_acc_control(packer, CAN, enabled, accel_last, accel, stopping, gas_ov
   apply_canfd_stopping(values, CS, stop_controller, accel, previous_value, jerk_u, jerk_l,
                        independent_hold=independent_hold)
   return packer.make_can_msg("SCC_CONTROL", CAN.ECAN, values), values["aReqValue"]
+
 
 
 def create_spas_messages(packer, CAN, frame, left_blink, right_blink):
@@ -762,6 +774,104 @@ def _get_desire_and_lane_changing(md):
       if ds[4] > 0.9: lane_changing = 4
   return desire, lane_changing
 
+BLINK_HOLD_CROSS_NEAR_M = 1.0     # the target-side line came this close to the car centre ...
+BLINK_HOLD_CROSS_JUMP_M = 1.5     # ... then moved this far away again: the model relabelled it, the centre is across
+BLINK_HOLD_RELEASE_PROGRESS = 0.6  # release once the car centre has moved this fraction of a lane width into the new lane
+
+
+def _blink_hold_side(md, desire, state):
+  """Turn-signal hold for ADRV_0x1ea: 3 (left), 4 (right) or 0.
+
+  DesireHelper's request (modelV2.meta.laneChangeBlinkerHold) wins: it holds the lamp while a lever-requested
+  change waits (LaneChangeLeverWait) and while a next change asked for during this one is queued. Otherwise the
+  current change decides (_blink_hold_change).
+  """
+  change_hold = _blink_hold_change(md, desire, state)
+  meta = getattr(md, "meta", None) if md is not None else None
+  requested = str(getattr(meta, "laneChangeBlinkerHold", "none"))
+  return 3 if requested == "left" else 4 if requested == "right" else change_hold
+
+
+def _blink_hold_change(md, desire, state):
+  """Hold for the current lane change: 3 (left), 4 (right) or 0.
+
+  Held for the whole confirmed lane change (desire 3/4 = starting + finishing, same as the green
+  cluster lane) instead of the model's desireState > 0.9, which falls ~2 s before the change ends and
+  let the lamp stop mid-change (2026-09-19 drive: hold covered 49-65 % of the change). Released once the
+  model's lane lines show the car centre 60 % of a lane width over (the crossed line, now on the other
+  side, 0.1 lane width away), so the lamp does not keep flashing ~2 s after the car is already in the new
+  lane. Without a detectable crossing the hold lasts to the end of the desire.
+  """
+  if desire not in (3, 4):
+    state.update(crossed=False, released=False, y_min=None)
+    return 0
+  if state.get("released"):
+    return 0
+  lines = getattr(md, "laneLines", None) if md is not None else None
+  if lines is not None and len(lines) >= 3 and len(lines[1].y) and len(lines[2].y):
+    target, other = (1, 2) if desire == 3 else (2, 1)
+    y_target, y_other = float(lines[target].y[0]), float(lines[other].y[0])
+    # The relabel is spread over 2-3 model frames (e.g. -0.28 -> -1.36 -> -3.46 m), so compare with the
+    # closest approach instead of the previous frame.
+    y_min = abs(y_target) if state.get("y_min") is None else min(state["y_min"], abs(y_target))
+    state["y_min"] = y_min
+    if not state.get("crossed") and y_min < BLINK_HOLD_CROSS_NEAR_M and abs(y_target) - y_min > BLINK_HOLD_CROSS_JUMP_M:
+      state["crossed"] = True
+    lane_width = abs(y_target) + abs(y_other)
+    if state.get("crossed") and abs(y_other) >= (BLINK_HOLD_RELEASE_PROGRESS - 0.5) * lane_width:
+      state["released"] = True
+      return 0
+  return desire
+
+
+class BlinkerHold:
+  """Per-controller HOLD state; driver intervention never changes the lane-change FSM."""
+  def __init__(self):
+    self.change = {}
+    self.stalk_counts = None
+    self.steering_pressed = False
+    self.in_change = False
+    self.blocked = False
+    self.completed_mono_time = 0
+
+  def update(self, md, cs, lat_active):
+    valid = cs.canValid and not cs.trailerConnected
+    counts = (cs.leftBlinkerStalkCount, cs.rightBlinkerStalkCount)
+    new_press = self.stalk_counts is not None and counts != self.stalk_counts
+    self.stalk_counts = counts
+    pressed = cs.steeringPressed
+    rising = pressed and not self.steering_pressed
+    self.steering_pressed = pressed
+
+    meta = getattr(md, "meta", None) if md is not None else None
+    lane_state = str(getattr(meta, "laneChangeState", "off"))
+    changing = lane_state in ("laneChangeStarting", "laneChangeFinishing")
+    completed = getattr(meta, "laneChangeCompletedMonoTime", 0)
+    if completed > self.completed_mono_time:
+      self.completed_mono_time = completed
+      # Only normal FSM completion retires torque detection; cancellation can precede its debounce.
+      if valid and lat_active:
+        self.in_change = False
+    if new_press and valid and lat_active:
+      self.blocked = False
+      self.in_change = changing
+    elif rising and self.in_change:
+      self.blocked = True
+    # Retain the episode if model cancellation arrives before steering debounce.
+    self.in_change |= changing
+
+    desire, _ = _get_desire_and_lane_changing(md)
+    hold = _blink_hold_side(md, desire, self.change)
+    if not valid or not lat_active:
+      self.blocked |= self.in_change or hold != 0
+      return 0
+    if lane_state == "off":
+      self.blocked |= hold != 0
+      return 0
+    return 0 if self.blocked else hold
+
+
+
 def _apply_lane_desire(values, desire):
   #values['LANE_CHANGING'] = 0
 
@@ -896,7 +1006,8 @@ def create_alt2_adas_button_request(packer, CAN, frame, CC, CS, stopping):
 
 def create_ccnc_messages(CP, packer, CAN, frame, CC, CS, hud_control,
                          disp_angle, left_lane_warning, right_lane_warning,
-                         enable_corner_radar, stopping, canfd_debug, paddle_mode, hud_lateral=None):
+                         enable_corner_radar, stopping, canfd_debug, paddle_mode, hud_lateral=None,
+                         blinker_hold=0, blinker_hold_blocked=False):
   ret = []
   interlock_active = longitudinal_interlock_active(CS)
   display_lead = _display_lead(getattr(CS, "radarState", None))
@@ -1074,11 +1185,16 @@ def create_ccnc_messages(CP, packer, CAN, frame, CC, CS, hud_control,
       if CS.adrv_0x1ea is not None:
         values = copy.copy(CS.adrv_0x1ea)
         rx_counter = values.pop("COUNTER", None)
-        # Never hold the physical turn signal for an automated lane change.
-        # The lane-change state remains active, but the vehicle can cancel the
-        # indicator as soon as the driver releases the stalk.
-        values['LEFT_BLINK_HOLD'] = 0
-        values['RIGHT_BLINK_HOLD'] = 0
+        # blinker hold: the confirmed lane change until the body is across (see _blink_hold_side)
+        hold = blinker_hold
+        external_hold = getattr(hud_control, "physicalBlinkerHold", 0)
+        if external_hold in (1, 2, 3):
+          hold = {1:0, 2:3, 3:4}[external_hold]
+        # Every HOLD producer yields to a driver intervention in this episode.
+        if blinker_hold_blocked:
+          hold = 0
+        values['LEFT_BLINK_HOLD'] = 1 if hold == 3 else 0
+        values['RIGHT_BLINK_HOLD'] = 1 if hold == 4 else 0
 
         _apply_cluster_lane_lines(values, CS, lat_active, desire)
         _normalize_cluster_corner_objects(values)

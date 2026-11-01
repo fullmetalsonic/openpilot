@@ -204,6 +204,7 @@ def test_production_card_final_control_gate_revokes_paddle_before_can(production
   def final_apply(interface, command, state, now):
     sends = []
     instance = NS(initialized_prev=True, CI=interface, CP=interface.CP,
+                  spas_signals=NS(enabled=False), tesla_signals=NS(configured=False),
                   sm=SM(), params=NS(get_bool=lambda key: reboot),
                   lateral_startup=NS(update=lambda *args: False),
                   pm=NS(send=lambda topic, payload: sends.extend(payload)),
@@ -628,7 +629,13 @@ def test_accepted_acc_trajectory_bytes_match_prechange_no_paddle(chain, legacy_b
     actual, new_value = hyundaicanfd.create_acc_control_scc2(new_packer, NS(ECAN=0), True, new_value, target, stopping, False, 80.,
                                                           cc.hudControl, ci.CC.hyundai_jerk, ci.CS, candidate_stop,
                                                           paddle_gap_override=True)
-    assert actual == expected, {k: (v, decode(actual)[k]) for k, v in decode(expected).items() if v != decode(actual)[k]}
+    actual_fields, expected_fields = decode(actual), decode(expected)
+    # The latest normal-ACC no-lead trial is independent of paddle acceptance.
+    expected_hud = 2 if expected_fields["ACCMode"] == 1 and expected_fields["StopReq"] and expected_fields["HUD_LEAD_INFO"] == 0 else expected_fields["HUD_LEAD_INFO"]
+    assert actual_fields["HUD_LEAD_INFO"] == expected_hud
+    actual_bits, expected_bits = int.from_bytes(actual[1], "little"), int.from_bytes(expected[1], "little")
+    assert (actual_bits ^ expected_bits) & ~((7 << 108) | 0xffff) == 0
+    assert actual[0] == expected[0] and actual[2] == expected[2]
     assert new_value == old_value
 
 

@@ -1,11 +1,12 @@
 --- a/openpilot/selfdrive/carrot/bluetooth/daemon.py
 +++ b/openpilot/selfdrive/carrot/bluetooth/daemon.py
-@@ -86,8 +86,6 @@
-       reason = 'test' if testing else 'inactive'
-       emitted = False
-       if not testing and device['enabled'] and started and car_ok and not (token in held and hold_blocked) and now - last_fire.get((mac, token), 0) >= 0.18:
--        if token not in decoder.repeated:
--          writer.attention(mac, action, now)
+@@ -96,7 +96,8 @@
+           writer.attention(mac, action, now)
          if action != 'none':
-           writer.send(mac, action, now, hold=f'{path}:{token}' if token in held else None, repeat=token in decoder.repeated)
+           created = input_time if input_time is not None and action in ('blinkerLeft', 'blinkerRight') else now
+-          writer.send(mac, action, created, hold=f'{path}:{token}' if token in held else None, repeat=token in decoder.repeated)
++          writer.send(mac, action, created, hold=f'{path}:{token}' if token in held else None,
++                      repeat=token in decoder.repeated, started=token.started)
            last_fire[mac, token] = now
+           emitted, reason = True, 'sent'
+       last_event = {'id': uuid.uuid4().hex, 'time': now, 'address': mac, 'button': token,

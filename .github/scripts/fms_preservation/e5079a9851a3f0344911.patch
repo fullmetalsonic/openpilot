@@ -1,6 +1,19 @@
 --- a/docs/user/ko/cruise-gap.md
 +++ b/docs/user/ko/cruise-gap.md
-@@ -176,9 +176,9 @@
+@@ -164,21 +164,13 @@
+ <a id="canfd-stopping"></a>
+ ### CANFD 정지 제어
+ 
+-현대·기아 CANFD 오픈파일럿 종방향 제어에 적용하는 시험 시퀀스입니다. 별도 설정은 없으며, 일반 CAN 차량과 순정 ACC 종방향 제어는 변경하지 않습니다.
+-
+-- `StoppingAccel`은 기존 정지 진입 판단과 상위 가속도 계산에 사용합니다. 다만 StopReq를 켜는 첫 프레임부터 aReqRaw·aReqValue는 모두 0으로 덮어씁니다. 소프트홀드도 동일합니다.
+-- 첫 요청 전에는 모든 속도 입력의 절댓값 중 최댓값이 0.7m/s 이하일 때 StopReq를 켭니다. 이후 속도 재상승·감속 소실·시간·거리 때문에 StopReq를 풀거나 재시도하지 않습니다.
+-- 첫 StopReq 프레임에서는 jerkUpper 상향을 막고, 다음 프레임부터 원래 값을 허용합니다. 기존 값보다 낮추는 것은 즉시 허용합니다. InfoDisplay·byte7은 0, Lower band는 고정 시험값 0.20을 유지합니다.
+-- 기존 출발 판단·제어 해제·페달·CAN 및 기어 인터록은 유지합니다. 브레이크 입력 예외는 준비된 소프트홀드에서 모든 속도가 0.10m/s 이하일 때만 적용합니다.
+-
+-> [!CAUTION]
+-> 순정에서 관측한 일부 시퀀스를 적용한 시험이며, 차량의 완전 정지나 밀림 해결을 확인한 변경은 아닙니다.
++일반 ACC는 조절형 정지 가속도(aReqRaw·aReqValue)와 기존 1회 제한 정지 재진입을 유지합니다. 크루즈 OFF·대기·CANCEL의 독립 SoftHold는 실제 직전 SCC 출력에서 음수 준비(StopReq=0)를 거쳐 StopReq=1·유지 가속도 -0.5m/s²로 수렴합니다. 독립 SoftHold 자체는 크루즈 ON·RES를 요청하지 않으며, 두 CANFD 경로의 실제 출력 feedback과 페달·주차·AutoHold 보호는 유지합니다. 실제 ECU의 정차 수용은 실차 확인이 필요합니다.
  
  ### `VEgoStopping`
  
