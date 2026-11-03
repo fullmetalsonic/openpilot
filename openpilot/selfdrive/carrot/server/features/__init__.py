@@ -8,6 +8,7 @@ from . import (
   egpu_model,
   intro,
   mapbox_tokens,
+  navigation,
   params,
   screenrecord,
   settings,
@@ -27,7 +28,6 @@ from . import (
   web_settings,
   ws,
   xiaoge,
-  youtube_live,
 )
 
 
@@ -55,7 +55,7 @@ def register_all(app: web.Application) -> None:
   tools.register(app)
   xiaoge.register(app)
   mapbox_tokens.register(app)
-  youtube_live.register(app)
+  navigation.register(app)
   vision_test.register(app)
   vision_diag.register(app)
   web_sound.register(app)

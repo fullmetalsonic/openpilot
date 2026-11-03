@@ -1,0 +1,46 @@
+--- a/openpilot/cereal/log.capnp
++++ b/openpilot/cereal/log.capnp
+@@ -160,7 +160,7 @@
+ 
+     torqueNNLoad @118;
+     updateRebootRequired @125;
+-    driverMonitorFallback @126;
++    driverMonitorFallbackDEPRECATED @126; # inactive DM compatibility reservation
+     systemReady @127;
+     impactDetected @128;
+     impactDashcamReboot @129;
+@@ -1117,6 +1117,7 @@
+     indicatorJournalMonoTime @32 :UInt64;
+     indicatorPrepareDirection @33 :LaneChangeDirection; # Display only; never an actuation request.
+     indicatorPrepareSource @34 :Text;
++    laneChangeCompletedMonoTime @35 :UInt64; # Last normal FSM completion; cancellation never advances it.
+ 
+ 
+     deprecated :group {
+@@ -2258,16 +2259,16 @@
+   alert3Count @12 :Int8;
+   noResponseCount @13 :Int8;
+   noResponseForceDecel @14 :Bool;
+-  cameraUnavailable @15 :Bool;
+-  dm2Experimental @16 :Bool;
+-  dm2StrictTimeRemaining @17 :Float32;
+-  dm2WheelTimeoutFactor @18 :Float32 = 1;
+-  dm2ForwardAttentionScore @19 :Float32;
+-  dm2ForwardRecovery @20 :Bool;
+-  dm2InteractionCredit @21 :Float32;
+-  dm2VisionTimeoutFactor @22 :Float32 = 1;
+-  dm2InteractionGraceRemaining @23 :Float32;
+-  dm2Disabled @24 :Bool;
++  cameraUnavailableDEPRECATED @15 :Bool; # inactive DM wire reservation; legacy DM remains authoritative
++  dm2ExperimentalDEPRECATED @16 :Bool;
++  dm2StrictTimeRemainingDEPRECATED @17 :Float32;
++  dm2WheelTimeoutFactorDEPRECATED @18 :Float32 = 1;
++  dm2ForwardAttentionScoreDEPRECATED @19 :Float32;
++  dm2ForwardRecoveryDEPRECATED @20 :Bool;
++  dm2InteractionCreditDEPRECATED @21 :Float32;
++  dm2VisionTimeoutFactorDEPRECATED @22 :Float32 = 1;
++  dm2InteractionGraceRemainingDEPRECATED @23 :Float32;
++  dm2DisabledDEPRECATED @24 :Bool;
+ 
+   alwaysOn @3 :Bool;
+   alwaysOnLockout @4 :Bool;

@@ -1,0 +1,18 @@
+--- a/openpilot/selfdrive/car/tests/test_toyota_pcm_speed.py
++++ b/openpilot/selfdrive/car/tests/test_toyota_pcm_speed.py
+@@ -32,10 +32,13 @@
+   helper.cruise_state_available_last = True
+   helper.update_params = lambda is_metric: None
+   helper._prepare_brake_gas = lambda CS, CC: None
+-  helper._update_cruise_buttons = lambda CS, CC, speed: speed
++  helper._update_cruise_buttons = lambda CS, CC, speed, **kwargs: speed
+   helper._update_carrot_man = lambda sm: None
+   sm = {'carControl': car.CarControl(enabled=True)}
+-  sm = type('SM', (dict,), {'alive': {'longitudinalPlan': False, 'radarState': False, 'drivingModelData': False}})(sm)
++  sm = type('SM', (dict,), {
++    'alive': {'longitudinalPlan': False, 'radarState': False, 'drivingModelData': False},
++    'all_checks': lambda self, keys: True,
++  })(sm)
+   cs = car.CarState(gearShifter='drive', vEgo=21., vEgoCluster=21.,
+                     cruiseState={'available': True, 'enabled': True})
+   # The incident's 83/75 mismatch, then physical SET/RES changes. No speed

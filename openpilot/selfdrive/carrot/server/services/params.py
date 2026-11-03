@@ -105,6 +105,9 @@ def clamp_numeric(value: float, p: Optional[Dict[str, Any]]) -> float:
       value = max(value, float(mn))
     if mx is not None:
       value = min(value, float(mx))
+    nonzero_min = p.get("nonzero_min")
+    if nonzero_min is not None and 0 < value < float(nonzero_min):
+      value = float(nonzero_min)
   except Exception:
     pass
   return value
@@ -370,7 +373,28 @@ def put_typed(params: "Params", key: str, value: Any, p: Optional[Dict[str, Any]
     params.put(key, str(value))
 
 
+INTERNAL_SESSION_PARAMS = frozenset({"JetsonLegacyUpdatePending"})
+
+
+def filter_param_backup_values(values: dict[str, Any]) -> dict[str, Any]:
+  return {
+    str(key): value
+    for key, value in values.items()
+    if str(key) not in INTERNAL_SESSION_PARAMS
+  }
+
+
+def read_param_backup_values(path: str) -> dict[str, Any]:
+  with open(path, "r", encoding="utf-8") as f:
+    values = json.load(f)
+  if not isinstance(values, dict):
+    raise ValueError("bad json format (must be object)")
+  return filter_param_backup_values(values)
+
+
 def set_param_value(name: str, value: Any, p: Optional[Dict[str, Any]] = None) -> None:
+  if name in INTERNAL_SESSION_PARAMS:
+    raise ValueError(f"{name} is controlled internally")
   if not HAS_PARAMS:
     _mem_store[name] = str(value)
     return
@@ -401,6 +425,9 @@ def get_all_param_values_for_backup() -> Dict[str, str]:
         continue
     else:
       key = str(k)
+
+    if key in INTERNAL_SESSION_PARAMS:
+      continue
 
     try:
       t = params.get_type(key)
@@ -499,6 +526,8 @@ def restore_param_values_from_backup(values: Dict[str, Any], source: str = "rest
   fails = []
 
   for key, value in values.items():
+    if key in INTERNAL_SESSION_PARAMS:
+      continue
     try:
       definition = definitions.get(key)
       t = resolve_param_type(params, key, definition)
@@ -970,6 +999,7 @@ def _build_params_qr_payload_v4(values: Dict[str, Any]) -> Dict[str, Any]:
 def build_params_qr_payload(values: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
   if values is None:
     values = get_all_param_values_for_backup()
+  values = filter_param_backup_values(values)
 
   try:
     return _build_params_qr_payload_v3(values)
@@ -1236,7 +1266,8 @@ def _values_equal(t: Any, left: Any, right: Any) -> bool:
     return str(left) == str(right)
 
 
-def preview_param_restore_values(values: Dict[str, Any], selected_keys: Optional[List[str]] = None) -> Dict[str, Any]:
+def preview_param_restore_values(values: Dict[str, Any], selected_keys: Optional[List[str]] = None,
+                                 source: str = "restore") -> Dict[str, Any]:
   if not HAS_PARAMS or ParamKeyType is None:
     raise RuntimeError("Params/ParamKeyType not available")
 
@@ -1255,31 +1286,36 @@ def preview_param_restore_values(values: Dict[str, Any], selected_keys: Optional
     type_name = "unknown"
     normalized_value: Any = raw_value
 
-    try:
-      # Same type resolution as the write path: a not-yet-registered key is
-      # typed from its catalog definition instead of being marked invalid.
-      t = resolve_param_type(params, key, definitions.get(key))
-      if t is None:
-        status = "invalid"
-        reason = "unknown parameter"
-        can_apply = False
-      else:
-        type_name = _param_type_name(t)
-        if _is_unsupported_param_type(t):
-          status = "skipped"
-          reason = "unsupported type"
+    if key in INTERNAL_SESSION_PARAMS:
+      status = "invalid"
+      reason = "controlled internally"
+      can_apply = False
+    else:
+      try:
+        # Same type resolution as the write path: a not-yet-registered key is
+        # typed from its catalog definition instead of being marked invalid.
+        t = resolve_param_type(params, key, definitions.get(key))
+        if t is None:
+          status = "invalid"
+          reason = "unknown parameter"
           can_apply = False
         else:
-          normalized_value = _normalize_param_value(t, raw_value)
-          current_value = current_values.get(key, "")
-          if _values_equal(t, current_value, normalized_value):
-            status = "same"
+          type_name = _param_type_name(t)
+          if _is_unsupported_param_type(t):
+            status = "skipped"
+            reason = "unsupported type"
             can_apply = False
-    except Exception as e:
-      current_value = current_values.get(key, "")
-      status = "invalid"
-      reason = str(e)
-      can_apply = False
+          else:
+            normalized_value = _normalize_param_value(t, raw_value)
+            current_value = current_values.get(key, "")
+            if _values_equal(t, current_value, normalized_value):
+              status = "same"
+              can_apply = False
+      except Exception as e:
+        current_value = current_values.get(key, "")
+        status = "invalid"
+        reason = str(e)
+        can_apply = False
 
     is_selected = can_apply and (not selected or key in selected)
     if is_selected:
@@ -1304,7 +1340,7 @@ def preview_param_restore_values(values: Dict[str, Any], selected_keys: Optional
 
 def restore_param_values_validated(values: Dict[str, Any], selected_keys: Optional[List[str]] = None,
                                    source: str = "restore") -> Dict[str, Any]:
-  preview = preview_param_restore_values(values, selected_keys)
+  preview = preview_param_restore_values(values, selected_keys, source=source)
   apply_values = {
     entry["key"]: entry["value"]
     for entry in preview["entries"]

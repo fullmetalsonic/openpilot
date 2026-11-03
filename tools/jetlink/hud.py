@@ -1,4 +1,4 @@
-"""Run the existing Carrot renderer using read-only, USB-forwarded cereal data."""
+"""Run the existing Carrot renderer using read-only, Wi-Fi-forwarded cereal data."""
 import base64
 import json
 import os
@@ -36,6 +36,10 @@ class DisplayParams:
     self.values = {}
 
   def get(self, key, *args, **kwargs):
+    # This adapter exists only inside the Jetson renderer. The saved switch
+    # controls the vehicle's USB panel, not a panel attached to this host.
+    if key == 'ClusterHud':
+      return b'1'
     now = time.monotonic()
     if now >= self.next_read:
       record = read_snapshot()
@@ -125,6 +129,9 @@ class RemoteSubMaster:
 
 def main():
   if '--help' not in sys.argv:
+    from boot_update import wait_for_runtime
+    wait_for_runtime()
+  if '--help' not in sys.argv:
     settings = DisplayParams()
     while not (settings.get_int('ClusterHud') == 1 and
                (settings.get_bool('IsOnroad') or settings.get_int('ClusterHudDebug') >= 1)):
@@ -147,6 +154,11 @@ def main():
       return reader.as_builder()
   messaging.log_from_bytes = from_bytes
   sys.modules[messaging.__name__] = messaging
+  from hud_signal import install as install_signal_display
+  remote_signals = install_signal_display(read_snapshot)
+  from blink_display import Remote
+  from openpilot.common import indicator_display
+  indicator_display.current = Remote(read_snapshot, time.monotonic).read
   import cluster_live_camera
   from hud_camera import RemoteRoadCamera
   cluster_live_camera.LiveRoadCamera = RemoteRoadCamera
@@ -157,6 +169,10 @@ def main():
   cluster_system_monitor.NetworkAddressProvider = VehicleNetworkAddress
   import cluster_navi_source
   display_metrics = {}
+  from openpilot.selfdrive.navigation import preview as nav_preview
+  from hud_nav_map import RemoteNavPreview
+  remote_nav_preview = RemoteNavPreview(read_snapshot, nav_preview.PREVIEW_PATH)
+  nav_preview.preview_fresh = remote_nav_preview.fresh
   BaseNaviSource = cluster_navi_source.NaviIpcMediaSource
   class RemoteNaviSource:
     def __init__(self, *args, **kwargs):
@@ -180,22 +196,7 @@ def main():
   cluster_navi_source.NaviIpcMediaSource = RemoteNaviSource
   vehicle_stats = VehicleSystemStats()
   import main as cluster
-  from host_health import STATUS as HEALTH_STATUS
-  from openpilot.common.jetlink_status import _fresh
-  from cluster_renderer import ClusterUiRenderer, DESIGN_WIDTH, rl_color, rl
-  class HealthRenderer(ClusterUiRenderer):
-    def render(self, state, signal_lights=None):
-      super().render(state, signal_lights)
-      health = _fresh(HEALTH_STATUS, time.monotonic())
-      severity = health.get('severity', 'unknown')
-      if severity == 'ok':
-        return
-      color = (255, 90, 90) if severity == 'error' else (255, 205, 70)
-      message = health.get('reason') or 'Host health unavailable'
-      text = self._ellipsize_text(f'jetSON: {message}', 22, DESIGN_WIDTH - 40)
-      # Dedicated top strip; the vehicle alert retains its normal full area.
-      rl.draw_rectangle(0, 0, int(DESIGN_WIDTH), 32, rl_color((0, 0, 0), 220))
-      self._draw_text(text, DESIGN_WIDTH / 2, 16, 22, color, anchor='center')
+  from hud_health import HealthRenderer
   cluster.ClusterUiRenderer = HealthRenderer
   if '--help' not in sys.argv:
     scan = cluster.find_supported_usb_product
@@ -214,6 +215,11 @@ def main():
         path = Path('/dev/shm/carrot-jetlink-hud-status.json')
         tmp = path.with_suffix('.tmp')
         stats = vehicle_stats.sample()
+        remote_nav_preview.fresh()
+        display_metrics['nav_model_map'] = remote_nav_preview.status
+        signal_color, signal_held, signal_online = remote_signals.status()
+        display_metrics['signal_display'] = dict(enabled=remote_signals.enabled, color=signal_color,
+                                                held=signal_held, online=signal_online)
         tmp.write_text(json.dumps({'updated': now, **display_metrics,
                                   'vehicle_network_address': VehicleNetworkAddress().address(),
                                   'vehicle_cpu': stats.cpu_core_percents,
@@ -224,9 +230,12 @@ def main():
   cluster.TuringUsbDisplay = Display
   # Jetson has no video encoder block. Keep inference CPU/GPU headroom and
   # use the existing software encoder at the normal 10 FPS cluster rate.
+  # Bound conversion/encoding concurrency; an explicit trailing CLI value of
+  # zero restores FFmpeg's automatic thread pools for comparisons.
   sys.argv = [__file__, '--input', 'live', '--output', 'usb', '--fps', '10',
               '--usb-codec', 'h264', '--usb-h264-backend', 'ffmpeg',
-              '--usb-h264-ffmpeg-encoder', 'libx264', '--cluster-hud-mode', '1', *sys.argv[1:]]
+              '--usb-h264-ffmpeg-encoder', 'libx264', '--usb-h264-ffmpeg-threads', '1',
+              '--cluster-hud-mode', '1', *sys.argv[1:]]
   if '--help' in sys.argv:
     cluster.main()
   else:

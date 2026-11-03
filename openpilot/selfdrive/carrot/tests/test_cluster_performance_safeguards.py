@@ -165,7 +165,7 @@ def test_cluster_autorun_restarts_without_delay_after_orientation_change(monkeyp
   realtime_module.drop_realtime = lambda: None
   monkeypatch.setitem(sys.modules, "openpilot.common.realtime", realtime_module)
   monkeypatch.setattr(cluster_autorun, "_hud_output_allowed", lambda _params: True)
-  monkeypatch.setattr(cluster_autorun, "_wait_for_usbgpu_startup", lambda _params: None)
+  monkeypatch.setattr(cluster_autorun, "_wait_for_usbgpu_startup", lambda _params, **_kwargs: None)
   monkeypatch.setattr(cluster_autorun, "_run_cluster_once", run_cluster_once)
   monkeypatch.setattr(
     usb_display_module,
@@ -316,7 +316,7 @@ def test_cluster_run_drops_realtime_before_affinity_despite_legacy_overrides(mon
 
   cluster_run.configure_cluster_scheduling()
 
-  assert calls == ["SCHED_OTHER", (7, False)]
+  assert calls == ["SCHED_OTHER", (4, False)]
 
 
 def test_cluster_run_stops_if_dropping_realtime_fails(monkeypatch):
@@ -648,6 +648,7 @@ def test_cluster_autorun_falls_back_only_for_h264_initialization(monkeypatch):
       raise H264PipelineInitializationError("native initialization failed")
 
   cluster_run.main = run_cluster
+  cluster_run.configure_cluster_graphics = lambda: None
   monkeypatch.setattr(carrot_package, "cluster_run", cluster_run, raising=False)
   monkeypatch.setitem(sys.modules, "selfdrive.carrot.cluster_run", cluster_run)
   monkeypatch.setattr(
@@ -719,6 +720,7 @@ def test_cluster_autorun_does_not_fallback_after_runtime_failure(monkeypatch):
     raise RuntimeError("render loop failed")
 
   cluster_run.main = run_cluster
+  cluster_run.configure_cluster_graphics = lambda: None
   monkeypatch.setattr(carrot_package, "cluster_run", cluster_run, raising=False)
   monkeypatch.setitem(sys.modules, "selfdrive.carrot.cluster_run", cluster_run)
   monkeypatch.setattr(

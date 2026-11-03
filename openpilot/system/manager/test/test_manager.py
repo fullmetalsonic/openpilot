@@ -7,7 +7,7 @@ from openpilot.cereal import car
 from openpilot.common.params import Params
 import openpilot.system.manager.manager as manager
 from openpilot.system.manager.process import ensure_running
-from openpilot.system.manager.process_config import enable_youtube_wide_encoder, managed_processes, procs
+from openpilot.system.manager.process_config import managed_processes, procs
 from openpilot.system.hardware import HARDWARE
 
 os.environ['FAKEUPLOAD'] = "1"
@@ -34,20 +34,17 @@ class TestManager:
   def test_duplicate_procs(self):
     assert len(procs) == len(managed_processes), "Duplicate process names"
 
-  def test_wide_youtube_encoder_requires_wide_camera(self):
-    class FakeParams:
-      def __init__(self, use_wide_camera):
-        self.use_wide_camera = use_wide_camera
-
-      def get(self, key, return_default=False):
-        assert (key, return_default) == ("UseWideCamera", True)
-        return self.use_wide_camera
-
-      def get_int(self, key):
-        return {"CarrotYouTubeLive": 1, "CarrotYouTubeQuality": 3}[key]
-
-    assert enable_youtube_wide_encoder(True, FakeParams(True), car.CarParams.new_message())
-    assert not enable_youtube_wide_encoder(True, FakeParams(False), car.CarParams.new_message())
+  @pytest.mark.parametrize("disable_dm", [0, 1, 2])
+  @pytest.mark.parametrize("started", [False, True])
+  @pytest.mark.parametrize("driver_view", [False, True])
+  def test_disable_dm_gates_both_processes_including_driver_view(self, disable_dm, started, driver_view):
+    CP = car.CarParams.new_message()
+    params = Params()
+    params.put("DisableDM", str(disable_dm))
+    params.put_bool("IsDriverViewEnabled", driver_view)
+    expected = (started or driver_view) and disable_dm == 0
+    for name in ("dmonitoringmodeld", "dmonitoringd"):
+      assert managed_processes[name].should_run(started, params, CP) == expected
 
   def test_radard_is_always_carrot_radar(self):
     CP = car.CarParams.new_message()

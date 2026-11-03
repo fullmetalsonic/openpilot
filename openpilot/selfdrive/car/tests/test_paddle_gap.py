@@ -47,14 +47,14 @@ class MemoryParams:
 @pytest.fixture
 def mode4():
   helper, CS, CC = make_remote_helper(None, enabled=True)
-  helper.CP = NS(openpilotLongitudinalControl=True)
+  helper.CP = NS(openpilotLongitudinalControl=True, pcmCruise=False)
   CC.longActive = True
   helper._paddle_mode = 4
   params = MemoryParams()
   helper.params = params
   writer = helper._paddle_gap_writer = PaddleGapWriter(lambda: params)
   calls = []
-  helper._cruise_control = lambda *args: calls.append(args)
+  helper._cruise_control = lambda *args, **kwargs: calls.append(args)
   yield helper, CS, CC, params, calls
   params.release.set()
   writer.close()
@@ -153,7 +153,8 @@ def test_cancel_press_precedence(mode4, reverse):
   events = [(ButtonType.cancel, True), (ButtonType.paddleRight, True)]
   drive_events(mode4, *(events[::-1] if reverse else events))
   helper._paddle_gap_writer._queue.join()
-  assert helper._cruise_cancel_state and not calls and not params.writes
+  assert helper._cruise_cancel_state and not params.writes
+  assert calls == [(-1, -1, 'Cruise off (driver CANCEL)')]
 
 
 @pytest.mark.parametrize("invalid", ["can", "park", "stock_long", "three_levels"])
@@ -390,7 +391,7 @@ def test_raw_can_to_gap_planner_and_scc_output(mode4, message, side):
   """Host chain with real DBC packing/parsing and source-extracted CarState tail.
 
   Full carstate update and process IPC require the Linux/device integration run.
-  Extracting the unchanged block avoids duplicating its button conversion logic.
+  Extracting the production block avoids duplicating its button conversion logic.
   """
   import ast
   from pathlib import Path
@@ -417,8 +418,10 @@ def test_raw_can_to_gap_planner_and_scc_output(mode4, message, side):
   params.values["LongitudinalPersonality"] = 1
   packer = CANPacker("hyundai_canfd_generated")
   parser = CANParser("hyundai_canfd_generated", [(message, 50)], 0)
-  state = NS(paddle_button_prev=0, cruise_btns_msg_canfd=message, gear_msg_canfd=message,
-             cruise_buttons=[0], main_buttons=[0])
+  state = CarState.__new__(CarState)
+  state.__dict__.update(paddle_button_prev=0, cruise_btns_msg_canfd=message, gear_msg_canfd=message,
+                       cruise_buttons=[0], main_buttons=[0], speedcam_accel_swallow=False,
+                       speedcam_decel_hold=False, section_average=NS(unlocked=False))
   state._update_paddle_input = CarState._update_paddle_input.__get__(state)
   target = 2 if side == "LEFT_PADDLE" else 0
   for frame, pressed in enumerate([0, 1, 1, 0]):
@@ -426,7 +429,7 @@ def test_raw_can_to_gap_planner_and_scc_output(mode4, message, side):
     parser.update([1_000_000_000 + frame * 20_000_000, [frame_msg]])
     decoded = NS(buttonEvents=[])
     exec(decoder, {"self": state, "cp": parser, "ret": decoded, "prev_cruise_buttons": 0,
-                   "prev_main_buttons": 0, "BUTTONS_DICT": BUTTONS_DICT,
+                   "prev_main_buttons": 0, "speedcam_decel_long_press": False, "BUTTONS_DICT": BUTTONS_DICT,
                    "ButtonType": structs.CarState.ButtonEvent.Type, "create_button_events": create_button_events,
                    "read_paddle_input": read_paddle_input})
     CS.buttonEvents = [{"type": b.type, "pressed": b.pressed} for b in decoded.buttonEvents]

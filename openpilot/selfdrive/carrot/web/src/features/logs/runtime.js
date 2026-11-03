@@ -1,6 +1,7 @@
 "use strict";
 
 import { createDashcamPlayerSession } from "./dashcam_player_session.js";
+import { openPcLogTransfer } from "./pc_transfer.js";
 import {
   createLogsPlayerDialog,
   createLogsPlayerSegmentList,
@@ -42,6 +43,7 @@ import {
   screenrecordApiPath,
   screenrecordShouldLoadMore,
   screenrecordState,
+  showScreenrecordMenu,
 } from "./screenrecord.js";
 
 // Logs page — shared infra used by both the Dashcam and Screen Recording tabs.
@@ -111,6 +113,8 @@ function syncLogsTabs() {
 // The menu body lives in the shared choice dialog, so only the trigger label
 // needs to follow the active language.
 function syncLogsMenu() {
+  const pcButton = document.getElementById("pcLogTransferButton");
+  if (pcButton) pcButton.textContent = getUIText("pc_logs_send", "fullmetalsonic에게 로그 보내기");
   const button = document.getElementById("logsMenuButton");
   const menuLabel = getUIText("logs_menu", "Log menu");
   button?.setAttribute("aria-label", menuLabel);
@@ -818,6 +822,15 @@ function bindLogsPage() {
   const routesHost = document.getElementById("dashcamRoutes");
   const screenHost = document.getElementById("screenrecordVideos");
   bindLogsMenu();
+  const pcButton = document.getElementById("pcLogTransferButton");
+  if (pcButton && pcButton.dataset.bound !== "1") {
+    pcButton.dataset.bound = "1";
+    pcButton.addEventListener("click", () => {
+      openPcLogTransfer({ segments: Array.from(dashcamState.selected) }).catch((error) => {
+        showAppToast(error?.message || String(error), { tone: "error" });
+      });
+    });
+  }
   bindLogsTabs(tabList);
 
   if (!dashcamState.layoutBound) {
@@ -930,6 +943,8 @@ function bindLogsPage() {
       if (actionEl.dataset.action === "download-screenrecord") {
         const id = actionEl.dataset.id || "";
         if (id) window.open(screenrecordApiPath("download", id), "_blank", "noopener");
+      } else if (actionEl.dataset.action === "screenrecord-menu") {
+        showScreenrecordMenu(actionEl.dataset.id || "", actionEl.dataset.name || "").catch(() => {});
       } else if (actionEl.dataset.action === "play-screenrecord") {
         openScreenrecordPlayer(actionEl.dataset.id || "", actionEl.dataset.name || "");
       }

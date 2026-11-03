@@ -1,0 +1,23 @@
+--- a/openpilot/selfdrive/controls/tests/test_lateral_startup_control.py
++++ b/openpilot/selfdrive/controls/tests/test_lateral_startup_control.py
+@@ -4,6 +4,7 @@
+ from numbers import Number
+ from pathlib import Path
+ from types import SimpleNamespace as NS
++from unittest.mock import patch
+ 
+ import numpy as np
+ import pytest
+@@ -60,7 +61,11 @@
+   settings = {'AlwaysLateral': True, 'SteerRatioRate': 88, 'CustomSR': 0, 'LatSmoothSec': 13}
+   params = NS(get_float=lambda k: float(settings.get(k, 0)), get_int=lambda k: int(settings.get(k, 0)),
+               get_bool=lambda k: bool(settings.get(k, False)))
+-  control = NS(CP=cp, CI=ci, sm=sm, params=params, VM=VehicleModel(cp), LaC=LatControlTorque(cp, ci),
++  # Torque tuning is disabled in this fixture; unexpected settings reads fail.
++  torque_params = NS(get_int=lambda key: {'LateralTorqueCustom': 0}[key])
++  with patch('openpilot.selfdrive.controls.lib.latcontrol_torque.Params', return_value=torque_params):
++    lateral_control = LatControlTorque(cp, ci)
++  control = NS(CP=cp, CI=ci, sm=sm, params=params, VM=VehicleModel(cp), LaC=lateral_control,
+                LoC=NS(reset=lambda: None, update=lambda *args: (0.0, 0.0, 0.0), long_control_state='off'),
+                carrot_controls=NS(lat_suspend_control=lambda cs, active: active), is_vw_meb=False,
+                desired_curvature=0.0, lateral_startup=LateralStartupGate(), lateral_started=False,

@@ -229,6 +229,11 @@ struct CarState {
   # blindspot sensors
   leftBlindspot @33 :Bool; # Is there something blocking the left lane change
   rightBlindspot @34 :Bool; # Is there something blocking the right lane change
+  leftBlindspotOem @95 :Bool; # vehicle BSD-only left source before ONNX merge
+  rightBlindspotOem @96 :Bool; # vehicle BSD-only right source before ONNX merge
+  leftBlindspotOnnx @97 :Bool; # ONNX BSD-only left source
+  rightBlindspotOnnx @98 :Bool; # ONNX BSD-only right source
+  blindspotSplitSourcesValid @99 :Bool; # split blindspot source fields are valid and should be trusted
 
   fuelGauge @41 :Float32; # battery or fuel tank level from 0.0 to 1.0
   charging @43 :Bool;
@@ -272,6 +277,41 @@ struct CarState {
   vehicleNaviSpeed @91 :Float32; # raw speed from the active stock-navigation CAN profile, kph
   vehicleNaviAvailable @92 :Bool; # stock-navigation 0x4BE has been observed during this drive
   radarInput @93 :RadarInput;
+  steeringTouchDEPRECATED @94 :SteeringTouch; # inactive DM compatibility reservation; no producer/consumer
+  leftBlinkerStalkCount @100 :UInt8;  # +1 (wrapping) on every left turn-signal lever press; the lamp-based leftBlinker cannot show a press while the lamp is already flashing
+  rightBlinkerStalkCount @101 :UInt8; # +1 (wrapping) on every right turn-signal lever press
+  blinkerLever @102 :UInt8;           # turn-signal lever position: 0 released, 1 one-touch (half) detent, 2 latched
+  blinkerLamp @103 :UInt8;            # turn-signal lamp right now (no hold): 0 dark, 1 left lit, 2 right lit
+
+  vehicleGps @104 :VehicleGps;
+  autoTurnSignalDirection @105 :UInt8; # automatic ownership, including an unconfirmed cancellation tail
+  autoTurnSignalStatus @106 :Text;
+  turnSignalDriverValid @107 :Bool;
+  turnSignalDriverDirection @108 :UInt8; # actual stalk: 0 released, 1 left, 2 right
+  autoTurnSignalReadyRequestId @109 :UInt64; # TX echoed and lamps confirmed for this automatic maneuver; zero otherwise
+  tbtRearInputsAvailable @110 :Bool; # fresh CANFD OEM BSD input for the TBT physical-indicator trigger only (BSD-only since 2026-10-30)
+  tbtRightRearBlocked @111 :Bool = true; # OEM right BSD warning or invalid/stale BSD; no corner-distance veto; manual admission unchanged
+  laneLineInfoMonoTime @112 :UInt64; # exact OEM lane type/colour CAN observation; zero means unknown, manual indicator only
+  struct VehicleGps {
+    available @0 :Bool;
+    valid @1 :Bool; # receive/continuity checks, not a decoded satellite fix flag
+    latitude @2 :Float64;
+    longitude @3 :Float64;
+    sampleMonoTime @4 :UInt64;
+    headingDeg @5 :Float32; # course derived from consecutive positions
+    headingValid @6 :Bool;
+  }
+
+  # Optional original vehicle receive signal. Separate from torque/override.
+  struct SteeringTouch {
+    available @0 :Bool;
+    valid @1 :Bool;
+    touched @2 :Bool;
+    sampleMonoTime @3 :UInt64;
+    rawStatus @4 :UInt8;
+    rawTouch1 @5 :UInt8;
+    rawTouch2 @6 :UInt8;
+  }
 
   # Bind independent radar decoding to the exact CAN batch and ego state used
   # by card. Empty batches still represent a control tick; receiveMonoTime is
@@ -360,6 +400,8 @@ struct RadarData @0x888ad6581cf0aacb {
   errors @3 :Error;
   points @1 :List(RadarPoint);
   radarTrackFlipped @4 :Bool; # frontRadar yRel/yvRel already inverted by RadarTrackFlip
+  displayPoints @5 :List(RadarPoint); # 제어 points와 분리한 전체 표시용 객체
+  hasDisplayData @6 :Bool; # 표시 스트림 지원 표지: 빈 목록·시작·오류에도 유지
 
   struct Error {
     canError @0 :Bool;
@@ -492,6 +534,9 @@ struct CarControl {
     naviEventSpeed @20: Int16;  # VW MEB cluster: 목표속도 kph (커브는 부호=방향: +우/-좌) -> ACC_Event_Wunschgeschw
     leadLimiting @21: Bool;     # VW MEB cluster: 앞차가 속도를 제한 중(xState lead) -> 앞차 하이라이트 우선
 
+    driverMonitoringAlertDEPRECATED @22: UInt8; # inactive DM compatibility reservation
+    physicalBlinkerHold @23: UInt8;  # 0=legacy, 1=release, 2=left hold, 3=right hold; fresh USB-CAN lease
+
     # not used with the dash, TODO: separate structs for dash UI and device UI
     audibleAlert @5: AudibleAlert;
 
@@ -551,6 +596,7 @@ struct CarControl {
       nnff @34;
       radarCutin @35;
       radarStationaryLead @36;
+      systemReady @37;
     }
   }
 

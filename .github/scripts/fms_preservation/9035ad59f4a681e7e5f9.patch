@@ -1,0 +1,39 @@
+--- a/openpilot/selfdrive/ui/onroad/augmented_road_view.py
++++ b/openpilot/selfdrive/ui/onroad/augmented_road_view.py
+@@ -7,7 +7,7 @@
+ from openpilot.selfdrive.ui.carrot_param_cache import BorderParamSnapshot, TimedSnapshotCache, read_border_params
+ from openpilot.selfdrive.ui.ui_state import ui_state, UIStatus
+ from openpilot.selfdrive.ui.onroad.alert_renderer import AlertRenderer
+-from openpilot.selfdrive.ui.onroad.driver_preview import DriverPreview
++from openpilot.selfdrive.ui.onroad.driver_state import DriverStateRenderer
+ from openpilot.selfdrive.ui.onroad.hud_renderer import HudRenderer
+ from openpilot.selfdrive.ui.onroad.model_renderer import ModelRenderer
+ from openpilot.selfdrive.ui.render_diagnostics import RenderDiagnostics
+@@ -56,7 +56,7 @@
+     self.model_renderer._overlay_state = self._overlay_state
+     self._hud_renderer._overlay_state = self._overlay_state
+     self.alert_renderer = AlertRenderer()
+-    self.driver_state_renderer = DriverPreview()
++    self.driver_state_renderer = DriverStateRenderer()
+ 
+     # debug
+     self._pm = messaging.PubMaster(['uiDebug'])
+@@ -138,8 +138,7 @@
+     timing.call('alert', self.alert_renderer.render, self._content_rect)
+     alert_ms = (time.monotonic() - _t) * 1000.0
+     _t = time.monotonic()
+-    timing.call('driver_state', self.driver_state_renderer.draw_onroad, self._content_rect,
+-                self.alert_renderer.get_alert(ui_state.sm) is not None)
++    timing.call('driver_state', self.driver_state_renderer.render, self._content_rect)
+     ds_ms = (time.monotonic() - _t) * 1000.0
+ 
+     # Custom UI extension point - add custom overlays here
+@@ -175,8 +174,6 @@
+   def close(self):
+     self.model_renderer._overlay.close()
+     self._hud_renderer._overlay.close()
+-    if preview := getattr(self, 'driver_state_renderer', None):
+-      preview.close()
+     super().close()
+ 
+   def _handle_mouse_release(self, _):

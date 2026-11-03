@@ -1,0 +1,32 @@
+--- a/openpilot/selfdrive/car/card.py
++++ b/openpilot/selfdrive/car/card.py
+@@ -24,6 +24,7 @@
+ from openpilot.selfdrive.car.alternative_experience import get_alternative_experience
+ from openpilot.selfdrive.car.card_diagnostics import should_log_card_diagnostics
+ from openpilot.selfdrive.car.cruise import VCruiseCarrot
++from openpilot.selfdrive.car.paddle_context import publish_paddle_context
+ from openpilot.selfdrive.car.car_specific import MockCarState
+ from openpilot.selfdrive.car.openpilot_toggle import CruiseMainOpenpilotToggle
+ from openpilot.selfdrive.car.tesla_turn_signals import TeslaTurnSignals
+@@ -295,7 +296,10 @@
+     #self.v_cruise_helper.update_v_cruise(CS, self.sm['carControl'].enabled, self.is_metric)
+     # A gas tap spent on a camera skip must not also raise the set speed by +10.
+     self.v_cruise_helper.speedcam_gas_tok_consumed = getattr(self.CI.CS, "speedcam_gas_tok_consumed", False)
+-    self.v_cruise_helper.update_v_cruise(CS, self.sm, self.is_metric)
++    # Preserve a same-batch physical CANCEL before its release disappears.
++    paddle_input = getattr(self.CI.CS, 'paddle_input', None)
++    self.v_cruise_helper.update_v_cruise(CS, self.sm, self.is_metric,
++      paddle_cancel_seen=bool(paddle_input is not None and paddle_input.cancel_seen))
+     #self.t3 = time.monotonic()
+     if self.sm['carControl'].enabled and not self.CC_prev.enabled:
+       # Use CarState w/ buttons from the step selfdrived enables on
+@@ -318,6 +322,9 @@
+     CS.carrotCruise = 1 if self.v_cruise_helper.carrot_cruise_active else 0
+ 
+     self.CI.CS.softHoldActive = CS.softHoldActive
++    # Same-process authority survives ticks in which controls_update skips apply.
++    publish_paddle_context(self.CP, self.CI, self.v_cruise_helper, self.sm,
++                           self.can_log_mono_time if REPLAY else time.monotonic_ns())
+     state_done_ns = time.monotonic_ns()
+     self.card_diag_stage_current = {
+       'decode': (decode_done_ns - recv_ns) // 1000,

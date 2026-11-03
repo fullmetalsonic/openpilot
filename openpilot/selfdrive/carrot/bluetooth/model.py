@@ -11,7 +11,7 @@ CONFIG_PATH = Path('/data/carrot/bluetooth.json')
 RUNTIME = Path('/dev/shm/carrot-bluetooth')
 REMOTE_BUTTONS = ('accelCruise', 'decelCruise', 'gapAdjustCruise', 'lfaButton', 'cancel')
 ACTIONS = ('none', *REMOTE_BUTTONS, *(button + 'Long' for button in REMOTE_BUTTONS),
-           'laneLeft', 'laneRight', 'paddleDecel', 'carrotCruise')
+           'laneLeft', 'laneRight', 'blinkerLeft', 'blinkerRight', 'paddleDecel', 'carrotCruise')
 DOUBLE_SECONDS = 0.35
 LONG_SECONDS = 0.7
 REPEAT_SECONDS = 0.5
@@ -73,8 +73,12 @@ def validate_config(data):
         raise ValueError('invalid Linux key code')
     if type(device.get('enabled', False)) is not bool:
       raise ValueError('enabled must be boolean')
+    gestures = device.get('gestures', {kind: any(k.endswith('@' + kind) and v != 'none' for k, v in mapping.items())
+                                       for kind in ('double', 'long')})
+    if not isinstance(gestures, dict) or set(gestures) != {'double', 'long'} or any(type(v) is not bool for v in gestures.values()):
+      raise ValueError('gesture options must be double/long booleans')
     result['devices'][mac] = {'name': str(device.get('name', mac))[:80], 'profile': device['profile'],
-                              'enabled': device.get('enabled', False), 'mapping': dict(mapping)}
+                              'enabled': device.get('enabled', False), 'mapping': dict(mapping), 'gestures': dict(gestures)}
   return result
 
 
@@ -85,57 +89,70 @@ def config(path=CONFIG_PATH):
     return {'version': 1, 'devices': {}}
 
 
+class Gesture(str):
+  """A string-compatible token retaining the physical gesture's first press."""
+  def __new__(cls, token, started):
+    result = super().__new__(cls, token)
+    result.started = started
+    return result
+
+
 class Clicks:
   """Release-triggered gestures. Single clicks wait only when double is assigned."""
-  def __init__(self, mapping=None, learning=False):
+  def __init__(self, mapping=None, learning=False, gestures=None):
     self.mapping = mapping or {}
     self.learning = learning
+    self.gestures = gestures
     self.pending = {}
 
   def assigned(self, token, gesture):
-    return self.learning or self.mapping.get(token + '@' + gesture, 'none') != 'none'
+    return self.learning or ((self.gestures is None or self.gestures.get(gesture, False)) and
+                             self.mapping.get(token + '@' + gesture, 'none') != 'none')
 
   def flush(self, now):
     result = []
-    for token, released in list(self.pending.items()):
+    for token, (released, gesture) in list(self.pending.items()):
       if now - released >= DOUBLE_SECONDS:
         del self.pending[token]
         if now - released <= COMMAND_TTL:
-          result.append(token)
+          result.append(gesture)
     return result
 
-  def release(self, token, duration, now):
+  def release(self, token, duration, now, *, started=None):
     result = self.flush(now)
     if not 0 <= duration <= 10:
       return result
+    gesture = Gesture(token, now - duration if started is None else started)
     if duration >= LONG_SECONDS and self.assigned(token, 'long'):
       # A preceding short click is separate from this long press.
       if token in self.pending:
-        del self.pending[token]
-        result.append(token)
-      return result + [token + '@long']
+        result.append(self.pending.pop(token)[1])
+      return result + [Gesture(token + '@long', gesture.started)]
     if self.assigned(token, 'double'):
       if token in self.pending:
-        del self.pending[token]
-        return result + [token + '@double']
-      self.pending[token] = now
+        first = self.pending.pop(token)[1]
+        # A double spanning CANCEL still belongs to its first physical press.
+        return result + [Gesture(token + '@double', first.started)]
+      self.pending[token] = (now, gesture)
       return result
-    return result + [token]
+    return result + [gesture]
 
 
 class Decoder:
   """Decode complete SYN_REPORT frames; dropped/incomplete gestures never fire."""
-  def __init__(self, profile='generic', mapping=None, learning=False):
+  def __init__(self, profile='generic', mapping=None, learning=False, gestures=None):
     self.profile = profile
     self.x = self.y = 0
     self.touch = False
+    self.touch_started = None
     self.start = None
     self.last = None
     self.started = 0.0
     self.down = {}
     self.pending_keys = []
     self.dropped = False
-    self.clicks = Clicks(mapping, learning)
+    self.clicks = Clicks(mapping, learning, gestures)
+    self.fast = gestures is not None and not learning
     self.holds = {}
     self.frame_open = False
     self.repeated = set()
@@ -151,7 +168,7 @@ class Decoder:
   def hold(self, source, token, started):
     previous = self.holds.get(source)
     if previous and previous['token'] != token:
-      if previous['fired'] or previous['expired']:
+      if previous['fired'] or previous['expired'] or previous.get('short_fired'):
         previous['expired'] = True  # Changing direction cannot resume a cancelled or already fired hold.
         return
       self.holds.pop(source, None)
@@ -161,6 +178,15 @@ class Decoder:
 
   def key_token(self, key):
     return '1' if self.profile == 'yiser-j6' and key == 115 else f'key:{key}'
+
+  def immediate(self, token):
+    return self.fast and not any(self.clicks.assigned(token, kind) for kind in ('double', 'long'))
+
+  def synchronize_pressed(self, keys, now):
+    """A held key at connect/config reload must be released before fast input."""
+    self.down = {key: now for key in keys if key < 256 or key >= 352}
+    self.touch = 330 in keys
+    self.dropped = bool(self.down or self.touch)
 
   def touch_token(self):
     dx, dy = self.last[0] - self.start[0], self.last[1] - self.start[1]
@@ -197,7 +223,7 @@ class Decoder:
         self.repeated.add(long_token)
       hold['fired'] = True
       hold['last'] = now  # Never catch up missed ticks after a scheduler stall.
-      result.append(long_token)
+      result.append(Gesture(long_token, self.touch_started if source == 'touch' else hold['started']))
     return result
 
   def feed(self, kind, code, value, now):
@@ -218,12 +244,15 @@ class Decoder:
         self.y = value
     elif kind == 1:
       if code == 330:
+        if value and not self.touch:
+          self.touch_started = now
         self.touch = value != 0
       elif code < 256 or code >= 352:
         if value == 1:
           self.down.setdefault(code, now)
         elif value == 0 and code in self.down:
-          self.pending_keys.append((code, now - self.down.pop(code)))
+          started = self.down.pop(code)
+          self.pending_keys.append((code, now - started, started))
     if kind != 0 or code != 0:
       return []
     if self.dropped:
@@ -231,31 +260,41 @@ class Decoder:
       if not self.touch and not self.down:
         self.dropped = False
       return []
-    releases = []
-    for key, duration in self.pending_keys:
+    releases, tokens = [], []
+    for key, duration, started in self.pending_keys:
       hold = self.holds.pop(key, {})
-      if not hold.get('fired') and not hold.get('expired'):
-        releases.append((self.key_token(key), duration))
+      if not hold.get('fired') and not hold.get('expired') and not hold.get('short_fired'):
+        releases.append((self.key_token(key), duration, started))
     self.pending_keys.clear()
     for key, started in self.down.items():
       self.hold(key, self.key_token(key), started)
+      hold = self.holds[key]
+      if self.immediate(hold['token']) and not hold.get('short_fired') and not hold['expired']:
+        tokens.append(Gesture(hold['token'], started))
+        hold['short_fired'] = True
     if self.touch:
       if self.start is None:
         self.start = (self.x, self.y)
         self.started = now
       self.last = (self.x, self.y)
       self.hold('touch', self.touch_token(), now)
+      hold = self.holds.get('touch', {})
+      # A touch may begin over a tap target before becoming a swipe. Only a
+      # confirmed direction can fire early; taps still complete on release.
+      moving = max(abs(self.last[i] - self.start[i]) for i in (0, 1)) >= 120
+      if moving and hold and self.immediate(hold['token']) and not hold.get('short_fired') and not hold['expired']:
+        tokens.append(Gesture(hold['token'], self.touch_started))
+        hold['short_fired'] = True
     elif self.start is not None:
       token = self.touch_token()
       hold = self.holds.pop('touch', {})
       self.start = self.last = None
       duration = now - self.started
-      if token and not hold.get('fired') and not hold.get('expired') and 0 <= duration <= MAX_HOLD_SECONDS:
+      if token and not hold.get('fired') and not hold.get('expired') and not hold.get('short_fired') and 0 <= duration <= MAX_HOLD_SECONDS:
         if duration <= 1.5 or self.clicks.assigned(token, 'long'):
-          releases.append((token, duration))
-    tokens = []
-    for token, duration in releases:
-      tokens.extend(self.clicks.release(token, duration, now))
+          releases.append((token, duration, self.touch_started))
+    for token, duration, started in releases:
+      tokens.extend(self.clicks.release(token, duration, now, started=started))
     return tokens
 
 
@@ -263,7 +302,7 @@ class CommandWriter:
   """One writer, bounded per-channel event journals; devices never overwrite peers."""
   def __init__(self, root=RUNTIME):
     self.root = root
-    self.events = {'cruise': [], 'lane': []}
+    self.events = {'cruise': [], 'lane': [], 'attention': [], 'blinker': []}
     self.session = uuid.uuid4().hex
     self.sequence = 0
 
@@ -278,11 +317,19 @@ class CommandWriter:
         self.events[channel] = kept
         self.publish(channel)
 
-  def send(self, mac, action, now, hold=None, repeat=False):
-    channel = 'lane' if action in ('laneLeft', 'laneRight') else 'cruise'
+  def send(self, mac, action, now, hold=None, repeat=False, *, started=None):
+    channel = 'blinker' if action in ('blinkerLeft', 'blinkerRight') else 'lane' if action in ('laneLeft', 'laneRight') else 'cruise'
+    self._append(channel, mac, action, now, hold, repeat, started=started)
+
+  def attention(self, mac, action, now):
+    # Independent journal: DM must not consume, synthesize or repeat cruise actions.
+    self._append('attention', mac, action, now, None, False)
+
+  def _append(self, channel, mac, action, now, hold, repeat, *, started=None):
     self.sequence += 1
     events = [e for e in self.events[channel] if 0 <= now - e['time'] <= COMMAND_TTL and (not hold or e.get('hold') != hold)]
-    events.append({'id': f'{self.session}:{self.sequence}', 'time': now, 'action': action, 'address': mac, 'hold': hold, 'repeat': repeat})
+    events.append({'id': f'{self.session}:{self.sequence}', 'time': now, 'action': action, 'address': mac, 'hold': hold, 'repeat': repeat,
+                   'started': now if started is None else started})
     self.events[channel] = events[-64:]
     self.publish(channel)
 
@@ -296,10 +343,15 @@ class CommandReader:
     self.seen = deque(maxlen=128)
     self.last_check = 0.0
     self.is_repeat = False
+    self.cancel_cutoff = float('-inf')
 
-  def read(self, allowed=True, now=None):
+  def read(self, allowed=True, now=None, *, cancel_pending=False):
     self.is_repeat = False
     now = time.monotonic() if now is None else now
+    if cancel_pending:
+      # Record cancellation even inside the ordinary read throttle. A writer
+      # may atomically publish an older command after this call returns.
+      self.cancel_cutoff = max(self.cancel_cutoff, now)
     if now - self.last_check < 0.02:
       return None
     self.last_check = now
@@ -319,8 +371,14 @@ class CommandReader:
       created = message.get('time', 0)
       if not isinstance(created, (int, float)) or not self.started <= created <= now or now - created > COMMAND_TTL:
         continue
+      started = message.get('started', created)
+      if not isinstance(started, (int, float)) or not 0 <= started <= created:
+        continue
+      # Emission/TTL may be fresh while a delayed click or held repeat predates CANCEL.
+      if started <= self.cancel_cutoff:
+        continue
       cutoff = cancelled.get(message.get('address'), 0) if isinstance(cancelled, dict) else 0
-      if isinstance(cutoff, (int, float)) and created <= cutoff:
+      if isinstance(cutoff, (int, float)) and started <= cutoff:
         continue
       if isinstance(learning, dict) and learning.get('address') == message.get('address'):
         until = learning.get('until', 0)

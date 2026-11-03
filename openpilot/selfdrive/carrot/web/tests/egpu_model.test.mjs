@@ -3,6 +3,10 @@ import test from "node:test";
 
 import { modelDisplayName, modelDisplayTitle } from "../src/features/tools/egpu_model.js";
 
+test("Light speed has its own eGPU title", () => {
+  assert.equal(modelDisplayName({ model_id: "comma-light-speed-c7cbe5de-33ba0928" }), "Light speed");
+});
+
 test("BMRLNAP v6 model gets a friendly eGPU title", () => {
   const status = { model_id: "comma-bmrlanpv6-9d683c06-f3669cb7" };
   assert.equal(modelDisplayName(status), "BMRLNAP v6");
@@ -39,4 +43,10 @@ test("Cinque v2 model gets a distinct friendly eGPU title", () => {
 
 test("Cinque v3 has its own eGPU title", () => {
   assert.equal(modelDisplayName({ model_id: "comma-pr38932-cinque-v3-892fc3a1-e758b96d" }), "Cinque v3");
+  assert.equal(modelDisplayName({ model_id: "comma-pr39047-mdm-v1-bea3fd4f-4fe66440" }), "Mountain Dew");
+  assert.equal(modelDisplayName({ model_id: "comma-pr39047-mdm-v1-4bfb5340-e20cde17" }), "Mountain Dew");
+});
+
+test("retrained Mountain Dew uses the version-free family name", () => {
+  assert.equal(modelDisplayName({ model_id: "comma-pr39047-mdm-retrained-6f4c0faf-256f2178" }), "Mountain Dew");
 });

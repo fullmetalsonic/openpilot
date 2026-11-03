@@ -1,3 +1,9 @@
+import {
+  extractSettingChosung,
+  settingSearchKeywords,
+  settingSearchMatches,
+} from "./search/match.js";
+
 export const SETTING_DERIVED_IDS = Object.freeze({
   favoritesGroup: "__setting_favorites__",
   searchGroup: "__setting_search__",
@@ -79,13 +85,14 @@ export function createSettingsDerivedModel(options = {}) {
   }
 
   function getFavoriteEntries() {
-    return favorites.map(findItemByName).filter((entry) => entry && !entry.item?.detail_parent);
+    return favorites.map(findItemByName)
+      .filter((entry) => entry && !entry.item?.detail_parent && !entry.item?.search_only);
   }
 
   function getProfileEntries(profile) {
     return Object.keys(profile?.values || {})
       .map(findItemByName)
-      .filter(Boolean)
+      .filter((entry) => entry && !entry.item?.search_only)
       .sort((left, right) => {
         const leftGroup = groupIndex.get(left.group)?.index ?? 9999;
         const rightGroup = groupIndex.get(right.group)?.index ?? 9999;
@@ -157,7 +164,7 @@ export function createSettingsDerivedModel(options = {}) {
     const profile = getProfileByGroup(group);
     if (profile) return getProfileEntries(profile);
     return (itemsByGroup[group] || [])
-      .filter((item) => !item?.detail_parent)
+      .filter((item) => !item?.detail_parent && !item?.search_only)
       .map((item) => ({ group, item }));
   }
 
@@ -216,8 +223,8 @@ export function createSettingsDerivedModel(options = {}) {
   // finds controls normally tucked inside that feature's detail screen.
   let inlineSearchIndex = null;
   function searchItemEntries(query) {
-    const needle = String(query || "").trim().normalize("NFC").toLowerCase();
-    if (!needle) return { entries: [], total: 0 };
+    const keywords = settingSearchKeywords(query);
+    if (!keywords.length) return { entries: [], total: 0 };
     if (!inlineSearchIndex) {
       const text = (node) => node
         ? [node.name, node.title, node.etitle, node.ctitle, node.descr, node.edescr, node.cdescr]
@@ -233,15 +240,19 @@ export function createSettingsDerivedModel(options = {}) {
         const { group, item } = entry;
         const parent = itemIndex.get(item.detail_parent)?.item;
         const meta = getGroupMeta(group);
+        const haystack = [group, meta?.egroup, meta?.ko, meta?.en, meta?.zh,
+          getItemContextLabel(group, item), ...text(item), ...text(parent)]
+          .filter(Boolean).join("\n").normalize("NFC").toLowerCase();
         return {
           entry,
-          haystack: [group, meta?.egroup, meta?.ko, meta?.en, meta?.zh,
-            getItemContextLabel(group, item), ...text(item), ...text(parent)]
-            .filter(Boolean).join("\n").normalize("NFC").toLowerCase(),
+          haystack,
+          // Precomputed Korean initial-consonant projection (초성 검색).
+          chosung: extractSettingChosung(haystack),
         };
       });
     }
-    const matches = inlineSearchIndex.filter(({ haystack }) => haystack.includes(needle));
+    const matches = inlineSearchIndex.filter(({ haystack, chosung }) =>
+      settingSearchMatches(haystack, chosung, keywords));
     return { entries: matches.slice(0, 20).map(({ entry }) => entry), total: matches.length };
   }
 
@@ -256,6 +267,14 @@ export function createSettingsDerivedModel(options = {}) {
     const profileName = isProfile ? String(profile.name || "") : "";
     const sourceLabel = isProfile ? sourceLabels.profile : sourceLabels.carrot;
     const contextLabel = isProfile ? `${profileName} / ${contextGroupLabel}` : contextGroupLabel;
+    // NFC so a decomposed query (some IMEs, macOS) still matches; the shared
+    // matcher normalizes its query the same way. A child also carries the
+    // parent's text so the feature name finds its nested controls.
+    const haystack = [sourceLabel, profileName, groupLabel, contextGroupLabel, item.name, title, descr,
+      parentItem?.name, parentTitle, parentDescr]
+      .join("\n")
+      .normalize("NFC")
+      .toLowerCase();
     return {
       source: isProfile ? "profile" : "carrot",
       sourceLabel,
@@ -269,17 +288,15 @@ export function createSettingsDerivedModel(options = {}) {
       name: item.name,
       title,
       descr,
+      // Search-only controls do not exist in their catalog group's ordinary
+      // row list. Search selection must render them through inline search.
+      searchOnly: item?.search_only === true,
       // Empty for a top-level item; a detail child points at the parent whose
       // detail screen must be open before the child row exists.
       detailParent: parentItem ? String(parentItem.name || "") : "",
-      // NFC so a decomposed query (some IMEs, macOS) still matches; the shared
-      // filter normalizes its query the same way. A child also carries the
-      // parent's text so the feature name finds its nested controls.
-      haystack: [sourceLabel, profileName, groupLabel, contextGroupLabel, item.name, title, descr,
-        parentItem?.name, parentTitle, parentDescr]
-        .join("\n")
-        .normalize("NFC")
-        .toLowerCase(),
+      haystack,
+      // Precomputed Korean initial-consonant projection (초성 검색).
+      chosung: extractSettingChosung(haystack),
     };
   }
 

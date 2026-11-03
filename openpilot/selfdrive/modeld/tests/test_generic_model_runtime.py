@@ -53,12 +53,16 @@ def test_generic_dispatch_uploads_warps_and_feeds_back_state(monkeypatch):
     monotonic=lambda: next(wall_clock), thread_time=lambda: next(cpu_clock)))
   runtime = object.__new__(GenericModelRuntime)
   calls = []
+  stages = []
+  runtime.progress = stages.append
   runtime.host, runtime.frames, runtime.transforms = object(), object(), object()
   runtime.device_buffer = SimpleNamespace(copy_from=lambda host: calls.append(('upload', host)))
+  runtime.copy_inputs = lambda: runtime.device_buffer.copy_from(runtime.host)
   state = np.zeros(1)
   runtime.queues = {'state': state}
   result = np.array([[1, 2]], np.float32)
   runtime.outputs = {'next_state': state, 'outputs': SimpleNamespace(numpy=lambda: result)}
+  runtime.copy_outputs = lambda: runtime.outputs['outputs']
   def warp(**inputs):
     assert inputs == {'input_frame': runtime.frames, 'M_inv': runtime.transforms}
     calls.append(('warp',))
@@ -75,6 +79,7 @@ def test_generic_dispatch_uploads_warps_and_feeds_back_state(monkeypatch):
   runtime.run()
   assert state[0] == 2
   assert [call[0] for call in calls] == ['upload', 'warp', 'model'] * 2
+  assert stages == ['input_upload', 'warp', 'model_call', 'output_read'] * 2
   assert runtime.last_timings == pytest.approx({
     'input_upload_ms': 20, 'input_upload_cpu_ms': 2,
     'warp_call_ms': 10, 'warp_call_cpu_ms': 1,
@@ -90,8 +95,8 @@ def test_precompiled_only_boot_failure_skips_local_compilation(monkeypatch, tmp_
   function = next(n for n in tree.body if isinstance(n, ast.FunctionDef) and n.name == 'build_usbgpu_model')
   namespace = {'Spinner': object}
   exec(compile(ast.Module(body=[function], type_ignores=[]), str(source), 'exec'), namespace)
-  monkeypatch.setattr(big_model, 'active_manifest', big_model.fetch_manifest)
-  monkeypatch.setattr(big_model, 'active_model_path', lambda: tmp_path / 'model.pkl')
+  monkeypatch.setattr(big_model, 'selected_manifest', big_model.fetch_manifest)
+  monkeypatch.setattr(big_model, 'model_path', lambda _manifest: tmp_path / 'model.pkl')
   monkeypatch.setattr(big_model, 'model_cache_dir', lambda: tmp_path)
   statuses = []
   monkeypatch.setattr(big_model_status, 'write_big_model_status', lambda *args, **kw: statuses.append((args, kw)))
@@ -102,3 +107,14 @@ def test_precompiled_only_boot_failure_skips_local_compilation(monkeypatch, tmp_
   assert namespace['build_usbgpu_model'](SimpleNamespace(update=lambda *args: None)) is False
   assert statuses[-1][0][1] == 'error'
   assert 'using internal model' in statuses[-1][1]['detail']
+
+
+@pytest.mark.parametrize('manifest,expected', [
+  ({}, False), ({'runtime': None}, False), ({'runtime': []}, False),
+  ({'runtime': {'sha256': 'c7c58622652231359ecea1a4253b63e157d002242bf596ede1b853f941f937ac'}}, False),
+  ({'runtime': {'sha256': '90970e01f2ba70d553294c0f9d5c6fe1678827f750705cab679a7b19b7bcb0b2'}}, False),
+  ({'runtime': {'sha256': 'cb9bf2cfa14746485f75b1dd89d8b7ab65011c10c8fc6c4aea4d41b45a47dc51'}}, True),
+])
+def test_compiled_copies_only_select_the_verified_upstream_runtime(manifest, expected):
+  from openpilot.selfdrive.modeld.generic_model_runtime import use_compiled_copies
+  assert use_compiled_copies(manifest) is expected

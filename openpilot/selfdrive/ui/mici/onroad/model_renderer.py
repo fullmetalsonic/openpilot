@@ -1,4 +1,5 @@
 import colorsys
+import time
 import numpy as np
 import pyray as rl
 from openpilot.cereal import messaging, car
@@ -7,12 +8,15 @@ from openpilot.common.params import Params
 from openpilot.common.filter_simple import FirstOrderFilter
 from openpilot.selfdrive.locationd.calibrationd import HEIGHT_INIT
 from openpilot.selfdrive.ui.ui_state import ui_state, UIStatus
+from openpilot.selfdrive.ui.vision_status import blindspot_source_packet, blindspot_sources
 from openpilot.selfdrive.ui.road_markings import lane_dash_segments, project_blindspot_barrier, blindspot_barrier_quads
 from openpilot.selfdrive.ui.mici.onroad import blend_colors
 from openpilot.system.ui.lib.application import gui_app, FontWeight
 from openpilot.system.ui.lib.text_draw import draw_text_ui_style
 from openpilot.system.ui.lib.shader_polygon import draw_polygon, Gradient
+from openpilot.system.ui.lib import native_draw, native_geometry
 from openpilot.system.ui.widgets import Widget
+from openpilot.system.ui.lib.overlay_cache import OverlayLayer, DisplayClock
 from typing import Optional, Any
 
 CLIP_MARGIN = 500
@@ -65,6 +69,12 @@ class RadarInfoItem:
 class ModelRenderer(Widget):
   def __init__(self):
     super().__init__()
+    self._overlay = OverlayLayer(0)
+    self._overlay_state = None
+    self._display_clock = DisplayClock()
+    self._model_frame = -1
+    self._radar_frame = -1
+    self._params_frame = -1
     self._longitudinal_control = False
     self._experimental_mode = False
     self._blend_filter = FirstOrderFilter(1.0, 0.25, 1 / gui_app.target_fps)
@@ -113,8 +123,14 @@ class ModelRenderer(Widget):
     self._transform_dirty = True
 
   def _render(self, rect: rl.Rectangle):
+    state = self._overlay_state
+    self._overlay.draw(rect, self._paint, state.key if state else None,
+                       enabled=state is not None and state.enabled, urgent=state is not None and state.urgent)
+
+  def _paint(self, rect: rl.Rectangle):
+    self._display_clock.tick()
     sm = ui_state.sm
-    self._torque_filter.update(-ui_state.sm['carOutput'].actuatorsOutput.torque)
+    self._display_clock.update_filter(self._torque_filter, -sm['carOutput'].actuatorsOutput.torque)
 
     # Check if data is up-to-date
     if (sm.recv_frame["liveCalibration"] < ui_state.started_frame or
@@ -132,7 +148,8 @@ class ModelRenderer(Widget):
     live_calib = sm['liveCalibration']
     self._path_offset_z = live_calib.height[0] if live_calib.height else HEIGHT_INIT[0]
 
-    if sm.updated['carParams']:
+    if sm.recv_frame['carParams'] != self._params_frame:
+      self._params_frame = sm.recv_frame['carParams']
       self._longitudinal_control = sm['carParams'].openpilotLongitudinalControl
 
     model = sm['modelV2']
@@ -141,9 +158,11 @@ class ModelRenderer(Widget):
     render_lead_indicator = self._longitudinal_control and radar_state is not None
 
     # Update model data when needed
-    model_updated = sm.updated['modelV2']
-    if model_updated or sm.updated['radarState'] or self._transform_dirty:
+    model_updated = sm.recv_frame['modelV2'] != self._model_frame
+    if model_updated or sm.recv_frame['radarState'] != self._radar_frame or self._transform_dirty:
+      self._radar_frame = sm.recv_frame['radarState']
       if model_updated:
+        self._model_frame = sm.recv_frame['modelV2']
         self._update_raw_points(model)
 
       path_x_array = self._path.raw_points[:, 0]
@@ -217,6 +236,7 @@ class ModelRenderer(Widget):
         self._lead_pt_filt[slot] = (float(pt[0]), float(pt[1]))
         return float(pt[0]), float(pt[1])
 
+      alpha = 1.0 - self._display_clock.retention(1.0 - alpha)
       x = prev[0] + (float(pt[0]) - prev[0]) * alpha
       y = prev[1] + (float(pt[1]) - prev[1]) * alpha
       self._lead_pt_filt[slot] = (x, y)
@@ -310,8 +330,8 @@ class ModelRenderer(Widget):
       max_distance = np.clip(lead_d - min(lead_d * 0.35, 10.0), 0.0, max_distance)
 
     soon_acceleration = self._acceleration_x[len(self._acceleration_x) // 4] if len(self._acceleration_x) > 0 else 0
-    self._acceleration_x_filter.update(soon_acceleration)
-    self._acceleration_x_filter2.update(soon_acceleration)
+    self._display_clock.update_filter(self._acceleration_x_filter, soon_acceleration)
+    self._display_clock.update_filter(self._acceleration_x_filter2, soon_acceleration)
 
     # make path width wider/thinner when initially braking/accelerating
     if self._experimental_mode and False:
@@ -446,11 +466,18 @@ class ModelRenderer(Widget):
     if not (car_state.leftBlindspot or car_state.rightBlindspot) or self._path.raw_points.shape[0] < 2:
       return
     max_idx = self._get_path_length_idx(self._path.raw_points[:, 0], 40.0)
-    for active, shift in ((car_state.leftBlindspot, -1.7), (car_state.rightBlindspot, 1.7)):
+    source_packet = blindspot_source_packet(sm, time.monotonic_ns())
+    for side, active, shift in (
+      ("left", car_state.leftBlindspot, -1.7),
+      ("right", car_state.rightBlindspot, 1.7),
+    ):
       if active:
+        oem, vision = blindspot_sources(car_state, side, source_packet)
+        color = rl.Color(255, 128, 128, 190) if oem and vision else \
+                rl.Color(64, 156, 255, 165) if vision else rl.Color(255, 215, 0, 150)
         polygon = project_blindspot_barrier(self._path.raw_points[:max_idx + 1], shift, self._car_space_transform, self._clip_region)
         for quad in blindspot_barrier_quads(polygon):
-          draw_polygon(self._rect, quad, rl.Color(255, 215, 0, 150))
+          draw_polygon(self._rect, quad, color)
 
   def _draw_path(self, sm):
     """Draw path with dynamic coloring based on mode and throttle state."""
@@ -458,7 +485,7 @@ class ModelRenderer(Widget):
       return
 
     allow_throttle = sm['longitudinalPlan'].allowThrottle or not self._longitudinal_control
-    self._blend_filter.update(int(allow_throttle))
+    self._display_clock.update_filter(self._blend_filter, int(allow_throttle))
 
     if self._experimental_mode:
       # Draw with acceleration coloring
@@ -504,6 +531,8 @@ class ModelRenderer(Widget):
       pts = lead.rect
       c = lead.color
 
+      if native_draw.try_outline(rl, pts, c, thickness):
+        continue
       rl.draw_line_ex(pts[0], pts[1], thickness, c)
       rl.draw_line_ex(pts[1], pts[2], thickness, c)
       rl.draw_line_ex(pts[2], pts[3], thickness, c)
@@ -534,70 +563,8 @@ class ModelRenderer(Widget):
     return (x, y)
 
   def _map_line_to_polygon(self, line: np.ndarray, y_off: float, z_off: float, max_idx: int, allow_invert: bool = True) -> np.ndarray:
-    """Convert 3D line to 2D polygon for rendering."""
-    if line.shape[0] == 0:
-      return np.empty((0, 2), dtype=np.float32)
-
-    # Slice points and filter non-negative x-coordinates
-    points = line[:max_idx + 1]
-    points = points[points[:, 0] >= 0]
-    if points.shape[0] == 0:
-      return np.empty((0, 2), dtype=np.float32)
-
-    N = points.shape[0]
-    # Generate left and right 3D points in one array using broadcasting
-    offsets = np.array([[0, -y_off, z_off], [0, y_off, z_off]], dtype=np.float32)
-    points_3d = points[None, :, :] + offsets[:, None, :]  # Shape: 2xNx3
-    points_3d = points_3d.reshape(2 * N, 3)  # Shape: (2*N)x3
-
-    # Transform all points to projected space in one operation
-    proj = self._car_space_transform @ points_3d.T  # Shape: 3x(2*N)
-    proj = proj.reshape(3, 2, N)
-    left_proj = proj[:, 0, :]
-    right_proj = proj[:, 1, :]
-
-    # Filter points where z is sufficiently large
-    valid_proj = (np.abs(left_proj[2]) >= 1e-6) & (np.abs(right_proj[2]) >= 1e-6)
-    if not np.any(valid_proj):
-      return np.empty((0, 2), dtype=np.float32)
-
-    # Compute screen coordinates
-    left_screen = left_proj[:2, valid_proj] / left_proj[2, valid_proj][None, :]
-    right_screen = right_proj[:2, valid_proj] / right_proj[2, valid_proj][None, :]
-
-    # Define clip region bounds
-    clip = self._clip_region
-    x_min, x_max = clip.x, clip.x + clip.width
-    y_min, y_max = clip.y, clip.y + clip.height
-
-    # Filter points within clip region
-    left_in_clip = (
-      (left_screen[0] >= x_min) & (left_screen[0] <= x_max) &
-      (left_screen[1] >= y_min) & (left_screen[1] <= y_max)
-    )
-    right_in_clip = (
-      (right_screen[0] >= x_min) & (right_screen[0] <= x_max) &
-      (right_screen[1] >= y_min) & (right_screen[1] <= y_max)
-    )
-    both_in_clip = left_in_clip & right_in_clip
-
-    if not np.any(both_in_clip):
-      return np.empty((0, 2), dtype=np.float32)
-
-    # Select valid and clipped points
-    left_screen = left_screen[:, both_in_clip]
-    right_screen = right_screen[:, both_in_clip]
-
-    # Handle Y-coordinate inversion on hills
-    if not allow_invert and left_screen.shape[1] > 1:
-      y = left_screen[1, :]  # y-coordinates
-      keep = y == np.minimum.accumulate(y)
-      if not np.any(keep):
-        return np.empty((0, 2), dtype=np.float32)
-      left_screen = left_screen[:, keep]
-      right_screen = right_screen[:, keep]
-
-    return np.vstack((left_screen.T, right_screen[:, ::-1].T)).astype(np.float32)
+    return native_geometry.project_ribbon(line, y_off, z_off, max_idx, self._car_space_transform,
+                                          self._clip_region, allow_invert)
 
   @staticmethod
   def _hsla_to_color(h, s, l, a):
@@ -759,4 +726,3 @@ class ModelRenderer(Widget):
       #)
 
       draw_text_ui_style(item.text, tx, ty, font_size, rl.WHITE, font=self._font_display, border_width=1.0, shadow_offset=8.0, align="left_top", y_offset=0.0)
-

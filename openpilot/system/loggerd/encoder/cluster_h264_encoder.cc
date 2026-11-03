@@ -15,6 +15,7 @@
 #include <unistd.h>
 
 #include "common/swaglog.h"
+#include "common/poll_timeout.h"
 #include "common/util.h"
 #include "system/camerad/cameras/nv12_info.h"
 #include "third_party/linux/include/v4l2-controls.h"
@@ -111,6 +112,10 @@ void ClusterH264Encoder::validate_config() const {
   }
   if (config_.device_path.empty()) {
     throw std::runtime_error("cluster H264 encoder device path must not be empty");
+  }
+  if (config_.min_qp < -1 || config_.min_qp > 51 ||
+      config_.max_qp < 0 || config_.max_qp > 51 || config_.min_qp > config_.max_qp) {
+    throw std::runtime_error("cluster H264 encoder QP range is invalid");
   }
 }
 
@@ -438,6 +443,25 @@ void ClusterH264Encoder::set_controls() {
     set_control(V4L2_CID_MPEG_VIDEO_H264_ENTROPY_MODE, V4L2_MPEG_VIDEO_H264_ENTROPY_MODE_CABAC, "h264-entropy-cabac");
     set_control(V4L2_CID_MPEG_VIDC_VIDEO_H264_CABAC_MODEL, V4L2_CID_MPEG_VIDC_VIDEO_H264_CABAC_MODEL_0, "h264-cabac-model-0");
   }
+  if (config_.min_qp >= 0) {
+    // msm_venc accepts these IDs via S_CTRL without applying the range.
+    // Submit the complete range with its layer ID using S_EXT_CTRLS, before
+    // buffers/stream-on. Initialize all I/P/B limits, even with B frames off.
+    struct v4l2_ext_control qp_controls[] = {
+      { .id = V4L2_CID_MPEG_VIDC_VIDEO_LAYER_ID, .value = 0xff },
+      { .id = V4L2_CID_MPEG_VIDC_VIDEO_I_FRAME_QP_MIN, .value = config_.min_qp },
+      { .id = V4L2_CID_MPEG_VIDC_VIDEO_P_FRAME_QP_MIN, .value = config_.min_qp },
+      { .id = V4L2_CID_MPEG_VIDC_VIDEO_B_FRAME_QP_MIN, .value = config_.min_qp },
+      { .id = V4L2_CID_MPEG_VIDC_VIDEO_I_FRAME_QP_MAX, .value = config_.max_qp },
+      { .id = V4L2_CID_MPEG_VIDC_VIDEO_P_FRAME_QP_MAX, .value = config_.max_qp },
+      { .id = V4L2_CID_MPEG_VIDC_VIDEO_B_FRAME_QP_MAX, .value = config_.max_qp },
+    };
+    struct v4l2_ext_controls qp_range = {};
+    qp_range.ctrl_class = V4L2_CTRL_CLASS_MPEG;
+    qp_range.count = sizeof(qp_controls) / sizeof(qp_controls[0]);
+    qp_range.controls = qp_controls;
+    xioctl(fd_, VIDIOC_S_EXT_CTRLS, &qp_range, "VIDIOC_S_EXT_CTRLS H264 QP range failed");
+  }
 }
 
 void ClusterH264Encoder::request_buffers(uint32_t buffer_type, unsigned int count) {
@@ -568,10 +592,7 @@ size_t ClusterH264Encoder::process_ready_events(int timeout_ms, bool stop_after_
 
   while (true) {
     pfd.revents = 0;
-    int ret;
-    do {
-      ret = poll(&pfd, 1, timeout_ms);
-    } while (ret < 0 && errno == EINTR);
+    int ret = poll_with_timeout(&pfd, 1, timeout_ms);
     if (ret < 0) {
       throw std::runtime_error(util::string_format("cluster H264 poll failed: %s (%d)", strerror(errno), errno));
     }

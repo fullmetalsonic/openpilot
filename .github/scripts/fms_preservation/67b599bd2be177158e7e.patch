@@ -1,0 +1,7 @@
+--- a/tools/signal_analysis/signal_upper_group_trial.py
++++ b/tools/signal_analysis/signal_upper_group_trial.py
+@@ -72,4 +72,3 @@
+ 
+ if __name__ == '__main__':
+   main()
+-

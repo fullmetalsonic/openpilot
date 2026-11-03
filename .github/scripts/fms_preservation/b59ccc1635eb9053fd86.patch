@@ -1,0 +1,14 @@
+--- a/openpilot/selfdrive/ui/translations/app_en.po
++++ b/openpilot/selfdrive/ui/translations/app_en.po
+@@ -1506,11 +1506,3 @@
+ #: openpilot/selfdrive/selfdrived/events.py
+ msgid "Park safely before rebooting your device"
+ msgstr "Park safely before rebooting your device"
+-
+-#: openpilot/selfdrive/selfdrived/events.py
+-msgid "Driver camera unavailable"
+-msgstr "Driver camera unavailable"
+-
+-#: openpilot/selfdrive/selfdrived/events.py
+-msgid "Monitoring driver controls"
+-msgstr "Monitoring driver controls"

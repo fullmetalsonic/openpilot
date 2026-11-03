@@ -1,0 +1,13 @@
+--- a/docs/user/en/cruise-gap.md
++++ b/docs/user/en/cruise-gap.md
+@@ -141,6 +141,10 @@
+ > [!CAUTION]
+ > This trial adopts part of an observed stock sequence; complete stopping and prevention of rolling have not been validated on the vehicle.
+ 
++### CANFD stopping
++
++Normal ACC retains adjustable stopping acceleration (aReqRaw/aReqValue) and the existing one-time bounded stop re-entry. Independent SoftHold while cruise is OFF, in standby or CANCEL starts from the actual previous SCC output, prepares with negative acceleration and StopReq=0, then converges to StopReq=1 with -0.5 m/s² holding acceleration. Independent SoftHold does not request cruise ON or RES. Both CANFD builders retain actual-output feedback and pedal, parking and AutoHold protections. Actual ECU stopping acceptance requires vehicle validation.
++
+ ### `VEgoStopping`
+ 
+ Range 10–100, step 5, default 50. A value of 10 is 0.10 m/s; 50 is 0.50 m/s (about 1.8 km/h). `shouldStop` becomes true when both the planner's target speeds at the control-delay horizon and one second later are below this threshold.

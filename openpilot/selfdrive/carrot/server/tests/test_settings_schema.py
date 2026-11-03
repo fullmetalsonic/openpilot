@@ -43,14 +43,6 @@ def test_the_catalogue_is_readable_and_populated(params):
   assert all(isinstance(p.get("name"), str) and p["name"] for p in params)
 
 
-def test_paddle_mode_four_uses_common_dropdown_and_restart_description(params):
-  paddle = next(p for p in params if p["name"] == "PaddleMode")
-  assert (paddle["min"], paddle["max"], paddle["default"], paddle["unit"]) == (0, 4, 1, 1)
-  assert "control" not in paddle  # Five options use the common select rule.
-  assert "재시작" in paddle["descr"] and "주행 중" in paddle["descr"]
-  assert "restart" in paddle["edescr"] and "重启" in paddle["cdescr"]
-
-
 @pytest.mark.parametrize("maximum", (3, 4))
 def test_gap_cycle_catalog_uses_vehicle_maximum_without_mutating_cache(settings, maximum):
   groups, by_name, groups_list = group_index(settings)
@@ -111,6 +103,7 @@ def test_onnx_vision_toggle_uses_existing_runtime_flag_and_first_steering_sectio
   lane_change = next(group for group in steering["groups"] if group["id"] == "STEER_LANECHANGE")
   assert onnx["id"] == "STEER_ONNX"
   detail_names = [
+    "OnnxBsdEnabled",
     "OnnxLaneThreshold", "OnnxLaneIntervalMs", "OnnxBsdThreshold",
     "OnnxBsdSmoothingMs", "OnnxBsdIntervalMs",
   ]
@@ -120,6 +113,8 @@ def test_onnx_vision_toggle_uses_existing_runtime_flag_and_first_steering_sectio
     assert by_name[name]["detail_parent"] == "ShareData"
     assert by_name[name]["detail_section"] in ("lane", "bsd")
     assert f'{{"{name}", {{PERSISTENT, INT,' in PARAMS_KEYS_PATH.read_text(encoding="utf-8")
+  bsd_enabled = by_name["OnnxBsdEnabled"]
+  assert (bsd_enabled["control"], bsd_enabled["min"], bsd_enabled["max"], bsd_enabled["default"]) == ("toggle", 0, 1, 0)
   for title in ("title", "etitle", "ctitle"):
     assert "ONNX" in vision[title]
 
@@ -185,7 +180,8 @@ def test_longitudinal_pid_defaults_match_registry(params):
     "LongTuningKpV", "LongTuningKiV", "LongTuningKf",
   )) == (100, 0, 100)
   for name in ("LongTuningKpV", "LongTuningKiV", "LongTuningKf"):
-    assert by_name[name]["hidden_brands"] == ["hyundai"]
+    assert by_name[name]["hidden_brands"] == ["hyundai", "toyota"]
+    assert "Toyota/Lexus" in by_name[name]["edescr"]
     assert "현대·기아·제네시스" in by_name[name]["descr"]
     assert "hidden and ignored" in by_name[name]["edescr"]
 
@@ -198,13 +194,14 @@ def test_longitudinal_pid_defaults_match_registry(params):
     assert f'{{"{name}", {{PERSISTENT, INT, "{default}"}}}}' in params_keys
 
 
-def test_hyundai_catalog_hides_longitudinal_pid_settings(settings):
+@pytest.mark.parametrize("brand", ["hyundai", "toyota"])
+def test_fixed_tuning_catalog_hides_longitudinal_pid_settings(settings, brand):
   groups, by_name, groups_list = group_index(settings)
   categories = build_menu_categories(settings, by_name)
   hidden = {"LongTuningKpV", "LongTuningKiV", "LongTuningKf"}
 
   filtered_groups, filtered_groups_list, filtered_categories, hidden_names = filter_settings_catalog_for_brand(
-    groups, groups_list, categories, "hyundai",
+    groups, groups_list, categories, brand,
   )
   visible_names = {item["name"] for items in filtered_groups.values() for item in items}
   menu_names = {
@@ -219,7 +216,8 @@ def test_hyundai_catalog_hides_longitudinal_pid_settings(settings):
   assert hidden.isdisjoint(visible_names)
   assert hidden.isdisjoint(menu_names)
   assert all(
-    group["count"] == sum(1 for item in filtered_groups[group["group"]] if not item.get("detail_parent"))
+    group["count"] == sum(1 for item in filtered_groups[group["group"]]
+                          if not item.get("detail_parent") and not item.get("search_only"))
     for group in filtered_groups_list
   )
 
@@ -228,7 +226,7 @@ def test_other_brands_keep_longitudinal_pid_settings(settings):
   groups, by_name, groups_list = group_index(settings)
   categories = build_menu_categories(settings, by_name)
   filtered_groups, _filtered_groups_list, _filtered_categories, hidden_names = filter_settings_catalog_for_brand(
-    groups, groups_list, categories, "toyota",
+    groups, groups_list, categories, "gm",
   )
   visible_names = {item["name"] for items in filtered_groups.values() for item in items}
 
@@ -286,6 +284,24 @@ def test_wide_camera_fallback_setting_is_exposed(settings, params):
   assert '{"UseWideCamera", {PERSISTENT, BOOL, "1"}}' in params_keys
 
 
+def test_legacy_driver_monitoring_is_restart_setting_in_menu(settings, params):
+  by_name = {p["name"]: p for p in params}
+  dm = by_name["DisableDM"]
+  assert (dm["min"], dm["max"], dm["default"], dm["unit"]) == (0, 2, 0, 1)
+  assert "reboot" in dm["descr"].lower()
+  for name in ("DriverMonitoringEnabled", "DriverMonitoringSessionDisabled", "DriverMonitoringMode", "CarrotVisionEnabled"):
+    assert name not in by_name
+  vehicle = next(category for category in settings["menu"] if category["id"] == "VEHICLE")
+  driver_monitoring = next(group for group in vehicle["groups"] if group["id"] == "VEH_DM")
+  assert driver_monitoring["params"] == ["DisableDM", "MuteDoor", "MuteSeatbelt"]
+  groups, indexed, _ = group_index(settings)
+  view = next(group for category in build_menu_categories(settings, indexed)
+              for group in category["groups"] if group["id"] == "VEH_DM")
+  assert view["count"] == 3
+  assert dm in groups[dm["group"]]
+  assert [p["name"] for p in params if p.get("search_only")] == ["NNFF"]
+
+
 def test_vehicle_navi_can_control_exposes_route_filter_modes(settings, params):
   by_name = {p["name"]: p for p in params}
   control = by_name["VehicleNaviCanControl"]
@@ -339,6 +355,36 @@ def test_vehicle_navi_school_zone_control_is_opt_in(settings, params):
   assert '{"VehicleNaviSchoolZoneControl", {PERSISTENT, BOOL, "0"}}' in params_keys
 
 
+def test_speedcam_decel_cancel_and_section_average_settings_are_opt_in(settings, params):
+  by_name = {p["name"]: p for p in params}
+  master, children = "VehicleNaviDecelCancel", ("VehicleNaviDecelCancelBox", "VehicleNaviDecelCancelMobileZone",
+                                                 "VehicleNaviDecelCancelBump")
+  defaults = {master: 0, "VehicleNaviSectionAvgControl": 0, **{name: 1 for name in children},
+              "VehicleNaviDecelCancelUnknown": 0,  # experimental: kind unknown, opt-in
+              "VehicleNaviDecelCancelEarlyWarning": 0}  # experimental: wider lead window, opt-in
+  for name, default in defaults.items():
+    control = by_name[name]
+    assert (control["min"], control["max"], control["default"]) == (0, 1, default)
+    assert control["control"] == "toggle"
+    assert control["risk"] == "high"
+  # Per-kind toggles live in the master's detail screen; only the master is opt-in.
+  assert not by_name[master].get("detail_parent")
+  assert all(by_name[name]["detail_parent"] == master and by_name[name]["group"] == by_name[master]["group"]
+             for name in (*children, "VehicleNaviDecelCancelUnknown",
+                          "VehicleNaviDecelCancelEarlyWarning"))
+
+  driving = next(category for category in settings["menu"] if category["id"] == "DRIVING")
+  speed = next(group for group in driving["groups"] if group["id"] == "SPEED")
+  camera = next(group for group in speed["groups"] if group["id"] == "SPEED_CAMERA")
+  params_keys = PARAMS_KEYS_PATH.read_text(encoding="utf-8")
+  for name, default in defaults.items():
+    assert name in camera["params"]
+    assert f'{{"{name}", {{PERSISTENT, BOOL, "{default}"}}}}' in params_keys
+  for removed in ("VehicleNaviSkipBoxCamera", "VehicleNaviSkipMobileZone", "VehicleNaviSectionAvgMargin"):
+    assert removed not in by_name
+    assert removed not in params_keys
+
+
 def test_vehicle_navi_curve_control_settings_are_removed(settings):
   driving = next(category for category in settings["menu"] if category["id"] == "DRIVING")
   speed = next(group for group in driving["groups"] if group["id"] == "SPEED")
@@ -383,7 +429,7 @@ def test_external_hud_brightness_and_orientation_use_catalog_controls(settings, 
     "Info left / driving right",
   ]
   screen_mode = by_name["ClusterHudScreenMode"]
-  assert (screen_mode["min"], screen_mode["max"], screen_mode["default"]) == (-1, 5, 0)
+  assert (screen_mode["min"], screen_mode["max"], screen_mode["default"]) == (-1, 7, 0)
   assert screen_mode["descr"].startswith("-1: 3D 전체화면\n0: 기본(내비/주행 리포트)")
   assert screen_mode["edescr"].startswith("-1: 3D fullscreen\n0: Default (navigation/driving report)")
   assert screen_mode["cdescr"].startswith("-1: 3D全屏\n0: 默认(导航/驾驶报告)")
@@ -541,3 +587,66 @@ def test_declared_numeric_bounds_stay_intact(params):
   assert (by_name["ApplyModelSpeed"]["min"], by_name["ApplyModelSpeed"]["max"]) == (-120, 120)
   assert by_name["ApplyModelSpeed"]["default"] == 0
   assert by_name["TFollowDecelBoost"]["unit"] == 10
+
+
+def test_live_geometry_has_zero_default_and_no_enable_switch(settings, params):
+  from openpilot.selfdrive.carrot.server.services.params import clamp_numeric
+  by_name = {p['name']: p for p in params}
+  assert 'CenterToFrontRatioEnabled' not in by_name
+  ratio = by_name['CenterToFrontRatio']
+  assert (ratio['min'], ratio['nonzero_min'], ratio['max'], ratio['default'], ratio['unit']) == (0, 31, 69, 0, 1)
+  assert ratio['display_unit'] == 'percent'
+  assert not ratio.get('detail_parent') and not ratio.get('hidden_brands')
+  assert ratio['risk'] == 'high'
+  keys = PARAMS_KEYS_PATH.read_text(encoding='utf-8')
+  assert '{"CenterToFrontRatio", {PERSISTENT, INT, "0"}}' in keys
+  assert '{"CenterToFrontRatioEnabled", {PERSISTENT, BOOL}}' in keys  # Migration only, no recreated default.
+  categories = build_menu_categories(settings, by_name)
+  section = next(section for category in categories for group in category['groups'] for section in group['sections']
+                 if 'SteerActuatorDelay' in section['items'])
+  assert section['items'].index(ratio['name']) == section['items'].index('SteerActuatorDelay') + 1
+  for raw, expected in ((0, 0), (1, 31), (30, 31), (40, 40), (60, 60), (99, 69)):
+    assert clamp_numeric(raw, ratio) == expected
+  assert clamp_numeric(1, by_name['SteerActuatorDelay']) == 1
+  assert '재시작 없이' in ratio['descr']
+  assert 'without restarting' in ratio['edescr']
+  assert set(ratio['zero_label']) == {'ko', 'en', 'zh'}
+
+
+def test_declared_nonzero_min_and_zero_labels_are_well_formed(params):
+  for item in params:
+    if 'nonzero_min' in item:
+      assert item['min'] == item['default'] == 0
+      assert 0 < item['nonzero_min'] <= item['max']
+      assert set(item['zero_label']) == {'ko', 'en', 'zh'}
+
+
+def test_paddle_mode_four_uses_common_dropdown_and_restart_description(params):
+  paddle = next(p for p in params if p["name"] == "PaddleMode")
+  assert (paddle["min"], paddle["max"], paddle["default"], paddle["unit"]) == (0, 4, 1, 1)
+  assert "control" not in paddle  # Five options use the common select rule.
+  assert "재시작" in paddle["descr"] and "주행 중" in paddle["descr"]
+  assert "restart" in paddle["edescr"] and "重启" in paddle["cdescr"]
+
+
+def test_selected_lever_settings_are_exposed_with_upstream_defaults(settings, params):
+  by_name = {p["name"]: p for p in params}
+  turn = by_name["BlinkerLatchedTurn"]
+  wait = by_name["LaneChangeLeverWait"]
+  assert (turn["min"], turn["max"], turn["default"], turn["unit"]) == (0, 80, 0, 5)
+  assert turn["display_unit"] == "speedKph"
+  assert (wait["min"], wait["max"], wait["default"], wait["control"]) == (0, 1, 0, "toggle")
+  registered = PARAMS_KEYS_PATH.read_text(encoding="utf-8")
+  assert '{"BlinkerLatchedTurn", {PERSISTENT, INT, "0"}}' in registered
+  assert '{"LaneChangeLeverWait", {PERSISTENT, BOOL, "0"}}' in registered
+
+
+def test_nnff_is_search_only_and_does_not_inflate_menu_counts(settings, params):
+  groups, by_name, group_list = group_index(settings)
+  assert by_name["NNFF"]["search_only"] is True
+  assert by_name["NNFF"]["default"] == 0
+  category_list = build_menu_categories(settings, by_name)
+  assert sum(group["count"] for cat in category_list for group in cat["groups"]) == sum(
+    not p.get("search_only") and not p.get("detail_parent") for p in params)
+  assert sum(group["count"] for group in group_list) == sum(
+    not p.get("search_only") and not p.get("detail_parent") for p in params)

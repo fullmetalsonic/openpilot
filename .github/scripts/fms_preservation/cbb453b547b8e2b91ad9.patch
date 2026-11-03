@@ -1,0 +1,45 @@
+--- a/openpilot/selfdrive/carrot/web/tests/settings_derived_model.test.mjs
++++ b/openpilot/selfdrive/carrot/web/tests/settings_derived_model.test.mjs
+@@ -29,7 +29,7 @@
+     SPEED: [
+       { name: "ApplyModelSpeed", title: "모델 주행속도", etitle: "Model speed", __section: { ko: "제한속도", en: "Speed limit" } },
+       { name: "CruiseSpeed1", title: "크루즈속도1", etitle: "Cruise speed 1" },
+-      { name: "DriverMonitoringEnabled", title: "운전자 감시 사용", etitle: "Enable driver monitoring", search_only: true },
++      { name: "NNFF", title: "NNFF 토크 제어", etitle: "NNFF Torque Control", search_only: true },
+     ],
+     STEER: [
+       { name: "SteerActuatorDelay", title: "조향 지연", etitle: "Steer delay" },
+@@ -39,13 +39,13 @@
+ });
+ 
+ const PROFILES = Object.freeze([
+-  { id: "p1", name: "고속도로", values: { SteerActuatorDelay: 30, ApplyModelSpeed: 0, DriverMonitoringEnabled: 0 } },
++  { id: "p1", name: "고속도로", values: { SteerActuatorDelay: 30, ApplyModelSpeed: 0, NNFF: 0 } },
+ ]);
+ 
+ function createModel(overrides = {}) {
+   return createSettingsDerivedModel({
+     catalog: CATALOG,
+-    favorites: ["ApplyModelSpeed", "DriverMonitoringEnabled", "Missing"],
++    favorites: ["ApplyModelSpeed", "NNFF", "Missing"],
+     profiles: PROFILES,
+     language: "ko",
+     labels: { favorites: "즐겨찾기", profiles: "프로필" },
+@@ -189,14 +189,14 @@
+   assert.equal(profile.group, model.profileGroup("p1"));
+   assert.equal(profile.originalGroup, "SPEED");
+   assert.equal(profile.contextLabel.startsWith("고속도로 / "), true);
+-  const searchOnly = entries.find((entry) => entry.name === "DriverMonitoringEnabled");
++  const searchOnly = entries.find((entry) => entry.name === "NNFF");
+   assert.equal(searchOnly.source, "carrot");
+   assert.equal(searchOnly.detailParent, "");
+   assert.equal(searchOnly.searchOnly, true);
+   assert.equal(carrot.searchOnly, false);
+   assert.deepEqual(
+-    model.searchItemEntries("driver monitoring").entries.map((entry) => entry.item.name),
+-    ["DriverMonitoringEnabled"],
++    model.searchItemEntries("nnff").entries.map((entry) => entry.item.name),
++    ["NNFF"],
+   );
+ });
+ 

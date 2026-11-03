@@ -105,6 +105,8 @@ def test_prepared_transfer_preserves_controls_and_recurrent_state():
   runtime.compact = np.zeros(512 + images.size, np.uint8)
   runtime.host = runtime.compact
   calls = []
+  stages = []
+  runtime.progress = stages.append
   runtime.prepare_images = lambda: images
   def upload(host):
     assert host.size == 393728
@@ -112,9 +114,11 @@ def test_prepared_transfer_preserves_controls_and_recurrent_state():
     np.testing.assert_array_equal(host[512:], images.reshape(-1))
     calls.append('upload')
   runtime.device_buffer = SimpleNamespace(copy_from=upload)
+  runtime.copy_inputs = lambda: runtime.device_buffer.copy_from(runtime.host)
   state = np.zeros(1)
   runtime.queues = {'new_img': object(), 'state': state}
   runtime.outputs = {'next_state': state, 'outputs': SimpleNamespace(numpy=lambda: np.array([[1., 2.]], np.float32))}
+  runtime.copy_outputs = lambda: runtime.outputs['outputs']
   def model(output_buffers, **inputs):
     assert inputs['state'] is output_buffers['next_state']
     assert inputs['new_img'] is runtime.queues['new_img']
@@ -125,6 +129,7 @@ def test_prepared_transfer_preserves_controls_and_recurrent_state():
     np.testing.assert_array_equal(runtime.run(), [1, 2])
   assert state[0] == 2
   assert calls == ['upload', 'model', 'upload', 'model']
+  assert stages == ['local_prepare', 'input_upload', 'model_call', 'output_read'] * 2
   assert runtime.last_timings['local_prepare_ms'] >= 0
   assert runtime.last_timings['input_upload_ms'] >= 0
 

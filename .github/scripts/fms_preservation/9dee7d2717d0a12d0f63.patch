@@ -1,0 +1,29 @@
+--- a/openpilot/selfdrive/ui/tests/test_overlay_cache.py
++++ b/openpilot/selfdrive/ui/tests/test_overlay_cache.py
+@@ -238,3 +238,26 @@
+     assert len(draws) == before
+     assert renderer._cruise_speed_animation_time == 0
+   assert midpoints[0] == midpoints[1]
++
++
++@pytest.mark.parametrize('family,model_name', [('onroad', 'model_renderer'), ('mici/onroad', '_model_renderer')])
++def test_road_view_close_preserves_legacy_driver_state_and_releases_both_layers(family, model_name):
++  source = Path(__file__).parents[1] / family / 'augmented_road_view.py'
++  tree = ast.parse(source.read_text(encoding='utf8'))
++  cls = next(n for n in tree.body if isinstance(n, ast.ClassDef) and n.name == 'AugmentedRoadView')
++  method = next(n for n in cls.body if isinstance(n, ast.FunctionDef) and n.name == 'close')
++  calls = []
++  class CameraBase:
++    def close(self):
++      calls.append('camera')
++  shell = ast.ClassDef(name='AugmentedRoadView', bases=[ast.Name(id='CameraBase', ctx=ast.Load())],
++                       keywords=[], body=[method], decorator_list=[], type_params=[])
++  namespace = {'CameraBase': CameraBase}
++  exec(compile(ast.fix_missing_locations(ast.Module(body=[shell], type_ignores=[])), str(source), 'exec'), namespace)
++  view = namespace['AugmentedRoadView']()
++  setattr(view, model_name, SimpleNamespace(_overlay=SimpleNamespace(close=lambda: calls.append('model'))))
++  view._hud_renderer = SimpleNamespace(_overlay=SimpleNamespace(close=lambda: calls.append('hud')))
++  # Legacy DMoji has no close(): no new DriverPreview dependency is permitted.
++  view.driver_state_renderer = view._driver_state_renderer = object()
++  view.close()
++  assert calls == ['model', 'hud', 'camera']

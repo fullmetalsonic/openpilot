@@ -1,0 +1,11 @@
+--- a/openpilot/selfdrive/carrot/server/features/params.py
++++ b/openpilot/selfdrive/carrot/server/features/params.py
+@@ -84,7 +84,7 @@
+   if not name:
+     return web.json_response({"ok": False, "error": "missing name"}, status=400)
+   if name in INTERNAL_SESSION_PARAMS:
+-    return web.json_response({"ok": False, "error": "driver monitoring is controlled by the vehicle CANCEL gesture"}, status=403)
++    return web.json_response({"ok": False, "error": "parameter is controlled internally"}, status=403)
+ 
+   # clamp using settings if numeric
+   p = None

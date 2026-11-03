@@ -1508,3 +1508,25 @@ msgstr "업데이트 적용을 위해 재부팅하세요"
 #: openpilot/selfdrive/selfdrived/events.py
 msgid "Park safely before rebooting your device"
 msgstr "안전한 곳에 주차한 뒤 재부팅하세요"
+
+
+
+#: openpilot/selfdrive/ui/impact_dashcam.py
+msgid "Impact suspected"
+msgstr "충격 의심 감지"
+
+#: openpilot/selfdrive/ui/impact_dashcam.py
+msgid "Dashcam mode: reboot in {seconds}s"
+msgstr "Dashcam 모드: {seconds}초 후 재부팅"
+
+#: openpilot/selfdrive/ui/impact_dashcam.py
+msgid "Touch anywhere to cancel"
+msgstr "화면 어디든 터치하면 취소"
+
+#: openpilot/selfdrive/selfdrived/events.py
+msgid "Rebooting into Dashcam Mode"
+msgstr "Dashcam 모드로 재부팅 중"
+
+#: openpilot/selfdrive/ui/impact_dashcam.py
+msgid "openpilot disabled"
+msgstr "openpilot 사용 꺼짐"

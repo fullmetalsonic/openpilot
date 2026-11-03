@@ -1,0 +1,14 @@
+--- a/.gitattributes
++++ b/.gitattributes
+@@ -1,4 +1,11 @@
+ * text=auto -filter
++
++# Unified patch context includes intentional blank-space records, not source whitespace.
++.github/scripts/*.patch whitespace=-blank-at-eol,-blank-at-eof text eol=lf
++.github/scripts/fms_preservation/*.patch whitespace=-blank-at-eol,-blank-at-eof text eol=lf
++.github/scripts/fms_preservation/*.blob text eol=lf
++.github/scripts/apply_carrot_user_patches.py text eol=lf
++.github/scripts/fms_integration_manifest.json text eol=lf
+ 
+ # Offline bootstrap payloads must match Linux image bytes on every workstation.
+ tools/jetlink/*.py text eol=lf

@@ -1,0 +1,87 @@
+--- a/openpilot/selfdrive/carrot/server/tests/test_settings_schema.py
++++ b/openpilot/selfdrive/carrot/server/tests/test_settings_schema.py
+@@ -284,36 +284,22 @@
+   assert '{"UseWideCamera", {PERSISTENT, BOOL, "1"}}' in params_keys
+ 
+ 
+-def test_driver_monitoring_setting_is_default_on_search_only_and_session_state_is_internal(settings, params):
+-  by_name = {p["name"]: p for p in params}
+-  enabled = by_name["DriverMonitoringEnabled"]
+-  assert (enabled["min"], enabled["max"], enabled["default"]) == (0, 1, 1)
+-  assert enabled["control"] == "toggle"
+-  assert enabled["risk"] == "high"
+-  assert enabled["search_only"] is True
+-  assert "DM 카메라" in enabled["descr"] and "법규" in enabled["descr"]
+-  assert "DM camera" in enabled["edescr"] and "laws" in enabled["edescr"]
+-  assert "DriverMonitoringSessionDisabled" not in by_name
+-
++def test_legacy_driver_monitoring_is_restart_setting_in_menu(settings, params):
++  by_name = {p["name"]: p for p in params}
++  dm = by_name["DisableDM"]
++  assert (dm["min"], dm["max"], dm["default"], dm["unit"]) == (0, 2, 0, 1)
++  assert "reboot" in dm["descr"].lower()
++  for name in ("DriverMonitoringEnabled", "DriverMonitoringSessionDisabled", "DriverMonitoringMode", "CarrotVisionEnabled"):
++    assert name not in by_name
+   vehicle = next(category for category in settings["menu"] if category["id"] == "VEHICLE")
+   driver_monitoring = next(group for group in vehicle["groups"] if group["id"] == "VEH_DM")
+-  assert driver_monitoring["params"][:2] == ["DriverMonitoringEnabled", "DriverMonitoringMode"]
+-
++  assert driver_monitoring["params"] == ["DisableDM", "MuteDoor", "MuteSeatbelt"]
+   groups, indexed, _ = group_index(settings)
+-  categories = build_menu_categories(settings, indexed)
+-  driver_monitoring_view = next(
+-    group for category in categories for group in category["groups"] if group["id"] == "VEH_DM"
+-  )
+-  assert "DriverMonitoringEnabled" in driver_monitoring_view["sections"][0]["items"]
+-  assert driver_monitoring_view["count"] == sum(
+-    1 for name in driver_monitoring["params"]
+-    if not indexed[name].get("detail_parent") and not indexed[name].get("search_only")
+-  )
+-  assert enabled in groups[enabled["group"]]
+-
+-  params_keys = PARAMS_KEYS_PATH.read_text(encoding="utf-8")
+-  assert '{"DriverMonitoringEnabled", {PERSISTENT, BOOL, "1"}}' in params_keys
+-  assert '{"DriverMonitoringSessionDisabled", {CLEAR_ON_MANAGER_START | CLEAR_ON_IGNITION_ON, BOOL}}' in params_keys
++  view = next(group for category in build_menu_categories(settings, indexed)
++              for group in category["groups"] if group["id"] == "VEH_DM")
++  assert view["count"] == 3
++  assert dm in groups[dm["group"]]
++  assert [p["name"] for p in params if p.get("search_only")] == ["NNFF"]
+ 
+ 
+ def test_vehicle_navi_can_control_exposes_route_filter_modes(settings, params):
+@@ -633,3 +619,34 @@
+       assert item['min'] == item['default'] == 0
+       assert 0 < item['nonzero_min'] <= item['max']
+       assert set(item['zero_label']) == {'ko', 'en', 'zh'}
++
++
++def test_paddle_mode_four_uses_common_dropdown_and_restart_description(params):
++  paddle = next(p for p in params if p["name"] == "PaddleMode")
++  assert (paddle["min"], paddle["max"], paddle["default"], paddle["unit"]) == (0, 4, 1, 1)
++  assert "control" not in paddle  # Five options use the common select rule.
++  assert "재시작" in paddle["descr"] and "주행 중" in paddle["descr"]
++  assert "restart" in paddle["edescr"] and "重启" in paddle["cdescr"]
++
++
++def test_selected_lever_settings_are_exposed_with_upstream_defaults(settings, params):
++  by_name = {p["name"]: p for p in params}
++  turn = by_name["BlinkerLatchedTurn"]
++  wait = by_name["LaneChangeLeverWait"]
++  assert (turn["min"], turn["max"], turn["default"], turn["unit"]) == (0, 80, 0, 5)
++  assert turn["display_unit"] == "speedKph"
++  assert (wait["min"], wait["max"], wait["default"], wait["control"]) == (0, 1, 0, "toggle")
++  registered = PARAMS_KEYS_PATH.read_text(encoding="utf-8")
++  assert '{"BlinkerLatchedTurn", {PERSISTENT, INT, "0"}}' in registered
++  assert '{"LaneChangeLeverWait", {PERSISTENT, BOOL, "0"}}' in registered
++
++
++def test_nnff_is_search_only_and_does_not_inflate_menu_counts(settings, params):
++  groups, by_name, group_list = group_index(settings)
++  assert by_name["NNFF"]["search_only"] is True
++  assert by_name["NNFF"]["default"] == 0
++  category_list = build_menu_categories(settings, by_name)
++  assert sum(group["count"] for cat in category_list for group in cat["groups"]) == sum(
++    not p.get("search_only") and not p.get("detail_parent") for p in params)
++  assert sum(group["count"] for group in group_list) == sum(
++    not p.get("search_only") and not p.get("detail_parent") for p in params)
