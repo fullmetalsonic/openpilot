@@ -8,7 +8,7 @@
  from opendbc.car.hyundai.steering_handover import SteeringHandover
  from opendbc.car.carlog import carlog
  from opendbc.car.hyundai.hyundaicanfd import CanBus
-@@ -187,7 +188,8 @@
+@@ -189,7 +190,8 @@
      self.accel_last = 0
      self.accel_value_last = 0.0
      self.display_lead_lateral = hyundaicanfd.DisplayLeadLateralFilter()
@@ -18,7 +18,7 @@
                             if CP.flags & HyundaiFlags.CANFD and CP.openpilotLongitudinalControl else None)
      self.apply_torque_last = 0
      self.car_fingerprint = CP.carFingerprint
-@@ -240,9 +242,20 @@
+@@ -245,9 +247,20 @@
      self.is_ldws_car = Params().get_bool("IsLdwsCar")
      self.enable_corner_radar = 0
      self.paddle_mode = Params().get_int("PaddleMode")
@@ -39,7 +39,7 @@
  
    def update(self, CC, CS, now_nanos):
  
-@@ -528,6 +541,9 @@
+@@ -533,6 +546,9 @@
  
      # *** common hyundai stuff ***
  
@@ -47,9 +47,9 @@
 +    blinker_hold = self.blinker_hold.update(CS.modelV2, CS.out, CC.latActive) if self.CP.flags & HyundaiFlags.CANFD else 0
 +
      # tester present - w/ no response (keeps relevant ECU disabled)
-     if self.frame % 100 == 0 and not (self.CP.flags & HyundaiFlags.CANFD_CAMERA_SCC) and self.CP.openpilotLongitudinalControl:
-       # for longitudinal control, either radar or ADAS driving ECU
-@@ -562,8 +578,6 @@
+     if (self.frame % 100 == 0 and not (self.CP.flags & HyundaiFlags.CANFD_CAMERA_SCC) and
+         self.CP.openpilotLongitudinalControl and self.pedal_interceptor is None):
+@@ -568,8 +584,6 @@
            suppress_camera_auto_disengage=bool(camera_scc and self.car_fingerprint in (
              CAR.GENESIS_GV70_1ST_GEN, CAR.KIA_SORENTO_HEV_4TH_GEN,
            )),
@@ -58,7 +58,7 @@
          ))
          if not camera_scc:
            can_sends.extend(hyundaicanfd.create_lfa_icon_non_camera_scc(self.packer, CS, self.CAN, CC))
-@@ -578,12 +592,14 @@
+@@ -584,12 +598,14 @@
          hud_lateral = self.display_lead_lateral.update(getattr(CS, "radarState", None), getattr(CS, "modelV2", None))
          self.hyundai_jerk.make_jerk(self.CP, CS, accel, actuators, hud_control)
          self.hyundai_jerk.check_carrot_cruise(CC, CS, hud_control, stopping, accel, actuators.aTarget)
@@ -74,7 +74,7 @@
            ))
            if hda2:
              can_sends.extend(hyundaicanfd.create_adrv_messages(self.CP, self.packer, self.CAN, self.frame))
-@@ -594,6 +610,7 @@
+@@ -600,6 +616,7 @@
              msg, self.accel_value_last = hyundaicanfd.create_acc_control_scc2(
                self.packer, self.CAN, CC.enabled, self.accel_value_last, accel, stopping, CC.cruiseControl.override,
                set_speed_in_units, hud_control, self.hyundai_jerk, CS, self.canfd_stopping, hud_lateral=hud_lateral,
@@ -82,7 +82,7 @@
              )
              if msg is not None:
                can_sends.append(msg)
-@@ -620,8 +637,7 @@
+@@ -626,8 +643,7 @@
            can_sends.append(hyundaican.create_lkas11(self.packer, self.frame, self.CP, apply_torque, apply_steer_req,
                                                      torque_fault, CS.lkas11, sys_warning, sys_state, CC.enabled,
                                                      hud_control.leftLaneVisible, hud_control.rightLaneVisible,

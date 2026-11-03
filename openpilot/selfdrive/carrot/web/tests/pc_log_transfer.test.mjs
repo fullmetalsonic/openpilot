@@ -1,6 +1,18 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import test from "node:test";
 import { createPcLogApi, createPhoneRelay, pcLogProgress, pcLogQueueStatus, pcLogSelection, validatePcState } from "../src/features/logs/pc_transfer.js";
+
+test("packaged logs assets include the PC transfer button handler and dialog styles", () => {
+  const asset = (path) => readFileSync(new URL(path, import.meta.url), "utf8");
+  const page = asset("../index.html");
+  assert.match(page, /id="pcLogTransferButton"/);
+  assert.match(page, /src="\/js\/generated\/logs\.js"/);
+  const bundle = asset("../js/generated/logs.js");
+  assert.ok(bundle.includes("pcLogTransferButton"), "generated logs.js is missing the PC transfer button handler");
+  assert.ok(bundle.includes("/api/dashcam/pc-transfer"), "generated logs.js is missing the PC transfer API");
+  assert.ok(asset("../css/generated/logs.css").includes(".pc-log-dialog"), "generated logs.css is missing the PC transfer dialog");
+});
 
 test("selection is explicit and empty selection means the complete latest route", () => {
   assert.deepEqual(pcLogSelection(), { scope: "latest_route" });

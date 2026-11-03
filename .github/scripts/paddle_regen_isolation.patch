@@ -109,7 +109,7 @@ diff --git a/opendbc_repo/opendbc/car/hyundai/carstate.py b/opendbc_repo/opendbc
  from opendbc.car.hyundai.rear_gap import tbt_bsd_inputs
  from opendbc.car.hyundai.lane_line_time import lane_line_time
  from opendbc.car.hyundai.vehicle_gps import VehicleGPS, register_vehicle_gps
-@@ -214,7 +214,6 @@
+@@ -217,7 +217,6 @@
      self.tcs = None
      self.mdps = None
      self.steer_touch_2af = None
@@ -117,7 +117,7 @@ diff --git a/opendbc_repo/opendbc/car/hyundai/carstate.py b/opendbc_repo/opendbc
      self.vehicle_gps = VehicleGPS()
      self.cruise_buttons_msg = None
      self.cam_0x362 = None
-@@ -288,6 +287,8 @@
+@@ -294,6 +293,8 @@
      self.ACCMode = 0
      self.LFA_ICON = 0
      self.paddle_button_prev = 0
@@ -126,7 +126,7 @@ diff --git a/opendbc_repo/opendbc/car/hyundai/carstate.py b/opendbc_repo/opendbc
      self.canfdOemBrakeHoldLatched = False
      self.canfdAvhReleaseGraceFrames = 0
  
-@@ -1314,7 +1315,6 @@
+@@ -1344,7 +1345,6 @@
      cp_alt = can_parsers[Bus.alt] if Bus.alt in can_parsers else None
  
      ret = structs.CarState()
@@ -134,7 +134,7 @@ diff --git a/opendbc_repo/opendbc/car/hyundai/carstate.py b/opendbc_repo/opendbc
  
      if self.CP.extFlags & HyundaiExtFlags.EV_MODE_STATUS_230:
        ret.evModeActive, ret.evModeValid = _get_ev_mode_state(cp)
-@@ -1622,8 +1622,16 @@
+@@ -1652,8 +1652,16 @@
        *create_button_events(self.main_buttons[-1], prev_main_buttons, {1: ButtonType.mainCruise})]), speedcam_decel_long_press)
  
      self.paddle_button_prev = paddle_button
