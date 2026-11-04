@@ -28,7 +28,7 @@
      self.canfdOemBrakeHoldLatched = False
      self.canfdAvhReleaseGraceFrames = 0
  
-@@ -1344,7 +1345,6 @@
+@@ -1346,7 +1347,6 @@
      cp_alt = can_parsers[Bus.alt] if Bus.alt in can_parsers else None
  
      ret = structs.CarState()
@@ -36,7 +36,7 @@
  
      if self.CP.extFlags & HyundaiExtFlags.EV_MODE_STATUS_230:
        ret.evModeActive, ret.evModeValid = _get_ev_mode_state(cp)
-@@ -1652,8 +1652,16 @@
+@@ -1654,8 +1654,16 @@
        *create_button_events(self.main_buttons[-1], prev_main_buttons, {1: ButtonType.mainCruise})]), speedcam_decel_long_press)
  
      self.paddle_button_prev = paddle_button

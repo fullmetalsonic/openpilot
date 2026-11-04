@@ -1,5 +1,17 @@
 # FMS 최신 원본 통합과 개인 기능 계약
 
+## 2026-11-04 SCC MAIN 상태 분리 — 원본4b155d9 로컬 후보
+
+게시 Git 부모는 `3e02473cbcbd1a270eee5476261c3a220b0a0dce`, 소스·helper 재구성 기준은 `4b155d9e385195409e3928c138e457985a9ce06f`다. 원본의 바로 다음 SCC 수정1커밋을 접합하며 개인 기능7개·공통보호·원본 앞차 정차/재출발과 실제 PC 로그 배포 번들을 유지한다. 커밋·푸시·기기·설정·안정판·예약 변경은 하지 않는다.
+
+- 계기판용 자동 순정 MAIN은 원본 조건대로 MQ4에도 요청한다. 기존 MQ4 OFF/대기 송신 차단 예외를 제거하고 CameraSCC+OP-long의 OEM MAIN 상태를 운전자 main_enabled에 복사하지 않는 원본 수신 분리로 대체한다. MAIN 요청은 SET/RES/ENABLE을 의미하지 않는다.
+- AutoEngage0/1/2 초기화와 실제 MAIN/RES/SET·LFA 조작을 보존한다. OEM MAIN 토글만으로 cruiseState.available·latEnabled·activateCruise를 만들지 않는다. 운전자 CANCEL 뒤 OEM MAIN 응답이나 지연 입력으로 자동 ON/RES하지 않으며, 독립 SoftHold의 실제 StopReq와 페달/주차/무효 인터록 및 정상 ACC 출력은 기존 계약대로다.
+- 모드4는 실제 ON/longActive에서만 gap을 바꾸고 OFF/대기/CANCEL/독립hold에서는 회생용 패들로 gap을 저장하지 않는다. 자동 MAIN의 CAM·Panda TX 반환 버스를 실제 ECAN 운전자 버튼과 구분한다. 현장 ECU의 별도 재방송·회생 단계·계기판 표시와 실제 제동은 호스트 검사와 구분한다.
+- 공통 CANCEL 우선: 같은 CAN batch 또는 CANCEL 추적 중 패들 press가 버튼 count/선택을 덮어쓰지 않도록 한다. 실제 CANCEL→패들 순서와 역순, release와 겹친 입력도 보호하며 CancelButtonMode0의 짧게 조향 유지/길게 해제와 mode1의 짧게·길게 해제를 보존한다. 이는 기존3e02473에서도 재현된 조향 해제 누락을 고치는 좁은 수리이며 SoftHold·자동 재ON·패들 단독0~4 정책을 새로 정의하지 않는다.
+- 원본9/368검사 기록은 원본 작성자의 환경 결과이며 FMS PASS가 아니다. FMS 실행 범위·최초 재구성·멱등성·한계는 프로젝트 운영로그의4b155d9절을 따른다. 주행 로그 목록 누락 신고는 별도 미해결 진단이며 이번 SCC 수정으로 해결됐다고 표현하지 않는다.
+
+아래 MQ4 자동 MAIN 제외와14c/ed7 부모·검증 표시는 당시 이력이다. 이후 갱신은 이 상태 분리를 보존하고 이전 차종 차단 예외를 자동 복원하지 않는다.
+
 ## 2026-11-04 원본14c5398 기준
 
 소스·재구성 기준은 `14c5398fca00d298c2791ecf43f46b3e3fd6cc38`이고 Git 부모는 게시 `eddd0cbe4fc6be91e3cb19562e5b3575157ada98`다. 원본 ed7fe4a 이후 13커밋·27경로를 통합하고 아래 7개 개인 기능과 공통 보호를 유지한다. 로컬 통합과 게시를 구분한다.

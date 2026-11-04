@@ -1,5 +1,11 @@
 # CarrotPilot 제품 작업 지침
 
+## 2026-11-04 SCC MAIN 상태 분리 로컬 후보 — 4b155d9
+
+사용자는 게시 WIP3e02473 위에 원본4b155d9를 적용하고 기존 MQ4 MAIN 차단 예외를 재검토하되 개인7개와 SoftHold/CANCEL/패들을 검증하도록 승인했다. 커밋·푸시·기기/Params·안정판·예약 변경은 승인하지 않았다. 소스와 helper 재구성 기준은 `4b155d9e385195409e3928c138e457985a9ce06f`다. 뒤의 B1 조립 문서2커밋은 이번 범위가 아니다.
+
+CameraSCC+OP-long에서 계기판용 OEM MainMode_ACC를 운전자의 main_enabled로 복사하지 않는 원본 수신 수정을 적용하고 MQ4 송신부의 OFF/대기 차종 제외 한 줄을 제거한다. AutoEngage 초기화·실제 MAIN/RES/SET/LFA·CANCEL latch·독립hold·패들 자격은 유지한다. 자동 CAM/TX 버튼과 ECAN 물리 버튼을 구분하고 상태 수신→VCruise→조향 허용·양 CANFD 정차·패들 경계를 확인한다. 교차검사에서 발견한 기존 CANCEL/패들 동시입력의 버튼 추적 덮어쓰기도 좁게 수리한다. 진행 중/동일 batch CANCEL을 패들 press로 지우지 않아 CancelButtonMode0/1의 짧음/길게 조향 정책을 유지한다. 개인기능8개로 늘리는 변경이 아니라 공통 CANCEL 우선 보호다. 로컬 검사 결과와 실제 미실행 범위는 외부 운영로그 최신 절을 따른다. 아래 MQ4 예외는 이전 시점이며 이번 후보에 되살리지 않는다.
+
 ## 2026-11-04 WIP 원본14c5398 로컬 통합
 
 선택 원본·검토 끝·helper 재구성은 `14c5398fca00d298c2791ecf43f46b3e3fd6cc38`, Git 부모는 게시 WIP `eddd0cbe4fc6be91e3cb19562e5b3575157ada98`다. 개인 기능 7개·공통 보호·원본 앞차 기능과 실제 로그 배포 JS/CSS/manifest를 유지한다. 이번 범위는 로컬 통합과 검증이며 새 커밋·푸시와 기기 설치는 별도 요청을 따른다. 아래 이전 SHA/게시 문구는 당시 기록이다.
@@ -170,6 +176,19 @@ Upstream history below is evidence of its own policy
 and field observations, not permission to replace these FMS contracts.
 
 # Repository memory
+
+- On 2026-11-04, owner reports unintended steering with AutoEngage0 after the
+  Nov3 isolated stock MAIN change. Confirmed source chain OEM MainMode_ACC ->
+  main_enabled -> cruiseState.available rising -> VCruiseCarrot latEnabled ->
+  AlwaysLateral. Nov3 packet tests missed this driver-intent feedback path.
+  CameraSCC+openpilotLong now excludes OEM MAIN feedback from driver's main state;
+  AutoEngage init and physical MAIN/RES/SET still own that state. LFA off survives
+  OEM transitions. Generic cruise/controller/Panda and stock-long paths unchanged.
+  Production helper+full cruise+lateral-gate regression old7fail/2pass, new9pass;
+  combined368 desktop pass. UTF8 required for pre-existing VW metadata reads on
+  Windows. No live vehicle writes or individual complaint log validation.
+  GitPull/comma restart. See docs/ev5_cluster_corner_display.md correction.
+
 
 - On 2026-10-17, user requested central-priority signal improvement and historical
   validation. Offline 122 segments/56,612 observations: any-colour peripheral

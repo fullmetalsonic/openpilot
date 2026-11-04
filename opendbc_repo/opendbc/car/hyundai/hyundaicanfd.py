@@ -1023,10 +1023,8 @@ def create_ccnc_messages(CP, packer, CAN, frame, CC, CS, hud_control,
   if CP.flags & HyundaiFlags.CAMERA_SCC.value:
     # The camera's SCC output is replaced only with openpilot longitudinal control.
     # Keep its MAIN available for OEM display objects independently of engagement.
-    # On the FMS Sorento, OEM MAIN feedback would otherwise arm cruise while off.
     keep_stock_scc_main = (
       getattr(CP, "openpilotLongitudinalControl", False) and enable_corner_radar > 0
-      and getattr(CP, "carFingerprint", "") != CAR.KIA_SORENTO_HEV_4TH_GEN
       and CS.scc_control is not None and CS.lfahda_cluster is not None
       and CS.out.canValid and CS.out.gearShifter == "drive"
       and math.isfinite(CS.out.vEgo) and CS.out.vEgo > 3. and not CS.out.brakePressed and not interlock_active

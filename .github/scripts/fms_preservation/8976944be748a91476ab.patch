@@ -57,7 +57,7 @@
    helper._cruise_ready = helper._paddle_decel_active = helper.carrot_cruise_active = True
    CS.buttonEvents = [{'type': physical, 'pressed': False}]
    assert helper._update_cruise_buttons(CS, CC, 80) == (70 if physical == 'setCruise' else 80)
-@@ -294,6 +303,46 @@
+@@ -294,6 +303,90 @@
    assert not helper._paddle_decel_active
    assert not helper.carrot_cruise_active
    assert helper._lat_enabled
@@ -94,6 +94,50 @@
 +  assert helper._soft_hold_active==2
 +
 +
++@pytest.mark.parametrize("mode", (0, 1))
++@pytest.mark.parametrize("paddle_mode", range(5))
++@pytest.mark.parametrize("long_press", (False, True))
++@pytest.mark.parametrize("press_reverse", (False, True))
++@pytest.mark.parametrize("release_reverse", (False, True))
++def test_cancel_tracking_survives_paddles_in_either_batch_order(mode, paddle_mode, long_press,
++                                                               press_reverse, release_reverse):
++  helper, CS, CC = make_remote_helper(None, enabled=True)
++  helper._cancel_button_mode = mode
++  helper._paddle_mode = paddle_mode
++  helper._lat_enabled = True
++  helper._soft_hold_active = 2
++  helper.autoCruiseControl = 0
++  helper.autoCruiseControl_cancel_timer = 1000
++  for frame in range(83 if long_press else 1):
++    if frame == 0:
++      events = [("cancel", True), ("paddleLeft", True)]
++      if press_reverse:
++        events.reverse()
++    elif frame == 40:
++      events = [("paddleLeft", False), ("paddleRight", True)]
++    else:
++      events = []
++    CS.buttonEvents = [{"type": name, "pressed": pressed} for name, pressed in events]
++    assert helper._update_cruise_buttons(CS, CC, 80, paddle_cancel_seen=True) == 80
++    assert helper._activate_cruise == -1 and helper._cruise_cancel_state
++    assert helper._soft_hold_active == 2
++  events = [("cancel", False), ("paddleLeft", True)]
++  if release_reverse:
++    events.reverse()
++  CS.buttonEvents = [{"type": name, "pressed": pressed} for name, pressed in events]
++  assert helper._update_cruise_buttons(CS, CC, 80) == 80
++  assert helper._lat_enabled == (mode == 0 and not long_press)
++  assert helper._cruise_cancel_state and helper._soft_hold_active == 2
++  assert not helper._paddle_decel_active and not helper._cruise_ready and not helper.carrot_cruise_active
++  assert helper.button_cnt == 0
++  helper._activate_cruise = 0
++  CC.enabled = False
++  CS.buttonEvents = [{"type": "paddleLeft", "pressed": False}]
++  assert helper._update_cruise_buttons(CS, CC, 80) == 80
++  assert helper._activate_cruise == 0 and helper._cruise_cancel_state
++  assert not helper._paddle_decel_active and not helper._cruise_ready
++
++
 +def test_raw_batch_cancel_does_not_add_pcm_activation_policy():
 +  helper,CS,CC=make_remote_helper(None,enabled=True)
 +  helper.CP.pcmCruise=True
@@ -104,7 +148,7 @@
  
  
  @pytest.mark.parametrize('physical,expected', [('setCruise', 70), ('resumeCruise', 95)])
-@@ -343,6 +392,8 @@
+@@ -343,6 +436,8 @@
      helper._activate_cruise = -1
    helper._update_cruise_buttons(CS, CC, 80)
    assert helper._activate_cruise <= 0
@@ -113,7 +157,7 @@
  
  
  @pytest.mark.parametrize('block', [None, 'doorOpen', 'seatbeltUnlatched', 'accFaulted'])
-@@ -481,7 +532,7 @@
+@@ -481,7 +576,7 @@
    assert helper._activate_cruise == expected_activate
  
  
@@ -122,7 +166,7 @@
    helper = VCruiseCarrot.__new__(VCruiseCarrot)
    helper.CP = SimpleNamespace(pcmCruise=False)
    helper.autoCruiseControl = 1
-@@ -509,15 +560,12 @@
+@@ -509,15 +604,12 @@
    )
    helper._prepare_brake_gas(CS, car.CarControl(enabled=False))
  
@@ -144,7 +188,7 @@
    helper = VCruiseCarrot.__new__(VCruiseCarrot)
    helper.CP = SimpleNamespace(pcmCruise=False)
    helper.autoCruiseControl = 1
-@@ -545,8 +593,8 @@
+@@ -545,8 +637,8 @@
    )
    helper._prepare_brake_gas(CS, car.CarControl(enabled=False))
  
@@ -155,7 +199,7 @@
  
  
  @pytest.mark.parametrize(("soft_hold_on_cancel", "expected_count", "expected_active"), [
-@@ -585,7 +633,7 @@
+@@ -585,7 +677,7 @@
    assert helper._soft_hold_active == expected_active
  
  
@@ -164,7 +208,7 @@
    helper = VCruiseCarrot.__new__(VCruiseCarrot)
    helper._cruise_available = True
    helper._hold_interlock_active = False
-@@ -603,7 +651,155 @@
+@@ -603,7 +695,155 @@
  
    assert helper._soft_hold_active == 2
    assert helper._cruise_cancel_state
@@ -321,7 +365,7 @@
  
  
  @pytest.mark.parametrize(("cancel_state", "expected_activate"), [
-@@ -708,3 +904,70 @@
+@@ -708,3 +948,70 @@
    helper.params = SimpleNamespace(get_int=values.__getitem__, put_int_nonblocking=values.__setitem__)
    helper._update_cruise_buttons(CS, CC, 80)
    assert values == {"MyDrivingMode": 1, "LongitudinalPersonality": 1}

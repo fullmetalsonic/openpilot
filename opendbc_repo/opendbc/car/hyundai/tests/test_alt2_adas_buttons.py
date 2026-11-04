@@ -112,7 +112,7 @@ def test_ccnc_routes_button_request_to_observed_format(monkeypatch, alt2):
 
 
 def cluster_main_request(monkeypatch, *, alt2=True, longitudinal=True, corner=2,
-                         camera=True, main=False, mode=0, driver=None, fingerprint=CAR.KIA_EV5,
+                         camera=True, main=False, mode=0, driver=None, fingerprint=CAR.KIA_SORENTO_HEV_4TH_GEN,
                          enabled=False, available=False, **out_values):
   from opendbc.car import structs
   from opendbc.can.parser import get_raw_value
@@ -159,11 +159,11 @@ def cluster_main_request(monkeypatch, *, alt2=True, longitudinal=True, corner=2,
 @pytest.mark.parametrize("alt2", (False, True))
 @pytest.mark.parametrize("fingerprint,enabled,available,wakes", (
   (CAR.KIA_EV5, False, False, True),
-  (CAR.KIA_SORENTO_HEV_4TH_GEN, False, False, False),
-  (CAR.KIA_SORENTO_HEV_4TH_GEN, False, True, False),
+  (CAR.KIA_SORENTO_HEV_4TH_GEN, False, False, True),
+  (CAR.KIA_SORENTO_HEV_4TH_GEN, False, True, True),
   (CAR.KIA_SORENTO_HEV_4TH_GEN, True, True, True),
 ))
-def test_cluster_main_respects_fms_sorento_engagement(monkeypatch, alt2, fingerprint, enabled, available, wakes):
+def test_cluster_main_display_request_is_independent_of_fms_engagement(monkeypatch, alt2, fingerprint, enabled, available, wakes):
   frames = cluster_main_request(monkeypatch, alt2=alt2, fingerprint=fingerprint, enabled=enabled, available=available)
   if alt2:
     asserted = [frame for frame, values in frames if values["CRUISE_BUTTONS"] == 8]

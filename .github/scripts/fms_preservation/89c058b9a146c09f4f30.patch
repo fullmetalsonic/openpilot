@@ -62,7 +62,22 @@
      pcm_speed = self.toyota_pcm_speed_sync.update(
        self.CP, self.speed_from_pcm, CS,
        local_changed=abs(v_cruise_kph - prior_cruise_kph) > 1e-3,
-@@ -566,18 +573,64 @@
+@@ -459,10 +466,14 @@
+       if self.button_prev in [ButtonType.accelCruise, ButtonType.decelCruise] and CS.cruiseSpeedBigStep:
+         self.button_big_step = True
+ 
++    cancel_pending = any(b.type == ButtonType.cancel for b in buttonEvents) or (
++      self.button_cnt > 0 and self.button_prev == ButtonType.cancel)
+     for b in buttonEvents:
+       bt = b.type
+ 
+       if bt in [ButtonType.paddleLeft, ButtonType.paddleRight] and b.pressed:
++        if cancel_pending:
++          continue  # A paddle must not erase CANCEL tracking or its release policy.
+         # Paddle: 즉시 이벤트 발생
+         button_type = bt
+         self.long_pressed = False
+@@ -566,18 +577,64 @@
      
      return v_cruise_kph, button_type, long_pressed
  
@@ -131,7 +146,7 @@
  
      if button_type in [ButtonType.accelCruise, ButtonType.decelCruise, ButtonType.setCruise, ButtonType.resumeCruise]:
        self._paddle_decel_active = False
-@@ -667,11 +720,17 @@
+@@ -667,11 +724,17 @@
          gap_levels = cruise_gap_levels(self.params.get_int("CruiseGapLevels"), longitudinalPersonalityMax)
          if not self.CP.openpilotLongitudinalControl:
            gap_levels = longitudinalPersonalityMax
@@ -151,7 +166,7 @@
          #self.events.append(EventName.personalityChanged)
        elif button_type == ButtonType.lfaButton:
          if self._lfa_button_mode == 0:
-@@ -720,6 +779,10 @@
+@@ -720,6 +783,10 @@
      elif remote == 'paddleDecel':
        self._cruise_control(-2, -1, "Cruise off & Ready (Bluetooth paddle)")
        self._paddle_decel_active = True
@@ -162,7 +177,7 @@
      elif self._paddle_mode > 0 and button_type in [ButtonType.paddleLeft, ButtonType.paddleRight]:  # paddle button
        if self._paddle_mode == 3:
          self.carrot_cruise_active = True
-@@ -736,12 +799,23 @@
+@@ -736,12 +803,23 @@
      # own the speed selected on this frame (e.g. simultaneous pedal release).
      if button_type not in (ButtonType.setCruise, ButtonType.resumeCruise):
        v_cruise_kph = updated_speed
@@ -187,7 +202,7 @@
      return v_cruise_kph
  
    ## desiredSpeed :
-@@ -850,7 +924,7 @@
+@@ -850,7 +928,7 @@
  
    def _engage_soft_hold(self):
      self._soft_hold_active = 2
@@ -196,7 +211,7 @@
  
    def _update_cruise_state(self, CS, CC, v_cruise_kph):
      if not CC.enabled:
-@@ -859,16 +933,17 @@
+@@ -859,16 +937,17 @@
          #self.autoCruiseControl_cancel_timer = 0
          self._engage_soft_hold()
        # GM: autoResume
@@ -218,7 +233,7 @@
  
      if not self.disengage_on_accelerator and self._gas_tok and self.v_ego_kph_set >= self.autoGasTokSpeed:
        if not CC.enabled:
-@@ -988,8 +1063,7 @@
+@@ -988,8 +1067,7 @@
        if self._brake_pressed_count == 1 and self.enabled_last:
          self._v_cruise_kph_at_brake = self.v_cruise_kph
          self._add_log(f"{self.v_cruise_kph} Cruise speed at brake")

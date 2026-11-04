@@ -1,11 +1,11 @@
 {
   "format": 1,
-  "upstream": "14c5398fca00d298c2791ecf43f46b3e3fd6cc38",
-  "reviewed_through_upstream": "14c5398fca00d298c2791ecf43f46b3e3fd6cc38",
+  "upstream": "4b155d9e385195409e3928c138e457985a9ce06f",
+  "reviewed_through_upstream": "4b155d9e385195409e3928c138e457985a9ce06f",
   "policy": "Latest pinned upstream is the default; only explicit FMS personal contracts are exceptions. Replaces old fixed0389 selective-adoption and blanket GPS/SPAS/Tesla exclusion policies. No automatic publication or device activation.",
-  "before_fms": "eddd0cbe4fc6be91e3cb19562e5b3575157ada98",
-  "source_start": "Published eddd0cb including deployed PC log bundle repair; integrate original ed7fe4a..14c5398",
-  "git_history": "Local integration on Git parent eddd0cb with pinned source/reconstruction 14c5398. WIP commit/push requires separate approval.",
+  "before_fms": "3e02473cbcbd1a270eee5476261c3a220b0a0dce",
+  "source_start": "Published3e02473 with seven personal contracts and served PC log assets; integrate original14c5398..4b155d9 only",
+  "git_history": "Local integration on Git parent3e02473 with pinned source/reconstruction4b155d9. No commit or push authorized.",
   "contracts": [
     "독립 SoftHold/CANFD 정차 호환",
     "패들 모드4 간격/회생 분리",
@@ -56,12 +56,12 @@
         }
       ],
       "path": "AGENTS.md",
-      "before_sha256": "dd730691926f01a2158b9fe154b68ff796cca1f123d6b45356a5a354e34b67b6",
-      "after_sha256": "3c54d64c9cf0953052decf6faf22ab68ca17660699e90fa92fe3c01bd0f00a8a",
+      "before_sha256": "5548f967519fc825502139671ba640acd86e6b34b177dc734c29f2d8faa1efa0",
+      "after_sha256": "3dfb41977c7b5b9c9a24048920ddd97596e11780c7c9d44ab72415a412e82098",
       "kind": "hunks",
       "review_bundle": "fms_dm_shared_preservation.patch",
       "asset": "fms_preservation/a54ff182c7e8acf56acf.patch",
-      "asset_sha256": "908dff4ac596a6b06a1871514b4a031ebb3dc2a82061ea3df280f69148120f47"
+      "asset_sha256": "eb66062a63646a8e91c17e06353ee284dfe5cc69e9bce50532e96844a4542728"
     },
     {
       "contract_exceptions": [
@@ -86,11 +86,11 @@
       ],
       "path": "docs/fms_integration_contract.md",
       "before_sha256": null,
-      "after_sha256": "713acb2371f90f622797449373223606fba9f5cad5996a53c15e3f108411932c",
+      "after_sha256": "7d1bb11bbe1227bbaff6ccf6f6372b2b44856ac38880cd8fc5465dfaf2decb97",
       "kind": "blob",
       "review_bundle": "fms_dm_shared_preservation.patch",
       "asset": "fms_preservation/a24dd8e36e1f59ba0523.blob",
-      "asset_sha256": "713acb2371f90f622797449373223606fba9f5cad5996a53c15e3f108411932c"
+      "asset_sha256": "7d1bb11bbe1227bbaff6ccf6f6372b2b44856ac38880cd8fc5465dfaf2decb97"
     },
     {
       "contract_exceptions": [
@@ -183,12 +183,12 @@
         }
       ],
       "path": "docs/user/en/settings.md",
-      "before_sha256": "5903f658b8a506f7acd1f1fdcb1d679b1bf9a9919aeed37119b59513b5554a12",
-      "after_sha256": "0a74346443e42ad7e5630744ed2dde580a83924458fd9d8fd1ed7d2f436284f9",
+      "before_sha256": "c1438e57cda4fa01f11416d7c9561658a4d0ff41d555ed85857dabcc653903f7",
+      "after_sha256": "07c6cad99bf19fc07e1fe152e3a7e625a785510a79866b002722ff07f41ca0a4",
       "kind": "hunks",
       "review_bundle": "fms_dm_shared_preservation.patch",
       "asset": "fms_preservation/81ad15a66b87a9ae04bc.patch",
-      "asset_sha256": "47ca978a1fda3eb67e5234074238efd7e8e64dd4dfd119e755095af5ba3a4ccb"
+      "asset_sha256": "b619d583c7297f0b74fd7fa005862558bc00768bf7b7f841cc03e4e981276c37"
     },
     {
       "contract_exceptions": [
@@ -253,12 +253,12 @@
         }
       ],
       "path": "docs/user/ko/settings.md",
-      "before_sha256": "bbbb3632370fbe1ad5e19eb057fd4e2745422a20514498836f89165b9fe1b9d6",
-      "after_sha256": "3a4459a9bbc255eba0e9b07e142ac7705e7b3068f443414250575645b835ed6d",
+      "before_sha256": "694a4549b52faeb02c8b0656c81854da4a4b626ce6bf59e731240116fdf2034b",
+      "after_sha256": "484e18f3a9f39cb3757949443e21aa173080d6e337166d13e6d97b7ffce03401",
       "kind": "hunks",
       "review_bundle": "fms_dm_shared_preservation.patch",
       "asset": "fms_preservation/e47e44fda7cd0c5ed09f.patch",
-      "asset_sha256": "c13b5991a62ae665d1957c266cdeda5588d9429bac065b8664a1bb6357606cea"
+      "asset_sha256": "97ef1aea674b90bd27312332cae5d4f5a6f8d946772cb8f25b8ea2d91db57557"
     },
     {
       "contract_exceptions": [
@@ -305,12 +305,12 @@
         }
       ],
       "path": "opendbc_repo/opendbc/car/hyundai/carstate.py",
-      "before_sha256": "f3540e2524b80702b94c2158b00b87ee8845e839b54e474e271a370e608c057e",
-      "after_sha256": "a76991cd8ea4db236bc1259e0ab73a51e1b33e4ed89e9d3a2002877016c08e5e",
+      "before_sha256": "dc7773554a961c6071c385f7a8cba158dfa07845ad10f1d98696269342d61629",
+      "after_sha256": "ba6919aaf73835b87f3eb8ed5b4ba6d2361e1a39b372137be3d35f35facd64ba",
       "kind": "hunks",
       "review_bundle": "paddle_regen_isolation.patch",
       "asset": "fms_preservation/4a0877adfccb61ed9a47.patch",
-      "asset_sha256": "ab168ea19badcc70fa9196cd477ad2d9b808b5fc4ea898a909c68839c41631f8"
+      "asset_sha256": "c7cc78d9c1a7bc7bc861c378df4fcf13c10a2ceafc673e5a003742f08b7df114"
     },
     {
       "contract_exceptions": [
@@ -339,11 +339,11 @@
       ],
       "path": "opendbc_repo/opendbc/car/hyundai/hyundaicanfd.py",
       "before_sha256": "2af1e455ee75307bbdbc3c958d777760cb1fbf590c6a4f79cc6c3e92df692ae5",
-      "after_sha256": "0e90ebe9954bd81066381a5f6585d726ae22648a83b4f43a59fed1315095199e",
+      "after_sha256": "4d012e386d0913a453616d0016f767756c86ba89c8e88615df2b5fb52276fa6c",
       "kind": "hunks",
       "review_bundle": "independent_hold_stopping.patch",
       "asset": "fms_preservation/25986e4483d5e1eb45e5.patch",
-      "asset_sha256": "cb584d0a0edfa5f698fc2a460d1d7988c8d7d5b0a87492f0581d23447e46e9d5"
+      "asset_sha256": "a071d19d8f95a19f54557b3831a0fad25b3a804ad5fec2fc8f680aace9968c50"
     },
     {
       "contract_exceptions": [
@@ -444,11 +444,11 @@
     {
       "path": "opendbc_repo/opendbc/car/hyundai/tests/test_alt2_adas_buttons.py",
       "before_sha256": "41074e7d00260a24650fff8883c6e971c66f7a5b383e352ac92f8114137538ae",
-      "after_sha256": "78e84d59be44eaba2bec722603b8e657199f456439c92410e335fc4869917fc2",
+      "after_sha256": "a1f3691746006948ee97742b9cfa846775d46fa416a9c662ff7bee72267abfd7",
       "review_bundle": "fms_dm_shared_preservation.patch",
       "kind": "hunks",
       "asset": "fms_preservation/cebc59b648d302e6026b.patch",
-      "asset_sha256": "609a67e471a3b6fcc4094ddaf5575a4bdd2c0d399ada21406039d6101ca5ff60"
+      "asset_sha256": "1aebc6af1342a044bcb4765a5bacc0347d290e2229f7848d5d5c5494f111002a"
     },
     {
       "contract_exceptions": [
@@ -684,11 +684,11 @@
       ],
       "path": "openpilot/selfdrive/car/cruise.py",
       "before_sha256": "87941b7a191bc9fe791d278985e009de4fc9d2591fdea66a7e5c8a66ee05a972",
-      "after_sha256": "337b1fea4277206a50a8d4d10a4a72ae49c5699b25d3422dc492c241765a9243",
+      "after_sha256": "a1dbbfbef41752917e6ddc9ad106fb8288a640ae16613688de7b3375a5632c3b",
       "kind": "hunks",
       "review_bundle": "paddle_mode4.patch",
       "asset": "fms_preservation/89c058b9a146c09f4f30.patch",
-      "asset_sha256": "db5946e5427442b0efcd198ceaa39b61ec6e1f924facdf280cf37648530871fe"
+      "asset_sha256": "03243f495c547a0e3c88188b757ef2b1729041936db7921b156ee8c194bae603"
     },
     {
       "contract_exceptions": [
@@ -710,16 +710,31 @@
     {
       "contract_exceptions": [
         {
+          "reason": "Aligned upstream4b driver SCC MAIN intent regression with FMS raw input and CANCEL protections",
+          "source_contract": "docs/fms_integration_contract.md"
+        }
+      ],
+      "path": "openpilot/selfdrive/car/tests/test_camera_scc_steering_intent.py",
+      "before_sha256": "5767a22778eb3be47af1a0bf665ddd3c5bedea88e73c0a729bbffe450f17e382",
+      "after_sha256": "c6e8d7b537e12e7bd3c44c7d91a1b8d602804a8adb418fa6258db958b2c7f3df",
+      "review_bundle": "fms_dm_shared_preservation.patch",
+      "kind": "hunks",
+      "asset": "fms_preservation/c6f38ffc42419fcaa863.patch",
+      "asset_sha256": "513d7d60b2defbe29f5982423864eb272182313d10b59310f2326134f4a49e9b"
+    },
+    {
+      "contract_exceptions": [
+        {
           "reason": "Explicit personal behavior or its aligned tests/docs; detailed owner evidence and current integration contract define boundaries"
         }
       ],
       "path": "openpilot/selfdrive/car/tests/test_carrot_cruise_buttons.py",
       "before_sha256": "59858eceffdfb30a3e412bce3ee4c3dec94dc19de85addbcc7ab18087703e7f9",
-      "after_sha256": "3258beb87349fc52ec7e5732439a6e92bed0c3bd399f37c160dbbc8810afeb75",
+      "after_sha256": "9520b4699b77e098fc89480c03de621ac914dac6ca0745931cf104413c5c42d6",
       "kind": "hunks",
       "review_bundle": "fms_dm_shared_preservation.patch",
       "asset": "fms_preservation/8976944be748a91476ab.patch",
-      "asset_sha256": "14fce1bc4c53e788310791870bf03e74d1bbbc68f3efde95219d84e857b4620d"
+      "asset_sha256": "5bcfc4ae68b4973cd65c768fcf63140634e5fcc03d3076fed19a19454f5b8e7a"
     },
     {
       "contract_exceptions": [
@@ -1560,12 +1575,12 @@
         }
       ],
       "path": "openpilot/selfdrive/carrot_settings.json",
-      "before_sha256": "2ec390e1482262a532451e22d35f8137885408667bc2680b134c303caa0ff5e0",
-      "after_sha256": "3505318d3babdacab642e55e12e2901981d4ad608f60cc0aca7a83a75f8150c3",
+      "before_sha256": "d2e5e2f2f3ae6cfe82b35d683420678c499fb9799ee91fed9eba91997a4afe3b",
+      "after_sha256": "58c096e41f07838f9427d477983a5fc3d270cfb8317adca7b3c50c4bd6b2b45e",
       "kind": "hunks",
       "review_bundle": "fms_dm_shared_preservation.patch",
       "asset": "fms_preservation/b2b2e0d9301c6a4eba46.patch",
-      "asset_sha256": "9e6007f99a255b4808aa8ecc9be333b275caa2195cf64e6134b6761fbf485f04"
+      "asset_sha256": "1bbc1b7aac21c89ccb9dc81021a6524f04f5b3dbf9b071495af2e5d6a0ae4e19"
     },
     {
       "contract_exceptions": [
@@ -2516,7 +2531,7 @@
     "Personal205 first-install profile retired; restore backup",
     "Schedules paused, stable manual promotion, device/install/publication separate permission"
   ],
-  "followup_review_status": "Incremental4a source join reviewed by independent Sol;383 targeted PASS/noFAIL orSKIP. First reconstruction/idempotence/full freeze/publication required; prior Bluetooth253 and unchanged-source checks reused without duplicate counting.",
+  "followup_review_status": "Local4b source/driver SCC MAIN integration. Behavioral evidence is reported separately; helper replay is source reconstruction only.",
   "repair_followup": {
     "source_baseline": "441d71e330471a46d6207218a97d9937f68026e3",
     "base_git_parent": "e0f14004a52061895eae47d230327bf03f05065c",
@@ -2525,18 +2540,16 @@
     "permissions": "User explicitly approved repair and this WIP publication; no stable/DDM/device/schedules update"
   },
   "incremental_followup": {
-    "from_upstream": "441d71e330471a46d6207218a97d9937f68026e3",
-    "to_upstream": "4a555c75b81c4ba80bfbf2260007a6baa645fcac",
-    "git_parent": "f283533d3243416a83aef89654d8c1b810f4840c",
-    "upstream_commits": 2,
-    "upstream_paths": 16,
-    "applied_paths": 15,
-    "owned_AGENTS": "Preserve FMS operating instructions; new upstream technical facts are in adopted docs and current FMS summary, not authority",
-    "preserved_repairs_from": "f283533d3243416a83aef89654d8c1b810f4840c",
-    "permissions": "Current WIP update only; no stable/DDM/device/Params/schedules"
+    "from_upstream": "14c5398fca00d298c2791ecf43f46b3e3fd6cc38",
+    "to_upstream": "4b155d9e385195409e3928c138e457985a9ce06f",
+    "git_parent": "3e02473cbcbd1a270eee5476261c3a220b0a0dce",
+    "upstream_commits": 1,
+    "upstream_paths": 10,
+    "owned_AGENTS": "Preserve FMS operating instructions; upstream technical facts are source evidence, not execution authority",
+    "permissions": "Local source integration and verification only; no commit/push/stable/DDM/device/Params/schedules"
   },
   "upstream_adaptations": [
-    "Sorento MQ4 HEV retains existing SCC MAIN behavior in OFF/standby; original display wake is available for other eligible vehicles.",
+    "Original4b separates physical driver SCC MAIN request intent from retained ACCMainOn/rx echo. Retire the previous MQ4-only OFF/standby transmission suppression; preserve normal upstream MAIN requests and original lateral intent behavior.",
     "Restore former boolean AutoTurnControlRightLaneChange backups into upstream distance storage.",
     "MQ4 HEV BLE B1 HOLD reuses native FMS BlinkerHold driver intervention latch; physical taps and upstream turn/steering FSM unchanged. BLE latest-state 20Hz timing is not native100Hz physical proof."
   ]

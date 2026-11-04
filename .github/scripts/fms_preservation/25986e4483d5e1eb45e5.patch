@@ -264,18 +264,7 @@
    ret = []
    interlock_active = longitudinal_interlock_active(CS)
    display_lead = _display_lead(getattr(CS, "radarState", None))
-@@ -979,8 +1023,10 @@
-   if CP.flags & HyundaiFlags.CAMERA_SCC.value:
-     # The camera's SCC output is replaced only with openpilot longitudinal control.
-     # Keep its MAIN available for OEM display objects independently of engagement.
-+    # On the FMS Sorento, OEM MAIN feedback would otherwise arm cruise while off.
-     keep_stock_scc_main = (
-       getattr(CP, "openpilotLongitudinalControl", False) and enable_corner_radar > 0
-+      and getattr(CP, "carFingerprint", "") != CAR.KIA_SORENTO_HEV_4TH_GEN
-       and CS.scc_control is not None and CS.lfahda_cluster is not None
-       and CS.out.canValid and CS.out.gearShifter == "drive"
-       and math.isfinite(CS.out.vEgo) and CS.out.vEgo > 3. and not CS.out.brakePressed and not interlock_active
-@@ -1146,7 +1192,6 @@
+@@ -1146,7 +1190,6 @@
          values["LANE_LEFT"] = 0 if trailer_lane_change_blocked else 1 if desire in (1, 3) else 0
          values["LANE_RIGHT"] = 0 if trailer_lane_change_blocked else 1 if desire in (2, 4) else 0
  
@@ -283,7 +272,7 @@
          ret.append(packer.make_can_msg("ADRV_0x161", CAN.ECAN, values, rx_counter = rx_counter))
  
        if CS.adrv_0x200 is not None:
-@@ -1159,10 +1204,13 @@
+@@ -1159,10 +1202,13 @@
          values = copy.copy(CS.adrv_0x1ea)
          rx_counter = values.pop("COUNTER", None)
          # blinker hold: the confirmed lane change until the body is across (see _blink_hold_side)

@@ -336,6 +336,50 @@ def test_raw_cancel_keeps_existing_short_long_lateral_policy(mode,long_press):
   assert helper._soft_hold_active==2
 
 
+@pytest.mark.parametrize("mode", (0, 1))
+@pytest.mark.parametrize("paddle_mode", range(5))
+@pytest.mark.parametrize("long_press", (False, True))
+@pytest.mark.parametrize("press_reverse", (False, True))
+@pytest.mark.parametrize("release_reverse", (False, True))
+def test_cancel_tracking_survives_paddles_in_either_batch_order(mode, paddle_mode, long_press,
+                                                               press_reverse, release_reverse):
+  helper, CS, CC = make_remote_helper(None, enabled=True)
+  helper._cancel_button_mode = mode
+  helper._paddle_mode = paddle_mode
+  helper._lat_enabled = True
+  helper._soft_hold_active = 2
+  helper.autoCruiseControl = 0
+  helper.autoCruiseControl_cancel_timer = 1000
+  for frame in range(83 if long_press else 1):
+    if frame == 0:
+      events = [("cancel", True), ("paddleLeft", True)]
+      if press_reverse:
+        events.reverse()
+    elif frame == 40:
+      events = [("paddleLeft", False), ("paddleRight", True)]
+    else:
+      events = []
+    CS.buttonEvents = [{"type": name, "pressed": pressed} for name, pressed in events]
+    assert helper._update_cruise_buttons(CS, CC, 80, paddle_cancel_seen=True) == 80
+    assert helper._activate_cruise == -1 and helper._cruise_cancel_state
+    assert helper._soft_hold_active == 2
+  events = [("cancel", False), ("paddleLeft", True)]
+  if release_reverse:
+    events.reverse()
+  CS.buttonEvents = [{"type": name, "pressed": pressed} for name, pressed in events]
+  assert helper._update_cruise_buttons(CS, CC, 80) == 80
+  assert helper._lat_enabled == (mode == 0 and not long_press)
+  assert helper._cruise_cancel_state and helper._soft_hold_active == 2
+  assert not helper._paddle_decel_active and not helper._cruise_ready and not helper.carrot_cruise_active
+  assert helper.button_cnt == 0
+  helper._activate_cruise = 0
+  CC.enabled = False
+  CS.buttonEvents = [{"type": "paddleLeft", "pressed": False}]
+  assert helper._update_cruise_buttons(CS, CC, 80) == 80
+  assert helper._activate_cruise == 0 and helper._cruise_cancel_state
+  assert not helper._paddle_decel_active and not helper._cruise_ready
+
+
 def test_raw_batch_cancel_does_not_add_pcm_activation_policy():
   helper,CS,CC=make_remote_helper(None,enabled=True)
   helper.CP.pcmCruise=True
