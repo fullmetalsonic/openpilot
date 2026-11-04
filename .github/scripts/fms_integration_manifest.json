@@ -1,11 +1,11 @@
 {
   "format": 1,
-  "upstream": "ed7fe4a00ec0199c407f1a1d20f5338d5e720097",
-  "reviewed_through_upstream": "ed7fe4a00ec0199c407f1a1d20f5338d5e720097",
+  "upstream": "14c5398fca00d298c2791ecf43f46b3e3fd6cc38",
+  "reviewed_through_upstream": "14c5398fca00d298c2791ecf43f46b3e3fd6cc38",
   "policy": "Latest pinned upstream is the default; only explicit FMS personal contracts are exceptions. Replaces old fixed0389 selective-adoption and blanket GPS/SPAS/Tesla exclusion policies. No automatic publication or device activation.",
-  "before_fms": "462940e9e5efe8a3a93fb7bad2a0d7fdcfcf7c32",
-  "source_start": "Published 462940e with 4a555c7 source baseline; integrate original 4a555c7..ed7fe4a",
-  "git_history": "Local integration on Git parent 462940e. Pinned source/reconstruction ed7fe4a. WIP commit and push require separate approval.",
+  "before_fms": "eddd0cbe4fc6be91e3cb19562e5b3575157ada98",
+  "source_start": "Published eddd0cb including deployed PC log bundle repair; integrate original ed7fe4a..14c5398",
+  "git_history": "Local integration on Git parent eddd0cb with pinned source/reconstruction 14c5398. WIP commit/push requires separate approval.",
   "contracts": [
     "독립 SoftHold/CANFD 정차 호환",
     "패들 모드4 간격/회생 분리",
@@ -57,11 +57,11 @@
       ],
       "path": "AGENTS.md",
       "before_sha256": "dd730691926f01a2158b9fe154b68ff796cca1f123d6b45356a5a354e34b67b6",
-      "after_sha256": "2471b082ebdfde8a79c3dfc855f62964c7d698b1f9712ef542e2eed0f0d33c8a",
+      "after_sha256": "3c54d64c9cf0953052decf6faf22ab68ca17660699e90fa92fe3c01bd0f00a8a",
       "kind": "hunks",
       "review_bundle": "fms_dm_shared_preservation.patch",
       "asset": "fms_preservation/a54ff182c7e8acf56acf.patch",
-      "asset_sha256": "ede615e31393c6a42bd7bf9f6f6d1dca8882423aa5941fe6065dd0754cd08a6d"
+      "asset_sha256": "908dff4ac596a6b06a1871514b4a031ebb3dc2a82061ea3df280f69148120f47"
     },
     {
       "contract_exceptions": [
@@ -86,11 +86,11 @@
       ],
       "path": "docs/fms_integration_contract.md",
       "before_sha256": null,
-      "after_sha256": "8bc3e7ea2605b2a1d72dd223c124214e34a34af41c31ba4f303af3d4b31ff41e",
+      "after_sha256": "713acb2371f90f622797449373223606fba9f5cad5996a53c15e3f108411932c",
       "kind": "blob",
       "review_bundle": "fms_dm_shared_preservation.patch",
       "asset": "fms_preservation/a24dd8e36e1f59ba0523.blob",
-      "asset_sha256": "8bc3e7ea2605b2a1d72dd223c124214e34a34af41c31ba4f303af3d4b31ff41e"
+      "asset_sha256": "713acb2371f90f622797449373223606fba9f5cad5996a53c15e3f108411932c"
     },
     {
       "contract_exceptions": [
@@ -1220,8 +1220,8 @@
     },
     {
       "path": "openpilot/selfdrive/carrot/web/generated/asset-manifest.json",
-      "before_sha256": "cbcb0037b233ed9bf3a1f68619f09c28ded9a314701bb5ecc0fb2e9290518ded",
-      "after_sha256": "126394bd2a68af6f0caf6c2d876792396dccd46ecbd749a6289a750e114770c0",
+      "before_sha256": "c37c0c62b78bcd695a2edb7f1013082aa64add7807d93d66c8cfd1e4f31284ae",
+      "after_sha256": "1023de0b774d332235589d29478fe11e48f405969ac76c66b93b613f735b6402",
       "kind": "hunks",
       "review_bundle": "fms_dm_shared_preservation.patch",
       "asset": "fms_preservation/e91967e46ff9a3f749ea.patch",
@@ -2440,6 +2440,24 @@
       "asset_sha256": "c09e2cff919e2f7474465ce1d41b8c19fce91423b68fb85b4c4aa84bb0867634"
     },
     {
+      "path": "tools/jetlink/blink_source.py",
+      "before_sha256": "c0691b21e643584f09d830450ff7d77f1a899a8d918bc235bfb06eee58fde865",
+      "after_sha256": "45521cc745d71c5037a943137a7e51f7b3c40d05ddf64e05af5e49b6e04fa1f1",
+      "review_bundle": "fms_dm_shared_preservation.patch",
+      "kind": "hunks",
+      "asset": "fms_preservation/938672e9e4e6268d328c.patch",
+      "asset_sha256": "be077e07ce698db316d14a1178e7a2fab3c0a5ffc9b79958d2d148533f25e8e1"
+    },
+    {
+      "path": "tools/jetlink/test_blinker_auto.py",
+      "before_sha256": "258b1edb9bc698a0098ab756bcc5d05eceaed1503bd001a4fb48d4d414dfceec",
+      "after_sha256": "51cb48696790353187930ed739cfb818cf3088e8b26c6659039d75ff10183fb9",
+      "review_bundle": "fms_dm_shared_preservation.patch",
+      "kind": "hunks",
+      "asset": "fms_preservation/93abb07a8ba9436a81fa.patch",
+      "asset_sha256": "c51f0481c2f8fb190e5171494ea595f51b738012a3b14de6c787aab5e2d19279"
+    },
+    {
       "contract_exceptions": [
         {
           "reason": "Only remove upstream extra EOF blank line for required diff check; all non-EOF bytes and behavior unchanged"
@@ -2519,6 +2537,7 @@
   },
   "upstream_adaptations": [
     "Sorento MQ4 HEV retains existing SCC MAIN behavior in OFF/standby; original display wake is available for other eligible vehicles.",
-    "Restore former boolean AutoTurnControlRightLaneChange backups into upstream distance storage."
+    "Restore former boolean AutoTurnControlRightLaneChange backups into upstream distance storage.",
+    "MQ4 HEV BLE B1 HOLD reuses native FMS BlinkerHold driver intervention latch; physical taps and upstream turn/steering FSM unchanged. BLE latest-state 20Hz timing is not native100Hz physical proof."
   ]
 }

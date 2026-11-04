@@ -73,7 +73,7 @@ class Events:
     return result[-4:]
 
 
-def main(fd, spas=False):
+def main(fd, spas=False, ble=False):
   if spas:
     import os
     try:
@@ -89,18 +89,26 @@ def main(fd, spas=False):
   with car.CarParams.from_bytes(Params().get('CarParams')) as cp:
     fingerprint = cp.carFingerprint
     front_radar_available = not getattr(cp, 'radarUnavailable', True)
+    if ble and getattr(cp, 'passive', False):
+      return
     if spas:
       from opendbc.car.hyundai.values import HyundaiFlags
       if cp.brand != 'hyundai' or not cp.flags & HyundaiFlags.CANFD_SPAS_BLINKERS or cp.passive:
         return
-  if not spas and json.loads(PACKAGE_CONFIG.read_text()).get('fingerprint') != fingerprint:
+  if not spas and not ble and json.loads(PACKAGE_CONFIG.read_text()).get('fingerprint') != fingerprint:
     return
   sock = socket.socket(fileno=fd)
   sock.setblocking(False)
   sm = messaging.SubMaster(['carState', 'carControl', 'selfdriveState', 'pandaStates', 'modelV2', 'carrotMan', 'livePose', 'radarState',
                              'gpsLocation', 'gpsLocationExternal', 'carrotNavi'])
   events = Events(time.monotonic())
+  trial_until = 0.
+  last_trial = None
   policy, params = Policy(), Params()
+  fms_hold = None
+  if ble and fingerprint == 'KIA_SORENTO_HEV_4TH_GEN':
+    from opendbc.car.hyundai.hyundaicanfd import BlinkerHold
+    fms_hold = BlinkerHold()
   automatic = AutomaticSignals()
   tbt = TbtBlinker()
   boundary = BoundaryEvents(read_json(RUNTIME/'boundary-indicator.json', {}))
@@ -134,7 +142,7 @@ def main(fd, spas=False):
         feedback = {}
     sm.update(0)
     now = time.monotonic()  # SubMaster assigns receive timestamps during update.
-    ok = vehicle_ready(sm, now, fingerprint, spas)
+    ok = vehicle_ready(sm, now, fingerprint, spas or ble)
     status = read_json(RUNTIME/'status.json', {})
     settings, learning, cancelled = config(), read_json(RUNTIME/'learn.json', {}), read_json(RUNTIME/'cancelled.json', {})
     commands = events.read(read_json(RUNTIME/'blinker.json', {}), settings, status, learning, cancelled, now)
@@ -190,6 +198,8 @@ def main(fd, spas=False):
         auto = tbt_auto
     model_fresh = ('modelV2' in sm.services and sm.valid['modelV2'] and sm.alive['modelV2'] and fresh(sm.recv_time['modelV2'], now, .35))
     meta = sm['modelV2'].meta if model_fresh else None
+    if fms_hold is not None:
+      fms_hold.update(sm['modelV2'] if model_fresh else None, cs, sm['carControl'].latActive and ok)
     observed_source = str(getattr(meta, 'observedIndicatorSource', ''))
     observation_enabled = (params.get_bool('ManualLaneChangeIndicator') if observed_source == 'manual' else
                            params.get_bool('ModelPathIndicator') if observed_source == 'model_path' else
@@ -211,7 +221,8 @@ def main(fd, spas=False):
                                   str(cs.gearShifter), remote, auto, policy_valid)
     observation_feedback.prepare(now, hold, meta, cs)
     receiver_override = fresh(feedback.get('stamp'), now, .35) and feedback.get('state') == 'driver_override'
-    tbt_turn_hold = bool(not spas and hold and hold['source'] == 'turn' and automatic.journey.active)
+    native_hold = not ble or fingerprint == 'HYUNDAI_IONIQ_5_PE'
+    tbt_turn_hold = bool(not spas and native_hold and hold and hold['source'] == 'turn' and automatic.journey.active)
     # A confirmed TBT lamp is maintained by the comma-side lease. Receiver
     # one-touch ownership ending must not erase the ongoing turn. This cannot
     # activate a hold whose initial send and lamp were never acknowledged.
@@ -231,7 +242,7 @@ def main(fd, spas=False):
     activated_id = observation_feedback.activation(now, hold, cs, feedback, acknowledged, activated_id, ok)
     if feedback.get('state') == 'driver_override' and not continuing_turn:
       release_until = 0.
-    if commands or (spas and feedback.get('state') == 'driver_override'):
+    if commands or ((spas or not native_hold) and feedback.get('state') == 'driver_override'):
       automatic.pending = None
       automatic.journey.pending = None
       automatic.journey.active = None
@@ -239,6 +250,9 @@ def main(fd, spas=False):
     if not spas and policy.relight(now, activated_id, acknowledged and not receiver_override, cs.leftBlinker, cs.rightBlinker,
                                   retry_unlit=auto_valid and automatic.direction is not None and feedback.get('state') == 'ready'):
       hold, activated_id = policy.hold, None
+    if fms_hold is not None and fms_hold.blocked:
+      # BLE renewals obey the same driver-intervention latch as native CAN HOLD.
+      hold, activated_id, release_until = None, None, 0.
     model_fresh = ('modelV2' in sm.services and sm.valid['modelV2'] and sm.alive['modelV2'] and fresh(sm.recv_time['modelV2'], now, .35))
     meta = sm['modelV2'].meta if model_fresh else None
     boundary_direction = {'left':1, 'right':2}.get(str(getattr(meta, 'manualLaneIndicator', 'none')), 0)
@@ -260,10 +274,25 @@ def main(fd, spas=False):
     devices = [mac for mac in status.get('grabbed', []) if fresh(status.get('time'), now) and
                settings.get('devices', {}).get(mac, {}).get('enabled') is True and
                not (learning.get('address') == mac and learning.get('until', 0) > now)]
+    # Physical, local-only service test. A fresh nonce permits one tap while
+    # parked. Keep checking P/standstill/control state for its whole lease.
+    if ble:
+      trial = read_json(RUNTIME/'b1-park-test.json', {})
+      if isinstance(trial, dict) and trial.get('id') != last_trial and fresh(trial.get('time'), now):
+        if isinstance(trial.get('id'), str) and trial['id'].startswith('park-test:') and trial.get('direction') in ('left','right'):
+          last_trial = trial['id']
+          trial_until = now + 1.
+      if now < trial_until:
+        cc, ss = sm['carControl'], sm['selfdriveState']
+        ok = (ok and str(cs.gearShifter)=='park' and cs.standstill and abs(cs.vEgo)<.01 and
+              not (cc.enabled or cc.latActive or cc.longActive or ss.enabled or ss.active))
+        commands = [trial] if ok and isinstance(trial, dict) and trial.get('id')==last_trial and fresh(trial.get('time'),now) else []
+        hold = None
     submitted = False
     try:
       sock.send(encode({'stamp': now, 'ok': bool(ok), 'events': commands, 'hold': wire_hold(hold), 'devices':devices,
                         'activated':activated_id is not None, 'relights':policy.relights,
+                        'b1_hold':ble and fingerprint != 'HYUNDAI_IONIQ_5_PE',
                         'turn_phase':automatic.reason, 'turn_position':bool(automatic.journey.active and automatic.journey.active['target'] is not None),
                         'tbt_phase':tbt.reason, 'observation_phase':observed_source,
                         'indicator_origin':hold['source'] if hold else None}))
@@ -279,4 +308,4 @@ def main(fd, spas=False):
 
 
 if __name__ == '__main__':
-  main(int(sys.argv[1]), len(sys.argv) > 2 and sys.argv[2] == 'spas')
+  main(int(sys.argv[1]), 'spas' in sys.argv[2:], 'ble' in sys.argv[2:])

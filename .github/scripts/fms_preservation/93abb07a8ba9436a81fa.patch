@@ -1,0 +1,143 @@
+--- a/tools/jetlink/test_blinker_auto.py
++++ b/tools/jetlink/test_blinker_auto.py
+@@ -551,3 +551,140 @@
+     assert all(value['direction'] is None for value in leases[8:])
+   assert all(value['direction'] is None for value in leases[80:])
+   assert all(record['turn_phase'] == 'approach' for record in sent[8:60])
++
++
++@pytest.mark.parametrize("interruption", ["torque", "cancel_then_torque", "invalid", "lat_off"])
++def test_fms_ble_source_releases_lane_hold_until_a_fresh_stalk(monkeypatch, interruption):
++  sent, leases = run_fms_ble_source(monkeypatch, interruption=interruption)
++  assert all(record["hold"] and record["hold"]["direction"] == "left" for record in sent[1:4])
++  assert all(record["hold"] is None and not record["activated"] for record in sent[4:9])
++  assert all(record["direction"] is None and not record["override"] for record in leases[4:9])
++  assert all(record["hold"] and record["hold"]["direction"] == "right" for record in sent[9:])
++  assert not any(record["events"] for record in sent)
++
++  from openpilot.selfdrive.carrot.bluetooth.b1_monitor import Intent
++  intent = Intent()
++  original = sent[3]["hold"]
++  intent.inflight = (3, original["id"])
++  intent.queued = (original, True, sent[4]["stamp"] + 3)
++  op, event, _ = intent.choose(sent[4], "ready", 3, sent[4]["stamp"])
++  assert op == (3 if interruption == "invalid" else 0) and event is None
++  assert intent.queued is None
++  assert all(intent.choose(record, "waiting", 3, record["stamp"])[0] not in (4, 5) for record in sent[4:6])
++
++
++def test_fms_ble_hold_block_preserves_fresh_physical_taps(monkeypatch):
++  sent, _ = run_fms_ble_source(monkeypatch, tap_during_block=True)
++  assert all(record["hold"] is None for record in sent[4:9])
++  assert sent[6]["events"] == [{"id": "fresh-physical-tap", "time": sent[6]["stamp"], "direction": "right"}]
++
++
++@pytest.mark.parametrize("fingerprint,ble", [
++  ("KIA_EV6", True),
++  ("HYUNDAI_IONIQ_5_PE", True),
++  ("HYUNDAI_IONIQ_5_PE", False),
++])
++def test_fms_ble_hold_adaptation_leaves_other_paths_on_original_policy(monkeypatch, fingerprint, ble):
++  sent, _ = run_fms_ble_source(monkeypatch, fingerprint=fingerprint, ble=ble)
++  assert all(record["hold"] and record["hold"]["direction"] == "left" for record in sent[1:6])
++
++
++def test_fms_ble_normal_completion_retires_old_torque_episode(monkeypatch):
++  sent, _ = run_fms_ble_source(monkeypatch, interruption="completed")
++  assert sent[4]["hold"] is None
++  assert sent[5]["hold"] is None
++  assert all(record["hold"] and record["hold"]["direction"] == "left" for record in sent[6:8])
++
++
++def run_fms_ble_source(monkeypatch, *, interruption="torque", fingerprint="KIA_SORENTO_HEV_4TH_GEN",
++                       ble=True, tap_during_block=False):
++  import json
++  from contextlib import nullcontext
++  from types import SimpleNamespace as NS
++  from test_blinker import Vehicle
++  # Load the production guard before the source fixture replaces messaging imports.
++  import importlib
++  importlib.import_module("opendbc.car.hyundai.hyundaicanfd")
++  import blink_source as source
++  from openpilot.selfdrive.carrot.bluetooth import model
++
++  class Desire:
++    def __init__(self, side):
++      self.raw = {"left": 3, "right": 4}.get(side, 0)
++
++    def __str__(self):
++      return {0: "none", 3: "laneChangeLeft", 4: "laneChangeRight"}[self.raw]
++
++  clock, sent, leases = [10.], [], []
++  received = set()
++  sm = Vehicle(speed=5.)
++  cs = sm["carState"]
++  cs.steeringPressed, cs.steeringTorque = False, 0.
++  cs.leftBlinkerStalkCount = cs.rightBlinkerStalkCount = 0
++  cs.trailerConnected = False
++  sm["modelV2"] = NS(meta=NS())
++  sm["carrotMan"] = NS(atcType="none", xDistToTurn=40)
++  sm["livePose"] = NS(inputsOK=True, sensorsOK=True, posenetOK=True, orientationNED=NS(valid=True, z=0.))
++  sm.services = list(sm)
++  sm.valid = dict.fromkeys(sm, True)
++  sm.alive = dict.fromkeys(sm, True)
++  sm["selfdriveState"].atcTurnStartMonoTime = 0
++  sm["selfdriveState"].atcTurnDirection = "none"
++
++  def tick(_):
++    index = len(sent)
++    clock[0] = 10. + index * .05
++    sm.recv_time = dict.fromkeys(sm, clock[0])
++    side = "none" if index in (0, 8) else "right" if index >= 9 else "left"
++    lane_state = "off" if index in (0, 8) else "preLaneChange" if index in (1, 9) else "laneChangeStarting"
++    if interruption == "cancel_then_torque" and index in (3, 4):
++      lane_state = "off"
++    if interruption == "completed" and index in (4, 5):
++      side, lane_state = "none", "off"
++    if interruption == "completed" and index == 6:
++      lane_state = "preLaneChange"
++    cs.steeringPressed = index == 2 or (index == 4 and interruption in ("torque", "cancel_then_torque"))
++    if interruption == "completed":
++      cs.steeringPressed = index in (2, 5)
++    cs.canValid = not (interruption == "invalid" and index == 4)
++    sm["carControl"].latActive = not (interruption == "lat_off" and index == 4)
++    cs.rightBlinkerStalkCount = int(index >= 9)
++    cs.leftBlinker, cs.rightBlinker = side == "left", side == "right"
++    meta = sm["modelV2"].meta
++    meta.desire = Desire(side if lane_state != "off" else "none")
++    meta.desireState = [0.] * 5
++    meta.autoTurnSignal, meta.autoTurnSignalLaneChange = side, side != "none"
++    meta.laneChangeState = lane_state
++    meta.laneChangeBlinkerHold = side if lane_state != "off" else "none"
++    meta.laneChangeCompletedMonoTime = 100 if interruption == "completed" and index >= 4 else 0
++
++  def receive(_):
++    index = len(sent)
++    received.add(index)
++    if index == 13:
++      return b""
++    previous = sent[-1]["hold"] if sent else None
++    return json.dumps({"stamp": 10. + index * .05, "state": "ready",
++                       "accepted_id": previous["id"] if previous else None}).encode()
++
++  sm.update = tick
++  monkeypatch.setitem(sys.modules, "openpilot.common.params", NS(Params=lambda: NS(
++    get=lambda _: b"cp", get_int=lambda key: 2 if key == "AutoBlinkerControl" else 0,
++    get_bool=lambda key: key == "AlwaysLateral")))
++  monkeypatch.setitem(sys.modules, "openpilot.cereal", NS(messaging=NS(SubMaster=lambda _: sm),
++    car=NS(CarParams=NS(from_bytes=lambda _: nullcontext(NS(carFingerprint=fingerprint, passive=False))))))
++  sock = NS(setblocking=lambda _: None, recv=receive, send=lambda raw: sent.append(json.loads(raw)))
++  monkeypatch.setattr(source.socket, "socket", lambda **kw: sock)
++  monkeypatch.setattr(source.select, "select", lambda *args: ([sock] if len(sent) not in received else [], [], []))
++  monkeypatch.setattr(source.time, "monotonic", lambda: clock[0])
++  monkeypatch.setattr(source.time, "sleep", lambda _: None)
++  monkeypatch.setattr(source, "PACKAGE_CONFIG", NS(read_text=lambda: json.dumps({"fingerprint": fingerprint})))
++  monkeypatch.setattr(source.Events, "read", lambda *args: [
++    {"id": "fresh-physical-tap", "time": clock[0], "direction": "right"}
++  ] if len(sent) == 6 and tap_during_block else [])
++  monkeypatch.setattr(model, "read_json", lambda *args: {})
++  monkeypatch.setattr(model, "config", dict)
++  monkeypatch.setattr(model, "atomic_json", lambda path, value: leases.append(value) if path.name == "physical-hold.json" else None)
++  source.main(0, ble=ble)
++  assert len(sent) == len(leases) == 13
++  return sent, leases

@@ -16,8 +16,14 @@ diff --git a/.gitattributes b/.gitattributes
 diff --git a/AGENTS.md b/AGENTS.md
 --- a/AGENTS.md
 +++ b/AGENTS.md
-@@ -1,1311 +1,169 @@
+@@ -1,1311 +1,175 @@
 +# CarrotPilot 제품 작업 지침
++
++## 2026-11-04 WIP 원본14c5398 로컬 통합
++
++선택 원본·검토 끝·helper 재구성은 `14c5398fca00d298c2791ecf43f46b3e3fd6cc38`, Git 부모는 게시 WIP `eddd0cbe4fc6be91e3cb19562e5b3575157ada98`다. 개인 기능 7개·공통 보호·원본 앞차 기능과 실제 로그 배포 JS/CSS/manifest를 유지한다. 이번 범위는 로컬 통합과 검증이며 새 커밋·푸시와 기기 설치는 별도 요청을 따른다. 아래 이전 SHA/게시 문구는 당시 기록이다.
++
++원본 B1 BLE 장치·등록·펌웨어 관리와 독립 레이더 운동 기반 근거리 끼어들기 변경을 가져온다. B1은 장치 발견·등록에 따라 동작하며 일괄 기본 OFF로 설명하지 않는다. 로컬 검증은 모의 BLE·OTA이며 실제 기기와 펌웨어 설치는 별도다. MQ4의 BLE 유지 요청에도 기존 FMS 운전자 개입 HOLD 해제를 적용한다. 기존 쏘렌토 OFF·대기 순정 MAIN 자동 요청 예외와 legacy DM을 보존한다.
 +
 +## 2026-11-03 WIP 로컬 통합 기준
 +
@@ -1530,8 +1536,19 @@ diff --git a/docs/branch_catalog.md b/docs/branch_catalog.md
 diff --git a/docs/fms_integration_contract.md b/docs/fms_integration_contract.md
 --- /dev/null
 +++ b/docs/fms_integration_contract.md
-@@ -0,0 +1,198 @@
+@@ -0,0 +1,209 @@
 +# FMS 최신 원본 통합과 개인 기능 계약
++
++## 2026-11-04 원본14c5398 기준
++
++소스·재구성 기준은 `14c5398fca00d298c2791ecf43f46b3e3fd6cc38`이고 Git 부모는 게시 `eddd0cbe4fc6be91e3cb19562e5b3575157ada98`다. 원본 ed7fe4a 이후 13커밋·27경로를 통합하고 아래 7개 개인 기능과 공통 보호를 유지한다. 로컬 통합과 게시를 구분한다.
++
++- B1 BLE 장치 등록·펌웨어 관리와 UI를 원본대로 포함한다. 발견 가능한 신규 장치의 자동 등록과 등록 후 관리가 있으므로 미사용 장비라는 이유로 코드 포함을 제외하지 않는다. 실제 등록·업데이트·차량 송신의 성공은 로컬 시험과 다르다.
++- MQ4 HEV의 BLE B1 깜빡이 유지 요청에도 기존 FMS 운전자 개입 HOLD 판정을 적용한다. BLE 소스는 20Hz로 최신 carState를 읽으므로 native 100Hz가 관찰한 짧은 토크 펄스를 놓칠 수 있다. 이 시간적 한계와 실제 보드 반응은 실차 검증 범위다. 차선변경 중 새 토크에 유지 요청만 해제하고 같은 요청의 재유지를 막으며 새 실제 레버로 재무장한다. 물리 일회 입력과 원본 회전·조향 FSM은 기존 계약을 따른다.
++- 원본14c5398의 근거리 끼어들기 판정은 모델 앞차가 바뀌기 전의 전방·코너 레이더 독립 이동 조건을 보강하며 종방향 입력에도 사용된다. 평행 이동·경로 회전·새 트랙 오인 차단과 앞차 정차·재출발 및 개인 SoftHold/패들 보호를 함께 검증한다.
++- PC 로그 소스·배포 로그 JS/CSS와 연결은 게시 eddd0cb와 같은지 대조한다. 새 도구 UI 번들을 포함한 manifest 전체 해시와 실제 배포 번들 회귀 검사를 확인한다. 동일한 로그 번들의 브라우저 저장 증거는 해시와 의존성이 같을 때 재사용한다.
++
++아래 ed7fe4a와 이전 승인·검증은 그 날짜의 이력이다.
 +
 +## 2026-11-03 원본 ed7fe4a 로컬 통합
 +
@@ -19927,6 +19944,183 @@ diff --git a/tools/docs/wiki_settings/tests/test_generate.py b/tools/docs/wiki_s
      self.assertTrue(all(text.count("<!-- CARROT:SETTING:BEGIN ") == 1 for text in setting_pages.values()))
      for name, text in result.pages.items():
        if name.endswith(".md"):
+diff --git a/tools/jetlink/blink_source.py b/tools/jetlink/blink_source.py
+--- a/tools/jetlink/blink_source.py
++++ b/tools/jetlink/blink_source.py
+@@ -105,6 +105,10 @@
+   trial_until = 0.
+   last_trial = None
+   policy, params = Policy(), Params()
++  fms_hold = None
++  if ble and fingerprint == 'KIA_SORENTO_HEV_4TH_GEN':
++    from opendbc.car.hyundai.hyundaicanfd import BlinkerHold
++    fms_hold = BlinkerHold()
+   automatic = AutomaticSignals()
+   tbt = TbtBlinker()
+   boundary = BoundaryEvents(read_json(RUNTIME/'boundary-indicator.json', {}))
+@@ -194,6 +198,8 @@
+         auto = tbt_auto
+     model_fresh = ('modelV2' in sm.services and sm.valid['modelV2'] and sm.alive['modelV2'] and fresh(sm.recv_time['modelV2'], now, .35))
+     meta = sm['modelV2'].meta if model_fresh else None
++    if fms_hold is not None:
++      fms_hold.update(sm['modelV2'] if model_fresh else None, cs, sm['carControl'].latActive and ok)
+     observed_source = str(getattr(meta, 'observedIndicatorSource', ''))
+     observation_enabled = (params.get_bool('ManualLaneChangeIndicator') if observed_source == 'manual' else
+                            params.get_bool('ModelPathIndicator') if observed_source == 'model_path' else
+@@ -244,6 +250,9 @@
+     if not spas and policy.relight(now, activated_id, acknowledged and not receiver_override, cs.leftBlinker, cs.rightBlinker,
+                                   retry_unlit=auto_valid and automatic.direction is not None and feedback.get('state') == 'ready'):
+       hold, activated_id = policy.hold, None
++    if fms_hold is not None and fms_hold.blocked:
++      # BLE renewals obey the same driver-intervention latch as native CAN HOLD.
++      hold, activated_id, release_until = None, None, 0.
+     model_fresh = ('modelV2' in sm.services and sm.valid['modelV2'] and sm.alive['modelV2'] and fresh(sm.recv_time['modelV2'], now, .35))
+     meta = sm['modelV2'].meta if model_fresh else None
+     boundary_direction = {'left':1, 'right':2}.get(str(getattr(meta, 'manualLaneIndicator', 'none')), 0)
+diff --git a/tools/jetlink/test_blinker_auto.py b/tools/jetlink/test_blinker_auto.py
+--- a/tools/jetlink/test_blinker_auto.py
++++ b/tools/jetlink/test_blinker_auto.py
+@@ -551,3 +551,140 @@
+     assert all(value['direction'] is None for value in leases[8:])
+   assert all(value['direction'] is None for value in leases[80:])
+   assert all(record['turn_phase'] == 'approach' for record in sent[8:60])
++
++
++@pytest.mark.parametrize("interruption", ["torque", "cancel_then_torque", "invalid", "lat_off"])
++def test_fms_ble_source_releases_lane_hold_until_a_fresh_stalk(monkeypatch, interruption):
++  sent, leases = run_fms_ble_source(monkeypatch, interruption=interruption)
++  assert all(record["hold"] and record["hold"]["direction"] == "left" for record in sent[1:4])
++  assert all(record["hold"] is None and not record["activated"] for record in sent[4:9])
++  assert all(record["direction"] is None and not record["override"] for record in leases[4:9])
++  assert all(record["hold"] and record["hold"]["direction"] == "right" for record in sent[9:])
++  assert not any(record["events"] for record in sent)
++
++  from openpilot.selfdrive.carrot.bluetooth.b1_monitor import Intent
++  intent = Intent()
++  original = sent[3]["hold"]
++  intent.inflight = (3, original["id"])
++  intent.queued = (original, True, sent[4]["stamp"] + 3)
++  op, event, _ = intent.choose(sent[4], "ready", 3, sent[4]["stamp"])
++  assert op == (3 if interruption == "invalid" else 0) and event is None
++  assert intent.queued is None
++  assert all(intent.choose(record, "waiting", 3, record["stamp"])[0] not in (4, 5) for record in sent[4:6])
++
++
++def test_fms_ble_hold_block_preserves_fresh_physical_taps(monkeypatch):
++  sent, _ = run_fms_ble_source(monkeypatch, tap_during_block=True)
++  assert all(record["hold"] is None for record in sent[4:9])
++  assert sent[6]["events"] == [{"id": "fresh-physical-tap", "time": sent[6]["stamp"], "direction": "right"}]
++
++
++@pytest.mark.parametrize("fingerprint,ble", [
++  ("KIA_EV6", True),
++  ("HYUNDAI_IONIQ_5_PE", True),
++  ("HYUNDAI_IONIQ_5_PE", False),
++])
++def test_fms_ble_hold_adaptation_leaves_other_paths_on_original_policy(monkeypatch, fingerprint, ble):
++  sent, _ = run_fms_ble_source(monkeypatch, fingerprint=fingerprint, ble=ble)
++  assert all(record["hold"] and record["hold"]["direction"] == "left" for record in sent[1:6])
++
++
++def test_fms_ble_normal_completion_retires_old_torque_episode(monkeypatch):
++  sent, _ = run_fms_ble_source(monkeypatch, interruption="completed")
++  assert sent[4]["hold"] is None
++  assert sent[5]["hold"] is None
++  assert all(record["hold"] and record["hold"]["direction"] == "left" for record in sent[6:8])
++
++
++def run_fms_ble_source(monkeypatch, *, interruption="torque", fingerprint="KIA_SORENTO_HEV_4TH_GEN",
++                       ble=True, tap_during_block=False):
++  import json
++  from contextlib import nullcontext
++  from types import SimpleNamespace as NS
++  from test_blinker import Vehicle
++  # Load the production guard before the source fixture replaces messaging imports.
++  import importlib
++  importlib.import_module("opendbc.car.hyundai.hyundaicanfd")
++  import blink_source as source
++  from openpilot.selfdrive.carrot.bluetooth import model
++
++  class Desire:
++    def __init__(self, side):
++      self.raw = {"left": 3, "right": 4}.get(side, 0)
++
++    def __str__(self):
++      return {0: "none", 3: "laneChangeLeft", 4: "laneChangeRight"}[self.raw]
++
++  clock, sent, leases = [10.], [], []
++  received = set()
++  sm = Vehicle(speed=5.)
++  cs = sm["carState"]
++  cs.steeringPressed, cs.steeringTorque = False, 0.
++  cs.leftBlinkerStalkCount = cs.rightBlinkerStalkCount = 0
++  cs.trailerConnected = False
++  sm["modelV2"] = NS(meta=NS())
++  sm["carrotMan"] = NS(atcType="none", xDistToTurn=40)
++  sm["livePose"] = NS(inputsOK=True, sensorsOK=True, posenetOK=True, orientationNED=NS(valid=True, z=0.))
++  sm.services = list(sm)
++  sm.valid = dict.fromkeys(sm, True)
++  sm.alive = dict.fromkeys(sm, True)
++  sm["selfdriveState"].atcTurnStartMonoTime = 0
++  sm["selfdriveState"].atcTurnDirection = "none"
++
++  def tick(_):
++    index = len(sent)
++    clock[0] = 10. + index * .05
++    sm.recv_time = dict.fromkeys(sm, clock[0])
++    side = "none" if index in (0, 8) else "right" if index >= 9 else "left"
++    lane_state = "off" if index in (0, 8) else "preLaneChange" if index in (1, 9) else "laneChangeStarting"
++    if interruption == "cancel_then_torque" and index in (3, 4):
++      lane_state = "off"
++    if interruption == "completed" and index in (4, 5):
++      side, lane_state = "none", "off"
++    if interruption == "completed" and index == 6:
++      lane_state = "preLaneChange"
++    cs.steeringPressed = index == 2 or (index == 4 and interruption in ("torque", "cancel_then_torque"))
++    if interruption == "completed":
++      cs.steeringPressed = index in (2, 5)
++    cs.canValid = not (interruption == "invalid" and index == 4)
++    sm["carControl"].latActive = not (interruption == "lat_off" and index == 4)
++    cs.rightBlinkerStalkCount = int(index >= 9)
++    cs.leftBlinker, cs.rightBlinker = side == "left", side == "right"
++    meta = sm["modelV2"].meta
++    meta.desire = Desire(side if lane_state != "off" else "none")
++    meta.desireState = [0.] * 5
++    meta.autoTurnSignal, meta.autoTurnSignalLaneChange = side, side != "none"
++    meta.laneChangeState = lane_state
++    meta.laneChangeBlinkerHold = side if lane_state != "off" else "none"
++    meta.laneChangeCompletedMonoTime = 100 if interruption == "completed" and index >= 4 else 0
++
++  def receive(_):
++    index = len(sent)
++    received.add(index)
++    if index == 13:
++      return b""
++    previous = sent[-1]["hold"] if sent else None
++    return json.dumps({"stamp": 10. + index * .05, "state": "ready",
++                       "accepted_id": previous["id"] if previous else None}).encode()
++
++  sm.update = tick
++  monkeypatch.setitem(sys.modules, "openpilot.common.params", NS(Params=lambda: NS(
++    get=lambda _: b"cp", get_int=lambda key: 2 if key == "AutoBlinkerControl" else 0,
++    get_bool=lambda key: key == "AlwaysLateral")))
++  monkeypatch.setitem(sys.modules, "openpilot.cereal", NS(messaging=NS(SubMaster=lambda _: sm),
++    car=NS(CarParams=NS(from_bytes=lambda _: nullcontext(NS(carFingerprint=fingerprint, passive=False))))))
++  sock = NS(setblocking=lambda _: None, recv=receive, send=lambda raw: sent.append(json.loads(raw)))
++  monkeypatch.setattr(source.socket, "socket", lambda **kw: sock)
++  monkeypatch.setattr(source.select, "select", lambda *args: ([sock] if len(sent) not in received else [], [], []))
++  monkeypatch.setattr(source.time, "monotonic", lambda: clock[0])
++  monkeypatch.setattr(source.time, "sleep", lambda _: None)
++  monkeypatch.setattr(source, "PACKAGE_CONFIG", NS(read_text=lambda: json.dumps({"fingerprint": fingerprint})))
++  monkeypatch.setattr(source.Events, "read", lambda *args: [
++    {"id": "fresh-physical-tap", "time": clock[0], "direction": "right"}
++  ] if len(sent) == 6 and tap_during_block else [])
++  monkeypatch.setattr(model, "read_json", lambda *args: {})
++  monkeypatch.setattr(model, "config", dict)
++  monkeypatch.setattr(model, "atomic_json", lambda path, value: leases.append(value) if path.name == "physical-hold.json" else None)
++  source.main(0, ble=ble)
++  assert len(sent) == len(leases) == 13
++  return sent, leases
 diff --git a/tools/signal_analysis/signal_upper_group_trial.py b/tools/signal_analysis/signal_upper_group_trial.py
 --- a/tools/signal_analysis/signal_upper_group_trial.py
 +++ b/tools/signal_analysis/signal_upper_group_trial.py
