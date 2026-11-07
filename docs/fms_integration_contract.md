@@ -1,5 +1,29 @@
 # FMS 최신 원본 통합과 개인 기능 계약
 
+## 2026-11-07 어시스턴트 없는 원본00a6815 로컬 후보
+
+선택 원본·재구성 기준은 `00a6815b802f34e483f28a8f35510f80ba1ce949`, Git 부모/게시 WIP는 `35c35c23e79ac25bbc92cc571f5f977b41f97d48`다. 직전 검증8d67935 후보45개 미커밋 변경을 먼저 지문 대조·사본 보존한 뒤13커밋·76경로를 접합한다. 개인7개와 공통보호를 유지하고 새 최초 GPT/CarrotAssist860a6fe의17신규경로 및 assistant 도구를 포함하지 않는다. 현재 source/게시/실제설치 SHA를 구분하고 커밋·푸시는 하지 않는다.
+
+- 개인7개는 독립SoftHold/양CANFD·패들4·운전자 개입HOLD해제·legacyDM전체·VEgoStopping 최소1/저장값·원본+포크 브랜치선택·폰경유PC로그다. CameraSCC OEM MAIN/운전자 의도 분리, MQ4 원본 MAIN 요청, CANCEL/패들 같은batch 보호와 기존 페달/주차/invalid·stale입력 차단은 공통보호로 유지한다.
+- 신규 healthy-front→vision 전환은0.20초의 거리/횡위치/속도 일관성을 확인하는 원본 정책이다. 그동안 최신 실측 radar값을 유지하고 연속성이 깨지면 보류를 철회한다. 정상 ACC 앞차 우선의 유효lead·실제ON/longActive·finite 상대2m 조건을 새 radar-only/same-ID/추가출발 대기로 바꾸지 않는다. 가까운/정지 vision도 확인 지연될 수 있으며 현장 긴급제동 효과를 호스트/원본 로그 숫자로 보증하지 않는다.
+- CANable/SLCAN·지원어댑터 first-ready 소유권·B1 healthlease·비동기 source 종료는 원본대로다. 모델bridge에서 IPC/출력은 즉시 철회하고 종료회수는 비동기로 처리하며 정리 전 재시작을 막는다. native CANFD 및 BLE MQ4의 새 토크가 같은 HOLD를 재무장하지 못하는 보호를 유지한다. 이 통합은 실제 USB/펌웨어 설치·장치 등록을 수행하지 않는다.
+- Light speed2는 선택된 외장 모델/artifact와 별도 runtime 계약으로 포함하며 legacyDM 모델·프로세스·DriverView·이벤트·forceDecel·알림 정책을 새 DM으로 교체하지 않는다. 어시스턴트 없는 source pin은 이번 버전 선택 예외이며 개인 기능 수를 늘리지 않는다.
+- 실제 서빙 tools.runtime은00a 소스/번들/hash와 맞추고, FMS logs.runtime/logs.styles/route-summary.worker는 이전 검증본을 유지한다. 원본 manifest의 tools 항목만 접합하며 소스 시험만으로 배포 로그전송을 완료라 하지 않는다. 이전 동일소스 브라우저 저장 근거를 재사용하고 새 도구 UI/manifest는 해당 변경 검사로 검증한다.
+
+최종 검사·재구성/멱등성·동결지문과 native/로그재생/실차 미실행 범위는 프로젝트 운영로그00a절을 따른다. 과거8d/4b candidate와 이번 완료본을 혼동해 덮어쓰지 않는다. 안정판731adee·기기/Params·예약·PC수신기와 기존 로그목록 미해결 진단은 그대로다.
+
+## 2026-11-05 최신 원본8d67935 로컬 후보
+
+게시 Git 부모는 `35c35c23e79ac25bbc92cc571f5f977b41f97d48`, 소스·재구성 기준은 `8d6793589e585f2e4c5dc441789850dd05b90851`다. 직전4b155d9 이후12커밋·36경로를 원본대로 접합한다. 개인7개와 공통보호·원본 기능 분류는 유지하며 기존7개를 새로 분리하거나 늘리지 않는다. 실제 게시/설치 SHA는 별도이며 이번 로컬 수정은 커밋·푸시를 포함하지 않는다.
+
+- 끼어들기14c5398은 이미 부모35c35c2에 포함돼 있다. 이번 차이에는 새 radar/끼어들기 코드가 없으며, 모델 orientationRate xyzStd는 기록·오프라인 비교용이다. 기존 곡선 감속·앞차 정차/재출발 정책은 유지한다.
+- 선택 Light speed 외부 GPU 런타임의 USB ring-wrap matcher와 warp 캐시 버전을 원본대로 가져온다. 정확한 pinned runtime에서의 positive matcher/native CPU·실제 USB/GPU 검증과 호스트의 제외/범위 검사 결과를 구분한다. 깜박이 정상완료 생산자와 schema field35는 그대로다.
+- 레이 EV 외장 Comma Pedal은 원본 최종 TX 배율·Ray 한도만 적용하고 neutral/input driver threshold·명시 opt-in·차종/배선·안전 조건을 보존한다. 중간 변경과 revert를 별도 패치로 누적하지 않는다. MQ4 패들 모드4 기능과 혼동하지 않는다.
+- 임시 Mapbox 검색 목적지는 RAM 우선이며 도착·manager 시작·offroad 전환에 수명을 끝낸다. CLI의 저장 목적지 교체와 늦은 응답 보호는 원본대로다. manager의 추가2줄은 새 RAM 키만 다루며 legacy DM·VEgo 저장값·최초 개인프로필 퇴역·사용자 설정을 보존한다.
+- PC로그 소스·서버·서빙 로그 JS/CSS/manifest는 부모와 동일하다. 변경된 navigation_map.js는 별도 navigation.html이 직접 제공하는 페이지이며 generated manifest 입력이 아니다. 과거 로그 번들 누락을 반복하지 않되 무관한 로그 번들을 재빌드하지 않는다. 오늘 주행 로그 목록 누락 신고는 별도의 미해결 기기 진단이다.
+
+최종 실행 검사·재구성/멱등성·새 지문은 프로젝트 운영로그8d67935절을 따른다. 아래4b 및 이전 설명은 당시 이력이며, SCC MAIN 상태 분리와 공통 CANCEL/패들 동시입력 수리를 최신 원본 재구성에서도 유지한다.
+
 ## 2026-11-04 SCC MAIN 상태 분리 — 원본4b155d9 로컬 후보
 
 게시 Git 부모는 `3e02473cbcbd1a270eee5476261c3a220b0a0dce`, 소스·helper 재구성 기준은 `4b155d9e385195409e3928c138e457985a9ce06f`다. 원본의 바로 다음 SCC 수정1커밋을 접합하며 개인 기능7개·공통보호·원본 앞차 정차/재출발과 실제 PC 로그 배포 번들을 유지한다. 커밋·푸시·기기·설정·안정판·예약 변경은 하지 않는다.

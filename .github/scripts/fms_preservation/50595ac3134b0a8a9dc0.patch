@@ -1,6 +1,6 @@
 --- a/openpilot/common/tests/test_params.py
 +++ b/openpilot/common/tests/test_params.py
-@@ -84,11 +84,12 @@
+@@ -93,11 +93,12 @@
      assert not self.params.get_bool("IsMetric")
  
    @pytest.mark.parametrize("flag", [ParamKeyFlag.CLEAR_ON_MANAGER_START, ParamKeyFlag.CLEAR_ON_IGNITION_ON])

@@ -1,7 +1,19 @@
 --- a/AGENTS.md
 +++ b/AGENTS.md
-@@ -1,3 +1,180 @@
+@@ -1,3 +1,192 @@
 +# CarrotPilot 제품 작업 지침
++
++## 2026-11-07 어시스턴트 없는00a6815 로컬 통합
++
++사용자 지정 원본·helper 기준은 `00a6815b802f34e483f28a8f35510f80ba1ce949`다. Git 부모/게시 WIP35c35c2 위의 검증된8d67935 미커밋45경로를 대조·사본 보존한 뒤8d→00a의13커밋·76경로를 접합한다. 최초 ChatGPT 추가860a6fe는 선택범위 밖이며 tools/carrot_assistant와 웹assistant 소스/번들 기능을 포함하지 않는다. 이는 선택 버전 예외이며 개인 패치8번째로 세지 않는다. 향후 어시스턴트 포함은 별도 사용자 결정 없이 되살리지 않는다.
++
++개인7개·SCC MAIN 운전자 의도 분리·MQ4 원본 MAIN 요청·CANCEL/패들 동시입력 우선·일반 앞차 정차/재출발을 유지한다. 새 레이더0.20초 일관성 확인은 실제 L1/MPC 입력 정책이며 UI 필터로만 설명하지 않는다. 최신 measured radar 연속성이 깨지면 유지하지 않고 신규 radar handoff/SCC fallback은 원본대로다. CANable/SLCAN/비동기 source cleanup·Light speed2 선택 모델·C4 badge 배치는 원본을 따르되 운전자 개입 HOLD 해제·legacyDM·VEgo1/저장값·원본+포크 선택·실제 PC로그 JS/CSS/manifest를 보존한다. 커밋·푸시·안정판·기기/Params·예약·PC수신기 변경은 하지 않는다. 실제 검사/미실행과 새 지문은 운영로그00a절을 따른다. 아래8d/4b 로컬·게시 문구는 당시 이력이다.
++
++## 2026-11-05 원본8d67935 로컬 통합
++
++사용자 최신 원본 적용 요청에 따라 게시 `35c35c23e79ac25bbc92cc571f5f977b41f97d48` 위에서 원본 `8d6793589e585f2e4c5dc441789850dd05b90851`를 통합한다. 소스·helper 기준을 함께 올리며4b155d9 이후12커밋·36경로를 반영한다. 개인7개·CameraSCC MAIN 운전자 선택 분리·MQ4 원본 MAIN 요청·CANCEL/패들 동시입력 우선 보호를 유지한다. 커밋·푸시·기기/Params·안정판·예약·PC수신기는 이번 로컬 작업 범위가 아니다.
++
++끼어들기14c5398은 이미35c35c2에 포함된 원본 기능이며 이번 범위의 새 radar 수정으로 중복 설명하지 않는다. 새 범위는 B1 조립 문서, 레이 EV 외장 Comma Pedal의 TX 배율/한도, 선택 Light speed USB 런타임과 기록용 orientationRate 표준편차, 임시 NAV 목적지 수명주기다. 외장 Comma Pedal과 차량 패들시프트는 별개이며 Ray 차종/opt-in/driver threshold 조건을 유지한다. 기존 curve 제어·정지거리·VEgo·DM 정책은 바꾸지 않는다. 실제 검사와 미실행 native/USB/GPU·실차 범위는 운영로그8d절을 따른다. 아래4b 로컬/게시 문구는 과거 시점이다.
 +
 +## 2026-11-04 SCC MAIN 상태 분리 로컬 후보 — 4b155d9
 +
@@ -180,8 +192,8 @@
 +
  # Repository memory
  
- - On 2026-11-04, owner reports unintended steering with AutoEngage0 after the
-@@ -12,1313 +189,6 @@
+ - On 2026-11-05, owner reports ATC indicator-associated warnings while driving,
+@@ -136,1313 +325,6 @@
    Windows. No live vehicle writes or individual complaint log validation.
    GitPull/comma restart. See docs/ev5_cluster_corner_display.md correction.
  

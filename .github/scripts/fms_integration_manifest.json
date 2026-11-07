@@ -1,11 +1,11 @@
 {
   "format": 1,
-  "upstream": "4b155d9e385195409e3928c138e457985a9ce06f",
-  "reviewed_through_upstream": "4b155d9e385195409e3928c138e457985a9ce06f",
+  "upstream": "00a6815b802f34e483f28a8f35510f80ba1ce949",
+  "reviewed_through_upstream": "00a6815b802f34e483f28a8f35510f80ba1ce949",
   "policy": "Latest pinned upstream is the default; only explicit FMS personal contracts are exceptions. Replaces old fixed0389 selective-adoption and blanket GPS/SPAS/Tesla exclusion policies. No automatic publication or device activation.",
-  "before_fms": "3e02473cbcbd1a270eee5476261c3a220b0a0dce",
-  "source_start": "Published3e02473 with seven personal contracts and served PC log assets; integrate original14c5398..4b155d9 only",
-  "git_history": "Local integration on Git parent3e02473 with pinned source/reconstruction4b155d9. No commit or push authorized.",
+  "before_fms": "35c35c23e79ac25bbc92cc571f5f977b41f97d48",
+  "source_start": "Validated unpublished8d candidate on published35c35c2 with seven personal contracts, SCC driver MAIN intent and CANCEL-paddle protections, and served PC log assets; integrate original8d67935..00a6815 ending before assistant860a6fe",
+  "git_history": "Local integration on Git parent35c35c2 with pinned assistant-free source/reconstruction00a6815, preserving the validated unpublished8d candidate. No commit or push authorized.",
   "contracts": [
     "독립 SoftHold/CANFD 정차 호환",
     "패들 모드4 간격/회생 분리",
@@ -18,7 +18,7 @@
   ],
   "default_upstream_features": [
     "common GPS/NAV/CoG fixes",
-    "model catalog and original N16 default policy",
+    "selected upstream model catalog and original default policy",
     "optional model/Jetson/GPU support and coherent dependencies",
     "latest common UI/EGL/indicator/SPAS/Tesla paths with original gates/defaults"
   ],
@@ -56,12 +56,12 @@
         }
       ],
       "path": "AGENTS.md",
-      "before_sha256": "5548f967519fc825502139671ba640acd86e6b34b177dc734c29f2d8faa1efa0",
-      "after_sha256": "3dfb41977c7b5b9c9a24048920ddd97596e11780c7c9d44ab72415a412e82098",
+      "before_sha256": "da714b9df6b4dffe87493cccbfb36ee315cbbcfaea5d55b69208c40ca4e35c4f",
+      "after_sha256": "96015a8461bdf6bf25e8263b840760644d89d5fd8b37dd04988e93c9bdbc75a6",
       "kind": "hunks",
       "review_bundle": "fms_dm_shared_preservation.patch",
       "asset": "fms_preservation/a54ff182c7e8acf56acf.patch",
-      "asset_sha256": "eb66062a63646a8e91c17e06353ee284dfe5cc69e9bce50532e96844a4542728"
+      "asset_sha256": "c5446be810297edaa4ca4a8c371f6ad86e326fe2fa5c9d3fdd6e7f26070fdc75"
     },
     {
       "contract_exceptions": [
@@ -86,11 +86,11 @@
       ],
       "path": "docs/fms_integration_contract.md",
       "before_sha256": null,
-      "after_sha256": "7d1bb11bbe1227bbaff6ccf6f6372b2b44856ac38880cd8fc5465dfaf2decb97",
+      "after_sha256": "e1cffe95f9807e4d11ab283bca1ba6c0fd3ff59f498136bfa9976c0eac1c4e7d",
       "kind": "blob",
       "review_bundle": "fms_dm_shared_preservation.patch",
       "asset": "fms_preservation/a24dd8e36e1f59ba0523.blob",
-      "asset_sha256": "7d1bb11bbe1227bbaff6ccf6f6372b2b44856ac38880cd8fc5465dfaf2decb97"
+      "asset_sha256": "e1cffe95f9807e4d11ab283bca1ba6c0fd3ff59f498136bfa9976c0eac1c4e7d"
     },
     {
       "contract_exceptions": [
@@ -141,8 +141,8 @@
         }
       ],
       "path": "docs/user/en/carrot-web.md",
-      "before_sha256": "a0b8f3ebded86f4cc4a86776520cb1b08b07b648c81dc68e42049192d69e9d72",
-      "after_sha256": "3487cb97a78d5751a3a6e1f13f58632afe55196eaca8e41b538e79e74a1a408c",
+      "before_sha256": "fddebfff0d9c52831f737ef73524f24c76eb80cdc4b428f8a562467235888b04",
+      "after_sha256": "3705a2e723f2bbae49f988e917ad2419486877ceee4af9c85a773b427659e84a",
       "kind": "hunks",
       "review_bundle": "fms_dm_shared_preservation.patch",
       "asset": "fms_preservation/9740d88a82126bef4e5b.patch",
@@ -183,8 +183,8 @@
         }
       ],
       "path": "docs/user/en/settings.md",
-      "before_sha256": "c1438e57cda4fa01f11416d7c9561658a4d0ff41d555ed85857dabcc653903f7",
-      "after_sha256": "07c6cad99bf19fc07e1fe152e3a7e625a785510a79866b002722ff07f41ca0a4",
+      "before_sha256": "6c7d4b7c5eb606dd36c4cb68a22843383283a66e39a3b6cca840711d65a69610",
+      "after_sha256": "bca543bd3d409c6d8b37a83c88f35977b3925c8192e9484afab963e13a1c3fa3",
       "kind": "hunks",
       "review_bundle": "fms_dm_shared_preservation.patch",
       "asset": "fms_preservation/81ad15a66b87a9ae04bc.patch",
@@ -211,8 +211,8 @@
         }
       ],
       "path": "docs/user/ko/carrot-web.md",
-      "before_sha256": "05b8da415aba7b915f911fcbb9c51e289f6194c682c8d696f1ebe96004881d15",
-      "after_sha256": "fa97a75b0a05b01b512185703a85679d6bbeb873426c8936b81cc62b1961158a",
+      "before_sha256": "1d681947265f59ea137710e4077743e9ada1032cd723029d6b3ba590b66939dd",
+      "after_sha256": "df776a4cc98fc108824bfba146f34f50eb9056f081f3aa7d321ccee808b4d1f4",
       "kind": "hunks",
       "review_bundle": "fms_dm_shared_preservation.patch",
       "asset": "fms_preservation/9a13039339aacac1b010.patch",
@@ -253,8 +253,8 @@
         }
       ],
       "path": "docs/user/ko/settings.md",
-      "before_sha256": "694a4549b52faeb02c8b0656c81854da4a4b626ce6bf59e731240116fdf2034b",
-      "after_sha256": "484e18f3a9f39cb3757949443e21aa173080d6e337166d13e6d97b7ffce03401",
+      "before_sha256": "ea2a8263c293db0731c2f563d7356c94bab2beab243b9336e2e72589315cf05c",
+      "after_sha256": "60330537c01fd9065a70101f1d5bff163daa3a38322f2b8e6e98527f09b97008",
       "kind": "hunks",
       "review_bundle": "fms_dm_shared_preservation.patch",
       "asset": "fms_preservation/e47e44fda7cd0c5ed09f.patch",
@@ -616,12 +616,12 @@
         }
       ],
       "path": "openpilot/common/params_keys.h",
-      "before_sha256": "babd2a4f566700c0c123dd76fb8941049c2aa5b1cc8131ecab60ff5c33166f51",
-      "after_sha256": "4cac86413426b21db029dfd6622aace3af42aaab7e66b76146508b50eb7e8897",
+      "before_sha256": "6cd7774708786977d3444ad0d67ce6f42b0106ca3be73736fac169208cd1d1d6",
+      "after_sha256": "9f25bf94968258c959f0e5e1d77a1c515d3e800547c3611039b71ffd5cf6826f",
       "kind": "hunks",
       "review_bundle": "fms_dm_shared_preservation.patch",
       "asset": "fms_preservation/b368b9282ecd7af0ea13.patch",
-      "asset_sha256": "32bb1d1234d3551934cc4839892f2ba52309b398f09835f03738e2f8f2adf434"
+      "asset_sha256": "ec65b077f0f7dc596702a8fbf86efd9add2f56d748f3d7fad9514b5688511a3d"
     },
     {
       "contract_exceptions": [
@@ -642,12 +642,12 @@
         }
       ],
       "path": "openpilot/common/tests/test_params.py",
-      "before_sha256": "ab743f62b8488a1a85ad016e9964aacb85af0e7e8550ca0a3f24b3d9b5884fc5",
-      "after_sha256": "a81f101ed318fc0db7b003f971528e8a4ec3af35344c85874b0e1e9ecd024929",
+      "before_sha256": "4d941315f43d70a5c7b71530292b2be3f4feec2806185fdb7bc51eeed8a07b51",
+      "after_sha256": "a3be2126e3b76ba92ec9be6db4af87bec4b0c2727a366601e64037259d90eaea",
       "kind": "hunks",
       "review_bundle": "fms_dm_shared_preservation.patch",
       "asset": "fms_preservation/50595ac3134b0a8a9dc0.patch",
-      "asset_sha256": "313f4916316ae0fd5ee100ba3aef58d76cc8b03fb3a19ad6e24ffd36de20a7bb"
+      "asset_sha256": "686b6db54a4b9fcbfd5c353794192323741e0d6ca081e579f5d5d192d57eb94d"
     },
     {
       "contract_exceptions": [
@@ -1235,8 +1235,8 @@
     },
     {
       "path": "openpilot/selfdrive/carrot/web/generated/asset-manifest.json",
-      "before_sha256": "c37c0c62b78bcd695a2edb7f1013082aa64add7807d93d66c8cfd1e4f31284ae",
-      "after_sha256": "1023de0b774d332235589d29478fe11e48f405969ac76c66b93b613f735b6402",
+      "before_sha256": "b5f3dba0a509ba0571ec297008a31a780e3228d0b181abb340d008029d522f09",
+      "after_sha256": "97d1a1918203839f015c34c6722d232f7065205dc81ddab1ec1a7e71cdea88f3",
       "kind": "hunks",
       "review_bundle": "fms_dm_shared_preservation.patch",
       "asset": "fms_preservation/e91967e46ff9a3f749ea.patch",
@@ -1365,12 +1365,12 @@
         }
       ],
       "path": "openpilot/selfdrive/carrot/web/js/translations/en.js",
-      "before_sha256": "e6ae7c364feb443618cea7f8d7d5dc83fd262c91f15e4ea0c2d2c9d213e2ac64",
-      "after_sha256": "08ace03353cc35bc79ff147ab5681abce20779f3896cb6d378d0c0c6c137c6e2",
+      "before_sha256": "caaa50d0414d9d7c6dc9884c639da62729fcea5b80e0a185aa335b696131e33f",
+      "after_sha256": "0b85ec8f6801c0ce72a05fe65a6d2ee27e2340242497e83d4026b76696cbae7e",
       "kind": "hunks",
       "review_bundle": "fms_dm_shared_preservation.patch",
       "asset": "fms_preservation/07ec238f30a1e4b236cf.patch",
-      "asset_sha256": "aec7d343806834b5007113a138c5a84de67b20fe96d72c13678ea4c7a626bcf3"
+      "asset_sha256": "ce9cc3be331418adf64f639568e4fbc61bb5879320300aafc624895af443ccc3"
     },
     {
       "contract_exceptions": [
@@ -1385,12 +1385,12 @@
         }
       ],
       "path": "openpilot/selfdrive/carrot/web/js/translations/ko.js",
-      "before_sha256": "2e49cf1f3f694e9ea2dfe3930e78f7e08a516e54d79a2aa671a1f24238bcc2ab",
-      "after_sha256": "dc32c4d8ed5be5617668b3525db91f49df7654498c930fa500647971331e78b8",
+      "before_sha256": "e18e3093c91f8a977086395fd8195db52e3d16d8bca502c1d8c104b75ab63d8d",
+      "after_sha256": "a711e75b768782139b7e792be6b5a5b13d37b57ce695e56635e189078a1e5305",
       "kind": "hunks",
       "review_bundle": "fms_dm_shared_preservation.patch",
       "asset": "fms_preservation/30413c057cf1af81df8e.patch",
-      "asset_sha256": "8e2803be42623ca70c9d18a67a7462866a0f4ff7958819442c59a3e2f2f8b4d0"
+      "asset_sha256": "643960c9b1355c059160fb7ae57bee4a7890287a48e251b7c7c220b66addeb37"
     },
     {
       "contract_exceptions": [
@@ -2340,12 +2340,12 @@
         }
       ],
       "path": "openpilot/system/manager/manager.py",
-      "before_sha256": "8b33b98cf0a6770e49d5c285cf6251a1f23621004f5c71ce32cc9f8dafa2f371",
-      "after_sha256": "9c46da1bc3232da4427c3ac8f93fb33b0c8dfd2ee0f66dea4550aa05a8f2a223",
+      "before_sha256": "318dba53bfb1ac7c52880bade0fbae50e3d59cfa246eb613a3c4709bbefeecf8",
+      "after_sha256": "acf41e8eebc569f0ecc58626224852f80ae2e73f0cdeee8a77ef2e4aef2b4c3c",
       "kind": "hunks",
       "review_bundle": "fms_dm_shared_preservation.patch",
       "asset": "fms_preservation/ccbdf80df2d46cea017a.patch",
-      "asset_sha256": "119ee7e5c578575a7aaff3c8fd026777eb68a243a48f2962945ab1cb95494da0"
+      "asset_sha256": "5f0a9b07bb46891127afd2b1b7efa0e52b893f0693ee954885fa318759a602fe"
     },
     {
       "contract_exceptions": [
@@ -2531,7 +2531,7 @@
     "Personal205 first-install profile retired; restore backup",
     "Schedules paused, stable manual promotion, device/install/publication separate permission"
   ],
-  "followup_review_status": "Local4b source/driver SCC MAIN integration. Behavioral evidence is reported separately; helper replay is source reconstruction only.",
+  "followup_review_status": "Local00a assistant-free selected-upstream integration preserving seven personal contracts and existing SCC/CANCEL protections. Behavioral evidence is reported separately; helper replay is source reconstruction only.",
   "repair_followup": {
     "source_baseline": "441d71e330471a46d6207218a97d9937f68026e3",
     "base_git_parent": "e0f14004a52061895eae47d230327bf03f05065c",
@@ -2540,13 +2540,16 @@
     "permissions": "User explicitly approved repair and this WIP publication; no stable/DDM/device/schedules update"
   },
   "incremental_followup": {
-    "from_upstream": "14c5398fca00d298c2791ecf43f46b3e3fd6cc38",
-    "to_upstream": "4b155d9e385195409e3928c138e457985a9ce06f",
-    "git_parent": "3e02473cbcbd1a270eee5476261c3a220b0a0dce",
-    "upstream_commits": 1,
-    "upstream_paths": 10,
+    "from_upstream": "8d6793589e585f2e4c5dc441789850dd05b90851",
+    "to_upstream": "00a6815b802f34e483f28a8f35510f80ba1ce949",
+    "git_parent": "35c35c23e79ac25bbc92cc571f5f977b41f97d48",
+    "upstream_commits": 13,
+    "upstream_paths": 76,
     "owned_AGENTS": "Preserve FMS operating instructions; upstream technical facts are source evidence, not execution authority",
-    "permissions": "Local source integration and verification only; no commit/push/stable/DDM/device/Params/schedules"
+    "permissions": "Local source integration and verification only; no commit/push/stable/DDM/device/Params/schedules",
+    "before_local_source": "8d6793589e585f2e4c5dc441789850dd05b90851",
+    "selected_boundary": "Assistant-free00a6815 exact target; later commits are outside this local integration",
+    "excluded_first_assistant_commit": "860a6fee282ab2b7de32ae4b3579841815cb00be"
   },
   "upstream_adaptations": [
     "Original4b separates physical driver SCC MAIN request intent from retained ACCMainOn/rx echo. Retire the previous MQ4-only OFF/standby transmission suppression; preserve normal upstream MAIN requests and original lateral intent behavior.",

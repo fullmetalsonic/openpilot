@@ -16,8 +16,20 @@ diff --git a/.gitattributes b/.gitattributes
 diff --git a/AGENTS.md b/AGENTS.md
 --- a/AGENTS.md
 +++ b/AGENTS.md
-@@ -1,3 +1,180 @@
+@@ -1,3 +1,192 @@
 +# CarrotPilot 제품 작업 지침
++
++## 2026-11-07 어시스턴트 없는00a6815 로컬 통합
++
++사용자 지정 원본·helper 기준은 `00a6815b802f34e483f28a8f35510f80ba1ce949`다. Git 부모/게시 WIP35c35c2 위의 검증된8d67935 미커밋45경로를 대조·사본 보존한 뒤8d→00a의13커밋·76경로를 접합한다. 최초 ChatGPT 추가860a6fe는 선택범위 밖이며 tools/carrot_assistant와 웹assistant 소스/번들 기능을 포함하지 않는다. 이는 선택 버전 예외이며 개인 패치8번째로 세지 않는다. 향후 어시스턴트 포함은 별도 사용자 결정 없이 되살리지 않는다.
++
++개인7개·SCC MAIN 운전자 의도 분리·MQ4 원본 MAIN 요청·CANCEL/패들 동시입력 우선·일반 앞차 정차/재출발을 유지한다. 새 레이더0.20초 일관성 확인은 실제 L1/MPC 입력 정책이며 UI 필터로만 설명하지 않는다. 최신 measured radar 연속성이 깨지면 유지하지 않고 신규 radar handoff/SCC fallback은 원본대로다. CANable/SLCAN/비동기 source cleanup·Light speed2 선택 모델·C4 badge 배치는 원본을 따르되 운전자 개입 HOLD 해제·legacyDM·VEgo1/저장값·원본+포크 선택·실제 PC로그 JS/CSS/manifest를 보존한다. 커밋·푸시·안정판·기기/Params·예약·PC수신기 변경은 하지 않는다. 실제 검사/미실행과 새 지문은 운영로그00a절을 따른다. 아래8d/4b 로컬·게시 문구는 당시 이력이다.
++
++## 2026-11-05 원본8d67935 로컬 통합
++
++사용자 최신 원본 적용 요청에 따라 게시 `35c35c23e79ac25bbc92cc571f5f977b41f97d48` 위에서 원본 `8d6793589e585f2e4c5dc441789850dd05b90851`를 통합한다. 소스·helper 기준을 함께 올리며4b155d9 이후12커밋·36경로를 반영한다. 개인7개·CameraSCC MAIN 운전자 선택 분리·MQ4 원본 MAIN 요청·CANCEL/패들 동시입력 우선 보호를 유지한다. 커밋·푸시·기기/Params·안정판·예약·PC수신기는 이번 로컬 작업 범위가 아니다.
++
++끼어들기14c5398은 이미35c35c2에 포함된 원본 기능이며 이번 범위의 새 radar 수정으로 중복 설명하지 않는다. 새 범위는 B1 조립 문서, 레이 EV 외장 Comma Pedal의 TX 배율/한도, 선택 Light speed USB 런타임과 기록용 orientationRate 표준편차, 임시 NAV 목적지 수명주기다. 외장 Comma Pedal과 차량 패들시프트는 별개이며 Ray 차종/opt-in/driver threshold 조건을 유지한다. 기존 curve 제어·정지거리·VEgo·DM 정책은 바꾸지 않는다. 실제 검사와 미실행 native/USB/GPU·실차 범위는 운영로그8d절을 따른다. 아래4b 로컬/게시 문구는 과거 시점이다.
 +
 +## 2026-11-04 SCC MAIN 상태 분리 로컬 후보 — 4b155d9
 +
@@ -196,8 +208,8 @@ diff --git a/AGENTS.md b/AGENTS.md
 +
  # Repository memory
  
- - On 2026-11-04, owner reports unintended steering with AutoEngage0 after the
-@@ -12,1313 +189,6 @@
+ - On 2026-11-05, owner reports ATC indicator-associated warnings while driving,
+@@ -136,1313 +325,6 @@
    Windows. No live vehicle writes or individual complaint log validation.
    GitPull/comma restart. See docs/ev5_cluster_corner_display.md correction.
  
@@ -1548,8 +1560,32 @@ diff --git a/docs/branch_catalog.md b/docs/branch_catalog.md
 diff --git a/docs/fms_integration_contract.md b/docs/fms_integration_contract.md
 --- /dev/null
 +++ b/docs/fms_integration_contract.md
-@@ -0,0 +1,221 @@
+@@ -0,0 +1,245 @@
 +# FMS 최신 원본 통합과 개인 기능 계약
++
++## 2026-11-07 어시스턴트 없는 원본00a6815 로컬 후보
++
++선택 원본·재구성 기준은 `00a6815b802f34e483f28a8f35510f80ba1ce949`, Git 부모/게시 WIP는 `35c35c23e79ac25bbc92cc571f5f977b41f97d48`다. 직전 검증8d67935 후보45개 미커밋 변경을 먼저 지문 대조·사본 보존한 뒤13커밋·76경로를 접합한다. 개인7개와 공통보호를 유지하고 새 최초 GPT/CarrotAssist860a6fe의17신규경로 및 assistant 도구를 포함하지 않는다. 현재 source/게시/실제설치 SHA를 구분하고 커밋·푸시는 하지 않는다.
++
++- 개인7개는 독립SoftHold/양CANFD·패들4·운전자 개입HOLD해제·legacyDM전체·VEgoStopping 최소1/저장값·원본+포크 브랜치선택·폰경유PC로그다. CameraSCC OEM MAIN/운전자 의도 분리, MQ4 원본 MAIN 요청, CANCEL/패들 같은batch 보호와 기존 페달/주차/invalid·stale입력 차단은 공통보호로 유지한다.
++- 신규 healthy-front→vision 전환은0.20초의 거리/횡위치/속도 일관성을 확인하는 원본 정책이다. 그동안 최신 실측 radar값을 유지하고 연속성이 깨지면 보류를 철회한다. 정상 ACC 앞차 우선의 유효lead·실제ON/longActive·finite 상대2m 조건을 새 radar-only/same-ID/추가출발 대기로 바꾸지 않는다. 가까운/정지 vision도 확인 지연될 수 있으며 현장 긴급제동 효과를 호스트/원본 로그 숫자로 보증하지 않는다.
++- CANable/SLCAN·지원어댑터 first-ready 소유권·B1 healthlease·비동기 source 종료는 원본대로다. 모델bridge에서 IPC/출력은 즉시 철회하고 종료회수는 비동기로 처리하며 정리 전 재시작을 막는다. native CANFD 및 BLE MQ4의 새 토크가 같은 HOLD를 재무장하지 못하는 보호를 유지한다. 이 통합은 실제 USB/펌웨어 설치·장치 등록을 수행하지 않는다.
++- Light speed2는 선택된 외장 모델/artifact와 별도 runtime 계약으로 포함하며 legacyDM 모델·프로세스·DriverView·이벤트·forceDecel·알림 정책을 새 DM으로 교체하지 않는다. 어시스턴트 없는 source pin은 이번 버전 선택 예외이며 개인 기능 수를 늘리지 않는다.
++- 실제 서빙 tools.runtime은00a 소스/번들/hash와 맞추고, FMS logs.runtime/logs.styles/route-summary.worker는 이전 검증본을 유지한다. 원본 manifest의 tools 항목만 접합하며 소스 시험만으로 배포 로그전송을 완료라 하지 않는다. 이전 동일소스 브라우저 저장 근거를 재사용하고 새 도구 UI/manifest는 해당 변경 검사로 검증한다.
++
++최종 검사·재구성/멱등성·동결지문과 native/로그재생/실차 미실행 범위는 프로젝트 운영로그00a절을 따른다. 과거8d/4b candidate와 이번 완료본을 혼동해 덮어쓰지 않는다. 안정판731adee·기기/Params·예약·PC수신기와 기존 로그목록 미해결 진단은 그대로다.
++
++## 2026-11-05 최신 원본8d67935 로컬 후보
++
++게시 Git 부모는 `35c35c23e79ac25bbc92cc571f5f977b41f97d48`, 소스·재구성 기준은 `8d6793589e585f2e4c5dc441789850dd05b90851`다. 직전4b155d9 이후12커밋·36경로를 원본대로 접합한다. 개인7개와 공통보호·원본 기능 분류는 유지하며 기존7개를 새로 분리하거나 늘리지 않는다. 실제 게시/설치 SHA는 별도이며 이번 로컬 수정은 커밋·푸시를 포함하지 않는다.
++
++- 끼어들기14c5398은 이미 부모35c35c2에 포함돼 있다. 이번 차이에는 새 radar/끼어들기 코드가 없으며, 모델 orientationRate xyzStd는 기록·오프라인 비교용이다. 기존 곡선 감속·앞차 정차/재출발 정책은 유지한다.
++- 선택 Light speed 외부 GPU 런타임의 USB ring-wrap matcher와 warp 캐시 버전을 원본대로 가져온다. 정확한 pinned runtime에서의 positive matcher/native CPU·실제 USB/GPU 검증과 호스트의 제외/범위 검사 결과를 구분한다. 깜박이 정상완료 생산자와 schema field35는 그대로다.
++- 레이 EV 외장 Comma Pedal은 원본 최종 TX 배율·Ray 한도만 적용하고 neutral/input driver threshold·명시 opt-in·차종/배선·안전 조건을 보존한다. 중간 변경과 revert를 별도 패치로 누적하지 않는다. MQ4 패들 모드4 기능과 혼동하지 않는다.
++- 임시 Mapbox 검색 목적지는 RAM 우선이며 도착·manager 시작·offroad 전환에 수명을 끝낸다. CLI의 저장 목적지 교체와 늦은 응답 보호는 원본대로다. manager의 추가2줄은 새 RAM 키만 다루며 legacy DM·VEgo 저장값·최초 개인프로필 퇴역·사용자 설정을 보존한다.
++- PC로그 소스·서버·서빙 로그 JS/CSS/manifest는 부모와 동일하다. 변경된 navigation_map.js는 별도 navigation.html이 직접 제공하는 페이지이며 generated manifest 입력이 아니다. 과거 로그 번들 누락을 반복하지 않되 무관한 로그 번들을 재빌드하지 않는다. 오늘 주행 로그 목록 누락 신고는 별도의 미해결 기기 진단이다.
++
++최종 실행 검사·재구성/멱등성·새 지문은 프로젝트 운영로그8d67935절을 따른다. 아래4b 및 이전 설명은 당시 이력이며, SCC MAIN 상태 분리와 공통 CANCEL/패들 동시입력 수리를 최신 원본 재구성에서도 유지한다.
 +
 +## 2026-11-04 SCC MAIN 상태 분리 — 원본4b155d9 로컬 후보
 +
@@ -5393,7 +5429,7 @@ diff --git a/openpilot/cereal/log.capnp b/openpilot/cereal/log.capnp
 diff --git a/openpilot/common/params_keys.h b/openpilot/common/params_keys.h
 --- a/openpilot/common/params_keys.h
 +++ b/openpilot/common/params_keys.h
-@@ -399,11 +399,7 @@
+@@ -400,11 +400,7 @@
      {"TeslaWakeOnCAN", {PERSISTENT, BOOL, "1"}},
      {"TeslaAutoTurnSignals", {PERSISTENT, BOOL, "0"}},
  
@@ -5409,7 +5445,7 @@ diff --git a/openpilot/common/params_keys.h b/openpilot/common/params_keys.h
 diff --git a/openpilot/common/tests/test_params.py b/openpilot/common/tests/test_params.py
 --- a/openpilot/common/tests/test_params.py
 +++ b/openpilot/common/tests/test_params.py
-@@ -84,11 +84,12 @@
+@@ -93,11 +93,12 @@
      assert not self.params.get_bool("IsMetric")
  
    @pytest.mark.parametrize("flag", [ParamKeyFlag.CLEAR_ON_MANAGER_START, ParamKeyFlag.CLEAR_ON_IGNITION_ON])
@@ -11140,7 +11176,7 @@ diff --git a/openpilot/selfdrive/carrot/web/js/shared/api.js b/openpilot/selfdri
 diff --git a/openpilot/selfdrive/carrot/web/js/translations/en.js b/openpilot/selfdrive/carrot/web/js/translations/en.js
 --- a/openpilot/selfdrive/carrot/web/js/translations/en.js
 +++ b/openpilot/selfdrive/carrot/web/js/translations/en.js
-@@ -808,10 +808,46 @@
+@@ -828,10 +828,46 @@
      video_track_lost_reconnecting: "Reconnecting video",
      video_stalled_reconnecting: "Reconnecting video",
      no_initial_frame_reconnecting: "Waiting for first frame",
@@ -11190,7 +11226,7 @@ diff --git a/openpilot/selfdrive/carrot/web/js/translations/en.js b/openpilot/se
      vision_step_unavailable: "Check the setting.",
      vision_step_inactive: "Waiting to start",
      vision_step_starting: "Preparing camera",
-@@ -1394,8 +1430,6 @@
+@@ -1414,8 +1450,6 @@
      update_ago_seconds: "{s}s ago",
      update_ago_now: "just now",
      git_reset_head_prompt: "Select reset mode based on HEAD.",
@@ -11202,7 +11238,7 @@ diff --git a/openpilot/selfdrive/carrot/web/js/translations/en.js b/openpilot/se
 diff --git a/openpilot/selfdrive/carrot/web/js/translations/ko.js b/openpilot/selfdrive/carrot/web/js/translations/ko.js
 --- a/openpilot/selfdrive/carrot/web/js/translations/ko.js
 +++ b/openpilot/selfdrive/carrot/web/js/translations/ko.js
-@@ -822,10 +822,46 @@
+@@ -842,10 +842,46 @@
      video_track_lost_reconnecting: "영상 재연결 중",
      video_stalled_reconnecting: "영상 재연결 중",
      no_initial_frame_reconnecting: "첫 화면 대기 중",
@@ -11252,7 +11288,7 @@ diff --git a/openpilot/selfdrive/carrot/web/js/translations/ko.js b/openpilot/se
      vision_step_unavailable: "설정을 확인해 주세요.",
      vision_step_inactive: "시작 대기 중",
      vision_step_starting: "카메라 준비 중",
-@@ -1408,8 +1444,6 @@
+@@ -1428,8 +1464,6 @@
      update_ago_seconds: "{s}초 전",
      update_ago_now: "방금 전",
      git_reset_head_prompt: "HEAD 기준 리셋 방식을 선택하세요.",
@@ -18038,7 +18074,7 @@ diff --git a/openpilot/system/manager/manager.py b/openpilot/system/manager/mana
  from openpilot.system.manager.helpers import unblock_stdout, write_onroad_params, save_bootlog
  from openpilot.system.manager.process import ensure_running
  from openpilot.system.manager.process_config import managed_processes
-@@ -84,7 +82,6 @@
+@@ -85,7 +83,6 @@
    if params.get_bool("RecordFrontLock"):
      params.put_bool("RecordFront", True)
  
@@ -18046,7 +18082,7 @@ diff --git a/openpilot/system/manager/manager.py b/openpilot/system/manager/mana
    migrate_atc_params(params)
    migrate_lateral_geometry_params(params)
  
-@@ -94,7 +91,6 @@
+@@ -95,7 +92,6 @@
      if default_value is not None and params.get(k) is None:
        params.put(k, default_value)
  
@@ -18054,7 +18090,7 @@ diff --git a/openpilot/system/manager/manager.py b/openpilot/system/manager/mana
    configure_wide_camera(params)
  
    # Create folders needed for msgq
-@@ -159,13 +155,6 @@
+@@ -160,13 +156,6 @@
    cloudlog.info("everything is dead")
  
  
@@ -18068,7 +18104,7 @@ diff --git a/openpilot/system/manager/manager.py b/openpilot/system/manager/mana
  def read_rss_kb(pid: int) -> int:
    try:
      with open(f"/proc/{pid}/status") as f:
-@@ -219,7 +208,7 @@
+@@ -221,7 +210,7 @@
  
      ignition = any(ps.ignitionLine or ps.ignitionCan for ps in sm['pandaStates'] if ps.pandaType != log.PandaState.PandaType.unknown)
      if ignition and not ignition_prev:

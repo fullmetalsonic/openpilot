@@ -1,6 +1,6 @@
 --- a/openpilot/selfdrive/carrot/web/js/translations/en.js
 +++ b/openpilot/selfdrive/carrot/web/js/translations/en.js
-@@ -808,10 +808,46 @@
+@@ -828,10 +828,46 @@
      video_track_lost_reconnecting: "Reconnecting video",
      video_stalled_reconnecting: "Reconnecting video",
      no_initial_frame_reconnecting: "Waiting for first frame",
@@ -50,7 +50,7 @@
      vision_step_unavailable: "Check the setting.",
      vision_step_inactive: "Waiting to start",
      vision_step_starting: "Preparing camera",
-@@ -1394,8 +1430,6 @@
+@@ -1414,8 +1450,6 @@
      update_ago_seconds: "{s}s ago",
      update_ago_now: "just now",
      git_reset_head_prompt: "Select reset mode based on HEAD.",
