@@ -1,6 +1,6 @@
 --- a/openpilot/selfdrive/carrot/server/tests/test_settings_schema.py
 +++ b/openpilot/selfdrive/carrot/server/tests/test_settings_schema.py
-@@ -284,36 +284,22 @@
+@@ -303,36 +303,22 @@
    assert '{"UseWideCamera", {PERSISTENT, BOOL, "1"}}' in params_keys
  
  
@@ -50,7 +50,7 @@
  
  
  def test_vehicle_navi_can_control_exposes_route_filter_modes(settings, params):
-@@ -633,3 +619,34 @@
+@@ -652,3 +638,34 @@
        assert item['min'] == item['default'] == 0
        assert 0 < item['nonzero_min'] <= item['max']
        assert set(item['zero_label']) == {'ko', 'en', 'zh'}

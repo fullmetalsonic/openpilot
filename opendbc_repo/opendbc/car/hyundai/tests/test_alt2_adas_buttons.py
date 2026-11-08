@@ -4,7 +4,7 @@ import pytest
 
 from opendbc.can import CANPacker
 from opendbc.car.hyundai import hyundaicanfd
-from opendbc.car.hyundai.values import HyundaiFlags
+from opendbc.car.hyundai.values import CAR, HyundaiFlags
 
 
 def state():
@@ -109,3 +109,93 @@ def test_ccnc_routes_button_request_to_observed_format(monkeypatch, alt2):
   assert len(msgs) == 1
   assert msgs[0][0] == (0x10B if alt2 else 0x1AA)
   assert msgs[0][2] == 2
+
+
+def cluster_main_request(monkeypatch, *, alt2=True, longitudinal=True, corner=2,
+                         camera=True, main=False, mode=0, driver=None, fingerprint=CAR.KIA_SORENTO_HEV_4TH_GEN,
+                         enabled=False, available=False, **out_values):
+  from opendbc.car import structs
+  from opendbc.can.parser import get_raw_value
+
+  # AutoEngage and AutoCruiseControl remain zero in this normal entry-point test.
+  monkeypatch.setattr(hyundaicanfd, "Params", lambda: SimpleNamespace(get_int=lambda key: 0))
+  cs = state()
+  cs.out = structs.CarState(canValid=True, gearShifter="drive", vEgo=20.)
+  cs.out.cruiseState.available = available
+  for key, value in out_values.items():
+    setattr(cs.out, key, value)
+  cs.MainMode_ACC, cs.ACCMode = main, mode
+  cs.scc_control["InfoDisplay"] = 4
+  cs.modelV2 = cs.adrv_0x161 = cs.adrv_0x200 = cs.adrv_0x1ea = cs.ccnc_0x162 = None
+  cs.cruise_buttons_msg = {"NORMAL_CRUISE_MAIN_BTN": 0, "ADAPTIVE_CRUISE_MAIN_BTN": 0,
+                           "LFA_BTN": 0, "CRUISE_BUTTONS": 0}
+  cs.cruise_btns_msg_canfd = "CRUISE_BUTTONS_ALT"
+  if driver:
+    cs.cruise_buttons_msg.update(driver)
+    cs.cruise_buttons_alt2.update(driver)
+  if not alt2:
+    cs.cruise_buttons_alt2 = None
+  packer = CANPacker("hyundai_canfd_generated")
+  cp = structs.CarParams(flags=int(HyundaiFlags.CAMERA_SCC) if camera else 0,
+                        carFingerprint=fingerprint, openpilotLongitudinalControl=longitudinal)
+  frames = []
+  for frame in range(0, 400, 2):
+    messages = hyundaicanfd.create_ccnc_messages(
+      cp, packer, SimpleNamespace(CAM=2, ECAN=0), frame,
+      SimpleNamespace(enabled=enabled, latActive=False), cs, SimpleNamespace(),
+      0, False, False, corner, False, 0, 0,
+    )
+    for address, data, bus in messages:
+      if address not in (0x10B, 0x1AA):
+        continue
+      assert bus == 2
+      assert int.from_bytes(data[:2], "little") == hyundaicanfd.hkg_can_fd_checksum(address, None, bytearray(data))
+      name = "CRUISE_BUTTONS_ALT2" if alt2 else "CRUISE_BUTTONS_ALT"
+      values = {key: get_raw_value(data, sig) for key, sig in packer.dbc.name_to_msg[name].sigs.items()}
+      frames.append((frame, values))
+  return frames
+
+
+@pytest.mark.parametrize("alt2", (False, True))
+@pytest.mark.parametrize("fingerprint,enabled,available,wakes", (
+  (CAR.KIA_EV5, False, False, True),
+  (CAR.KIA_SORENTO_HEV_4TH_GEN, False, False, True),
+  (CAR.KIA_SORENTO_HEV_4TH_GEN, False, True, True),
+  (CAR.KIA_SORENTO_HEV_4TH_GEN, True, True, True),
+))
+def test_cluster_main_display_request_is_independent_of_fms_engagement(monkeypatch, alt2, fingerprint, enabled, available, wakes):
+  frames = cluster_main_request(monkeypatch, alt2=alt2, fingerprint=fingerprint, enabled=enabled, available=available)
+  if alt2:
+    asserted = [frame for frame, values in frames if values["CRUISE_BUTTONS"] == 8]
+    assert asserted == ([22, 24, 26, 222, 224, 226] if wakes else [])
+  else:
+    asserted = [frame for frame, values in frames if values["ADAPTIVE_CRUISE_MAIN_BTN"]]
+    assert asserted == ([12, 14, 16, 212, 214, 216] if wakes else [])
+
+
+@pytest.mark.parametrize("alt2", (False, True))
+@pytest.mark.parametrize("blocked", (
+  {"longitudinal": False}, {"camera": False}, {"corner": 0},
+  {"canValid": False}, {"gearShifter": "park"}, {"gearShifter": "reverse"},
+  {"vEgo": 3.}, {"vEgo": float("nan")}, {"vEgo": float("inf")}, {"brakePressed": True},
+  {"brakeHoldActive": True}, {"parkingBrake": True},
+))
+def test_cluster_main_requires_replaced_scc_and_valid_driving_state(monkeypatch, alt2, blocked):
+  frames = cluster_main_request(monkeypatch, alt2=alt2, **blocked)
+  assert all(values["CRUISE_BUTTONS"] == 0 and not values.get("ADAPTIVE_CRUISE_MAIN_BTN", 0)
+             for _, values in frames)
+
+
+@pytest.mark.parametrize("alt2", (False, True))
+@pytest.mark.parametrize("mode", (0, 1, 2, 4))
+def test_cluster_main_does_not_toggle_or_resume_existing_main(monkeypatch, alt2, mode):
+  frames = cluster_main_request(monkeypatch, alt2=alt2, main=True, mode=mode)
+  assert all(values["CRUISE_BUTTONS"] == 0 and not values.get("ADAPTIVE_CRUISE_MAIN_BTN", 0)
+             for _, values in frames)
+
+
+@pytest.mark.parametrize("alt2,button", [(False, b) for b in (1, 2, 4)] + [(True, b) for b in (1, 2, 4, 8, 15)])
+def test_cluster_main_defers_to_driver_buttons(monkeypatch, alt2, button):
+  frames = cluster_main_request(monkeypatch, alt2=alt2, driver={"CRUISE_BUTTONS": button})
+  assert all(values["CRUISE_BUTTONS"] == (0 if alt2 else button)
+             and not values.get("ADAPTIVE_CRUISE_MAIN_BTN", 0) for _, values in frames)

@@ -1,10 +1,12 @@
 --- a/opendbc_repo/opendbc/car/hyundai/hyundaicanfd.py
 +++ b/opendbc_repo/opendbc/car/hyundai/hyundaicanfd.py
-@@ -6,7 +6,7 @@
+@@ -5,8 +5,8 @@
+ from opendbc.car import CanBusBase, DT_CTRL
  from opendbc.car.carlog import carlog
  from opendbc.car.crc import CRC16_XMODEM
- from opendbc.car.hyundai.values import HyundaiFlags, HyundaiExtFlags
+-from opendbc.car.hyundai.values import HyundaiFlags, HyundaiExtFlags
 -from opendbc.car.hyundai.stopping import MOVING_SPEED, STOP_LOWER_BAND
++from opendbc.car.hyundai.values import CAR, HyundaiFlags, HyundaiExtFlags
 +from opendbc.car.hyundai.stopping import MOVING_SPEED
  from openpilot.common.params import Params
  from openpilot.common.filter_simple import FirstOrderFilter
@@ -262,7 +264,7 @@
    ret = []
    interlock_active = longitudinal_interlock_active(CS)
    display_lead = _display_lead(getattr(CS, "radarState", None))
-@@ -1130,7 +1174,6 @@
+@@ -1146,7 +1190,6 @@
          values["LANE_LEFT"] = 0 if trailer_lane_change_blocked else 1 if desire in (1, 3) else 0
          values["LANE_RIGHT"] = 0 if trailer_lane_change_blocked else 1 if desire in (2, 4) else 0
  
@@ -270,7 +272,7 @@
          ret.append(packer.make_can_msg("ADRV_0x161", CAN.ECAN, values, rx_counter = rx_counter))
  
        if CS.adrv_0x200 is not None:
-@@ -1143,10 +1186,13 @@
+@@ -1159,10 +1202,13 @@
          values = copy.copy(CS.adrv_0x1ea)
          rx_counter = values.pop("COUNTER", None)
          # blinker hold: the confirmed lane change until the body is across (see _blink_hold_side)

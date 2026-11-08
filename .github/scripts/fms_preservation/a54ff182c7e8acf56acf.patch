@@ -1,7 +1,39 @@
 --- a/AGENTS.md
 +++ b/AGENTS.md
-@@ -1,1230 +1,161 @@
+@@ -1,3 +1,192 @@
 +# CarrotPilot 제품 작업 지침
++
++## 2026-11-07 어시스턴트 없는00a6815 로컬 통합
++
++사용자 지정 원본·helper 기준은 `00a6815b802f34e483f28a8f35510f80ba1ce949`다. Git 부모/게시 WIP35c35c2 위의 검증된8d67935 미커밋45경로를 대조·사본 보존한 뒤8d→00a의13커밋·76경로를 접합한다. 최초 ChatGPT 추가860a6fe는 선택범위 밖이며 tools/carrot_assistant와 웹assistant 소스/번들 기능을 포함하지 않는다. 이는 선택 버전 예외이며 개인 패치8번째로 세지 않는다. 향후 어시스턴트 포함은 별도 사용자 결정 없이 되살리지 않는다.
++
++개인7개·SCC MAIN 운전자 의도 분리·MQ4 원본 MAIN 요청·CANCEL/패들 동시입력 우선·일반 앞차 정차/재출발을 유지한다. 새 레이더0.20초 일관성 확인은 실제 L1/MPC 입력 정책이며 UI 필터로만 설명하지 않는다. 최신 measured radar 연속성이 깨지면 유지하지 않고 신규 radar handoff/SCC fallback은 원본대로다. CANable/SLCAN/비동기 source cleanup·Light speed2 선택 모델·C4 badge 배치는 원본을 따르되 운전자 개입 HOLD 해제·legacyDM·VEgo1/저장값·원본+포크 선택·실제 PC로그 JS/CSS/manifest를 보존한다. 커밋·푸시·안정판·기기/Params·예약·PC수신기 변경은 하지 않는다. 실제 검사/미실행과 새 지문은 운영로그00a절을 따른다. 아래8d/4b 로컬·게시 문구는 당시 이력이다.
++
++## 2026-11-05 원본8d67935 로컬 통합
++
++사용자 최신 원본 적용 요청에 따라 게시 `35c35c23e79ac25bbc92cc571f5f977b41f97d48` 위에서 원본 `8d6793589e585f2e4c5dc441789850dd05b90851`를 통합한다. 소스·helper 기준을 함께 올리며4b155d9 이후12커밋·36경로를 반영한다. 개인7개·CameraSCC MAIN 운전자 선택 분리·MQ4 원본 MAIN 요청·CANCEL/패들 동시입력 우선 보호를 유지한다. 커밋·푸시·기기/Params·안정판·예약·PC수신기는 이번 로컬 작업 범위가 아니다.
++
++끼어들기14c5398은 이미35c35c2에 포함된 원본 기능이며 이번 범위의 새 radar 수정으로 중복 설명하지 않는다. 새 범위는 B1 조립 문서, 레이 EV 외장 Comma Pedal의 TX 배율/한도, 선택 Light speed USB 런타임과 기록용 orientationRate 표준편차, 임시 NAV 목적지 수명주기다. 외장 Comma Pedal과 차량 패들시프트는 별개이며 Ray 차종/opt-in/driver threshold 조건을 유지한다. 기존 curve 제어·정지거리·VEgo·DM 정책은 바꾸지 않는다. 실제 검사와 미실행 native/USB/GPU·실차 범위는 운영로그8d절을 따른다. 아래4b 로컬/게시 문구는 과거 시점이다.
++
++## 2026-11-04 SCC MAIN 상태 분리 로컬 후보 — 4b155d9
++
++사용자는 게시 WIP3e02473 위에 원본4b155d9를 적용하고 기존 MQ4 MAIN 차단 예외를 재검토하되 개인7개와 SoftHold/CANCEL/패들을 검증하도록 승인했다. 커밋·푸시·기기/Params·안정판·예약 변경은 승인하지 않았다. 소스와 helper 재구성 기준은 `4b155d9e385195409e3928c138e457985a9ce06f`다. 뒤의 B1 조립 문서2커밋은 이번 범위가 아니다.
++
++CameraSCC+OP-long에서 계기판용 OEM MainMode_ACC를 운전자의 main_enabled로 복사하지 않는 원본 수신 수정을 적용하고 MQ4 송신부의 OFF/대기 차종 제외 한 줄을 제거한다. AutoEngage 초기화·실제 MAIN/RES/SET/LFA·CANCEL latch·독립hold·패들 자격은 유지한다. 자동 CAM/TX 버튼과 ECAN 물리 버튼을 구분하고 상태 수신→VCruise→조향 허용·양 CANFD 정차·패들 경계를 확인한다. 교차검사에서 발견한 기존 CANCEL/패들 동시입력의 버튼 추적 덮어쓰기도 좁게 수리한다. 진행 중/동일 batch CANCEL을 패들 press로 지우지 않아 CancelButtonMode0/1의 짧음/길게 조향 정책을 유지한다. 개인기능8개로 늘리는 변경이 아니라 공통 CANCEL 우선 보호다. 로컬 검사 결과와 실제 미실행 범위는 외부 운영로그 최신 절을 따른다. 아래 MQ4 예외는 이전 시점이며 이번 후보에 되살리지 않는다.
++
++## 2026-11-04 WIP 원본14c5398 로컬 통합
++
++선택 원본·검토 끝·helper 재구성은 `14c5398fca00d298c2791ecf43f46b3e3fd6cc38`, Git 부모는 게시 WIP `eddd0cbe4fc6be91e3cb19562e5b3575157ada98`다. 개인 기능 7개·공통 보호·원본 앞차 기능과 실제 로그 배포 JS/CSS/manifest를 유지한다. 이번 범위는 로컬 통합과 검증이며 새 커밋·푸시와 기기 설치는 별도 요청을 따른다. 아래 이전 SHA/게시 문구는 당시 기록이다.
++
++원본 B1 BLE 장치·등록·펌웨어 관리와 독립 레이더 운동 기반 근거리 끼어들기 변경을 가져온다. B1은 장치 발견·등록에 따라 동작하며 일괄 기본 OFF로 설명하지 않는다. 로컬 검증은 모의 BLE·OTA이며 실제 기기와 펌웨어 설치는 별도다. MQ4의 BLE 유지 요청에도 기존 FMS 운전자 개입 HOLD 해제를 적용한다. 기존 쏘렌토 OFF·대기 순정 MAIN 자동 요청 예외와 legacy DM을 보존한다.
++
++## 2026-11-03 WIP 로컬 통합 기준
++
++원본 소스와 패치 재구성 기준은 `ed7fe4a00ec0199c407f1a1d20f5338d5e720097`이며 게시 WIP `462940e` 위의 로컬 통합이다. 개인 예외 7개와 공통 운전자 보호를 유지한다. 이 WIP 작업 범위는 통합과 검증까지다. 커밋·푸시는 별도 요청이 필요하다. 기존 WIP 스냅샷의 안정판 승격은 이 로컬 후보의 게시와 별개다. 현재 운영 결과는 프로젝트 운영 로그를 따른다.
++
++원본의 내비 안내 회전·우측 차선변경 준비 거리, 저속 모델 곡률, 기본 꺼짐인 Ray EV 외장 Comma Pedal 지원, 계기판용 순정 SCC MAIN 요청을 검토한다. MQ4 HEV에서는 기존 OFF/대기·CANCEL·패들 동작을 보존하기 위해 새 자동 MAIN 요청을 보류한다. 원본 기능의 배경과 제한은 `docs/indicator_morning_review_20261103.md`, `docs/comma_pedal.md`, `docs/ev5_cluster_corner_display.md`를 참조한다. 원본 검증과 FMS 검증은 별도로 기록한다.
++
++아래 4a555c7 및 이전 버전의 승인과 게시 상태는 해당 날짜의 기록이다.
 +
 +사용자 이번 요청(2026-11-01): **"원본 4a555c7 기준으로 또 업데이트". 게시 f283533 위에 원본441d71e..4a555c7의2커밋을 통합하고 개인7개 예외·공통보호·기존DM·직전두수리를 보존해 검증한 뒤 fms-carrot-wip만 일반fast-forward로 갱신한다. 안정판/DDM·예약·기기/Params는 그대로다. 원본과 재구성기준은4a555c7이며 Git부모는f283533이다. 아래 과거로컬/금지상태를 현행으로 오인하지 않는다.**
 +
@@ -159,6 +191,93 @@
 +and field observations, not permission to replace these FMS contracts.
 +
  # Repository memory
+ 
+ - On 2026-11-05, owner reports ATC indicator-associated warnings while driving,
+@@ -136,1313 +325,6 @@
+   Windows. No live vehicle writes or individual complaint log validation.
+   GitPull/comma restart. See docs/ev5_cluster_corner_display.md correction.
+ 
+-
+-- On 2026-11-03, owner requests PR569 Comma Pedal review/integration with emphasis
+-  on unsupported vehicles. Merge head01b8bf5d into currentWip36fbbbae, preserving
+-  CameraSCC MAIN fix. DefaultOFF, explicit RayEV+CC_ONLY classic/nonlegacy/noncamera
+-  profile,0x201/DLC6 presence and noSCC fingerprint required. OEM ready/engaged,
+-  stale/missing status, pedal faults, driver/brake override block positive output.
+-  2568-case before/after CP matrix has2566 identical including24 existingerrors;
+-  only2 intended RayON/devicepresent cases differ. Desktop438 pass; native pedal
+-  safety/profile-switch and Python/Cython checks added to SignalCI. Contributor
+-  limited-acceleration symptom remains unresolved; no vehicle/settings/CAN work.
+-  Normal GitPull/reboot includes Panda rebuild/signature verification. See
+-  docs/comma_pedal.md; private comparison artifacts under .analysis.
+-
+-
+-- On 2026-11-03, EV5 corner-display review finds eight full logs and the earlier
+-  native ALT2 fix intact. Recent38/45 Carrot disabled; AutoEngage0 alone is not
+-  the cause. 38 stock LFA/SCC overlap enables HDA,45 overlap still HDA0; automatic
+-  LFA emissions fail to elicit activation before physical input. Owner requests
+-  isolated stock SCC MAIN while disengaged. CameraSCC+openpilotLong+cornerON,
+-  stock SCC/LFA present, valid CAN, Drive, finite >3m/s and no brake/hold/park
+-  permit existing ALT2/legacy MAIN pulses; physical input wins. MAIN-on stops
+-  retry, SET/resume retain CC.enabled. Existing control-side SCC/Panda unchanged.
+-  258 desktop packet/entry tests and25 Wiki pass; native ALT2 added to Signal CI.
+-  No live CAN/install/reboot or physical cure claim. Git Pull/comma restart.
+-  See docs/ev5_cluster_corner_display.md; raw evidence private.
+-
+-
+-- On 2026-11-03, owner requests comma0c40995 low-speed curvature review/adoption.
+-  Port exact action-head denominator floor1.0->2.5m/s in modeld. Shared eGPU/Jetson
+-  N16/Flip/Light action conversion is affected below9km/h above existing0.3m/s
+-  hold; plan-only conversion, longitudinal outputs and smoothing remain intact.
+-  Same-input attenuation can reduce low-speed overcorrection but also reduces
+-  tight-turn curvature. No physical oscillation/road cure or timing claim.
+-  Production-function regression76 checks (old24fail/52pass, new76pass), expanded
+-  model/runtime/link suites140pass/5skip. Add regression to eGPU CI. Normal
+-  carrot-wip GitPull/comma restart; no model download, Jetson bundle or live writes.
+-
+-- On 2026-11-03, owner requests morning TBT dropout/manual torque+approach review
+-  and configurable right ATC distance. Ten full rlogs137168022B hash-matched,
+-  11800frames/03a28b256c. Three pre-turn aborts are receiver driver_override with
+-  no recorded completed-send ACK, not30deg completion. Receiver state conflates
+-  payload change/stale400ms/expiry. Comma B1 neutral repeats200ms after tap-like
+-  signals, receiver cause unresolved. Owner cannot power Jetson now, code first.
+-  Normal turn return becomes15deg after30deg steer/20deg heading entry. Driver
+-  cancellation after30deg steer requires pressed opposite torque and opposite
+-  angle strictly past0 whilemoving. Preserve journey across receiver override.
+-  Only previously exact-ACK+lamp-confirmed TBT holds continue through fresh
+-  override/ready/waiting, never initial-unacked hold or override retry. Initial
+-  three failures NOT cured. Source-loop8cases and local832/2skip,Wiki25 pass.
+-  RightLaneChange parameter becomesINT metres0..500/step50/default0; legacy1
+-  migrates250, runtime backup compatibility, oldmode4 remains retryable.
+-  Prior12755frame replay20 requests, morning7/6lamp starts median0.284s. Strong
+-  torque350+0.5s trial advances morningone0.204s, priornone; stronger confirmation
+-  addsnothing. Unconditional0.5s adds roadside candidate. Manual timing unchanged.
+-  No vehicle writes/CAN/reboot/bundle. GitPull/comma restart. See
+-  docs/indicator_morning_review_20261103.md. Raw evidence private.
+-  Source1196a59d34 published. Native41535582601 1285/40skip/362subtests;
+-  Jetson41535583787 2329/56skip+232/62/94/119/11/11 andWindows pass. eGPU/docs
+-  pass. Localweb52+30 pass after oldtoggle expectation update. Wiki c815bd5
+-  twelve pages reviewed/hash-matched.
+-
+-
+-- On 2026-11-02, owner separates prior manual-attempt replay from lunch long-turn
+-  review, then requests TBT wheel-return<=30deg completion.10hash-matched lunch
+-  rlogs127897928B on4a555c75b8: returnseg3 leftlamp22.512..37.002s/14.49s;
+-  slow departure and old+30m/10deg-settle hold explain delay. Actual selected
+-  steer>30 AND headingrotation>=20 then moving>=1km/h/wheelabs<=30 ends hold
+-  immediately; approach/stop, distance fallback and300s limit preserved. Fresh
+-  same-side nextcue now queues separately; completion hands over with sameID,
+-  no duplicate tap.5phase source replay36.026..36.066->28.196..28.236s,7.80..7.85s
+-  earlier request end, NOT measured new lamp extinction. Desktop710/2skip.
+-  Prior12755frame manual replay:0.5s/cap1.4 advances6/20 by0.046..0.298s but
+-  adds1candidate near parked roadside; tire-before-line notproved. Opposite
+-  torque can occur while still approaching; torque+0.05mretreat trial improves
+-  oneend55ms. Manual tuning stays OFFLINE/unchanged. No live writes/CAN/reboot
+-  or Jetson bundle; normal GitPull/comma restart. See
+-  docs/indicator_timing_review_20261102.md; raw evidence private.
+-  Published08f99d4e41; CI41452434830 passes2224/56skip plus232/62/94/119/11/11
+-  andWindows; first41451133382 stalled HUD/cancelled after same-source pass.
+-  Fullbuild41451133200,eGPU/docs pass; Wiki d06cf2d three pages hash-verified.
+-
 -
 -- On 2026-11-01, owner approves latest-drive manual-indicator response fixes.
 -  Eleven hash-matched full rlogs/147479258B/12755model frames:20manual requests,

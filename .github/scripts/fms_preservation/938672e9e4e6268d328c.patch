@@ -1,0 +1,32 @@
+--- a/tools/jetlink/blink_source.py
++++ b/tools/jetlink/blink_source.py
+@@ -105,6 +105,10 @@
+   trial_until = 0.
+   last_trial = None
+   policy, params = Policy(), Params()
++  fms_hold = None
++  if ble and fingerprint == 'KIA_SORENTO_HEV_4TH_GEN':
++    from opendbc.car.hyundai.hyundaicanfd import BlinkerHold
++    fms_hold = BlinkerHold()
+   automatic = AutomaticSignals()
+   tbt = TbtBlinker()
+   boundary = BoundaryEvents(read_json(RUNTIME/'boundary-indicator.json', {}))
+@@ -194,6 +198,8 @@
+         auto = tbt_auto
+     model_fresh = ('modelV2' in sm.services and sm.valid['modelV2'] and sm.alive['modelV2'] and fresh(sm.recv_time['modelV2'], now, .35))
+     meta = sm['modelV2'].meta if model_fresh else None
++    if fms_hold is not None:
++      fms_hold.update(sm['modelV2'] if model_fresh else None, cs, sm['carControl'].latActive and ok)
+     observed_source = str(getattr(meta, 'observedIndicatorSource', ''))
+     observation_enabled = (params.get_bool('ManualLaneChangeIndicator') if observed_source == 'manual' else
+                            params.get_bool('ModelPathIndicator') if observed_source == 'model_path' else
+@@ -244,6 +250,9 @@
+     if not spas and policy.relight(now, activated_id, acknowledged and not receiver_override, cs.leftBlinker, cs.rightBlinker,
+                                   retry_unlit=auto_valid and automatic.direction is not None and feedback.get('state') == 'ready'):
+       hold, activated_id = policy.hold, None
++    if fms_hold is not None and fms_hold.blocked:
++      # BLE renewals obey the same driver-intervention latch as native CAN HOLD.
++      hold, activated_id, release_until = None, None, 0.
+     model_fresh = ('modelV2' in sm.services and sm.valid['modelV2'] and sm.alive['modelV2'] and fresh(sm.recv_time['modelV2'], now, .35))
+     meta = sm['modelV2'].meta if model_fresh else None
+     boundary_direction = {'left':1, 'right':2}.get(str(getattr(meta, 'manualLaneIndicator', 'none')), 0)

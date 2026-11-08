@@ -76,6 +76,7 @@ def manager_init() -> UpdateStatus:
   params.clear_all(ParamKeyFlag.CLEAR_ON_ONROAD_TRANSITION)
   params.clear_all(ParamKeyFlag.CLEAR_ON_OFFROAD_TRANSITION)
   params.clear_all(ParamKeyFlag.CLEAR_ON_IGNITION_ON)
+  Params('/dev/shm/params').remove('NavDestinationTemporary')
   if build_metadata.release_channel:
     params.clear_all(ParamKeyFlag.DEVELOPMENT_ONLY)
 
@@ -205,6 +206,7 @@ def manager_thread(update_status: UpdateStatus) -> None:
       params.clear_all(ParamKeyFlag.CLEAR_ON_ONROAD_TRANSITION)
     elif not started and started_prev:
       params.clear_all(ParamKeyFlag.CLEAR_ON_OFFROAD_TRANSITION)
+      Params('/dev/shm/params').remove('NavDestinationTemporary')
 
     ignition = any(ps.ignitionLine or ps.ignitionCan for ps in sm['pandaStates'] if ps.pandaType != log.PandaState.PandaType.unknown)
     if ignition and not ignition_prev:

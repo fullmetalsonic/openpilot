@@ -4,11 +4,22 @@ from pathlib import Path
 import pytest
 
 from openpilot.selfdrive.carrot import carrot_navi
+from openpilot.selfdrive.carrot.server.services import param_changes
 from openpilot.selfdrive.carrot.server.services import params as params_service
 
 
 class FakeUnknownKeyName(Exception):
   pass
+
+
+class FakeParamKeyType:
+  BOOL = "bool"
+  INT = "int"
+  FLOAT = "float"
+  TIME = "time"
+  STRING = "string"
+  JSON = "json"
+  BYTES = "bytes"
 
 
 class StaleParams:
@@ -117,15 +128,6 @@ def test_jetson_update_state_remains_internal():
 
 @pytest.mark.parametrize("mode", [0, 1, 2])
 def test_disable_dm_survives_file_qr_and_restore(mode, tmp_path, monkeypatch):
-  class FakeParamKeyType:
-    BOOL = "bool"
-    INT = "int"
-    FLOAT = "float"
-    TIME = "time"
-    STRING = "string"
-    JSON = "json"
-    BYTES = "bytes"
-
   writes = []
 
   class LegacyParams:
@@ -162,3 +164,39 @@ def test_disable_dm_survives_file_qr_and_restore(mode, tmp_path, monkeypatch):
   restored = params_service.restore_param_values_validated(backup)
   assert restored["result"] == {"ok_cnt": 1, "fail_cnt": 0, "fails": []}
   assert writes == [("DisableDM", mode)]
+
+
+@pytest.mark.parametrize("stored,expected", [
+  ("False", 0), ("True", 250), (False, 0), (True, 250),
+  ("0", 0), ("1", 250), (1, 250), (350, 350), ("500", 500),
+])
+def test_right_lane_change_restore_migrates_legacy_toggle(stored, expected, monkeypatch):
+  key = "AutoTurnControlRightLaneChange"
+  state = {key: 150}
+
+  class DistanceParams:
+    def get_type(self, name):
+      return FakeParamKeyType.INT
+
+    def get_int(self, name):
+      return state[name]
+
+    def put_int(self, name, value):
+      assert type(value) is int
+      state[name] = value
+
+  monkeypatch.setattr(params_service, "HAS_PARAMS", True)
+  monkeypatch.setattr(params_service, "ParamKeyType", FakeParamKeyType)
+  monkeypatch.setattr(params_service, "Params", DistanceParams)
+  monkeypatch.setattr(param_changes, "append_param_change", lambda *args, **kwargs: None)
+
+  backup = {key: stored}
+  success = {"ok_cnt": 1, "fail_cnt": 0, "fails": []}
+  assert params_service.restore_param_values_from_backup(backup) == success
+  assert state[key] == expected
+
+  state[key] = 150
+  restored = params_service.restore_param_values_validated(backup)
+  assert restored["preview"]["entries"][0]["value"] == expected
+  assert restored["result"] == success
+  assert state[key] == expected

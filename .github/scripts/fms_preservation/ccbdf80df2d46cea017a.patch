@@ -13,7 +13,7 @@
  from openpilot.system.manager.helpers import unblock_stdout, write_onroad_params, save_bootlog
  from openpilot.system.manager.process import ensure_running
  from openpilot.system.manager.process_config import managed_processes
-@@ -84,7 +82,6 @@
+@@ -85,7 +83,6 @@
    if params.get_bool("RecordFrontLock"):
      params.put_bool("RecordFront", True)
  
@@ -21,7 +21,7 @@
    migrate_atc_params(params)
    migrate_lateral_geometry_params(params)
  
-@@ -94,7 +91,6 @@
+@@ -95,7 +92,6 @@
      if default_value is not None and params.get(k) is None:
        params.put(k, default_value)
  
@@ -29,7 +29,7 @@
    configure_wide_camera(params)
  
    # Create folders needed for msgq
-@@ -159,13 +155,6 @@
+@@ -160,13 +156,6 @@
    cloudlog.info("everything is dead")
  
  
@@ -43,7 +43,7 @@
  def read_rss_kb(pid: int) -> int:
    try:
      with open(f"/proc/{pid}/status") as f:
-@@ -219,7 +208,7 @@
+@@ -221,7 +210,7 @@
  
      ignition = any(ps.ignitionLine or ps.ignitionCan for ps in sm['pandaStates'] if ps.pandaType != log.PandaState.PandaType.unknown)
      if ignition and not ignition_prev:

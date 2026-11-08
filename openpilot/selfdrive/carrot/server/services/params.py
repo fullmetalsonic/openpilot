@@ -511,6 +511,16 @@ def _backup_param_type_map(names: Optional[List[str]] = None) -> Dict[str, Any]:
   return type_map
 
 
+def _normalize_restore_value(key: str, t: Any, value: Any) -> Any:
+  if key == "AutoTurnControlRightLaneChange" and t == ParamKeyType.INT:
+    # Older file backups store boolean strings, and older QR backups store 0/1.
+    if isinstance(value, str) and value.strip().lower() in ("false", "true"):
+      value = _coerce_bool(value)
+    distance = _to_int(value)
+    return 250 if distance == 1 else distance
+  return value
+
+
 def restore_param_values_from_backup(values: Dict[str, Any], source: str = "restore") -> Dict[str, Any]:
   if not HAS_PARAMS or ParamKeyType is None:
     raise RuntimeError("Params/ParamKeyType not available")
@@ -540,7 +550,7 @@ def restore_param_values_from_backup(values: Dict[str, Any], source: str = "rest
       # The single write path: same clamping, inference and unregistered-key
       # fallback the settings screen uses, so a profile cannot fail on a key a
       # single write would have saved.
-      set_param_value(key, value, definition)
+      set_param_value(key, _normalize_restore_value(key, t, value), definition)
       ok_cnt += 1
 
       # Recording each write individually — bulk writes are the hardest changes
@@ -1306,7 +1316,7 @@ def preview_param_restore_values(values: Dict[str, Any], selected_keys: Optional
             reason = "unsupported type"
             can_apply = False
           else:
-            normalized_value = _normalize_param_value(t, raw_value)
+            normalized_value = _normalize_param_value(t, _normalize_restore_value(key, t, raw_value))
             current_value = current_values.get(key, "")
             if _values_equal(t, current_value, normalized_value):
               status = "same"

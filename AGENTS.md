@@ -1,5 +1,37 @@
 # CarrotPilot 제품 작업 지침
 
+## 2026-11-07 어시스턴트 없는00a6815 로컬 통합
+
+사용자 지정 원본·helper 기준은 `00a6815b802f34e483f28a8f35510f80ba1ce949`다. Git 부모/게시 WIP35c35c2 위의 검증된8d67935 미커밋45경로를 대조·사본 보존한 뒤8d→00a의13커밋·76경로를 접합한다. 최초 ChatGPT 추가860a6fe는 선택범위 밖이며 tools/carrot_assistant와 웹assistant 소스/번들 기능을 포함하지 않는다. 이는 선택 버전 예외이며 개인 패치8번째로 세지 않는다. 향후 어시스턴트 포함은 별도 사용자 결정 없이 되살리지 않는다.
+
+개인7개·SCC MAIN 운전자 의도 분리·MQ4 원본 MAIN 요청·CANCEL/패들 동시입력 우선·일반 앞차 정차/재출발을 유지한다. 새 레이더0.20초 일관성 확인은 실제 L1/MPC 입력 정책이며 UI 필터로만 설명하지 않는다. 최신 measured radar 연속성이 깨지면 유지하지 않고 신규 radar handoff/SCC fallback은 원본대로다. CANable/SLCAN/비동기 source cleanup·Light speed2 선택 모델·C4 badge 배치는 원본을 따르되 운전자 개입 HOLD 해제·legacyDM·VEgo1/저장값·원본+포크 선택·실제 PC로그 JS/CSS/manifest를 보존한다. 커밋·푸시·안정판·기기/Params·예약·PC수신기 변경은 하지 않는다. 실제 검사/미실행과 새 지문은 운영로그00a절을 따른다. 아래8d/4b 로컬·게시 문구는 당시 이력이다.
+
+## 2026-11-05 원본8d67935 로컬 통합
+
+사용자 최신 원본 적용 요청에 따라 게시 `35c35c23e79ac25bbc92cc571f5f977b41f97d48` 위에서 원본 `8d6793589e585f2e4c5dc441789850dd05b90851`를 통합한다. 소스·helper 기준을 함께 올리며4b155d9 이후12커밋·36경로를 반영한다. 개인7개·CameraSCC MAIN 운전자 선택 분리·MQ4 원본 MAIN 요청·CANCEL/패들 동시입력 우선 보호를 유지한다. 커밋·푸시·기기/Params·안정판·예약·PC수신기는 이번 로컬 작업 범위가 아니다.
+
+끼어들기14c5398은 이미35c35c2에 포함된 원본 기능이며 이번 범위의 새 radar 수정으로 중복 설명하지 않는다. 새 범위는 B1 조립 문서, 레이 EV 외장 Comma Pedal의 TX 배율/한도, 선택 Light speed USB 런타임과 기록용 orientationRate 표준편차, 임시 NAV 목적지 수명주기다. 외장 Comma Pedal과 차량 패들시프트는 별개이며 Ray 차종/opt-in/driver threshold 조건을 유지한다. 기존 curve 제어·정지거리·VEgo·DM 정책은 바꾸지 않는다. 실제 검사와 미실행 native/USB/GPU·실차 범위는 운영로그8d절을 따른다. 아래4b 로컬/게시 문구는 과거 시점이다.
+
+## 2026-11-04 SCC MAIN 상태 분리 로컬 후보 — 4b155d9
+
+사용자는 게시 WIP3e02473 위에 원본4b155d9를 적용하고 기존 MQ4 MAIN 차단 예외를 재검토하되 개인7개와 SoftHold/CANCEL/패들을 검증하도록 승인했다. 커밋·푸시·기기/Params·안정판·예약 변경은 승인하지 않았다. 소스와 helper 재구성 기준은 `4b155d9e385195409e3928c138e457985a9ce06f`다. 뒤의 B1 조립 문서2커밋은 이번 범위가 아니다.
+
+CameraSCC+OP-long에서 계기판용 OEM MainMode_ACC를 운전자의 main_enabled로 복사하지 않는 원본 수신 수정을 적용하고 MQ4 송신부의 OFF/대기 차종 제외 한 줄을 제거한다. AutoEngage 초기화·실제 MAIN/RES/SET/LFA·CANCEL latch·독립hold·패들 자격은 유지한다. 자동 CAM/TX 버튼과 ECAN 물리 버튼을 구분하고 상태 수신→VCruise→조향 허용·양 CANFD 정차·패들 경계를 확인한다. 교차검사에서 발견한 기존 CANCEL/패들 동시입력의 버튼 추적 덮어쓰기도 좁게 수리한다. 진행 중/동일 batch CANCEL을 패들 press로 지우지 않아 CancelButtonMode0/1의 짧음/길게 조향 정책을 유지한다. 개인기능8개로 늘리는 변경이 아니라 공통 CANCEL 우선 보호다. 로컬 검사 결과와 실제 미실행 범위는 외부 운영로그 최신 절을 따른다. 아래 MQ4 예외는 이전 시점이며 이번 후보에 되살리지 않는다.
+
+## 2026-11-04 WIP 원본14c5398 로컬 통합
+
+선택 원본·검토 끝·helper 재구성은 `14c5398fca00d298c2791ecf43f46b3e3fd6cc38`, Git 부모는 게시 WIP `eddd0cbe4fc6be91e3cb19562e5b3575157ada98`다. 개인 기능 7개·공통 보호·원본 앞차 기능과 실제 로그 배포 JS/CSS/manifest를 유지한다. 이번 범위는 로컬 통합과 검증이며 새 커밋·푸시와 기기 설치는 별도 요청을 따른다. 아래 이전 SHA/게시 문구는 당시 기록이다.
+
+원본 B1 BLE 장치·등록·펌웨어 관리와 독립 레이더 운동 기반 근거리 끼어들기 변경을 가져온다. B1은 장치 발견·등록에 따라 동작하며 일괄 기본 OFF로 설명하지 않는다. 로컬 검증은 모의 BLE·OTA이며 실제 기기와 펌웨어 설치는 별도다. MQ4의 BLE 유지 요청에도 기존 FMS 운전자 개입 HOLD 해제를 적용한다. 기존 쏘렌토 OFF·대기 순정 MAIN 자동 요청 예외와 legacy DM을 보존한다.
+
+## 2026-11-03 WIP 로컬 통합 기준
+
+원본 소스와 패치 재구성 기준은 `ed7fe4a00ec0199c407f1a1d20f5338d5e720097`이며 게시 WIP `462940e` 위의 로컬 통합이다. 개인 예외 7개와 공통 운전자 보호를 유지한다. 이 WIP 작업 범위는 통합과 검증까지다. 커밋·푸시는 별도 요청이 필요하다. 기존 WIP 스냅샷의 안정판 승격은 이 로컬 후보의 게시와 별개다. 현재 운영 결과는 프로젝트 운영 로그를 따른다.
+
+원본의 내비 안내 회전·우측 차선변경 준비 거리, 저속 모델 곡률, 기본 꺼짐인 Ray EV 외장 Comma Pedal 지원, 계기판용 순정 SCC MAIN 요청을 검토한다. MQ4 HEV에서는 기존 OFF/대기·CANCEL·패들 동작을 보존하기 위해 새 자동 MAIN 요청을 보류한다. 원본 기능의 배경과 제한은 `docs/indicator_morning_review_20261103.md`, `docs/comma_pedal.md`, `docs/ev5_cluster_corner_display.md`를 참조한다. 원본 검증과 FMS 검증은 별도로 기록한다.
+
+아래 4a555c7 및 이전 버전의 승인과 게시 상태는 해당 날짜의 기록이다.
+
 사용자 이번 요청(2026-11-01): **"원본 4a555c7 기준으로 또 업데이트". 게시 f283533 위에 원본441d71e..4a555c7의2커밋을 통합하고 개인7개 예외·공통보호·기존DM·직전두수리를 보존해 검증한 뒤 fms-carrot-wip만 일반fast-forward로 갱신한다. 안정판/DDM·예약·기기/Params는 그대로다. 원본과 재구성기준은4a555c7이며 Git부모는f283533이다. 아래 과거로컬/금지상태를 현행으로 오인하지 않는다.**
 
 이번 원본 변경은 선택 기능인 IONIQ5PE/Jetson 수동 자동깜박이의 반향 오인 방지·ACK와 조기램프관측 연결·경계접근0.3초 예측(0.9~1.2m 제한)이다. 기존 장비/기본OFF·속도/색상/접근/로드에지/운전자취소게이트는 보존한다. MQ4의 완료stamp35·운전자개입HOLD/원본FSM은 유지한다. 원본의AGENTS·rlog/CI 수치는 변경배경 자료이며 FMS승인이나 실차PASS가 아니다. 세부는 docs/manual_indicator_response_20261101.md와 외부프로젝트 output/WIP_DELTA_4A555C7_2026-11-01 근거를 참조한다.
@@ -156,6 +188,143 @@ Upstream history below is evidence of its own policy
 and field observations, not permission to replace these FMS contracts.
 
 # Repository memory
+
+- On 2026-11-05, owner reports ATC indicator-associated warnings while driving,
+  then explicitly requests PC-only fix/test/push and will apply after exercise.
+  Full-cereal NAS rlog 11a6/30: receiver unavailable/lease_lost at19:47:56.001,
+  model IPC timeout/local fallback167ms later and commIssue soft-disable.
+  Both reported indicators are off at failure; this does not prove a turn-on
+  trigger or why receiver availability dropped. Sender synchronously waited
+  for policy-child exit on the model bridge thread. Reap only that source in
+  background after immediate IPC closure; retain synchronous CAN-worker close,
+  lease grace and expiry. Gate fresh sources until reaping ends, revoke commands
+  on adapter-generation change, log receiver state/error on loss. Real desktop
+  child with400ms shutdown reproduces old405ms blocking; new lifecycle tests
+  cover loss/change/close, recovery without command replay and CAN close.
+  Indicator suites606pass/7Linux-only skips; Ruff passes. No vehicle write,
+  restart, firmware or model change. Initial receiver failure and road cure
+  remain unverified; user must GitPull/full reboot to load the comma bridge fix.
+
+- On 2026-11-05, owner requests 0.20s coherent-vision replacement while a
+  healthy measured front radar lead remains, following ID4 29e/46 on contributor
+  model_selector-ha c6eb3b36a. Short visual range/speed outliers replace measured
+  281 and drive recorded acceleration dips. Retain current measured values;
+  reset confirmation on visual kinematic jumps, revoke on invalid radar/path,
+  count model timestamps (not repeated wakeups), preserve new radar matches
+  and independent stationary contradictions. No parameter/model/device change.
+  New log-derived case passes modes1/2/3; all104logs/504labels have no new failures.
+  Existing expectation failures11/10/13, mode3 predecel1 and208unverified remain.
+  Full124489frame audit changes677 vision-only L1 frames in33logs to radar,
+  no L2/risk identity changes. Local1847pass/4skip and Ruff pass. Actual road
+  acceleration untested; NAS graph retains recorded commands. See
+  docs/id4_vision_transition_20261105.md; private evidence under .analysis/archive.
+
+- On 2026-11-05, owner requests Light speed 2 b92fc482 as an additional shared
+  eGPU/Jetson choice, keeping old Light speed. Official PKL b4dead3e/767228907B,
+  ONNX909a1400/768749892B, checkpoint ea2f516f match all metadata; NOO unsupported.
+  Pin isolated tinygrad ec91b74/runtime96c6ecc9; upstream includes cast-zero USB
+  wrap rule, so retain old backport only for d39227. Add exact-runtime cooperative
+  USB wait/captured copies and native compatibility CI. Signed selected-model
+  host delivery required. Parked physical testing authorized before19:40; do not
+  treat desktop metadata/CI as road acceptance. See docs/light_speed_2_model_20261105.md.
+  Published9faaee0ab9; native Light2 five/Jetson2364 checks pass. Owner car retained
+  concurrent CAN-task f8e02ee19d, normal comma reboot selects Light2. ONNX downloaded
+  on Jetson and reboot requested; owner then explicitly PAUSED Jetson work due to
+  CAN-task overlap. No further device changes/tests until resumed. Automatic boot
+  update may proceed; actual Light2 engine/inference/road readiness unverified.
+  Owner then resumed. Auto-install7c6be06a/ONNX909a1400/FP16 engine matches pin,
+  built47s. Actual commaf8e02ee19d boot selectsLight2, snapshotfalse/P/inactive.
+  120s/2405frames: mean37.569/P9941.971/max44.868ms, zero>50execution/gaps/invalid
+  pose/alerts/linkloss. N16 prior mean40.662; CAN cadence also changed, not isolated
+  A/B. Loop max61.614ms remains; no absolute50ms or road/eGPUhardware guarantee.
+  DATA4GBfree. FullCI4Bluetooth import failures match pre-model895905 baseline.
+  Light2 remains selected/running; no additional reboot after resume.
+
+
+- On 2026-11-05, owner requests MKS CANable 2.0 support alongside PEAK and S3,
+  first-ready output selection, and beginner PC/Jetson firmware/photo guides.
+  Standard G431 board flashed/readback-verified carrot-b1-slcan-2; exact image
+  aa59e9f7733d3398537d1a7d7c07cdd5e17edc91ac689fd7e0bd738dad03cd26.
+  Fix upstream silent-open override, disable automatic retries, clear pending TX
+  on close, and report actual sequence/TXBTO/protocol-error/cancellation results.
+  Host retries only confirmed no-error cancellations within 15ms/eight attempts.
+  Native Park test: left/right each exactly three flashes, comma and 0x413 agree;
+  13 completed TX frames, no opposite lamp. No long-duration driving proof.
+  Shared comma lease selects first ready S3/USB, retains working owner, expires
+  old commands before failover; enrollment alone never reserves S3 priority.
+  Native ownership/SLCAN21 pass, desktop88 pass/7 native-only skips; staged
+  production discovery receives matching CAN without sending. Installer backs up
+  full internal flash then programs/readback-compares; never writes options/OTP.
+  Standard MKS V2.0 only; Pro/V1/other MCU unverified. Windows physical DFU flash
+  untested. User explicitly authorizes KO/EN photo guides, Wiki and release kits.
+  See docs/user/ko/indicator-adapters.md and tools/jetlink/canable/README.md.
+  Live installation exposed bridge status cadence (1Hz inference/2s idle) versus
+  the new 500ms lease: source restarted repeatedly despite healthy CAN. Request
+  telemetry on each inference with an indicator channel, poll idle at200ms and
+  keep local receive timeout100ms; retain 500ms stale revocation. Production-loop
+  cadence regressions3pass. No firmware change is needed for this correction.
+  Public release carrot-canable-v2 and clickable KO/EN Wiki adapter pages are
+  published; five downloaded assets hash-match, public photo/link navigation and
+  mobile offline guide checked. Windows GUI/no-device checks exercised; no PC DFU
+  hardware attached. Park-guarded comma GitPull/reboot installed f8e02ee19d; avoid
+  only killing Python child processes after source changes because manager
+  preimports their modules. Concurrent owner-authorized Light2 work rebooted
+  both devices; preserve its selection. Final native observation: CANable owns
+  all391 samples across20s, same lease token, fresh CAN/ready/no error. Jetson
+  then runs Light2 source7c6be06a5b (includes CANable), not the earlier c70 pin.
+  This final check is passive; the earlier direct Park left/right test remains
+  the physical lamp proof, not a new end-to-end Bluetooth-button test.
+
+- On 2026-11-05, owner requests exact g1 handoff rejection on screen and logs.
+  Add adb-handoff reason codes and bounded observations for first failed guard,
+  pre-write recheck, locks and unbind IO. Setup always invokes the existing
+  permission-checking helper for g1, including missing/unsafe marker diagnostics.
+  Shell status/stderr and daemon errors carry the cause to Carrot Web KO/EN;
+  label becomes comma USB setup blocked. Automatic NCM fallback retains the
+  cause at the start of its bounded error. Default opt-in/offroad/identity and
+  ownership checks still govern release. No marker enrollment/live device writes.
+  See docs/jetlink_konik_usb_recognition_20261023.md diagnostic table.
+
+- On 2026-11-05, owner requests review/integration of PR570/571. PR570 final
+  5f6712c422 doubles Ray command increment above neutral264/497; cap0.70 maps
+  795/1572 with matching explicit Panda bounds. Raw slew increases too.
+  Eligibility/sensor calibration retain prior definitions; contributor reports
+  Ray operation, no local physical acceleration proof. PR571980f2f9413 selects
+  temporary geocoding; supplement with RAM-only active destination, DONT_LOG,
+  manager-start/offroad cleanup and CLI replacement. Fix arrival cleanup omission
+  (original production method fails regression); local221vehicle+29nav pass.
+  Ordinary GitPull/restart includes Panda rebuild. No live writes/CAN/reboot.
+
+
+- On 2026-11-04, owner requests USB wrap correction and curve replay comparison.
+  Backport tinygrad42ea17d1 cast-zero USB memset rule before loading only exact
+  d39227/cb9bf2cf Light runtime; older N16/Flip ranged-store paths untouched.
+  New Light AMD warp cache tag; validation receipts hash hooks. No model/runtime
+  replacement or claimed hardware cure. 26hash-checked rlogs346631805B give
+  30284model/30276usable/25243moving frames; ALL lack yawStd/raw predictions.
+  Current ceiling vs ssh f3bf59fd negative-cap rates6.92/7.01%; assumed sigma
+  .03rad/s gives11.29/11.87, NOT measured uncertainty or braking. Corpus includes
+  retiredMD4798frames and JoiningModel without exact recorded external identity.
+  Some near-straight extra limits and nonmonotonic tighter-curve gate found.
+  Live curve policy unchanged; publish existing orientationRate stds for future
+  logs only. Desktop128 plus pinned matcher pass; eGPU41834213643 passes505+57,
+  native old3/2skip and Light5 plusWeb. Jetson41834213685 passes5+2330/56skip
+  and supporting suites/Windows; docs pass. Physical USB wrap untested.
+  No live writes/CAN/Jetson bundle. See docs/usb_wrap_curve_comparison_20261104.md.
+
+
+- On 2026-11-04, owner reports unintended steering with AutoEngage0 after the
+  Nov3 isolated stock MAIN change. Confirmed source chain OEM MainMode_ACC ->
+  main_enabled -> cruiseState.available rising -> VCruiseCarrot latEnabled ->
+  AlwaysLateral. Nov3 packet tests missed this driver-intent feedback path.
+  CameraSCC+openpilotLong now excludes OEM MAIN feedback from driver's main state;
+  AutoEngage init and physical MAIN/RES/SET still own that state. LFA off survives
+  OEM transitions. Generic cruise/controller/Panda and stock-long paths unchanged.
+  Production helper+full cruise+lateral-gate regression old7fail/2pass, new9pass;
+  combined368 desktop pass. UTF8 required for pre-existing VW metadata reads on
+  Windows. No live vehicle writes or individual complaint log validation.
+  GitPull/comma restart. See docs/ev5_cluster_corner_display.md correction.
+
 
 - On 2026-10-17, user requested central-priority signal improvement and historical
   validation. Offline 122 segments/56,612 observations: any-colour peripheral

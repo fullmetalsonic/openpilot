@@ -466,10 +466,14 @@ class VCruiseCarrot:
       if self.button_prev in [ButtonType.accelCruise, ButtonType.decelCruise] and CS.cruiseSpeedBigStep:
         self.button_big_step = True
 
+    cancel_pending = any(b.type == ButtonType.cancel for b in buttonEvents) or (
+      self.button_cnt > 0 and self.button_prev == ButtonType.cancel)
     for b in buttonEvents:
       bt = b.type
 
       if bt in [ButtonType.paddleLeft, ButtonType.paddleRight] and b.pressed:
+        if cancel_pending:
+          continue  # A paddle must not erase CANCEL tracking or its release policy.
         # Paddle: 즉시 이벤트 발생
         button_type = bt
         self.long_pressed = False

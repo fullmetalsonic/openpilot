@@ -1,6 +1,6 @@
 --- a/openpilot/common/params_keys.h
 +++ b/openpilot/common/params_keys.h
-@@ -399,11 +399,7 @@
+@@ -400,11 +400,7 @@
      {"TeslaWakeOnCAN", {PERSISTENT, BOOL, "1"}},
      {"TeslaAutoTurnSignals", {PERSISTENT, BOOL, "0"}},
  

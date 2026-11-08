@@ -16,8 +16,40 @@ diff --git a/.gitattributes b/.gitattributes
 diff --git a/AGENTS.md b/AGENTS.md
 --- a/AGENTS.md
 +++ b/AGENTS.md
-@@ -1,1230 +1,161 @@
+@@ -1,3 +1,192 @@
 +# CarrotPilot 제품 작업 지침
++
++## 2026-11-07 어시스턴트 없는00a6815 로컬 통합
++
++사용자 지정 원본·helper 기준은 `00a6815b802f34e483f28a8f35510f80ba1ce949`다. Git 부모/게시 WIP35c35c2 위의 검증된8d67935 미커밋45경로를 대조·사본 보존한 뒤8d→00a의13커밋·76경로를 접합한다. 최초 ChatGPT 추가860a6fe는 선택범위 밖이며 tools/carrot_assistant와 웹assistant 소스/번들 기능을 포함하지 않는다. 이는 선택 버전 예외이며 개인 패치8번째로 세지 않는다. 향후 어시스턴트 포함은 별도 사용자 결정 없이 되살리지 않는다.
++
++개인7개·SCC MAIN 운전자 의도 분리·MQ4 원본 MAIN 요청·CANCEL/패들 동시입력 우선·일반 앞차 정차/재출발을 유지한다. 새 레이더0.20초 일관성 확인은 실제 L1/MPC 입력 정책이며 UI 필터로만 설명하지 않는다. 최신 measured radar 연속성이 깨지면 유지하지 않고 신규 radar handoff/SCC fallback은 원본대로다. CANable/SLCAN/비동기 source cleanup·Light speed2 선택 모델·C4 badge 배치는 원본을 따르되 운전자 개입 HOLD 해제·legacyDM·VEgo1/저장값·원본+포크 선택·실제 PC로그 JS/CSS/manifest를 보존한다. 커밋·푸시·안정판·기기/Params·예약·PC수신기 변경은 하지 않는다. 실제 검사/미실행과 새 지문은 운영로그00a절을 따른다. 아래8d/4b 로컬·게시 문구는 당시 이력이다.
++
++## 2026-11-05 원본8d67935 로컬 통합
++
++사용자 최신 원본 적용 요청에 따라 게시 `35c35c23e79ac25bbc92cc571f5f977b41f97d48` 위에서 원본 `8d6793589e585f2e4c5dc441789850dd05b90851`를 통합한다. 소스·helper 기준을 함께 올리며4b155d9 이후12커밋·36경로를 반영한다. 개인7개·CameraSCC MAIN 운전자 선택 분리·MQ4 원본 MAIN 요청·CANCEL/패들 동시입력 우선 보호를 유지한다. 커밋·푸시·기기/Params·안정판·예약·PC수신기는 이번 로컬 작업 범위가 아니다.
++
++끼어들기14c5398은 이미35c35c2에 포함된 원본 기능이며 이번 범위의 새 radar 수정으로 중복 설명하지 않는다. 새 범위는 B1 조립 문서, 레이 EV 외장 Comma Pedal의 TX 배율/한도, 선택 Light speed USB 런타임과 기록용 orientationRate 표준편차, 임시 NAV 목적지 수명주기다. 외장 Comma Pedal과 차량 패들시프트는 별개이며 Ray 차종/opt-in/driver threshold 조건을 유지한다. 기존 curve 제어·정지거리·VEgo·DM 정책은 바꾸지 않는다. 실제 검사와 미실행 native/USB/GPU·실차 범위는 운영로그8d절을 따른다. 아래4b 로컬/게시 문구는 과거 시점이다.
++
++## 2026-11-04 SCC MAIN 상태 분리 로컬 후보 — 4b155d9
++
++사용자는 게시 WIP3e02473 위에 원본4b155d9를 적용하고 기존 MQ4 MAIN 차단 예외를 재검토하되 개인7개와 SoftHold/CANCEL/패들을 검증하도록 승인했다. 커밋·푸시·기기/Params·안정판·예약 변경은 승인하지 않았다. 소스와 helper 재구성 기준은 `4b155d9e385195409e3928c138e457985a9ce06f`다. 뒤의 B1 조립 문서2커밋은 이번 범위가 아니다.
++
++CameraSCC+OP-long에서 계기판용 OEM MainMode_ACC를 운전자의 main_enabled로 복사하지 않는 원본 수신 수정을 적용하고 MQ4 송신부의 OFF/대기 차종 제외 한 줄을 제거한다. AutoEngage 초기화·실제 MAIN/RES/SET/LFA·CANCEL latch·독립hold·패들 자격은 유지한다. 자동 CAM/TX 버튼과 ECAN 물리 버튼을 구분하고 상태 수신→VCruise→조향 허용·양 CANFD 정차·패들 경계를 확인한다. 교차검사에서 발견한 기존 CANCEL/패들 동시입력의 버튼 추적 덮어쓰기도 좁게 수리한다. 진행 중/동일 batch CANCEL을 패들 press로 지우지 않아 CancelButtonMode0/1의 짧음/길게 조향 정책을 유지한다. 개인기능8개로 늘리는 변경이 아니라 공통 CANCEL 우선 보호다. 로컬 검사 결과와 실제 미실행 범위는 외부 운영로그 최신 절을 따른다. 아래 MQ4 예외는 이전 시점이며 이번 후보에 되살리지 않는다.
++
++## 2026-11-04 WIP 원본14c5398 로컬 통합
++
++선택 원본·검토 끝·helper 재구성은 `14c5398fca00d298c2791ecf43f46b3e3fd6cc38`, Git 부모는 게시 WIP `eddd0cbe4fc6be91e3cb19562e5b3575157ada98`다. 개인 기능 7개·공통 보호·원본 앞차 기능과 실제 로그 배포 JS/CSS/manifest를 유지한다. 이번 범위는 로컬 통합과 검증이며 새 커밋·푸시와 기기 설치는 별도 요청을 따른다. 아래 이전 SHA/게시 문구는 당시 기록이다.
++
++원본 B1 BLE 장치·등록·펌웨어 관리와 독립 레이더 운동 기반 근거리 끼어들기 변경을 가져온다. B1은 장치 발견·등록에 따라 동작하며 일괄 기본 OFF로 설명하지 않는다. 로컬 검증은 모의 BLE·OTA이며 실제 기기와 펌웨어 설치는 별도다. MQ4의 BLE 유지 요청에도 기존 FMS 운전자 개입 HOLD 해제를 적용한다. 기존 쏘렌토 OFF·대기 순정 MAIN 자동 요청 예외와 legacy DM을 보존한다.
++
++## 2026-11-03 WIP 로컬 통합 기준
++
++원본 소스와 패치 재구성 기준은 `ed7fe4a00ec0199c407f1a1d20f5338d5e720097`이며 게시 WIP `462940e` 위의 로컬 통합이다. 개인 예외 7개와 공통 운전자 보호를 유지한다. 이 WIP 작업 범위는 통합과 검증까지다. 커밋·푸시는 별도 요청이 필요하다. 기존 WIP 스냅샷의 안정판 승격은 이 로컬 후보의 게시와 별개다. 현재 운영 결과는 프로젝트 운영 로그를 따른다.
++
++원본의 내비 안내 회전·우측 차선변경 준비 거리, 저속 모델 곡률, 기본 꺼짐인 Ray EV 외장 Comma Pedal 지원, 계기판용 순정 SCC MAIN 요청을 검토한다. MQ4 HEV에서는 기존 OFF/대기·CANCEL·패들 동작을 보존하기 위해 새 자동 MAIN 요청을 보류한다. 원본 기능의 배경과 제한은 `docs/indicator_morning_review_20261103.md`, `docs/comma_pedal.md`, `docs/ev5_cluster_corner_display.md`를 참조한다. 원본 검증과 FMS 검증은 별도로 기록한다.
++
++아래 4a555c7 및 이전 버전의 승인과 게시 상태는 해당 날짜의 기록이다.
 +
 +사용자 이번 요청(2026-11-01): **"원본 4a555c7 기준으로 또 업데이트". 게시 f283533 위에 원본441d71e..4a555c7의2커밋을 통합하고 개인7개 예외·공통보호·기존DM·직전두수리를 보존해 검증한 뒤 fms-carrot-wip만 일반fast-forward로 갱신한다. 안정판/DDM·예약·기기/Params는 그대로다. 원본과 재구성기준은4a555c7이며 Git부모는f283533이다. 아래 과거로컬/금지상태를 현행으로 오인하지 않는다.**
 +
@@ -175,6 +207,93 @@ diff --git a/AGENTS.md b/AGENTS.md
 +and field observations, not permission to replace these FMS contracts.
 +
  # Repository memory
+ 
+ - On 2026-11-05, owner reports ATC indicator-associated warnings while driving,
+@@ -136,1313 +325,6 @@
+   Windows. No live vehicle writes or individual complaint log validation.
+   GitPull/comma restart. See docs/ev5_cluster_corner_display.md correction.
+ 
+-
+-- On 2026-11-03, owner requests PR569 Comma Pedal review/integration with emphasis
+-  on unsupported vehicles. Merge head01b8bf5d into currentWip36fbbbae, preserving
+-  CameraSCC MAIN fix. DefaultOFF, explicit RayEV+CC_ONLY classic/nonlegacy/noncamera
+-  profile,0x201/DLC6 presence and noSCC fingerprint required. OEM ready/engaged,
+-  stale/missing status, pedal faults, driver/brake override block positive output.
+-  2568-case before/after CP matrix has2566 identical including24 existingerrors;
+-  only2 intended RayON/devicepresent cases differ. Desktop438 pass; native pedal
+-  safety/profile-switch and Python/Cython checks added to SignalCI. Contributor
+-  limited-acceleration symptom remains unresolved; no vehicle/settings/CAN work.
+-  Normal GitPull/reboot includes Panda rebuild/signature verification. See
+-  docs/comma_pedal.md; private comparison artifacts under .analysis.
+-
+-
+-- On 2026-11-03, EV5 corner-display review finds eight full logs and the earlier
+-  native ALT2 fix intact. Recent38/45 Carrot disabled; AutoEngage0 alone is not
+-  the cause. 38 stock LFA/SCC overlap enables HDA,45 overlap still HDA0; automatic
+-  LFA emissions fail to elicit activation before physical input. Owner requests
+-  isolated stock SCC MAIN while disengaged. CameraSCC+openpilotLong+cornerON,
+-  stock SCC/LFA present, valid CAN, Drive, finite >3m/s and no brake/hold/park
+-  permit existing ALT2/legacy MAIN pulses; physical input wins. MAIN-on stops
+-  retry, SET/resume retain CC.enabled. Existing control-side SCC/Panda unchanged.
+-  258 desktop packet/entry tests and25 Wiki pass; native ALT2 added to Signal CI.
+-  No live CAN/install/reboot or physical cure claim. Git Pull/comma restart.
+-  See docs/ev5_cluster_corner_display.md; raw evidence private.
+-
+-
+-- On 2026-11-03, owner requests comma0c40995 low-speed curvature review/adoption.
+-  Port exact action-head denominator floor1.0->2.5m/s in modeld. Shared eGPU/Jetson
+-  N16/Flip/Light action conversion is affected below9km/h above existing0.3m/s
+-  hold; plan-only conversion, longitudinal outputs and smoothing remain intact.
+-  Same-input attenuation can reduce low-speed overcorrection but also reduces
+-  tight-turn curvature. No physical oscillation/road cure or timing claim.
+-  Production-function regression76 checks (old24fail/52pass, new76pass), expanded
+-  model/runtime/link suites140pass/5skip. Add regression to eGPU CI. Normal
+-  carrot-wip GitPull/comma restart; no model download, Jetson bundle or live writes.
+-
+-- On 2026-11-03, owner requests morning TBT dropout/manual torque+approach review
+-  and configurable right ATC distance. Ten full rlogs137168022B hash-matched,
+-  11800frames/03a28b256c. Three pre-turn aborts are receiver driver_override with
+-  no recorded completed-send ACK, not30deg completion. Receiver state conflates
+-  payload change/stale400ms/expiry. Comma B1 neutral repeats200ms after tap-like
+-  signals, receiver cause unresolved. Owner cannot power Jetson now, code first.
+-  Normal turn return becomes15deg after30deg steer/20deg heading entry. Driver
+-  cancellation after30deg steer requires pressed opposite torque and opposite
+-  angle strictly past0 whilemoving. Preserve journey across receiver override.
+-  Only previously exact-ACK+lamp-confirmed TBT holds continue through fresh
+-  override/ready/waiting, never initial-unacked hold or override retry. Initial
+-  three failures NOT cured. Source-loop8cases and local832/2skip,Wiki25 pass.
+-  RightLaneChange parameter becomesINT metres0..500/step50/default0; legacy1
+-  migrates250, runtime backup compatibility, oldmode4 remains retryable.
+-  Prior12755frame replay20 requests, morning7/6lamp starts median0.284s. Strong
+-  torque350+0.5s trial advances morningone0.204s, priornone; stronger confirmation
+-  addsnothing. Unconditional0.5s adds roadside candidate. Manual timing unchanged.
+-  No vehicle writes/CAN/reboot/bundle. GitPull/comma restart. See
+-  docs/indicator_morning_review_20261103.md. Raw evidence private.
+-  Source1196a59d34 published. Native41535582601 1285/40skip/362subtests;
+-  Jetson41535583787 2329/56skip+232/62/94/119/11/11 andWindows pass. eGPU/docs
+-  pass. Localweb52+30 pass after oldtoggle expectation update. Wiki c815bd5
+-  twelve pages reviewed/hash-matched.
+-
+-
+-- On 2026-11-02, owner separates prior manual-attempt replay from lunch long-turn
+-  review, then requests TBT wheel-return<=30deg completion.10hash-matched lunch
+-  rlogs127897928B on4a555c75b8: returnseg3 leftlamp22.512..37.002s/14.49s;
+-  slow departure and old+30m/10deg-settle hold explain delay. Actual selected
+-  steer>30 AND headingrotation>=20 then moving>=1km/h/wheelabs<=30 ends hold
+-  immediately; approach/stop, distance fallback and300s limit preserved. Fresh
+-  same-side nextcue now queues separately; completion hands over with sameID,
+-  no duplicate tap.5phase source replay36.026..36.066->28.196..28.236s,7.80..7.85s
+-  earlier request end, NOT measured new lamp extinction. Desktop710/2skip.
+-  Prior12755frame manual replay:0.5s/cap1.4 advances6/20 by0.046..0.298s but
+-  adds1candidate near parked roadside; tire-before-line notproved. Opposite
+-  torque can occur while still approaching; torque+0.05mretreat trial improves
+-  oneend55ms. Manual tuning stays OFFLINE/unchanged. No live writes/CAN/reboot
+-  or Jetson bundle; normal GitPull/comma restart. See
+-  docs/indicator_timing_review_20261102.md; raw evidence private.
+-  Published08f99d4e41; CI41452434830 passes2224/56skip plus232/62/94/119/11/11
+-  andWindows; first41451133382 stalled HUD/cancelled after same-source pass.
+-  Fullbuild41451133200,eGPU/docs pass; Wiki d06cf2d three pages hash-verified.
+-
 -
 -- On 2026-11-01, owner approves latest-drive manual-indicator response fixes.
 -  Eleven hash-matched full rlogs/147479258B/12755model frames:20manual requests,
@@ -1441,8 +1560,63 @@ diff --git a/docs/branch_catalog.md b/docs/branch_catalog.md
 diff --git a/docs/fms_integration_contract.md b/docs/fms_integration_contract.md
 --- /dev/null
 +++ b/docs/fms_integration_contract.md
-@@ -0,0 +1,190 @@
+@@ -0,0 +1,245 @@
 +# FMS 최신 원본 통합과 개인 기능 계약
++
++## 2026-11-07 어시스턴트 없는 원본00a6815 로컬 후보
++
++선택 원본·재구성 기준은 `00a6815b802f34e483f28a8f35510f80ba1ce949`, Git 부모/게시 WIP는 `35c35c23e79ac25bbc92cc571f5f977b41f97d48`다. 직전 검증8d67935 후보45개 미커밋 변경을 먼저 지문 대조·사본 보존한 뒤13커밋·76경로를 접합한다. 개인7개와 공통보호를 유지하고 새 최초 GPT/CarrotAssist860a6fe의17신규경로 및 assistant 도구를 포함하지 않는다. 현재 source/게시/실제설치 SHA를 구분하고 커밋·푸시는 하지 않는다.
++
++- 개인7개는 독립SoftHold/양CANFD·패들4·운전자 개입HOLD해제·legacyDM전체·VEgoStopping 최소1/저장값·원본+포크 브랜치선택·폰경유PC로그다. CameraSCC OEM MAIN/운전자 의도 분리, MQ4 원본 MAIN 요청, CANCEL/패들 같은batch 보호와 기존 페달/주차/invalid·stale입력 차단은 공통보호로 유지한다.
++- 신규 healthy-front→vision 전환은0.20초의 거리/횡위치/속도 일관성을 확인하는 원본 정책이다. 그동안 최신 실측 radar값을 유지하고 연속성이 깨지면 보류를 철회한다. 정상 ACC 앞차 우선의 유효lead·실제ON/longActive·finite 상대2m 조건을 새 radar-only/same-ID/추가출발 대기로 바꾸지 않는다. 가까운/정지 vision도 확인 지연될 수 있으며 현장 긴급제동 효과를 호스트/원본 로그 숫자로 보증하지 않는다.
++- CANable/SLCAN·지원어댑터 first-ready 소유권·B1 healthlease·비동기 source 종료는 원본대로다. 모델bridge에서 IPC/출력은 즉시 철회하고 종료회수는 비동기로 처리하며 정리 전 재시작을 막는다. native CANFD 및 BLE MQ4의 새 토크가 같은 HOLD를 재무장하지 못하는 보호를 유지한다. 이 통합은 실제 USB/펌웨어 설치·장치 등록을 수행하지 않는다.
++- Light speed2는 선택된 외장 모델/artifact와 별도 runtime 계약으로 포함하며 legacyDM 모델·프로세스·DriverView·이벤트·forceDecel·알림 정책을 새 DM으로 교체하지 않는다. 어시스턴트 없는 source pin은 이번 버전 선택 예외이며 개인 기능 수를 늘리지 않는다.
++- 실제 서빙 tools.runtime은00a 소스/번들/hash와 맞추고, FMS logs.runtime/logs.styles/route-summary.worker는 이전 검증본을 유지한다. 원본 manifest의 tools 항목만 접합하며 소스 시험만으로 배포 로그전송을 완료라 하지 않는다. 이전 동일소스 브라우저 저장 근거를 재사용하고 새 도구 UI/manifest는 해당 변경 검사로 검증한다.
++
++최종 검사·재구성/멱등성·동결지문과 native/로그재생/실차 미실행 범위는 프로젝트 운영로그00a절을 따른다. 과거8d/4b candidate와 이번 완료본을 혼동해 덮어쓰지 않는다. 안정판731adee·기기/Params·예약·PC수신기와 기존 로그목록 미해결 진단은 그대로다.
++
++## 2026-11-05 최신 원본8d67935 로컬 후보
++
++게시 Git 부모는 `35c35c23e79ac25bbc92cc571f5f977b41f97d48`, 소스·재구성 기준은 `8d6793589e585f2e4c5dc441789850dd05b90851`다. 직전4b155d9 이후12커밋·36경로를 원본대로 접합한다. 개인7개와 공통보호·원본 기능 분류는 유지하며 기존7개를 새로 분리하거나 늘리지 않는다. 실제 게시/설치 SHA는 별도이며 이번 로컬 수정은 커밋·푸시를 포함하지 않는다.
++
++- 끼어들기14c5398은 이미 부모35c35c2에 포함돼 있다. 이번 차이에는 새 radar/끼어들기 코드가 없으며, 모델 orientationRate xyzStd는 기록·오프라인 비교용이다. 기존 곡선 감속·앞차 정차/재출발 정책은 유지한다.
++- 선택 Light speed 외부 GPU 런타임의 USB ring-wrap matcher와 warp 캐시 버전을 원본대로 가져온다. 정확한 pinned runtime에서의 positive matcher/native CPU·실제 USB/GPU 검증과 호스트의 제외/범위 검사 결과를 구분한다. 깜박이 정상완료 생산자와 schema field35는 그대로다.
++- 레이 EV 외장 Comma Pedal은 원본 최종 TX 배율·Ray 한도만 적용하고 neutral/input driver threshold·명시 opt-in·차종/배선·안전 조건을 보존한다. 중간 변경과 revert를 별도 패치로 누적하지 않는다. MQ4 패들 모드4 기능과 혼동하지 않는다.
++- 임시 Mapbox 검색 목적지는 RAM 우선이며 도착·manager 시작·offroad 전환에 수명을 끝낸다. CLI의 저장 목적지 교체와 늦은 응답 보호는 원본대로다. manager의 추가2줄은 새 RAM 키만 다루며 legacy DM·VEgo 저장값·최초 개인프로필 퇴역·사용자 설정을 보존한다.
++- PC로그 소스·서버·서빙 로그 JS/CSS/manifest는 부모와 동일하다. 변경된 navigation_map.js는 별도 navigation.html이 직접 제공하는 페이지이며 generated manifest 입력이 아니다. 과거 로그 번들 누락을 반복하지 않되 무관한 로그 번들을 재빌드하지 않는다. 오늘 주행 로그 목록 누락 신고는 별도의 미해결 기기 진단이다.
++
++최종 실행 검사·재구성/멱등성·새 지문은 프로젝트 운영로그8d67935절을 따른다. 아래4b 및 이전 설명은 당시 이력이며, SCC MAIN 상태 분리와 공통 CANCEL/패들 동시입력 수리를 최신 원본 재구성에서도 유지한다.
++
++## 2026-11-04 SCC MAIN 상태 분리 — 원본4b155d9 로컬 후보
++
++게시 Git 부모는 `3e02473cbcbd1a270eee5476261c3a220b0a0dce`, 소스·helper 재구성 기준은 `4b155d9e385195409e3928c138e457985a9ce06f`다. 원본의 바로 다음 SCC 수정1커밋을 접합하며 개인 기능7개·공통보호·원본 앞차 정차/재출발과 실제 PC 로그 배포 번들을 유지한다. 커밋·푸시·기기·설정·안정판·예약 변경은 하지 않는다.
++
++- 계기판용 자동 순정 MAIN은 원본 조건대로 MQ4에도 요청한다. 기존 MQ4 OFF/대기 송신 차단 예외를 제거하고 CameraSCC+OP-long의 OEM MAIN 상태를 운전자 main_enabled에 복사하지 않는 원본 수신 분리로 대체한다. MAIN 요청은 SET/RES/ENABLE을 의미하지 않는다.
++- AutoEngage0/1/2 초기화와 실제 MAIN/RES/SET·LFA 조작을 보존한다. OEM MAIN 토글만으로 cruiseState.available·latEnabled·activateCruise를 만들지 않는다. 운전자 CANCEL 뒤 OEM MAIN 응답이나 지연 입력으로 자동 ON/RES하지 않으며, 독립 SoftHold의 실제 StopReq와 페달/주차/무효 인터록 및 정상 ACC 출력은 기존 계약대로다.
++- 모드4는 실제 ON/longActive에서만 gap을 바꾸고 OFF/대기/CANCEL/독립hold에서는 회생용 패들로 gap을 저장하지 않는다. 자동 MAIN의 CAM·Panda TX 반환 버스를 실제 ECAN 운전자 버튼과 구분한다. 현장 ECU의 별도 재방송·회생 단계·계기판 표시와 실제 제동은 호스트 검사와 구분한다.
++- 공통 CANCEL 우선: 같은 CAN batch 또는 CANCEL 추적 중 패들 press가 버튼 count/선택을 덮어쓰지 않도록 한다. 실제 CANCEL→패들 순서와 역순, release와 겹친 입력도 보호하며 CancelButtonMode0의 짧게 조향 유지/길게 해제와 mode1의 짧게·길게 해제를 보존한다. 이는 기존3e02473에서도 재현된 조향 해제 누락을 고치는 좁은 수리이며 SoftHold·자동 재ON·패들 단독0~4 정책을 새로 정의하지 않는다.
++- 원본9/368검사 기록은 원본 작성자의 환경 결과이며 FMS PASS가 아니다. FMS 실행 범위·최초 재구성·멱등성·한계는 프로젝트 운영로그의4b155d9절을 따른다. 주행 로그 목록 누락 신고는 별도 미해결 진단이며 이번 SCC 수정으로 해결됐다고 표현하지 않는다.
++
++아래 MQ4 자동 MAIN 제외와14c/ed7 부모·검증 표시는 당시 이력이다. 이후 갱신은 이 상태 분리를 보존하고 이전 차종 차단 예외를 자동 복원하지 않는다.
++
++## 2026-11-04 원본14c5398 기준
++
++소스·재구성 기준은 `14c5398fca00d298c2791ecf43f46b3e3fd6cc38`이고 Git 부모는 게시 `eddd0cbe4fc6be91e3cb19562e5b3575157ada98`다. 원본 ed7fe4a 이후 13커밋·27경로를 통합하고 아래 7개 개인 기능과 공통 보호를 유지한다. 로컬 통합과 게시를 구분한다.
++
++- B1 BLE 장치 등록·펌웨어 관리와 UI를 원본대로 포함한다. 발견 가능한 신규 장치의 자동 등록과 등록 후 관리가 있으므로 미사용 장비라는 이유로 코드 포함을 제외하지 않는다. 실제 등록·업데이트·차량 송신의 성공은 로컬 시험과 다르다.
++- MQ4 HEV의 BLE B1 깜빡이 유지 요청에도 기존 FMS 운전자 개입 HOLD 판정을 적용한다. BLE 소스는 20Hz로 최신 carState를 읽으므로 native 100Hz가 관찰한 짧은 토크 펄스를 놓칠 수 있다. 이 시간적 한계와 실제 보드 반응은 실차 검증 범위다. 차선변경 중 새 토크에 유지 요청만 해제하고 같은 요청의 재유지를 막으며 새 실제 레버로 재무장한다. 물리 일회 입력과 원본 회전·조향 FSM은 기존 계약을 따른다.
++- 원본14c5398의 근거리 끼어들기 판정은 모델 앞차가 바뀌기 전의 전방·코너 레이더 독립 이동 조건을 보강하며 종방향 입력에도 사용된다. 평행 이동·경로 회전·새 트랙 오인 차단과 앞차 정차·재출발 및 개인 SoftHold/패들 보호를 함께 검증한다.
++- PC 로그 소스·배포 로그 JS/CSS와 연결은 게시 eddd0cb와 같은지 대조한다. 새 도구 UI 번들을 포함한 manifest 전체 해시와 실제 배포 번들 회귀 검사를 확인한다. 동일한 로그 번들의 브라우저 저장 증거는 해시와 의존성이 같을 때 재사용한다.
++
++아래 ed7fe4a와 이전 승인·검증은 그 날짜의 이력이다.
++
++## 2026-11-03 원본 ed7fe4a 로컬 통합
++
++원본 소스·검토 끝·재구성 기준은 `ed7fe4a00ec0199c407f1a1d20f5338d5e720097`이며 Git 기준은 기존 게시 WIP `462940e9e5efe8a3a93fb7bad2a0d7fdcfcf7c32`다. 아래 개인 기능 7개와 공통 보호를 유지한다. 이 후보의 커밋·푸시는 별도 승인 범위다. 기존 WIP와 동일한 트리의 안정판 승격은 별개이며, 실차 결과와 기기 설치 SHA는 운영 로그에서 구분한다.
++
++- 원본 내비 안내 회전·방향지시등과 우측 차선변경 준비 거리, 저속 곡률, 기본 OFF인 레이 EV용 외장 Comma Pedal 지원을 가져온다. 거리로 바뀐 기존 키의 백업 복원에서는 이전 BOOL의 false를 0, true를 250으로 처리한다.
++- 계기판용 순정 MAIN 요청은 원본 송신 경로를 사용하되 쏘렌토 MQ4 HEV에서 새 OFF·대기 요청을 제외한다. 순정 MAIN 응답이 당근 대기 조건을 열 수 있고, 해당 차량의 회생제동·Panda 0x1AA 대기 프레임 및 표시 개선은 실차 미확인이다. 기존 활성 크루즈 요청과 기존 소프트홀드·패들 보호를 보존한다.
++- 검증은 독립 SoftHold와 두 CANFD 정차 경로, 정상 ACC 앞차 재출발, 모드4 차간거리와 CANCEL, 방향지시등, legacy DM, VEgoStopping, 브랜치 선택 및 PC 로그 전송 계약을 기준으로 한다. 원본 문서의 원본 환경 시험 결과는 FMS 결과와 구분한다.
 +
 +## 2026-11-01 현재 기준: 원본4a555c7 우선 + 명시 개인 예외
 +
@@ -1874,15 +2048,15 @@ diff --git a/docs/user/en/settings.md b/docs/user/en/settings.md
  
  ## Settings map
  
--The current `carrot_settings.json` contains **201 parameters**. The driver-monitoring exception and `NNFF` are search only; the remaining entries appear in these menus:
-+The current `carrot_settings.json` contains **204 parameters**. `NNFF` is search only; the remaining entries appear in these menus:
+-The current `carrot_settings.json` contains **207 parameters**. The driver-monitoring exception and `NNFF` are search only; the remaining entries appear in these menus:
++The current `carrot_settings.json` contains **205 parameters**. The table counts top-level menu items. Linked detail settings appear under their parent, and `NNFF` appears in search.
  
  | Category | Count | Groups |
  |---|---:|---|
 -| Driving control | 124 | Startup and auto, buttons and presets, steering, speed and deceleration, cruise and following gap |
--| Vehicle and hardware | 17 | Hyundai/Kia, CAN FD/HDA, radar, driver monitoring, vehicle assistance, device hardware |
+-| Vehicle and hardware | 18 | Hyundai/Kia, CAN FD/HDA, radar, driver monitoring, vehicle assistance, device hardware |
 +| Driving control | 130 | Startup and auto, buttons and presets, steering, speed and deceleration, cruise and following gap |
-+| Vehicle and hardware | 18 | Hyundai/Kia, CAN FD/HDA, radar, driver monitoring, vehicle assistance, device hardware |
++| Vehicle and hardware | 19 | Hyundai/Kia, CAN FD/HDA, radar, driver monitoring, vehicle assistance, device hardware |
  | Display | 34 | Information, path, brightness/on-road view, external HUD |
 -| System | 12 | Recording/power, network/map, sound, software |
 +| System | 9 | Recording/power, network/map, sound, software |
@@ -1950,7 +2124,7 @@ diff --git a/docs/user/en/settings.md b/docs/user/en/settings.md
 -| Driver monitoring | `DriverMonitoringEnabled` (search only), `DriverMonitoringMode`, `CarrotVisionEnabled`, `MuteDoor`, `MuteSeatbelt` | Driver monitoring and selected vehicle alerts |
 +| Driver monitoring | `DisableDM`, `MuteDoor`, `MuteSeatbelt` | Driver monitoring and selected vehicle alerts |
  | Vehicle assistance | `MaxAngleFrames`, `SpeedFromPCM` | Steering-angle frames and stock-SCC speed control |
- | Device hardware | `HardwareC3xLite` | Speakerless C3X Lite audio and process configuration |
+ | Device hardware | `CommaPedalEnabled`, `HardwareC3xLite` | Comma Pedal permission for vehicles without ACC, and C3X Lite hardware configuration |
  
  > [!CAUTION]
  > Incorrect `HyundaiCameraSCC`, `CanfdHDA2`, `EnableRadarTracks`, `CarrotRadarMode`, `CarrotRadarCutInSensitivity`, or `SpeedFromPCM` values can change vehicle identification, SCC, radar, or longitudinal behavior. Confirm the vehicle, model year, HDA generation, harness location, and whether stock ACC is retained.
@@ -1964,7 +2138,7 @@ diff --git a/docs/user/en/settings.md b/docs/user/en/settings.md
  
  See [Radar tracks and corner radar](radar.md) before changing radar modes.
  
-@@ -305,11 +301,9 @@
+@@ -311,11 +307,9 @@
  
  ESP32-S3 Wi-Fi display support has been removed. Connect the USB display to Jetson. Supported receivers accept HUD, navigation and signal information over bounded USB transfers during inference; older receivers keep Wi-Fi until updated. Update through Git Pull and reboot both devices when the Jetson runtime changes.
  
@@ -2166,15 +2340,15 @@ diff --git a/docs/user/ko/settings.md b/docs/user/ko/settings.md
  
  ## 전체 설정 지도
  
--현재 `carrot-wip`의 `carrot_settings.json`에는 **201개 파라미터**가 있습니다. 운전자 감시 예외 설정과 `NNFF` 2개는 검색으로만 표시되며, 나머지는 아래 메뉴에 표시됩니다.
-+현재 `carrot-wip`의 `carrot_settings.json`에는 **204개 파라미터**가 있습니다. `NNFF` 1개는 검색으로만 표시되며, 나머지는 아래 메뉴에 표시됩니다.
+-현재 `carrot-wip`의 `carrot_settings.json`에는 **207개 파라미터**가 있습니다. 운전자 감시 예외 설정과 `NNFF` 2개는 검색으로만 표시되며, 나머지는 아래 메뉴에 표시됩니다.
++현재 `carrot_settings.json`에는 **205개 파라미터**가 있습니다. 아래 표는 메뉴에 직접 표시되는 항목을 셉니다. 세부 설정은 상위 항목에서 열고, `NNFF`는 검색에서 찾을 수 있습니다.
  
  | 대분류 | 항목 수 | 중분류 |
  |---|---:|---|
 -| 주행 제어 | 124 | 시작·오토, 버튼·프리셋, 차량 조향, 속도·감속, 크루즈·차간 |
--| 차량·하드웨어 | 17 | 현대·기아, CANFD·HDA, 레이더, 운전자 모니터링, 차량 보조, 기기 하드웨어 |
+-| 차량·하드웨어 | 18 | 현대·기아, CANFD·HDA, 레이더, 운전자 모니터링, 차량 보조, 기기 하드웨어 |
 +| 주행 제어 | 130 | 시작·오토, 버튼·프리셋, 차량 조향, 속도·감속, 크루즈·차간 |
-+| 차량·하드웨어 | 18 | 현대·기아, CANFD·HDA, 레이더, 운전자 모니터링, 차량 보조, 기기 하드웨어 |
++| 차량·하드웨어 | 19 | 현대·기아, CANFD·HDA, 레이더, 운전자 모니터링, 차량 보조, 기기 하드웨어 |
  | 화면 표시 | 34 | 정보 표시, 경로 표시, 밝기·주행화면, 외부 HUD |
 -| 시스템 | 12 | 녹화·전원, 네트워크·지도, 사운드, 소프트웨어 |
 +| 시스템 | 9 | 녹화·전원, 네트워크·지도, 사운드, 소프트웨어 |
@@ -2242,9 +2416,9 @@ diff --git a/docs/user/ko/settings.md b/docs/user/ko/settings.md
 -| 운전자 모니터링 | `DriverMonitoringEnabled`(검색 전용), `DriverMonitoringMode`, `CarrotVisionEnabled`, `MuteDoor`, `MuteSeatbelt` | 운전자 모니터링과 일부 차량 경고음 처리 |
 +| 운전자 모니터링 | `DisableDM`, `MuteDoor`, `MuteSeatbelt` | 운전자 모니터링과 일부 차량 경고음 처리 |
  | 차량 보조 | `MaxAngleFrames`, `SpeedFromPCM` | 최대 조향각 관련 프레임과 순정 SCC 속도 제어 방식 |
- | 기기 하드웨어 | `HardwareC3xLite` | 스피커가 없는 C3X Lite의 알림음과 프로세스 구성 |
+ | 기기 하드웨어 | `CommaPedalEnabled`, `HardwareC3xLite` | ACC 미장착 차량의 Comma Pedal 허용 설정, C3X Lite 하드웨어 구성 |
  
-@@ -285,13 +285,7 @@
+@@ -286,13 +286,7 @@
  `EnableRadarTracks=1`~`3`에서는 확인된 프런트 선행차의 바깥쪽 레이더 움직임과 비전의 먼 차량 전환이 일치하면 ACC의 미래 추종 거리 요구를 제한적으로 완화합니다. [CUT-OUT 예측 처리](radar.md)를 참고하세요.
  - `CarrotRadarMode`: 전방·코너 레이더로 차량의 움직임을 계속 추적해 끼어드는 차량을 감지하고, 카메라 영상과 레이더 정보를 새로운 방식으로 맞춰 앞차를 선택합니다. 코너 레이더와 레이더 트랙 기능이 모두 없는 차량에서는 기존 방식과 동일하게 동작합니다. 가감속 동작이 달라질 수 있으므로 검증을 마친 동일 차량에서만 켭니다. 변경값은 다음 OnRoad가 시작될 때 고정되므로, 변경 후 현재 주행을 끝내고 차량을 재시동하거나 기기를 재부팅해야 적용됩니다. 기존 `RadarMotionMode` 값은 업데이트 후 처음 시작할 때 새 이름으로 한 번 자동 이관됩니다.
  - `CarrotRadarCutInSensitivity`: 당근레이더모드 전용 CUT-IN 감도입니다. `0`은 사용 안 함, `1`은 둔감, `3`은 보통(기본값), `5`는 아주 민감이며 `2`와 `4`는 중간 단계입니다. 단계 `1`~`5`는 실제 측정 움직임이 각각 `0.50`, `0.40`, `0.35`, `0.25`, `0.20초` 계속될 때 확정하며, 물리 미래 예측시간은 5.0초로 고정합니다. 전방 레이더의 최근 실측 이력에서 0.50m 이상 강한 단방향 진입이 확인되면 timestamp 양자화로 확정을 놓치지 않도록 최대 20Hz 레이더 한 프레임만 반영하며, 작은 인접 차로 흔들림에는 적용하지 않습니다. 기존 레이더모드와 `EnableCornerRadar`에는 영향을 주지 않습니다. 다음 OnRoad 시작 때 읽으므로 변경 후 차량을 재시동하거나 기기를 재부팅해야 적용됩니다.
@@ -2257,9 +2431,9 @@ diff --git a/docs/user/ko/settings.md b/docs/user/ko/settings.md
 -- `SpeedFromPCM`: 기본값은 `2`(커브·카메라 감속)이며, PCM 차량의 버튼 스패밍과 속도 선택에 영향을 줍니다. `3`에서 토요타·렉서스는 순정 설정속도를 사용하며 가감속 제어 방식은 바뀌지 않습니다. `TOYOTA_RAV4_TSS2_2022`의 PCM 직접 가감속에서는 `0`도 유효한 순정 설정속도 변경·크루즈 재개를 반영하며 낮은 감속 목표를 유지합니다. [버튼 전송 상세](buttons-presets.md#button-spam)를 참고하세요.
 +`DisableDM`은 기본 `0`(기존 운전자 카메라 감시), `1`(감시 끄기), `2`(감시 끄기와 웹 영상)입니다. 변경 후 재부팅해야 하며 파일·QR 백업과 설정 프로필은 이 값을 보존합니다. [운전자 감시](driver-monitoring.md)를 참고하세요.
  
- `HardwareC3xLite`는 일반 C3/C3X에서는 반드시 꺼 두고 C3X Lite에서만 켠 뒤 기기를 재부팅하세요. 이 설정을 켜면 존재하지 않는 앰프를 초기화하지 않아 I2C 재시도로 인한 시작 지연을 없애고, 경고음을 GPIO 부저로 출력합니다. 또한 `micd`, `soundd`, `loggerd`를 실행하지 않고 `RecordAudio`를 끄므로 이 하드웨어 모드에서는 일반 주행 로그 기록을 사용할 수 없습니다.
+ - `CommaPedalEnabled`: 기본값은 꺼짐입니다. `CC_ONLY_CAR` 플래그가 있는 ACC 미장착 차량에서 명시적인 차량별 페달 설정, 장치 CAN 수신 조건, 기존 제어·안전 조건을 만족할 때 Comma Pedal 종방향 경로를 허용합니다. 차량의 **Cruise ready가 꺼져 있을 때에만** 작동하며, Cruise ready 상태에서는 순정 크루즈 컨트롤이 우선하여 Comma Pedal 제어를 사용할 수 없습니다. 공통 프로토콜을 재사용할 수 있으며, 현재 제공되는 DBC·튜닝·safety profile은 Kia Ray EV용입니다. 다른 차량에는 해당 차량의 설정이 필요하고 Ray 값을 자동 적용하지 않습니다.
  
-@@ -304,11 +298,9 @@
+@@ -309,11 +303,9 @@
  
  ESP32-S3 Wi-Fi 디스플레이 지원은 제거되었습니다. USB 디스플레이를 Jetson에 연결하세요. 지원 수신기는 추론 중 제한된 USB 전송으로 HUD·지도·신호등 정보를 받으며, 구형 수신기는 업데이트 전까지 Wi-Fi를 사용합니다. Git Pull로 업데이트하고 Jetson 런타임이 바뀌면 양쪽 장치를 재부팅합니다.
  
@@ -2272,7 +2446,7 @@ diff --git a/docs/user/ko/settings.md b/docs/user/ko/settings.md
  
  | 중분류 | 파라미터 | 용도 |
  |---|---|---|
-@@ -427,7 +419,7 @@
+@@ -432,7 +424,7 @@
  - `EnableRadarTracks`, `RadarTrackFlip`, `EnableCornerRadar`, `CarrotRadarMode`, `CarrotRadarCutInSensitivity`
  - `SpeedFromPCM`, `DisableMinSteerSpeed`
  - `LateralTorqueCustom`, `CustomSteer*`
@@ -2486,6 +2660,76 @@ diff --git a/opendbc_repo/opendbc/car/hyundai/tests/fixtures/fms_stopping_dca1f3
 +    }
 +  }
 +}
+diff --git a/opendbc_repo/opendbc/car/hyundai/tests/test_alt2_adas_buttons.py b/opendbc_repo/opendbc/car/hyundai/tests/test_alt2_adas_buttons.py
+--- a/opendbc_repo/opendbc/car/hyundai/tests/test_alt2_adas_buttons.py
++++ b/opendbc_repo/opendbc/car/hyundai/tests/test_alt2_adas_buttons.py
+@@ -4,7 +4,7 @@
+ 
+ from opendbc.can import CANPacker
+ from opendbc.car.hyundai import hyundaicanfd
+-from opendbc.car.hyundai.values import HyundaiFlags
++from opendbc.car.hyundai.values import CAR, HyundaiFlags
+ 
+ 
+ def state():
+@@ -112,7 +112,8 @@
+ 
+ 
+ def cluster_main_request(monkeypatch, *, alt2=True, longitudinal=True, corner=2,
+-                         camera=True, main=False, mode=0, driver=None, **out_values):
++                         camera=True, main=False, mode=0, driver=None, fingerprint=CAR.KIA_SORENTO_HEV_4TH_GEN,
++                         enabled=False, available=False, **out_values):
+   from opendbc.car import structs
+   from opendbc.can.parser import get_raw_value
+ 
+@@ -120,6 +121,7 @@
+   monkeypatch.setattr(hyundaicanfd, "Params", lambda: SimpleNamespace(get_int=lambda key: 0))
+   cs = state()
+   cs.out = structs.CarState(canValid=True, gearShifter="drive", vEgo=20.)
++  cs.out.cruiseState.available = available
+   for key, value in out_values.items():
+     setattr(cs.out, key, value)
+   cs.MainMode_ACC, cs.ACCMode = main, mode
+@@ -135,12 +137,12 @@
+     cs.cruise_buttons_alt2 = None
+   packer = CANPacker("hyundai_canfd_generated")
+   cp = structs.CarParams(flags=int(HyundaiFlags.CAMERA_SCC) if camera else 0,
+-                        openpilotLongitudinalControl=longitudinal)
++                        carFingerprint=fingerprint, openpilotLongitudinalControl=longitudinal)
+   frames = []
+   for frame in range(0, 400, 2):
+     messages = hyundaicanfd.create_ccnc_messages(
+       cp, packer, SimpleNamespace(CAM=2, ECAN=0), frame,
+-      SimpleNamespace(enabled=False, latActive=False), cs, SimpleNamespace(),
++      SimpleNamespace(enabled=enabled, latActive=False), cs, SimpleNamespace(),
+       0, False, False, corner, False, 0, 0,
+     )
+     for address, data, bus in messages:
+@@ -155,14 +157,20 @@
+ 
+ 
+ @pytest.mark.parametrize("alt2", (False, True))
+-def test_cluster_main_activates_with_carrot_disabled(monkeypatch, alt2):
+-  frames = cluster_main_request(monkeypatch, alt2=alt2)
++@pytest.mark.parametrize("fingerprint,enabled,available,wakes", (
++  (CAR.KIA_EV5, False, False, True),
++  (CAR.KIA_SORENTO_HEV_4TH_GEN, False, False, True),
++  (CAR.KIA_SORENTO_HEV_4TH_GEN, False, True, True),
++  (CAR.KIA_SORENTO_HEV_4TH_GEN, True, True, True),
++))
++def test_cluster_main_display_request_is_independent_of_fms_engagement(monkeypatch, alt2, fingerprint, enabled, available, wakes):
++  frames = cluster_main_request(monkeypatch, alt2=alt2, fingerprint=fingerprint, enabled=enabled, available=available)
+   if alt2:
+     asserted = [frame for frame, values in frames if values["CRUISE_BUTTONS"] == 8]
+-    assert asserted == [22, 24, 26, 222, 224, 226]
++    assert asserted == ([22, 24, 26, 222, 224, 226] if wakes else [])
+   else:
+     asserted = [frame for frame, values in frames if values["ADAPTIVE_CRUISE_MAIN_BTN"]]
+-    assert asserted == [12, 14, 16, 212, 214, 216]
++    assert asserted == ([12, 14, 16, 212, 214, 216] if wakes else [])
+ 
+ 
+ @pytest.mark.parametrize("alt2", (False, True))
 diff --git a/opendbc_repo/opendbc/car/hyundai/tests/test_blinker_hold.py b/opendbc_repo/opendbc/car/hyundai/tests/test_blinker_hold.py
 --- /dev/null
 +++ b/opendbc_repo/opendbc/car/hyundai/tests/test_blinker_hold.py
@@ -5185,7 +5429,7 @@ diff --git a/openpilot/cereal/log.capnp b/openpilot/cereal/log.capnp
 diff --git a/openpilot/common/params_keys.h b/openpilot/common/params_keys.h
 --- a/openpilot/common/params_keys.h
 +++ b/openpilot/common/params_keys.h
-@@ -399,11 +399,7 @@
+@@ -400,11 +400,7 @@
      {"TeslaWakeOnCAN", {PERSISTENT, BOOL, "1"}},
      {"TeslaAutoTurnSignals", {PERSISTENT, BOOL, "0"}},
  
@@ -5201,7 +5445,7 @@ diff --git a/openpilot/common/params_keys.h b/openpilot/common/params_keys.h
 diff --git a/openpilot/common/tests/test_params.py b/openpilot/common/tests/test_params.py
 --- a/openpilot/common/tests/test_params.py
 +++ b/openpilot/common/tests/test_params.py
-@@ -84,11 +84,12 @@
+@@ -93,11 +93,12 @@
      assert not self.params.get_bool("IsMetric")
  
    @pytest.mark.parametrize("flag", [ParamKeyFlag.CLEAR_ON_MANAGER_START, ParamKeyFlag.CLEAR_ON_IGNITION_ON])
@@ -5218,6 +5462,229 @@ diff --git a/openpilot/common/tests/test_params.py b/openpilot/common/tests/test
  
    def test_put_non_blocking_with_get_block(self):
      q = Params()
+diff --git a/openpilot/selfdrive/car/tests/test_camera_scc_steering_intent.py b/openpilot/selfdrive/car/tests/test_camera_scc_steering_intent.py
+--- a/openpilot/selfdrive/car/tests/test_camera_scc_steering_intent.py
++++ b/openpilot/selfdrive/car/tests/test_camera_scc_steering_intent.py
+@@ -39,7 +39,8 @@
+     helper = cruise.VCruiseCarrot(cp)
+     cs = car.CarState(canValid=True, gearShifter="drive", vEgo=20., vEgoCluster=20.)
+     sm = type("Messages", (dict,), {"alive": {"longitudinalPlan": False, "radarState": False,
+-                                             "drivingModelData": False}, "seen": {"carrotMan": False}})(
++                                             "drivingModelData": False}, "seen": {"carrotMan": False},
++                                             "all_checks": lambda self, services: True})(
+       carControl=car.CarControl(enabled=False, latActive=False, longActive=False))
+ 
+     def tick(stock_main, *, main_release=False, button=Buttons.NONE, event=None):
+@@ -109,3 +110,209 @@
+     cs = tick(main)
+     assert not scope["lateral_control_allowed"](False, always_lateral, cs.latEnabled,
+                                                 False, False, False, False, False)
++
++
++@pytest.fixture
++def sorento_chain(setup_driver):
++  """Real DBC parsers and production receive/publication blocks, without IPC.
++
++  The selected blocks execute unchanged; the complete card/controlsd processes
++  and actual Panda forwarding still require Linux/device verification.
++  """
++  from collections import deque
++
++  from opendbc.can import CANPacker
++  from opendbc.car import Bus, create_button_events, structs
++  from opendbc.car.hyundai.carstate import BUTTONS_DICT, READY_COUNT_OK
++  from opendbc.car.hyundai.values import CAR
++  from openpilot.selfdrive.car.tests.test_paddle_gap import MemoryParams
++  from openpilot.selfdrive.carrot.paddle_gap import PaddleGapWriter
++
++  root = Path(__file__).resolve().parents[4]
++
++  def method(path, cls, name):
++    tree = ast.parse((root / path).read_text(encoding="utf-8"))
++    owner = next(n for n in tree.body if isinstance(n, ast.ClassDef) and n.name == cls)
++    return next(n for n in owner.body if isinstance(n, ast.FunctionDef) and n.name == name)
++
++  def assignment(node, target):
++    return isinstance(node, ast.Assign) and any(ast.unparse(t) == target for t in node.targets)
++
++  body = method("opendbc_repo/opendbc/car/hyundai/carstate.py", "CarState", "update_canfd").body
++  main_start = next(i for i, n in enumerate(body) if assignment(n, "prev_main_buttons"))
++  main_end = next(i for i, n in enumerate(body) if assignment(n, "ret.cruiseState.available"))
++  buttons_start = next(i for i, n in enumerate(body) if assignment(n, "prev_cruise_buttons"))
++  buttons_end = next(i for i, n in enumerate(body) if isinstance(n, ast.Expr) and
++                     isinstance(n.value, ast.Call) and ast.unparse(n.value.func) == "self.cruise_buttons.extend")
++  tail_start = next(i for i, n in enumerate(body) if assignment(n, "paddle_button"))
++  receive = compile(ast.Module(body=body[main_start:main_end + 1] + body[buttons_start:buttons_end + 1] +
++                               body[tail_start:-1], type_ignores=[]), "<CarState MAIN/buttons>", "exec")
++  card_body = method("openpilot/selfdrive/car/card.py", "Car", "state_update").body
++  publication = compile(ast.Module(body=[n for n in card_body if any(assignment(n, target) for target in
++    ("CS.softHoldActive", "CS.activateCruise", "CS.latEnabled", "self.CI.CS.softHoldActive"))], type_ignores=[]),
++    "<card cruise publication>", "exec")
++  assert len([n for n in card_body if assignment(n, "CS.latEnabled")]) == 1
++  control = ast.parse((root / "openpilot/selfdrive/controls/controlsd.py").read_text(encoding="utf-8"))
++  gate = next(n for n in control.body if isinstance(n, ast.FunctionDef) and n.name == "lateral_control_allowed")
++  scope = {}
++  exec(compile(ast.Module(body=[gate], type_ignores=[]), "<controlsd lateral gate>", "exec"), scope)
++  writers = []
++
++  def make(message):
++    state, helper, initial_tick = setup_driver()
++    cs = initial_tick(False)
++    state.CP.carFingerprint = CAR.KIA_SORENTO_HEV_4TH_GEN
++    state.CP.safetyConfigs = [{"safetyModel": "hyundaiCanfd"}]
++    if message == "CRUISE_BUTTONS_ALT":
++      state.CP.flags |= int(HyundaiFlags.CANFD_ALT_BUTTONS)
++    parsers = state.get_can_parsers(state.CP)
++    cp, cp_cam = parsers[Bus.pt], parsers[Bus.cam]
++    for name in (message, "GEAR"):
++      if name not in cp.vl:
++        cp._add_message(name, 50)
++    for name in ("SCC_CONTROL", "LFAHDA_CLUSTER"):
++      cp_cam._add_message(name, 50)
++    state.__dict__.update(main_buttons=deque([0], maxlen=8), cruise_buttons=deque([0], maxlen=8),
++      cruise_buttons_alt2=None, cruise_btns_msg_canfd=message, gear_msg_canfd="GEAR", controls_ready_count=READY_COUNT_OK,
++      paddle_button_prev=0, speedcam_accel_swallow=False, speedcam_decel_hold=False, section_average=SimpleNamespace(unlocked=False),
++      canfdSccHoldActive=False, out=cs)
++    params = MemoryParams(current=1)
++    params.values.update(PaddleMode=4, AutoCruiseControl=1, SoftHoldOnCancel=True, CancelButtonMode=1,
++                         CruiseButtonLongDelay=40, CruiseSpeedUnit=10, CruiseSpeedUnitBasic=1)
++    helper.params = params
++    helper._paddle_mode = 4
++    writer = helper._paddle_gap_writer = PaddleGapWriter(lambda: params)
++    writers.append(writer)
++    cc = car.CarControl(enabled=False, longActive=False, latActive=False)
++    class Messages(dict):
++      alive = dict.fromkeys(("longitudinalPlan", "radarState", "drivingModelData"), False)
++      seen = {"carrotMan": False}
++
++      def all_checks(self, services):
++        assert services == ["carControl"]
++        return True
++
++    sm = Messages(carControl=cc)
++    packer = CANPacker("hyundai_canfd_generated")
++    card = SimpleNamespace(v_cruise_helper=helper, CI=SimpleNamespace(CS=state))
++    frame = 0
++
++    def tick(stock_main, *, buttons=None, source_bus=0, paddle=0, **values):
++      nonlocal frame
++      frame += 1
++      for name, value in values.items():
++        setattr(cs, name, value)
++      button_values = dict(buttons or {})
++      paddle_values = {"RIGHT_PADDLE": int(paddle == 2), "LEFT_PADDLE": int(paddle == 1)}
++      if message == "CRUISE_BUTTONS":
++        button_values.update(paddle_values)
++      frames = [packer.make_can_msg(message, source_bus, button_values),
++                packer.make_can_msg("GEAR", 0, paddle_values),
++                packer.make_can_msg("SCC_CONTROL", 2, {"MainMode_ACC": int(stock_main)}),
++                packer.make_can_msg("LFAHDA_CLUSTER", 2, {"HDA_LFA_SymSta": 1})]
++      for parser in (cp, cp_cam):
++        parser.update([1_000_000_000 + frame * 10_000_000, frames])
++      exec(receive, {"self": state, "cp": cp, "cp_cam": cp_cam, "ret": cs,
++                     "HyundaiFlags": HyundaiFlags, "READY_COUNT_OK": READY_COUNT_OK,
++                     "BUTTONS_DICT": BUTTONS_DICT, "ButtonType": structs.CarState.ButtonEvent.Type,
++                     "create_button_events": create_button_events, "speedcam_decel_long_press": False})
++      helper.update_v_cruise(cs, sm, True, paddle_cancel_seen=state.paddle_input.cancel_seen)
++      exec(publication, {"self": card, "CS": cs})
++      state.scc_control = dict(cp_cam.vl["SCC_CONTROL"])
++      cc.latActive = scope["lateral_control_allowed"](False, True, cs.latEnabled, False, False, False, False, False)
++      writer._queue.join()
++      return cs
++
++    return SimpleNamespace(state=state, helper=helper, cs=cs, cc=cc, params=params, tick=tick, cp=cp)
++
++  yield make
++  for writer in writers:
++    writer.close()
++
++
++@pytest.mark.parametrize("message", ("CRUISE_BUTTONS", "CRUISE_BUTTONS_ALT"))
++@pytest.mark.parametrize("source_bus", (2, 130))
++def test_camera_main_requests_and_tx_echo_cannot_become_physical_main(sorento_chain, message, source_bus):
++  chain = sorento_chain(message)
++  for main, pressed in ((False, 0), (True, 1), (True, 1), (True, 0), (False, 0), (True, 0)):
++    cs = chain.tick(main, buttons={"ADAPTIVE_CRUISE_MAIN_BTN": pressed}, source_bus=source_bus)
++    assert not cs.cruiseState.available and not cs.latEnabled and not chain.cc.latActive
++    assert cs.activateCruise == 0 and not chain.state.manual_main_off_latched
++    assert chain.cp.vl[message]["ADAPTIVE_CRUISE_MAIN_BTN"] == 0
++    assert not any(b.type == "mainCruise" for b in cs.buttonEvents)
++
++  chain.tick(True, buttons={"ADAPTIVE_CRUISE_MAIN_BTN": 1})
++  cs = chain.tick(True)
++  assert cs.cruiseState.available and cs.latEnabled and chain.cc.latActive
++  assert any(b.type == "mainCruise" and not b.pressed for b in cs.buttonEvents)
++  chain.tick(True, buttons={"ADAPTIVE_CRUISE_MAIN_BTN": 1})
++  assert not chain.tick(True).cruiseState.available
++  for main in (True, False, True):
++    assert not chain.tick(main).cruiseState.available
++
++
++@pytest.mark.parametrize("message", ("CRUISE_BUTTONS", "CRUISE_BUTTONS_ALT"))
++def test_sorento_main_feedback_preserves_paddle_cancel_and_independent_hold(sorento_chain, message):
++  from opendbc.car.hyundai.stopping import CanfdStopping
++  from opendbc.car.hyundai.tests.test_stopping import send
++
++  chain = sorento_chain(message)
++  # OEM MAIN before/during/after an OFF paddle gesture never changes the gap.
++  for main, paddle in ((False, 0), (True, 2), (False, 2), (True, 0)):
++    cs = chain.tick(main, paddle=paddle)
++    assert not cs.cruiseState.available and not cs.latEnabled and cs.activateCruise == 0
++  assert chain.params.writes == []
++
++  # A real SET arms driver intent; the separately supplied active control state
++  # then permits mode 4 to change only the stored gap.
++  chain.tick(True, buttons={"CRUISE_BUTTONS": Buttons.SET_DECEL})
++  cs = chain.tick(True)
++  assert cs.cruiseState.available and cs.latEnabled and cs.activateCruise == 0
++  chain.cc.enabled = chain.cc.longActive = True
++  chain.tick(False, paddle=2)
++  chain.tick(True, paddle=0)
++  assert chain.params.writes == [0]
++  assert chain.cs.activateCruise == 0 and not chain.helper._paddle_decel_active
++
++  # Same-batch CANCEL wins over the next gap request and latches through MAIN feedback.
++  cs = chain.tick(False, paddle=1, buttons={"CRUISE_BUTTONS": Buttons.CANCEL})
++  assert cs.activateCruise < 0 and chain.helper._cruise_cancel_state
++  chain.cc.enabled = chain.cc.longActive = False
++  for main, paddle in ((True, 1), (False, 0), (True, 1), (True, 0)):
++    cs = chain.tick(main, paddle=paddle)
++    assert cs.activateCruise <= 0 and chain.helper._cruise_cancel_state
++    assert not cs.latEnabled and not chain.cc.latActive
++  assert chain.params.writes == [0]
++
++  # A separate short CANCEL retains the configured lateral-off release policy.
++  chain.tick(True, buttons={"CRUISE_BUTTONS": Buttons.CANCEL})
++  assert not chain.tick(False).latEnabled
++  for main in (True, False, True):
++    cs = chain.tick(main)
++    assert cs.activateCruise <= 0 and not cs.latEnabled and not chain.cc.latActive
++
++  # With CANCEL retained, the approved brake hold remains independent of MAIN.
++  chain.tick(True, buttons={"ADAPTIVE_CRUISE_MAIN_BTN": 1})
++  assert not chain.tick(True).cruiseState.available
++  for frame in range(65):
++    cs = chain.tick(bool(frame % 2), brakePressed=True, vEgo=0., vEgoRaw=0.)
++    assert not cs.cruiseState.available and not cs.latEnabled and cs.activateCruise <= 0
++  assert cs.softHoldActive == chain.state.softHoldActive == 1
++  controllers = {camera: CanfdStopping() for camera in (False, True)}
++  previous = {camera: 0. for camera in controllers}
++  for frame in range(40):
++    cs = chain.tick(bool(frame % 2))
++    for camera, controller in controllers.items():
++      values = send(camera, controller, chain.state, enabled=False, stopping=False, accel=0., previous_value=previous[camera])
++      previous[camera] = values["aReqValue"]
++      assert values["ACCMode"] == 1 and values["aReqRaw"] < 0 and values["aReqValue"] < 0
++  assert all(controller.phase.name == "held" for controller in controllers.values())
++  assert values["StopReq"] == 1
++  assert chain.params.writes == [0]
++
++  cs = chain.tick(True, gasPressed=True, gas=.2, brakePressed=False)
++  assert cs.softHoldActive == 0 and cs.activateCruise <= 0 and chain.helper._cruise_cancel_state
++  for camera, controller in controllers.items():
++    values = send(camera, controller, chain.state, enabled=False, stopping=False, accel=0., previous_value=previous[camera])
++    assert values["ACCMode"] == 0 and values["StopReq"] == 0
++    assert values["aReqRaw"] == values["aReqValue"] == 0
 diff --git a/openpilot/selfdrive/car/tests/test_carrot_cruise_buttons.py b/openpilot/selfdrive/car/tests/test_carrot_cruise_buttons.py
 --- a/openpilot/selfdrive/car/tests/test_carrot_cruise_buttons.py
 +++ b/openpilot/selfdrive/car/tests/test_carrot_cruise_buttons.py
@@ -5278,7 +5745,7 @@ diff --git a/openpilot/selfdrive/car/tests/test_carrot_cruise_buttons.py b/openp
    helper._cruise_ready = helper._paddle_decel_active = helper.carrot_cruise_active = True
    CS.buttonEvents = [{'type': physical, 'pressed': False}]
    assert helper._update_cruise_buttons(CS, CC, 80) == (70 if physical == 'setCruise' else 80)
-@@ -294,6 +303,46 @@
+@@ -294,6 +303,90 @@
    assert not helper._paddle_decel_active
    assert not helper.carrot_cruise_active
    assert helper._lat_enabled
@@ -5315,6 +5782,50 @@ diff --git a/openpilot/selfdrive/car/tests/test_carrot_cruise_buttons.py b/openp
 +  assert helper._soft_hold_active==2
 +
 +
++@pytest.mark.parametrize("mode", (0, 1))
++@pytest.mark.parametrize("paddle_mode", range(5))
++@pytest.mark.parametrize("long_press", (False, True))
++@pytest.mark.parametrize("press_reverse", (False, True))
++@pytest.mark.parametrize("release_reverse", (False, True))
++def test_cancel_tracking_survives_paddles_in_either_batch_order(mode, paddle_mode, long_press,
++                                                               press_reverse, release_reverse):
++  helper, CS, CC = make_remote_helper(None, enabled=True)
++  helper._cancel_button_mode = mode
++  helper._paddle_mode = paddle_mode
++  helper._lat_enabled = True
++  helper._soft_hold_active = 2
++  helper.autoCruiseControl = 0
++  helper.autoCruiseControl_cancel_timer = 1000
++  for frame in range(83 if long_press else 1):
++    if frame == 0:
++      events = [("cancel", True), ("paddleLeft", True)]
++      if press_reverse:
++        events.reverse()
++    elif frame == 40:
++      events = [("paddleLeft", False), ("paddleRight", True)]
++    else:
++      events = []
++    CS.buttonEvents = [{"type": name, "pressed": pressed} for name, pressed in events]
++    assert helper._update_cruise_buttons(CS, CC, 80, paddle_cancel_seen=True) == 80
++    assert helper._activate_cruise == -1 and helper._cruise_cancel_state
++    assert helper._soft_hold_active == 2
++  events = [("cancel", False), ("paddleLeft", True)]
++  if release_reverse:
++    events.reverse()
++  CS.buttonEvents = [{"type": name, "pressed": pressed} for name, pressed in events]
++  assert helper._update_cruise_buttons(CS, CC, 80) == 80
++  assert helper._lat_enabled == (mode == 0 and not long_press)
++  assert helper._cruise_cancel_state and helper._soft_hold_active == 2
++  assert not helper._paddle_decel_active and not helper._cruise_ready and not helper.carrot_cruise_active
++  assert helper.button_cnt == 0
++  helper._activate_cruise = 0
++  CC.enabled = False
++  CS.buttonEvents = [{"type": "paddleLeft", "pressed": False}]
++  assert helper._update_cruise_buttons(CS, CC, 80) == 80
++  assert helper._activate_cruise == 0 and helper._cruise_cancel_state
++  assert not helper._paddle_decel_active and not helper._cruise_ready
++
++
 +def test_raw_batch_cancel_does_not_add_pcm_activation_policy():
 +  helper,CS,CC=make_remote_helper(None,enabled=True)
 +  helper.CP.pcmCruise=True
@@ -5325,7 +5836,7 @@ diff --git a/openpilot/selfdrive/car/tests/test_carrot_cruise_buttons.py b/openp
  
  
  @pytest.mark.parametrize('physical,expected', [('setCruise', 70), ('resumeCruise', 95)])
-@@ -343,6 +392,8 @@
+@@ -343,6 +436,8 @@
      helper._activate_cruise = -1
    helper._update_cruise_buttons(CS, CC, 80)
    assert helper._activate_cruise <= 0
@@ -5334,7 +5845,7 @@ diff --git a/openpilot/selfdrive/car/tests/test_carrot_cruise_buttons.py b/openp
  
  
  @pytest.mark.parametrize('block', [None, 'doorOpen', 'seatbeltUnlatched', 'accFaulted'])
-@@ -481,7 +532,7 @@
+@@ -481,7 +576,7 @@
    assert helper._activate_cruise == expected_activate
  
  
@@ -5343,7 +5854,7 @@ diff --git a/openpilot/selfdrive/car/tests/test_carrot_cruise_buttons.py b/openp
    helper = VCruiseCarrot.__new__(VCruiseCarrot)
    helper.CP = SimpleNamespace(pcmCruise=False)
    helper.autoCruiseControl = 1
-@@ -509,15 +560,12 @@
+@@ -509,15 +604,12 @@
    )
    helper._prepare_brake_gas(CS, car.CarControl(enabled=False))
  
@@ -5365,7 +5876,7 @@ diff --git a/openpilot/selfdrive/car/tests/test_carrot_cruise_buttons.py b/openp
    helper = VCruiseCarrot.__new__(VCruiseCarrot)
    helper.CP = SimpleNamespace(pcmCruise=False)
    helper.autoCruiseControl = 1
-@@ -545,8 +593,8 @@
+@@ -545,8 +637,8 @@
    )
    helper._prepare_brake_gas(CS, car.CarControl(enabled=False))
  
@@ -5376,7 +5887,7 @@ diff --git a/openpilot/selfdrive/car/tests/test_carrot_cruise_buttons.py b/openp
  
  
  @pytest.mark.parametrize(("soft_hold_on_cancel", "expected_count", "expected_active"), [
-@@ -585,7 +633,7 @@
+@@ -585,7 +677,7 @@
    assert helper._soft_hold_active == expected_active
  
  
@@ -5385,7 +5896,7 @@ diff --git a/openpilot/selfdrive/car/tests/test_carrot_cruise_buttons.py b/openp
    helper = VCruiseCarrot.__new__(VCruiseCarrot)
    helper._cruise_available = True
    helper._hold_interlock_active = False
-@@ -603,7 +651,155 @@
+@@ -603,7 +695,155 @@
  
    assert helper._soft_hold_active == 2
    assert helper._cruise_cancel_state
@@ -5542,7 +6053,7 @@ diff --git a/openpilot/selfdrive/car/tests/test_carrot_cruise_buttons.py b/openp
  
  
  @pytest.mark.parametrize(("cancel_state", "expected_activate"), [
-@@ -708,3 +904,70 @@
+@@ -708,3 +948,70 @@
    helper.params = SimpleNamespace(get_int=values.__getitem__, put_int_nonblocking=values.__setitem__)
    helper._update_cruise_buttons(CS, CC, 80)
    assert values == {"MyDrivingMode": 1, "LongitudinalPersonality": 1}
@@ -7786,7 +8297,24 @@ diff --git a/openpilot/selfdrive/carrot/server/services/params.py b/openpilot/se
        continue
  
      try:
-@@ -530,8 +527,6 @@
+@@ -514,6 +511,16 @@
+   return type_map
+ 
+ 
++def _normalize_restore_value(key: str, t: Any, value: Any) -> Any:
++  if key == "AutoTurnControlRightLaneChange" and t == ParamKeyType.INT:
++    # Older file backups store boolean strings, and older QR backups store 0/1.
++    if isinstance(value, str) and value.strip().lower() in ("false", "true"):
++      value = _coerce_bool(value)
++    distance = _to_int(value)
++    return 250 if distance == 1 else distance
++  return value
++
++
+ def restore_param_values_from_backup(values: Dict[str, Any], source: str = "restore") -> Dict[str, Any]:
+   if not HAS_PARAMS or ParamKeyType is None:
+     raise RuntimeError("Params/ParamKeyType not available")
+@@ -530,8 +537,6 @@
  
    for key, value in values.items():
      if key in INTERNAL_SESSION_PARAMS:
@@ -7795,7 +8323,16 @@ diff --git a/openpilot/selfdrive/carrot/server/services/params.py b/openpilot/se
        continue
      try:
        definition = definitions.get(key)
-@@ -1295,10 +1290,6 @@
+@@ -545,7 +550,7 @@
+       # The single write path: same clamping, inference and unregistered-key
+       # fallback the settings screen uses, so a profile cannot fail on a key a
+       # single write would have saved.
+-      set_param_value(key, value, definition)
++      set_param_value(key, _normalize_restore_value(key, t, value), definition)
+       ok_cnt += 1
+ 
+       # Recording each write individually — bulk writes are the hardest changes
+@@ -1295,10 +1300,6 @@
        status = "invalid"
        reason = "controlled internally"
        can_apply = False
@@ -7806,6 +8343,15 @@ diff --git a/openpilot/selfdrive/carrot/server/services/params.py b/openpilot/se
      else:
        try:
          # Same type resolution as the write path: a not-yet-registered key is
+@@ -1315,7 +1316,7 @@
+             reason = "unsupported type"
+             can_apply = False
+           else:
+-            normalized_value = _normalize_param_value(t, raw_value)
++            normalized_value = _normalize_param_value(t, _normalize_restore_value(key, t, raw_value))
+             current_value = current_values.get(key, "")
+             if _values_equal(t, current_value, normalized_value):
+               status = "same"
 diff --git a/openpilot/selfdrive/carrot/server/services/vision_test.py b/openpilot/selfdrive/carrot/server/services/vision_test.py
 --- a/openpilot/selfdrive/carrot/server/services/vision_test.py
 +++ b/openpilot/selfdrive/carrot/server/services/vision_test.py
@@ -8028,15 +8574,64 @@ diff --git a/openpilot/selfdrive/carrot/server/tests/test_branch_catalog.py b/op
 diff --git a/openpilot/selfdrive/carrot/server/tests/test_params_compat.py b/openpilot/selfdrive/carrot/server/tests/test_params_compat.py
 --- a/openpilot/selfdrive/carrot/server/tests/test_params_compat.py
 +++ b/openpilot/selfdrive/carrot/server/tests/test_params_compat.py
-@@ -85,87 +85,38 @@
+@@ -4,11 +4,22 @@
+ import pytest
+ 
+ from openpilot.selfdrive.carrot import carrot_navi
++from openpilot.selfdrive.carrot.server.services import param_changes
+ from openpilot.selfdrive.carrot.server.services import params as params_service
+ 
+ 
+ class FakeUnknownKeyName(Exception):
+   pass
++
++
++class FakeParamKeyType:
++  BOOL = "bool"
++  INT = "int"
++  FLOAT = "float"
++  TIME = "time"
++  STRING = "string"
++  JSON = "json"
++  BYTES = "bytes"
+ 
+ 
+ class StaleParams:
+@@ -85,242 +96,107 @@
      params_service.set_param_value("FutureIntSetting", 1, int_setting())
  
  
 -def test_web_params_cannot_write_internal_driver_monitoring_session_state():
--  with pytest.raises(ValueError, match="controlled internally"):
++
++
++
++
++
++
++
++
++
++
++
++
++
++
++
++
++def test_map_param_reader_reads_map_fps_file_while_native_registry_is_stale(tmp_path):
++  stale_params = StaleParams(tmp_path)
++  (tmp_path / "ClusterNaviMapFps").write_text("3", encoding="utf-8")
++
++  reader = carrot_navi.ClusterNaviMapParamReader(stale_params)
++
++  assert reader._read_int("ClusterNaviMapFps", 1) == 3
++
++
++def test_jetson_update_state_remains_internal():
+   with pytest.raises(ValueError, match="controlled internally"):
 -    params_service.set_param_value("DriverMonitoringSessionDisabled", True, {"min": 0, "max": 1, "default": 0})
- 
- 
+-
+-
 -@pytest.mark.parametrize(
 -  ("enabled", "is_onroad", "clears_alert"),
 -  ((False, False, True), (False, True, False), (True, False, False)),
@@ -8068,8 +8663,8 @@ diff --git a/openpilot/selfdrive/carrot/server/tests/test_params_compat.py b/ope
 -  )
 -
 -  assert fake_params.removed == (["Offroad_DriverMonitoringUncertain"] if clears_alert else [])
- 
- 
+-
+-
 -def test_failed_driver_monitoring_disable_does_not_clear_uncertain_alert(monkeypatch):
 -  class BrokenParams:
 -    removed = []
@@ -8093,8 +8688,8 @@ diff --git a/openpilot/selfdrive/carrot/server/tests/test_params_compat.py b/ope
 -    )
 -
 -  assert broken_params.removed == []
- 
- 
+-
+-
 -def test_restore_rejects_internal_driver_monitoring_session_state(monkeypatch):
 -  # The internal-key branch does not need a native Params registry, but the
 -  # preview API performs its environment check before iterating entries.
@@ -8110,41 +8705,24 @@ diff --git a/openpilot/selfdrive/carrot/server/tests/test_params_compat.py b/ope
 -
 -  restored = params_service.restore_param_values_validated({"DriverMonitoringSessionDisabled": True})
 -  assert restored["result"] == {"ok_cnt": 0, "fail_cnt": 0, "fails": []}
- 
- 
+-
+-
 -def test_driver_monitoring_enabled_is_excluded_from_file_and_qr_backups(monkeypatch):
-+
-+
-+
-+
-+
-+
-+
-+
-+def test_map_param_reader_reads_map_fps_file_while_native_registry_is_stale(tmp_path):
-+  stale_params = StaleParams(tmp_path)
-+  (tmp_path / "ClusterNaviMapFps").write_text("3", encoding="utf-8")
-+
-+  reader = carrot_navi.ClusterNaviMapParamReader(stale_params)
-+
-+  assert reader._read_int("ClusterNaviMapFps", 1) == 3
-+
-+
-+def test_jetson_update_state_remains_internal():
-+  with pytest.raises(ValueError, match="controlled internally"):
+-  class FakeParamKeyType:
+-    BOOL = "bool"
+-    INT = "int"
+-    FLOAT = "float"
+-    TIME = "time"
+-    STRING = "string"
+-    JSON = "json"
+-    BYTES = "bytes"
+-
+-  class BackupParams:
 +    params_service.set_param_value("JetsonLegacyUpdatePending", True)
 +
 +
 +@pytest.mark.parametrize("mode", [0, 1, 2])
 +def test_disable_dm_survives_file_qr_and_restore(mode, tmp_path, monkeypatch):
-   class FakeParamKeyType:
-     BOOL = "bool"
-     INT = "int"
-@@ -175,152 +126,39 @@
-     JSON = "json"
-     BYTES = "bytes"
- 
--  class BackupParams:
 +  writes = []
 +
 +  class LegacyParams:
@@ -8174,12 +8752,7 @@ diff --git a/openpilot/selfdrive/carrot/server/tests/test_params_compat.py b/ope
    monkeypatch.setattr(params_service, "HAS_PARAMS", True)
    monkeypatch.setattr(params_service, "ParamKeyType", FakeParamKeyType)
 -  monkeypatch.setattr(params_service, "Params", BackupParams)
-+  monkeypatch.setattr(params_service, "Params", LegacyParams)
-+  monkeypatch.setattr(params_service, "_catalog_definitions", lambda: {
-+    "DisableDM": {"min": 0, "max": 2, "default": 0, "unit": 1},
-+  })
-+  monkeypatch.setattr(params_service, "get_param_values", lambda names, defaults: {"DisableDM": (mode + 1) % 3})
- 
+-
 -  assert params_service.get_all_param_values_for_backup() == {
 -    "DriverMonitoringMode": "1",
 -    "CarrotVisionEnabled": "1",
@@ -8197,7 +8770,10 @@ diff --git a/openpilot/selfdrive/carrot/server/tests/test_params_compat.py b/ope
 -    "DriverMonitoringSessionDisabled": "1",
 -    "DriverMonitoringMode": "1",
 -    "CarrotVisionEnabled": "1",
--  })
++  monkeypatch.setattr(params_service, "Params", LegacyParams)
++  monkeypatch.setattr(params_service, "_catalog_definitions", lambda: {
++    "DisableDM": {"min": 0, "max": 2, "default": 0, "unit": 1},
+   })
 -  assert qr["count"] == 2
 -  assert params_service.parse_params_qr_payload(qr["payload"]) == {
 -    "DriverMonitoringMode": "1",
@@ -8267,8 +8843,41 @@ diff --git a/openpilot/selfdrive/carrot/server/tests/test_params_compat.py b/ope
 -      return False
 -
 -  writes = []
--  monkeypatch.setattr(params_service, "HAS_PARAMS", True)
--  monkeypatch.setattr(params_service, "ParamKeyType", FakeParamKeyType)
++  monkeypatch.setattr(params_service, "get_param_values", lambda names, defaults: {"DisableDM": (mode + 1) % 3})
++
++  backup = params_service.get_all_param_values_for_backup()
++  assert backup == {"DisableDM": str(mode)}
++  path = tmp_path / "params_backup.json"
++  path.write_text(json.dumps({**backup, "JetsonLegacyUpdatePending": "1"}), encoding="utf-8")
++  assert params_service.read_param_backup_values(str(path)) == backup
++  qr = params_service.build_params_qr_payload({**backup, "JetsonLegacyUpdatePending": "1"})
++  assert params_service.parse_params_qr_payload(qr["payload"]) == backup
++  restored = params_service.restore_param_values_validated(backup)
++  assert restored["result"] == {"ok_cnt": 1, "fail_cnt": 0, "fails": []}
++  assert writes == [("DisableDM", mode)]
++
++
++@pytest.mark.parametrize("stored,expected", [
++  ("False", 0), ("True", 250), (False, 0), (True, 250),
++  ("0", 0), ("1", 250), (1, 250), (350, 350), ("500", 500),
++])
++def test_right_lane_change_restore_migrates_legacy_toggle(stored, expected, monkeypatch):
++  key = "AutoTurnControlRightLaneChange"
++  state = {key: 150}
++
++  class DistanceParams:
++    def get_type(self, name):
++      return FakeParamKeyType.INT
++
++    def get_int(self, name):
++      return state[name]
++
++    def put_int(self, name, value):
++      assert type(value) is int
++      state[name] = value
++
+   monkeypatch.setattr(params_service, "HAS_PARAMS", True)
+   monkeypatch.setattr(params_service, "ParamKeyType", FakeParamKeyType)
 -  monkeypatch.setattr(params_service, "Params", RestoreParams)
 -  monkeypatch.setattr(params_service, "_catalog_definitions", dict)
 -  monkeypatch.setattr(params_service, "get_param_values", lambda names, defaults: {"DriverMonitoringEnabled": False})
@@ -8287,15 +8896,7 @@ diff --git a/openpilot/selfdrive/carrot/server/tests/test_params_compat.py b/ope
 -    "selected": 1,
 -  }
 -  assert restored["preview"]["entries"][0]["value"] is True
-+  backup = params_service.get_all_param_values_for_backup()
-+  assert backup == {"DisableDM": str(mode)}
-+  path = tmp_path / "params_backup.json"
-+  path.write_text(json.dumps({**backup, "JetsonLegacyUpdatePending": "1"}), encoding="utf-8")
-+  assert params_service.read_param_backup_values(str(path)) == backup
-+  qr = params_service.build_params_qr_payload({**backup, "JetsonLegacyUpdatePending": "1"})
-+  assert params_service.parse_params_qr_payload(qr["payload"]) == backup
-+  restored = params_service.restore_param_values_validated(backup)
-   assert restored["result"] == {"ok_cnt": 1, "fail_cnt": 0, "fails": []}
+-  assert restored["result"] == {"ok_cnt": 1, "fail_cnt": 0, "fails": []}
 -  assert writes == [("DriverMonitoringEnabled", True)]
 -
 -
@@ -8316,7 +8917,19 @@ diff --git a/openpilot/selfdrive/carrot/server/tests/test_params_compat.py b/ope
 -  reader = carrot_navi.ClusterNaviMapParamReader(stale_params)
 -
 -  assert reader._read_int("ClusterNaviMapFps", 1) == 3
-+  assert writes == [("DisableDM", mode)]
++  monkeypatch.setattr(params_service, "Params", DistanceParams)
++  monkeypatch.setattr(param_changes, "append_param_change", lambda *args, **kwargs: None)
++
++  backup = {key: stored}
++  success = {"ok_cnt": 1, "fail_cnt": 0, "fails": []}
++  assert params_service.restore_param_values_from_backup(backup) == success
++  assert state[key] == expected
++
++  state[key] = 150
++  restored = params_service.restore_param_values_validated(backup)
++  assert restored["preview"]["entries"][0]["value"] == expected
++  assert restored["result"] == success
++  assert state[key] == expected
 diff --git a/openpilot/selfdrive/carrot/server/tests/test_pc_log_transfer.py b/openpilot/selfdrive/carrot/server/tests/test_pc_log_transfer.py
 --- /dev/null
 +++ b/openpilot/selfdrive/carrot/server/tests/test_pc_log_transfer.py
@@ -8654,7 +9267,7 @@ diff --git a/openpilot/selfdrive/carrot/server/tests/test_setting_profiles.py b/
 diff --git a/openpilot/selfdrive/carrot/server/tests/test_settings_schema.py b/openpilot/selfdrive/carrot/server/tests/test_settings_schema.py
 --- a/openpilot/selfdrive/carrot/server/tests/test_settings_schema.py
 +++ b/openpilot/selfdrive/carrot/server/tests/test_settings_schema.py
-@@ -284,36 +284,22 @@
+@@ -303,36 +303,22 @@
    assert '{"UseWideCamera", {PERSISTENT, BOOL, "1"}}' in params_keys
  
  
@@ -8704,7 +9317,7 @@ diff --git a/openpilot/selfdrive/carrot/server/tests/test_settings_schema.py b/o
  
  
  def test_vehicle_navi_can_control_exposes_route_filter_modes(settings, params):
-@@ -633,3 +619,34 @@
+@@ -652,3 +638,34 @@
        assert item['min'] == item['default'] == 0
        assert 0 < item['nonzero_min'] <= item['max']
        assert set(item['zero_label']) == {'ko', 'en', 'zh'}
@@ -10563,7 +11176,7 @@ diff --git a/openpilot/selfdrive/carrot/web/js/shared/api.js b/openpilot/selfdri
 diff --git a/openpilot/selfdrive/carrot/web/js/translations/en.js b/openpilot/selfdrive/carrot/web/js/translations/en.js
 --- a/openpilot/selfdrive/carrot/web/js/translations/en.js
 +++ b/openpilot/selfdrive/carrot/web/js/translations/en.js
-@@ -808,10 +808,46 @@
+@@ -828,10 +828,46 @@
      video_track_lost_reconnecting: "Reconnecting video",
      video_stalled_reconnecting: "Reconnecting video",
      no_initial_frame_reconnecting: "Waiting for first frame",
@@ -10613,7 +11226,7 @@ diff --git a/openpilot/selfdrive/carrot/web/js/translations/en.js b/openpilot/se
      vision_step_unavailable: "Check the setting.",
      vision_step_inactive: "Waiting to start",
      vision_step_starting: "Preparing camera",
-@@ -1394,8 +1430,6 @@
+@@ -1414,8 +1450,6 @@
      update_ago_seconds: "{s}s ago",
      update_ago_now: "just now",
      git_reset_head_prompt: "Select reset mode based on HEAD.",
@@ -10625,7 +11238,7 @@ diff --git a/openpilot/selfdrive/carrot/web/js/translations/en.js b/openpilot/se
 diff --git a/openpilot/selfdrive/carrot/web/js/translations/ko.js b/openpilot/selfdrive/carrot/web/js/translations/ko.js
 --- a/openpilot/selfdrive/carrot/web/js/translations/ko.js
 +++ b/openpilot/selfdrive/carrot/web/js/translations/ko.js
-@@ -822,10 +822,46 @@
+@@ -842,10 +842,46 @@
      video_track_lost_reconnecting: "영상 재연결 중",
      video_stalled_reconnecting: "영상 재연결 중",
      no_initial_frame_reconnecting: "첫 화면 대기 중",
@@ -10675,7 +11288,7 @@ diff --git a/openpilot/selfdrive/carrot/web/js/translations/ko.js b/openpilot/se
      vision_step_unavailable: "설정을 확인해 주세요.",
      vision_step_inactive: "시작 대기 중",
      vision_step_starting: "카메라 준비 중",
-@@ -1408,8 +1444,6 @@
+@@ -1428,8 +1464,6 @@
      update_ago_seconds: "{s}초 전",
      update_ago_now: "방금 전",
      git_reset_head_prompt: "HEAD 기준 리셋 방식을 선택하세요.",
@@ -11528,7 +12141,7 @@ diff --git a/openpilot/selfdrive/carrot_settings.json b/openpilot/selfdrive/carr
              "MuteDoor",
              "MuteSeatbelt"
            ]
-@@ -1419,14 +1417,14 @@
+@@ -1420,14 +1418,14 @@
        "group": "주행튜닝",
        "name": "VEgoStopping",
        "title": "정지출발민감도(50)x0.01",
@@ -11547,7 +12160,7 @@ diff --git a/openpilot/selfdrive/carrot_settings.json b/openpilot/selfdrive/carr
        "max": 100,
        "default": 50,
        "unit": 5
-@@ -1820,16 +1818,16 @@
+@@ -1821,16 +1819,16 @@
      {
        "group": "버튼설정",
        "name": "PaddleMode",
@@ -11572,7 +12185,7 @@ diff --git a/openpilot/selfdrive/carrot_settings.json b/openpilot/selfdrive/carr
        "default": 1,
        "unit": 1
      },
-@@ -2098,85 +2096,19 @@
+@@ -2099,85 +2097,19 @@
      },
      {
        "group": "시작",
@@ -17461,7 +18074,7 @@ diff --git a/openpilot/system/manager/manager.py b/openpilot/system/manager/mana
  from openpilot.system.manager.helpers import unblock_stdout, write_onroad_params, save_bootlog
  from openpilot.system.manager.process import ensure_running
  from openpilot.system.manager.process_config import managed_processes
-@@ -84,7 +82,6 @@
+@@ -85,7 +83,6 @@
    if params.get_bool("RecordFrontLock"):
      params.put_bool("RecordFront", True)
  
@@ -17469,7 +18082,7 @@ diff --git a/openpilot/system/manager/manager.py b/openpilot/system/manager/mana
    migrate_atc_params(params)
    migrate_lateral_geometry_params(params)
  
-@@ -94,7 +91,6 @@
+@@ -95,7 +92,6 @@
      if default_value is not None and params.get(k) is None:
        params.put(k, default_value)
  
@@ -17477,7 +18090,7 @@ diff --git a/openpilot/system/manager/manager.py b/openpilot/system/manager/mana
    configure_wide_camera(params)
  
    # Create folders needed for msgq
-@@ -159,13 +155,6 @@
+@@ -160,13 +156,6 @@
    cloudlog.info("everything is dead")
  
  
@@ -17491,7 +18104,7 @@ diff --git a/openpilot/system/manager/manager.py b/openpilot/system/manager/mana
  def read_rss_kb(pid: int) -> int:
    try:
      with open(f"/proc/{pid}/status") as f:
-@@ -219,7 +208,7 @@
+@@ -221,7 +210,7 @@
  
      ignition = any(ps.ignitionLine or ps.ignitionCan for ps in sm['pandaStates'] if ps.pandaType != log.PandaState.PandaType.unknown)
      if ignition and not ignition_prev:
@@ -19572,6 +20185,18 @@ diff --git a/tools/carrot_pc_logs/tests/test_receiver.py b/tools/carrot_pc_logs/
 +
 +if __name__ == "__main__":
 +  unittest.main()
+diff --git a/tools/docs/wiki_settings/tests/test_ci_check.py b/tools/docs/wiki_settings/tests/test_ci_check.py
+--- a/tools/docs/wiki_settings/tests/test_ci_check.py
++++ b/tools/docs/wiki_settings/tests/test_ci_check.py
+@@ -47,7 +47,7 @@
+       self.assertTrue((output / "summary.md").is_file())
+       self.assertTrue((output / "pages.diff").is_file())
+       stored = json.loads((output / "summary.json").read_text(encoding="utf-8"))
+-      self.assertEqual(stored["result"]["settings"], 207)
++      self.assertEqual(stored["result"]["settings"], 205)
+       self.assertEqual(stored["validationIssues"], [])
+       self.assertIn("Settings-Catalog.md", (output / "pages.diff").read_text(encoding="utf-8"))
+ 
 diff --git a/tools/docs/wiki_settings/tests/test_generate.py b/tools/docs/wiki_settings/tests/test_generate.py
 --- a/tools/docs/wiki_settings/tests/test_generate.py
 +++ b/tools/docs/wiki_settings/tests/test_generate.py
@@ -19579,12 +20204,12 @@ diff --git a/tools/docs/wiki_settings/tests/test_generate.py b/tools/docs/wiki_s
        catalog_commit=COMMIT,
        generated_at=STAMP,
      )
--    self.assertEqual(len(result.generated_settings), 206)
-+    self.assertEqual(len(result.generated_settings), 204)
+-    self.assertEqual(len(result.generated_settings), 207)
++    self.assertEqual(len(result.generated_settings), 205)
      self.assertIn("TeslaAutoTurnSignals", result.index["settings"])
      self.assertIn("NNFF", result.index["settings"])
-     self.assertIn("AutoBlinkerControl", result.index["settings"])
-@@ -97,22 +97,20 @@
+     self.assertIn("CommaPedalEnabled", result.index["settings"])
+@@ -98,22 +98,20 @@
      self.assertIn("SignalAssistMode", result.index["settings"])
      self.assertIn("CruiseCoastingPercent", result.index["settings"])
      self.assertIn("RadarTrackFlip", result.index["settings"])
@@ -19598,21 +20223,198 @@ diff --git a/tools/docs/wiki_settings/tests/test_generate.py b/tools/docs/wiki_s
 +                    "DriverMonitoringEnabled", "DriverMonitoringSessionDisabled", "DriverMonitoringMode", "CarrotVisionEnabled",
                      "CarrotYouTubeLive", "CarrotYouTubeQuality", "CarrotYouTubeTimestamp"):
        self.assertNotIn(retired, result.index["settings"])
--    self.assertEqual(result.index["review"], {"current": 0, "needs_review": 206})
-+    self.assertEqual(result.index["review"], {"current": 0, "needs_review": 204})
+-    self.assertEqual(result.index["review"], {"current": 0, "needs_review": 207})
++    self.assertEqual(result.index["review"], {"current": 0, "needs_review": 205})
      self.assertEqual(result.index["locales"], ["ko", "en", "zh"])
--    self.assertEqual(len(result.pages), (206 * 3) + 2)
-+    self.assertEqual(len(result.pages), (204 * 3) + 2)
+-    self.assertEqual(len(result.pages), (207 * 3) + 2)
++    self.assertEqual(len(result.pages), (205 * 3) + 2)
      setting_pages = {
        name: text
        for name, text in result.pages.items()
        if GENERATOR.GENERATED_PAGE_RE.fullmatch(name)
      }
--    self.assertEqual(len(setting_pages), 206 * 3)
-+    self.assertEqual(len(setting_pages), 204 * 3)
+-    self.assertEqual(len(setting_pages), 207 * 3)
++    self.assertEqual(len(setting_pages), 205 * 3)
      self.assertTrue(all(text.count("<!-- CARROT:SETTING:BEGIN ") == 1 for text in setting_pages.values()))
      for name, text in result.pages.items():
        if name.endswith(".md"):
+diff --git a/tools/jetlink/blink_source.py b/tools/jetlink/blink_source.py
+--- a/tools/jetlink/blink_source.py
++++ b/tools/jetlink/blink_source.py
+@@ -105,6 +105,10 @@
+   trial_until = 0.
+   last_trial = None
+   policy, params = Policy(), Params()
++  fms_hold = None
++  if ble and fingerprint == 'KIA_SORENTO_HEV_4TH_GEN':
++    from opendbc.car.hyundai.hyundaicanfd import BlinkerHold
++    fms_hold = BlinkerHold()
+   automatic = AutomaticSignals()
+   tbt = TbtBlinker()
+   boundary = BoundaryEvents(read_json(RUNTIME/'boundary-indicator.json', {}))
+@@ -194,6 +198,8 @@
+         auto = tbt_auto
+     model_fresh = ('modelV2' in sm.services and sm.valid['modelV2'] and sm.alive['modelV2'] and fresh(sm.recv_time['modelV2'], now, .35))
+     meta = sm['modelV2'].meta if model_fresh else None
++    if fms_hold is not None:
++      fms_hold.update(sm['modelV2'] if model_fresh else None, cs, sm['carControl'].latActive and ok)
+     observed_source = str(getattr(meta, 'observedIndicatorSource', ''))
+     observation_enabled = (params.get_bool('ManualLaneChangeIndicator') if observed_source == 'manual' else
+                            params.get_bool('ModelPathIndicator') if observed_source == 'model_path' else
+@@ -244,6 +250,9 @@
+     if not spas and policy.relight(now, activated_id, acknowledged and not receiver_override, cs.leftBlinker, cs.rightBlinker,
+                                   retry_unlit=auto_valid and automatic.direction is not None and feedback.get('state') == 'ready'):
+       hold, activated_id = policy.hold, None
++    if fms_hold is not None and fms_hold.blocked:
++      # BLE renewals obey the same driver-intervention latch as native CAN HOLD.
++      hold, activated_id, release_until = None, None, 0.
+     model_fresh = ('modelV2' in sm.services and sm.valid['modelV2'] and sm.alive['modelV2'] and fresh(sm.recv_time['modelV2'], now, .35))
+     meta = sm['modelV2'].meta if model_fresh else None
+     boundary_direction = {'left':1, 'right':2}.get(str(getattr(meta, 'manualLaneIndicator', 'none')), 0)
+diff --git a/tools/jetlink/test_blinker_auto.py b/tools/jetlink/test_blinker_auto.py
+--- a/tools/jetlink/test_blinker_auto.py
++++ b/tools/jetlink/test_blinker_auto.py
+@@ -551,3 +551,140 @@
+     assert all(value['direction'] is None for value in leases[8:])
+   assert all(value['direction'] is None for value in leases[80:])
+   assert all(record['turn_phase'] == 'approach' for record in sent[8:60])
++
++
++@pytest.mark.parametrize("interruption", ["torque", "cancel_then_torque", "invalid", "lat_off"])
++def test_fms_ble_source_releases_lane_hold_until_a_fresh_stalk(monkeypatch, interruption):
++  sent, leases = run_fms_ble_source(monkeypatch, interruption=interruption)
++  assert all(record["hold"] and record["hold"]["direction"] == "left" for record in sent[1:4])
++  assert all(record["hold"] is None and not record["activated"] for record in sent[4:9])
++  assert all(record["direction"] is None and not record["override"] for record in leases[4:9])
++  assert all(record["hold"] and record["hold"]["direction"] == "right" for record in sent[9:])
++  assert not any(record["events"] for record in sent)
++
++  from openpilot.selfdrive.carrot.bluetooth.b1_monitor import Intent
++  intent = Intent()
++  original = sent[3]["hold"]
++  intent.inflight = (3, original["id"])
++  intent.queued = (original, True, sent[4]["stamp"] + 3)
++  op, event, _ = intent.choose(sent[4], "ready", 3, sent[4]["stamp"])
++  assert op == (3 if interruption == "invalid" else 0) and event is None
++  assert intent.queued is None
++  assert all(intent.choose(record, "waiting", 3, record["stamp"])[0] not in (4, 5) for record in sent[4:6])
++
++
++def test_fms_ble_hold_block_preserves_fresh_physical_taps(monkeypatch):
++  sent, _ = run_fms_ble_source(monkeypatch, tap_during_block=True)
++  assert all(record["hold"] is None for record in sent[4:9])
++  assert sent[6]["events"] == [{"id": "fresh-physical-tap", "time": sent[6]["stamp"], "direction": "right"}]
++
++
++@pytest.mark.parametrize("fingerprint,ble", [
++  ("KIA_EV6", True),
++  ("HYUNDAI_IONIQ_5_PE", True),
++  ("HYUNDAI_IONIQ_5_PE", False),
++])
++def test_fms_ble_hold_adaptation_leaves_other_paths_on_original_policy(monkeypatch, fingerprint, ble):
++  sent, _ = run_fms_ble_source(monkeypatch, fingerprint=fingerprint, ble=ble)
++  assert all(record["hold"] and record["hold"]["direction"] == "left" for record in sent[1:6])
++
++
++def test_fms_ble_normal_completion_retires_old_torque_episode(monkeypatch):
++  sent, _ = run_fms_ble_source(monkeypatch, interruption="completed")
++  assert sent[4]["hold"] is None
++  assert sent[5]["hold"] is None
++  assert all(record["hold"] and record["hold"]["direction"] == "left" for record in sent[6:8])
++
++
++def run_fms_ble_source(monkeypatch, *, interruption="torque", fingerprint="KIA_SORENTO_HEV_4TH_GEN",
++                       ble=True, tap_during_block=False):
++  import json
++  from contextlib import nullcontext
++  from types import SimpleNamespace as NS
++  from test_blinker import Vehicle
++  # Load the production guard before the source fixture replaces messaging imports.
++  import importlib
++  importlib.import_module("opendbc.car.hyundai.hyundaicanfd")
++  import blink_source as source
++  from openpilot.selfdrive.carrot.bluetooth import model
++
++  class Desire:
++    def __init__(self, side):
++      self.raw = {"left": 3, "right": 4}.get(side, 0)
++
++    def __str__(self):
++      return {0: "none", 3: "laneChangeLeft", 4: "laneChangeRight"}[self.raw]
++
++  clock, sent, leases = [10.], [], []
++  received = set()
++  sm = Vehicle(speed=5.)
++  cs = sm["carState"]
++  cs.steeringPressed, cs.steeringTorque = False, 0.
++  cs.leftBlinkerStalkCount = cs.rightBlinkerStalkCount = 0
++  cs.trailerConnected = False
++  sm["modelV2"] = NS(meta=NS())
++  sm["carrotMan"] = NS(atcType="none", xDistToTurn=40)
++  sm["livePose"] = NS(inputsOK=True, sensorsOK=True, posenetOK=True, orientationNED=NS(valid=True, z=0.))
++  sm.services = list(sm)
++  sm.valid = dict.fromkeys(sm, True)
++  sm.alive = dict.fromkeys(sm, True)
++  sm["selfdriveState"].atcTurnStartMonoTime = 0
++  sm["selfdriveState"].atcTurnDirection = "none"
++
++  def tick(_):
++    index = len(sent)
++    clock[0] = 10. + index * .05
++    sm.recv_time = dict.fromkeys(sm, clock[0])
++    side = "none" if index in (0, 8) else "right" if index >= 9 else "left"
++    lane_state = "off" if index in (0, 8) else "preLaneChange" if index in (1, 9) else "laneChangeStarting"
++    if interruption == "cancel_then_torque" and index in (3, 4):
++      lane_state = "off"
++    if interruption == "completed" and index in (4, 5):
++      side, lane_state = "none", "off"
++    if interruption == "completed" and index == 6:
++      lane_state = "preLaneChange"
++    cs.steeringPressed = index == 2 or (index == 4 and interruption in ("torque", "cancel_then_torque"))
++    if interruption == "completed":
++      cs.steeringPressed = index in (2, 5)
++    cs.canValid = not (interruption == "invalid" and index == 4)
++    sm["carControl"].latActive = not (interruption == "lat_off" and index == 4)
++    cs.rightBlinkerStalkCount = int(index >= 9)
++    cs.leftBlinker, cs.rightBlinker = side == "left", side == "right"
++    meta = sm["modelV2"].meta
++    meta.desire = Desire(side if lane_state != "off" else "none")
++    meta.desireState = [0.] * 5
++    meta.autoTurnSignal, meta.autoTurnSignalLaneChange = side, side != "none"
++    meta.laneChangeState = lane_state
++    meta.laneChangeBlinkerHold = side if lane_state != "off" else "none"
++    meta.laneChangeCompletedMonoTime = 100 if interruption == "completed" and index >= 4 else 0
++
++  def receive(_):
++    index = len(sent)
++    received.add(index)
++    if index == 13:
++      return b""
++    previous = sent[-1]["hold"] if sent else None
++    return json.dumps({"stamp": 10. + index * .05, "state": "ready",
++                       "accepted_id": previous["id"] if previous else None}).encode()
++
++  sm.update = tick
++  monkeypatch.setitem(sys.modules, "openpilot.common.params", NS(Params=lambda: NS(
++    get=lambda _: b"cp", get_int=lambda key: 2 if key == "AutoBlinkerControl" else 0,
++    get_bool=lambda key: key == "AlwaysLateral")))
++  monkeypatch.setitem(sys.modules, "openpilot.cereal", NS(messaging=NS(SubMaster=lambda _: sm),
++    car=NS(CarParams=NS(from_bytes=lambda _: nullcontext(NS(carFingerprint=fingerprint, passive=False))))))
++  sock = NS(setblocking=lambda _: None, recv=receive, send=lambda raw: sent.append(json.loads(raw)))
++  monkeypatch.setattr(source.socket, "socket", lambda **kw: sock)
++  monkeypatch.setattr(source.select, "select", lambda *args: ([sock] if len(sent) not in received else [], [], []))
++  monkeypatch.setattr(source.time, "monotonic", lambda: clock[0])
++  monkeypatch.setattr(source.time, "sleep", lambda _: None)
++  monkeypatch.setattr(source, "PACKAGE_CONFIG", NS(read_text=lambda: json.dumps({"fingerprint": fingerprint})))
++  monkeypatch.setattr(source.Events, "read", lambda *args: [
++    {"id": "fresh-physical-tap", "time": clock[0], "direction": "right"}
++  ] if len(sent) == 6 and tap_during_block else [])
++  monkeypatch.setattr(model, "read_json", lambda *args: {})
++  monkeypatch.setattr(model, "config", dict)
++  monkeypatch.setattr(model, "atomic_json", lambda path, value: leases.append(value) if path.name == "physical-hold.json" else None)
++  source.main(0, ble=ble)
++  assert len(sent) == len(leases) == 13
++  return sent, leases
 diff --git a/tools/signal_analysis/signal_upper_group_trial.py b/tools/signal_analysis/signal_upper_group_trial.py
 --- a/tools/signal_analysis/signal_upper_group_trial.py
 +++ b/tools/signal_analysis/signal_upper_group_trial.py

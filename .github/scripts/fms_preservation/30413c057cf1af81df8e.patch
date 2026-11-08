@@ -1,6 +1,6 @@
 --- a/openpilot/selfdrive/carrot/web/js/translations/ko.js
 +++ b/openpilot/selfdrive/carrot/web/js/translations/ko.js
-@@ -822,10 +822,46 @@
+@@ -842,10 +842,46 @@
      video_track_lost_reconnecting: "영상 재연결 중",
      video_stalled_reconnecting: "영상 재연결 중",
      no_initial_frame_reconnecting: "첫 화면 대기 중",
@@ -50,7 +50,7 @@
      vision_step_unavailable: "설정을 확인해 주세요.",
      vision_step_inactive: "시작 대기 중",
      vision_step_starting: "카메라 준비 중",
-@@ -1408,8 +1444,6 @@
+@@ -1428,8 +1464,6 @@
      update_ago_seconds: "{s}초 전",
      update_ago_now: "방금 전",
      git_reset_head_prompt: "HEAD 기준 리셋 방식을 선택하세요.",
