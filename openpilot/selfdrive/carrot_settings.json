@@ -124,7 +124,8 @@
               "zh": "居中校正",
               "params": [
                 "PathOffset",
-                "CameraYawTrimDeg"
+                "CameraYawTrimDeg",
+                "LanelessCurveCenteringPct"
               ]
             },
             {
@@ -680,6 +681,24 @@
       "max": 200,
       "default": 0,
       "unit": 1
+    },
+    {
+      "group": "조향일반",
+      "name": "LanelessCurveCenteringPct",
+      "title": "레인리스 커브 중앙 보정",
+      "descr": "쏘렌토 MQ4 HEV의 레인리스(UseLaneLineSpeed=0) 커브에서 양쪽 차선이 안정적이면 안쪽으로 치우친 모델 경로를 중앙 쪽으로 보정합니다. 차선이 끊기면 보정이 서서히 줄어듭니다. 0%는 꺼짐, 30%는 로그 재생에 사용한 강도입니다. 실제 보정량과 변화율에는 별도 제한이 있습니다.",
+      "egroup": "LAT",
+      "etitle": "Laneless Curve Centering",
+      "edescr": "On the Sorento MQ4 HEV, adjusts inward model paths toward the center on laneless curves (UseLaneLineSpeed=0) when both lane lines are stable. The correction fades when lane lines are lost. 0% disables it. Log replay used 30%. Correction magnitude and rate have separate limits.",
+      "cgroup": "转向",
+      "ctitle": "无车道线模式弯道居中校正",
+      "cdescr": "适用于索兰托 MQ4 HEV 的无车道线模式 (UseLaneLineSpeed=0)。弯道内两侧车道线稳定时，将偏向弯道内侧的模型路径向车道中心修正。车道线丢失后修正逐步减弱。0% 为关闭，30% 为日志回放使用的强度。修正幅度和变化速度另有限制。",
+      "min": 0,
+      "max": 100,
+      "default": 0,
+      "unit": 1,
+      "display_unit": "percent",
+      "risk": "high"
     },
     {
       "group": "조향토크",

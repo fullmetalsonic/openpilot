@@ -81,6 +81,23 @@ def test_gap_cycle_setting_is_registered_and_in_gap_menu(settings):
   assert section["items"].index("CruiseGapLevels") < section["items"].index("TFollowGap1")
 
 
+def test_laneless_curve_centering_follows_existing_steering_corrections(settings):
+  from openpilot.selfdrive.carrot.server.services.params import clamp_numeric
+
+  _, by_name, _ = group_index(settings)
+  key = "LanelessCurveCenteringPct"
+  setting = by_name[key]
+  assert (setting["min"], setting["max"], setting["default"], setting["unit"]) == (0, 100, 0, 1)
+  assert setting["display_unit"] == "percent"
+  assert setting["risk"] == "high"
+  assert f'{{"{key}", {{PERSISTENT, INT, "0"}}}}' in PARAMS_KEYS_PATH.read_text(encoding="utf-8")
+  steering = next(group for category in build_menu_categories(settings, by_name) for group in category["groups"]
+                  if group["id"] == "STEER")
+  centering = next(section for section in steering["sections"] if section["id"] == "STEER_CENTER")
+  assert centering["items"] == ["PathOffset", "CameraYawTrimDeg", key]
+  assert [clamp_numeric(value, setting) for value in (-5, 30, 110)] == [0, 30, 100]
+
+
 def test_rear_camera_hold_uses_meter_values_and_persistent_default(settings, params):
   hold = next(p for p in params if p["name"] == "AutoNaviRearCameraHoldDistance")
   assert (hold["min"], hold["max"], hold["default"], hold["unit"]) == (0, 300, 100, 10)

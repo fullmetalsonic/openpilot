@@ -14,10 +14,12 @@ import numpy as np
 from collections import deque
 
 from opendbc.car.car_helpers import interfaces
+from opendbc.car.hyundai.values import CAR as HYUNDAI_CAR
 from opendbc.car.vehicle_model import VehicleModel
 from opendbc.car.volkswagen.values import MEB_CURVATURE_PID_KP, MEB_CURVATURE_PID_KI, MEB_CURVATURE_PID_KF, MEB_CURVATURE_MAX
 
 from openpilot.selfdrive.controls.lib.drive_helpers import clip_curvature, get_lag_adjusted_curvature, is_volkswagen_meb
+from openpilot.selfdrive.controls.lib.laneless_curve_centering import LanelessCurveCentering
 from openpilot.selfdrive.controls.lib.latcontrol import LatControl, MIN_LATERAL_CONTROL_SPEED
 from openpilot.selfdrive.controls.lib.latcontrol_pid import LatControlPID
 from openpilot.selfdrive.controls.lib.latcontrol_angle import LatControlAngle, STEER_ANGLE_SATURATION_THRESHOLD
@@ -72,6 +74,11 @@ class Controls:
     self.steer_limited_by_safety = False
     self.curvature = 0.0
     self.desired_curvature = 0.0
+    self.curve_centering = (LanelessCurveCentering() if self.CP.carFingerprint == HYUNDAI_CAR.KIA_SORENTO_HEV_4TH_GEN and
+                            self.CP.steerControlType == car.CarParams.SteerControlType.torque and
+                            self.CP.lateralTuning.which() == 'torque' else None)
+    self.curve_centering_pct = self.params.get_int("LanelessCurveCenteringPct") if self.curve_centering is not None else 0
+    self.curve_steer_target = None
     self.lateral_startup = LateralStartupGate()
     self.lateral_started = False
 
@@ -106,11 +113,51 @@ class Controls:
 
   def update(self):
     self.sm.update(15)
+    if self.curve_centering is not None and self.sm.frame % 20 == 0:
+      self.curve_centering_pct = self.params.get_int("LanelessCurveCenteringPct")
     if self.sm.updated["liveCalibration"]:
       self.pose_calibrator.feed_live_calib(self.sm['liveCalibration'])
     if self.sm.updated["livePose"]:
       device_pose = Pose.from_live_pose(self.sm['livePose'])
       self.calibrated_pose = self.pose_calibrator.build_calibrated_pose(device_pose)
+
+  def curve_centered_target(self, CS, CC, model, roll, previous_nominal, limited, smooth_value):
+    nominal = self.desired_curvature
+    previous = self.curve_steer_target
+    if not CC.latActive:
+      self.curve_centering.reset()
+      self.curve_steer_target = None
+      return nominal, limited
+
+    enabled = (self.curve_centering_pct > 0 and CS.useLaneLineSpeed == 0 and not self.lanefull_mode_enabled and
+               not self.sm['lateralPlan'].useLaneLines and self.sm.valid['carState'] and
+               CS.gearShifter == car.CarState.GearShifter.drive and not CS.steeringPressed and
+               not (CS.leftBlinker or CS.rightBlinker or CC.leftBlinker or CC.rightBlinker) and
+               model.meta.laneChangeState == LaneChangeState.off and model.meta.desire == log.Desire.none)
+    trim = 0.
+    if enabled:
+      now_ns = time.monotonic_ns()
+      pose_age = now_ns - self.sm.logMonoTime['livePose']
+      pose = self.sm['livePose']
+      yaw_rate = None
+      if (self.calibrated_pose is not None and self.pose_calibrator.calib_valid and self.sm.valid['livePose'] and
+          0 <= pose_age <= 150_000_000 and pose.inputsOK and pose.sensorsOK and pose.angularVelocityDevice.valid):
+        yaw_rate = self.calibrated_pose.angular_velocity.xyz[2]
+      trim = self.curve_centering.update(model if self.sm.valid['modelV2'] else None,
+                                         self.sm.logMonoTime['modelV2'], now_ns, yaw_rate, CS.vEgo, self.curve_centering_pct)
+    else:
+      self.curve_centering.reset()
+
+    if trim == 0. and previous is None:
+      return nominal, limited
+
+    previous = previous_nominal if previous is None else previous
+    target = nominal
+    if enabled and math.isfinite(model.action.desiredCurvature):
+      target = smooth_value(model.action.desiredCurvature + trim, previous, 0.1)
+    target, target_limited = clip_curvature(CS.vEgo, previous, target, roll)
+    self.curve_steer_target = None if trim == 0. and abs(target - nominal) < 1e-9 else target
+    return target, target_limited
 
   def state_control(self):
     CS = self.sm['carState']
@@ -224,9 +271,15 @@ class Controls:
     else:      
       new_desired_curvature = smooth_value(model_v2.action.desiredCurvature, self.desired_curvature, 0.1)
 
-    self.desired_curvature, curvature_limited = clip_curvature(CS.vEgo, self.desired_curvature, new_desired_curvature, lp.roll)
+    previous_nominal = self.desired_curvature
+    self.desired_curvature, curvature_limited = clip_curvature(CS.vEgo, previous_nominal, new_desired_curvature, lp.roll)
 
+    # Keep the nominal command for path indicators and the longitudinal preview fallback.
     actuators.curvature = float(self.desired_curvature)
+    steer_curvature = self.desired_curvature
+    if self.curve_centering is not None:
+      steer_curvature, curvature_limited = self.curve_centered_target(CS, CC, model_v2, lp.roll, previous_nominal,
+                                                                     curvature_limited, smooth_value)
 
     # VW MEB 폐루프 곡률 보정 = infiniteCable2 LatControlCurvature.update() 정확 복제.
     # carrot엔 곡률 전용 횡제어기가 없어 모델 목표곡률을 open-loop로 보내면 EPS가 명령만큼 안 꺾여
@@ -260,7 +313,7 @@ class Controls:
     # 주의: MEB는 위 곡률 PID가 실제 조향을 만들고, 아래 LaC(LatControlAngle)와 lac_log는
     # 파이프라인 형식 유지를 위한 더미임 (로그의 angleState는 실제 제어 상태가 아님).
     steer, steeringAngleDeg, lac_log = self.LaC.update(CC.latActive, CS, self.VM, lp,
-                                                       self.steer_limited_by_safety, self.desired_curvature,
+                                                       self.steer_limited_by_safety, steer_curvature,
                                                        CC, curvature_limited,
                                                        model_data=self.sm['modelV2'])
     actuators.torque = float(steer)
